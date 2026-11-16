@@ -316,7 +316,7 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 **Reference:** [NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
 
 - **Q-009 APPROVED B:** close the specific Session promptly on an incoming Application frame that cannot be admitted to its bounded callback backlog; no pause/resume recovery policy for queue overflow in V1. See the Q-009 decision below.
-- **Q-010 OPEN:** proposed, unapproved examples: 4 MiB inbound callback queue per Session, 256 MiB global queued Application frames per Server, 1024 bound Sessions, separately bounded control headroom. These must be sized and approved; avoid conflating process RSS with queued frame budgets.
+- **Q-010 OPEN:** proposed Option A: inbound Callback queue 4 MiB per Session, server-wide queued Application bytes 256 MiB, max 1024 bound Sessions, 128 pre-bind connections with 30s handshake deadline and 4 KiB control reserve per Session. Proposed global overload: outgoing => Queue Full without close; incoming => close offending Session; new Bind at bound limit => reject without eviction. Option B: choose different defaults after workload sizing. **Not approved.** The 256 MiB quota is not process RSS.
 - **API-004 OPEN:** choose a Go configuration representation distinguishing **omitted** `EnquireLinkIdleInterval` (approved default 30s) from explicitly provided `0` (disable). Ordinary zero-valued `time.Duration` alone cannot represent both states.
 
 Only the **outgoing** 4 MiB per-Session queue has an approved numeric limit (Q-008). No implementation is authorized.
