@@ -224,3 +224,14 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 - This is an ownership-scope decision only. Numeric capacities, physical pool layout, per-class aggregate-cap policy, public option names and saturation policies remain open.
 
 See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-002 is next.
+
+## 20. WORKER-002 — owner-wide active-worker ceilings (OWNER APPROVED, 2026-11-16)
+
+- **APPROVED Option A:** every Client and Server instance has three independent aggregate active-worker ceilings: Application, Completion and OnClose.
+- Per-Session concurrency is intersected with the corresponding owner/class active ceiling.
+- Active capacity is isolated by class; no class may borrow or consume another class's permits.
+- Ceilings count physically executing callbacks; queued events remain subject to separate count/byte admission.
+- WORKER-001 owner scope applies across all Sessions and Client reconnect generations, including callbacks still running from retired Sessions.
+- Numeric defaults, public option names, physical pool layout and event capacities remain open.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-003 is next.
