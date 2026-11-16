@@ -311,6 +311,7 @@ The additional hot-path cost is a bounded count reservation/release alongside by
 10. Unknown/late Stream Responses with no live Pending Request do not resurrect a Request or create Completion work; they are handled by the bounded protocol discard/close policy, not retained as an unowned Completion payload.
 11. Control PDU storage remains in its separate Q-010 per-Session 4 KiB reserve. OnClose has no payload ledger under the current API. No maximum queue or payload capacity is eagerly preallocated.
 12. The library never recycles or pools an inbound backing array after it is exposed to user code. If the application retains that slice after callback return, that retention is outside the library-enforceable byte ceiling.
+13. **Completion retained-byte admission failure — OWNER APPROVED OPTION A (2026-11-17):** if a syntactically valid, in-limit Response matches a live Pending Request but its declared full frame length cannot reserve either the Session or owner Completion retained-byte budget, do not allocate/read the Response Body into a payload buffer and do not close the Session solely for this capacity failure. Drain exactly the declared Body length through one small fixed-size scratch buffer whose memory is independent of the declared Body length. After a complete drain, if this Request still wins terminal settlement, enqueue its normal Completion callback with no Response payload and a typed terminal Resource Capacity error. Keep the Session open. The existing PERF-003 Request credit remains held until that Completion callback returns or is cancelled under Forced Close A; no second Completion/event credit is created. If timeout/close/another terminal event wins while draining, it remains the sole settlement; after a successful drain, do not deliver a duplicate Resource Capacity callback. If the drain fails because of EOF, timeout/read error or concurrent transport close, close the Session under the existing transport-error/Forced Close policy; do not also emit the Resource Capacity completion. The drain is limited by the validated frame maximum and existing Reader/deadline policy; exact timeout behavior remains API-002 work. Oversized or malformed frames continue to follow the protocol-error policy, not this capacity path.
 
 ### Rationale and performance consequences
 
@@ -320,7 +321,6 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ### Explicitly unresolved; must close before Architecture Freeze
 
-- If a valid matching Stream Response cannot reserve Completion retained bytes, the engine must not silently drop it, corrupt the TCP stream or create an unbounded overflow path. The exact policy (e.g. bounded discard plus one terminal resource error versus closing the offending Session and settling its pending requests) remains a separate owner decision.
 - The compatibility reference currently records a 1 MiB maximum frame, but the exact C++ Pinex 1.5.0 maximum and Go/C++ cross-language confirmation are not yet frozen.
 - Numeric retained-byte ceilings, count defaults, worker ceilings, valid ranges and public option identifiers remain WORKER-009/API-004 design work.
 
@@ -332,7 +332,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 ## 16. Explicitly not decided
 
 - WORKER-009A default derivation model; WORKER-009B numeric defaults; WORKER-009C hard validation ranges and cross-field constraints.
-- WORKER-008 Completion retained-byte exhaustion disposition; no silent Response drop is allowed.
+- WORKER-008 Completion retained-byte exhaustion policy is resolved: bounded Body drain + terminal Resource Capacity Completion without payload under Option A. The exact C++ Pinex maximum frame size and Go/C++ cross-language confirmation remain open.
 - Exact maximum Pinex frame size and Go/C++ cross-language confirmation.
 - API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
 - Final exported option identifiers and constructor signatures under API-001/API-004.
@@ -444,6 +444,8 @@ Rationale:
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
 The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+
+**Separate WORKER-008 owner decision (2026-11-17):** Completion retained-byte admission exhaustion is CLOSED / OWNER APPROVED, OPTION A. For a valid matching Response whose full declared frame cannot reserve the Session or owner Completion byte budget, the Reader drains exactly the Body through a small fixed-size scratch buffer (no body-sized allocation). If drain succeeds and the Request has not already been terminally settled, deliver one Completion callback with no payload and a typed terminal Resource Capacity error; keep the Session open and retain its existing Request credit until callback return/cancellation. If another terminal event wins during drain, do not deliver a duplicate. If drain fails, close the Session under transport-error/Forced Close policy. Malformed or over-maximum frames do not use this path.
 
 ### 4. Defaults already approved and unchanged
 
