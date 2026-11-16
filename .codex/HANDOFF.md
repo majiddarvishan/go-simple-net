@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A is CLOSED / OWNER APPROVED, OPTION A. Next: WORKER-009B1, per-Session callback concurrency and idle-retirement defaults. WORKER-009B2/009B3 numeric count/byte defaults and WORKER-009C validation limits remain open. WORKER-008 Completion-byte exhaustion behavior and exact frame maximum remain open for Architecture Freeze; API-002 and API-003 also remain open.
+**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A and WORKER-009B1 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. Next: WORKER-009B2, count/event and outstanding Request-credit defaults; WORKER-009B3 payload-byte defaults and WORKER-009C validation limits remain open. WORKER-008 Completion-byte exhaustion behavior and exact frame maximum remain open for Architecture Freeze; API-002 and API-003 also remain open.
 
 ## 1. Repository state
 
@@ -506,7 +506,7 @@ The owner approved two independent retained-payload byte ledgers: Application an
 
 ### Next decision — WORKER-009
 
-WORKER-009A has since been resolved: the owner approved CPU-derived, capped defaults for the three owner worker ceilings, with fixed finite defaults for all other quotas. The current owner question is WORKER-009B1: approve per-Session Application/Completion concurrency defaults and the three idle-retirement grace defaults.
+WORKER-009A and WORKER-009B1 are now CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. The current owner question is WORKER-009B2: approve count/event and Request-credit defaults.
 
 **Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
 
@@ -515,6 +515,15 @@ WORKER-009A has since been resolved: the owner approved CPU-derived, capped defa
 
 The owner approved Option A. At Client/Server effective-configuration construction, capture P=max(1,runtime.GOMAXPROCS(0)) once. Resolve owner-wide active-worker defaults as Application=min(max(4,4P),128), Completion=min(max(2,2P),64), and OnClose=min(max(2,P),32). These are lazy worker ceilings, not eager goroutine counts. The resulting values remain immutable for the owner lifetime; later CPU quota/GOMAXPROCS changes do not resize a live instance. All other queue, count and retained-byte quotas remain fixed finite defaults, independently configurable. The formula caps are not hard maxima for explicit overrides; WORKER-009C will decide those.
 
-**Next:** WORKER-009B1 — recommend Application and Completion per-Session concurrency defaults of 1 each, plus 30s idle-retirement grace for each isolated pool. Then WORKER-009B2 count defaults and WORKER-009B3 retained-payload byte defaults.
+**Next:** WORKER-009B2 — review count/event and Request-credit defaults. WORKER-009B1 is CLOSED / OWNER APPROVED: Application and Completion concurrency=1 per Session; each isolated pool's idle-retirement grace=30s.
+
+**Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.
+
+
+## 37. WORKER-009B1 — per-Session concurrency and idle retirement (OWNER APPROVED, 2026-11-17)
+
+The owner approved all five defaults: Application callback concurrency=1 per Session; Completion callback concurrency=1 per Session; Application idle grace=30s; Completion idle grace=30s; OnClose idle grace=30s. All are independently configurable. Concurrency 1 preserves serial callback execution by default; higher positive values remain configurable subject to the existing per-Session and owner-wide ceilings. Each idle grace starts only after callback return and when no dispatchable work exists; it never interrupts running callbacks. WORKER-005's zero warm-idle floor, class isolation and atomic enqueue/retirement rules remain binding. Explicit zero is not Unlimited or an immediate-retirement shorthand and is invalid for these positive settings.
+
+**Next:** WORKER-009B2 — OnClose event credits, incoming/outgoing Application frame counts, aggregate queued frame count and outstanding Request-credit defaults. WORKER-009B3 and WORKER-009C remain open.
 
 **Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.

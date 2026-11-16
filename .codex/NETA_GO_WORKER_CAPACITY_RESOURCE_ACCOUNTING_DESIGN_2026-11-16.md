@@ -341,7 +341,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ## 17. WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
-**Status:** WORKER-009A CLOSED / OWNER APPROVED OPTION A; WORKER-009B OPEN (numeric defaults are proposals only).  
+**Status:** WORKER-009A CLOSED / OWNER APPROVED; WORKER-009B1 CLOSED / OWNER APPROVED; WORKER-009B2/B3 and WORKER-009C OPEN.  
 **Implementation:** NOT AUTHORIZED.
 
 ### 1. Scope and decomposition
@@ -349,7 +349,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 WORKER-009 establishes zero-configuration defaults and finite validation boundaries without weakening the bounded-resource contracts.
 
 - **WORKER-009A — CLOSED:** derive the three owner active-worker defaults from GOMAXPROCS; keep other resource quotas fixed and finite.
-- **WORKER-009B1 — OPEN:** per-Session Application/Completion callback concurrency defaults and per-class idle-retirement grace defaults.
+- **WORKER-009B1 — CLOSED / OWNER APPROVED:** per-Session Application/Completion callback concurrency defaults and independent idle-retirement grace defaults for all three worker classes.
 - **WORKER-009B2 — OPEN:** OnClose event, Application frame-count and outstanding Request-credit defaults.
 - **WORKER-009B3 — OPEN:** retained Application and Completion payload-byte defaults.
 - **WORKER-009C — OPEN:** explicit configuration hard maxima, valid ranges, cross-field constraints and final Functional-Option mapping.
@@ -395,17 +395,20 @@ Illustrative resolved values:
 
 ### 3. WORKER-009B — numeric defaults (PROPOSAL ONLY)
 
-The following matrix is the current engineering recommendation. Only the three worker formulas in §2 are approved; every other value below remains open.
+The following matrix distinguishes approved WORKER-009B1 defaults from the still-proposed B2/B3 values. The formulas in §2 and all values in §3.1 are owner approved; B2/B3 remain recommendations only.
 
-#### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement
+#### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement (OWNER APPROVED, 2026-11-17)
 
-| Setting | Recommended default | Scope | Reason |
+| Setting | Approved default | Scope | Reason |
 |---|---:|---|---|
 | Application callback concurrency | 1 | Per Session | Preserves serial behavior by default; users opt into overlap explicitly |
 | Completion callback concurrency | 1 | Per Session | Preserves FIFO callback-start order without overlap by default |
 | Application worker idle grace | 30s | Application pool per owner | Reuses workers across short traffic gaps |
 | Completion worker idle grace | 30s | Completion pool per owner | Avoids churn during response bursts |
 | OnClose worker idle grace | 30s | OnClose pool per owner | Gives close bursts a reuse window while retaining finite retirement |
+
+**Owner approval (2026-11-17):** the owner approved all five values in this table. Concurrency defaults of 1 preserve serial callback execution within each Session; higher positive values remain configurable and are still intersected with the owner-wide class ceiling. Completion callback start selection remains FIFO; when Completion concurrency is raised above 1, callback return order is not guaranteed under C-ORD-B. Each class's 30s grace is independently configurable and starts only after a callback returns and the worker has no dispatchable work. It never interrupts a running callback. WORKER-005's zero warm-idle floor, class isolation and enqueue-versus-retirement linearization remain binding. Explicit zero is invalid for these positive grace settings.
+
 
 The already-approved zero warm-idle floor remains in force. The grace period starts only after a worker returns from user code and has no dispatchable work; it never interrupts a running callback.
 
@@ -467,7 +470,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 ### 6. Owner decision sequence
 
-**Next: WORKER-009B1.** Confirm or revise the two per-Session callback-concurrency defaults (Application=1, Completion=1) and the three per-class idle grace defaults (30s each). After that, resolve B2 and B3 independently. WORKER-009C follows once numeric defaults are approved.
+**Next: WORKER-009B2.** Review the candidate defaults for OnClose event credits, incoming/outgoing Application frame counts, Server aggregate queued Application frame count, and per-Session/owner outstanding Request credits. WORKER-009B3 retained-payload byte defaults follow; WORKER-009C establishes hard maxima and cross-field validation.
 
 **Guardrail:** design/documentation only. No Go/C++ source, tests, benchmarks, builds, dependency changes, CI, deployment or operational changes are authorized.
 
