@@ -69,7 +69,7 @@ Exact exported Go identifiers, whether to expose synchronous request/wait helper
 | Request response timeout | yes | yes | configurable, default to define |
 | Auto reconnect | yes | N/A | optional; retry policy to define |
 | Reconnect delay/backoff | yes | N/A | C++ reference 5s when enabled; Go default not yet approved |
-| Enquire Link idle interval | yes | yes | positive => idle-only; 0 => disabled, Q-002 approved; numeric default OPEN |
+| Enquire Link idle interval | yes | yes | **Default 30s, Q-006 Option B approved**; positive => idle-only; explicit 0 => automatic sending disabled, inbound replies still active |
 | Enquire Link response deadline | yes | yes | policy/timeout OPEN |
 | TCP keepalive | configurable | configurable | independent of application Enquire Link |
 | Outgoing queue byte bound | per connection | per connection | mandatory bounded behavior; exact default OPEN |
@@ -91,12 +91,13 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 **Boundary under review:** What exactly counts as 'successful outgoing frame' should follow the Writer's completed full-frame write, not just queued bytes; this needs a concrete test under partial writes or disconnects.
 
-### Suggested default policy — pending owner approval (Q-006)
+### Approved default policy (Q-006 Option B, 2026-11-16)
 
-- **Proposal A (compatibility-first):** default `EnquireLinkIdleInterval=0` (no autonomous probes), users opt in with a positive duration. Pinex C++ currently behaves similarly by default.
-- **Proposal B (automatic liveness by default):** default positive idle interval, suggested **30 seconds**; users set `0` to disable. Pinex interoperability on the wire still holds, but default behavior differs from current C++.
-
-Owner has **not** chosen A or B.
+- **Default `EnquireLinkIdleInterval=30s`** on neta-go Client and Server.
+- Send automatically only on session inactivity for this interval, measured using actual incoming and completed outgoing Pinex frames; do not send at fixed intervals during normal traffic.
+- An explicit `0` disables automatic sending but never disables responding to a peer's incoming Enquire Link.
+- The C++ Pinex implementation currently does not automatically send Enquire Link by default; this Go default remains compatible at the wire level.
+- The response timeout and action on a missing response remain **unapproved (Q-007)**.
 
 ### Suggested missing-probe response policy — pending review (Q-007)
 
@@ -140,7 +141,7 @@ Owner has **not** chosen A or B.
 
 | ID | Decision | Recommendation | Status |
 |---|---|---|---|
-| Q-006 | Numeric default for Enquire Link idle interval | Present A: 0 or B: 30s; select explicitly | OPEN — owner choice |
+| Q-006 | Numeric default for Enquire Link idle interval | **30s by default (Option B); 0 disables automatic sending** | CLOSED — owner approved 2026-11-16 |
 | Q-007 | Enquire Link response timeout and action | Separate configurable deadline, suggest 10s; close/reconnect on missing matching response | OPEN — engineering/owner review |
 | Q-008 | Capacity defaults and behavior at queue saturation | Bounded per-connection byte queue, fail-fast outcome; control PDUs retain progress | OPEN — further design |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
@@ -149,7 +150,7 @@ Owner has **not** chosen A or B.
 
 ### Proposed task sequence (documentation only)
 
-1. Ask owner Q-006: default idle interval **0** vs **30s** (both configurable).
+1. Q-006 approved: default idle interval **30s**, explicit **0** disables autonomous sending.
 2. Review/close Q-007 heartbeat response timeout and action.
 3. Close Q-008 and remaining exact Config defaults plus callback ownership rules.
 4. Pin exact C++ develop HEAD and golden-wire test vectors in GO-PINEX-001.
