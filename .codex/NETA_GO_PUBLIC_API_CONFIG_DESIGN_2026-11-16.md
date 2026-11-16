@@ -213,4 +213,4 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 ## 8. Next Public API design (API-001)
 
-The design-only [Public API / Request Completion draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) specifies minimal Client, Server, Session, Request/Response and callback concepts. **API-001a is OPEN:** asynchronous callback-first request completion (proposed A) versus synchronous Context-first primary Request API (B). API-004 Functional Options is APPROVED but does not approve names/signatures. No code/test work authorized.
+The design-only [Public API / Request Completion draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) specifies minimal Client, Server, Session, Request/Response and callback concepts. **API-001a is CLOSED — owner approved A:** asynchronous callback-first request completion is the primary interface; B synchronous Context-first was not selected. Performance is an explicit first-class V1 requirement; see [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). API-001b, PERF-002/003 and exact names/signatures remain open; no code/test work authorized.
