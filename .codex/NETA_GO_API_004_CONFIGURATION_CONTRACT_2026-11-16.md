@@ -160,7 +160,7 @@ WORKER-008 Option A is owner approved: separate per-Session and aggregate-owner 
 
 **WORKER-008 Completion-byte exhaustion is also CLOSED / OWNER APPROVED, OPTION A (2026-11-17):** if a valid matching Response cannot reserve its declared full frame against the Session or owner Completion retained-byte budget, do not allocate its Body. Drain exactly the Body through a small fixed-size scratch buffer; if successful and no competing terminal event has won, invoke the existing Completion callback once with no Response payload and a typed terminal Resource Capacity error, keeping the Session open. Keep the existing Request credit through callback return/cancellation; do not create another Completion event credit. A drain/transport failure closes the Session under the existing transport-error/Forced Close policy. Malformed or over-maximum frames follow protocol-error handling. Exact read-timeout behavior remains API-002 work.
 
-WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. WORKER-009A resolves owner worker ceilings once from GOMAXPROCS. WORKER-009B1 sets Application/Completion concurrency=1 per Session and independent 30s idle grace for Application, Completion and OnClose. WORKER-009B2 approves OnClose event credits=1,024 per owner; incoming/outgoing Application frame counts=256 per Session; aggregate queued Application frame count=65,536 per Server; outstanding Request credits=128 per Session and 32,768 per Client/Server owner. WORKER-009B3 approves retained Application bytes=16 MiB per Session and 512 MiB per owner; retained Completion bytes=16 MiB per Session and 256 MiB per owner. All are independently configurable finite defaults, not preallocations or hard maxima. Saturation and ledger semantics are specified above and in Worker Capacity Design §17. WORKER-009C hard maxima, valid ranges, cross-field rules and semantic Functional-Option mapping remain under owner review.
+WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. WORKER-009A resolves owner worker ceilings once from GOMAXPROCS. WORKER-009B1 sets Application/Completion concurrency=1 per Session and independent 30s idle grace for Application, Completion and OnClose. WORKER-009B2 approves OnClose event credits=1,024 per owner; incoming/outgoing Application frame counts=256 per Session; aggregate queued Application frame count=65,536 per Server; outstanding Request credits=128 per Session and 32,768 per Client/Server owner. WORKER-009B3 approves retained Application bytes=16 MiB per Session and 512 MiB per owner; retained Completion bytes=16 MiB per Session and 256 MiB per owner. All are independently configurable finite defaults, not preallocations or hard maxima. Saturation and ledger semantics are specified above and in Worker Capacity Design §17. WORKER-009C hard maxima, valid ranges, cross-field rules and semantic Functional-Option mapping are CLOSED / OWNER APPROVED / OPTION A.
 
 The exact public option names remain API-001 work. Omitted values use defaults; explicit zero is invalid for required positive resource limits, except the already-approved EnquireLinkIdleInterval=0 disable behavior. No implementation or tests authorized.
 
@@ -180,11 +180,11 @@ The owner approved Option A. The four values are official V1 defaults:
 
 Each value is an independent typed Functional Option over a positive finite default. Client owner budgets are shared across reconnect generations; Server owner budgets cover all Sessions of that Server. These are lazy admission ceilings, not preallocation or process RSS limits. Queue byte/count limits remain independent admission sub-limits on the same frame and are not summed as additional physical memory. Started callbacks retain their byte charge until actual callback return; user-retained inbound payload after callback return is outside the library-owned ledger. The exact Pinex maximum frame remains a separate protocol-compatibility decision.
 
-### 11.2 WORKER-009C — proposed hard maxima
+### 11.2 WORKER-009C — approved hard maxima (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
 
-The following ranges are engineering recommendations pending owner approval. They are validation ceilings, not recommended runtime targets:
+The owner approved Option A. The approved validation ranges and maxima are:
 
-| Semantic setting | Approved default | Proposed allowed range |
+| Semantic setting | Approved default | Approved allowed range / hard maximum |
 |---|---:|---:|
 | Application active workers per owner | CPU-derived, cap 128 | 1..512 |
 | Completion active workers per owner | CPU-derived, cap 64 | 1..256 |
@@ -193,7 +193,8 @@ The following ranges are engineering recommendations pending owner approval. The
 | Completion callback concurrency per Session | 1 | 1..32 |
 | Application/Completion/OnClose worker idle grace | 30s | 1ms..10m |
 | OnClose event credits per owner | 1,024 | 1..4,096 |
-| Incoming/Outgoing Application frames per Session | 256 each | 1..1,024 each |
+| Incoming Application frames per Session | 256 | 1..1,024 |
+| Outgoing Application frames per Session | 256 | 1..1,024 |
 | Aggregate queued Application frames per Server | 65,536 | 1..262,144 |
 | Outstanding Request credits per Session | 128 | 1..512 |
 | Aggregate outstanding Request credits per owner | 32,768 | 1..131,072 |
@@ -202,19 +203,17 @@ The following ranges are engineering recommendations pending owner approval. The
 | Retained Completion bytes per Session | 16 MiB | 10 bytes..64 MiB |
 | Aggregate retained Completion bytes per owner | 256 MiB | 10 bytes..1 GiB |
 
-Proposed validation invariants:
+Binding validation invariants:
+- Validate the completed effective configuration only after all Functional Options have been applied, and before socket creation, goroutine startup, or other active resource creation.
+- Count and non-retained-byte limits have minimum 1; retained-byte limits have minimum 10 bytes. Worker idle grace is 1ms..10m. Explicit zero is invalid except `EnquireLinkIdleInterval=0`, which disables automatic outgoing Enquire Link only.
+- Owner and per-Session limits are independent. Aggregate capacity may be below a per-Session ceiling or below the theoretical sum across Sessions; admission must satisfy all applicable limits.
+- Per-Session Application/Completion concurrency is intersected with the owner/class active-worker ceiling at dispatch; no cross-field rejection is applied solely because the Session value is larger.
+- Queue bytes/counts, retained bytes, Request credits, OnClose credits and worker permits are independent ledgers; do not double-count a payload during ownership transitions.
+- Byte conversions and counter arithmetic are overflow/underflow checked. Owner caps are per Client/Server instance, not process-wide.
+- A 10-byte retained-byte minimum admits only a header-sized frame. The provisional 1 MiB Maximum Frame Size is not frozen by WORKER-009C.
 
-- Validate the completed effective configuration after all options are applied, before opening sockets or starting goroutines; retain an immutable snapshot for the instance lifetime.
-- All positive count/byte limits reject explicit zero. The already-approved EnquireLinkIdleInterval=0 remains the only intentional zero-valued disable option.
-- Owner-wide and per-Session ceilings are independent. Do not require aggregate limits to be greater than per-Session limits or the sum of theoretical per-Session capacities; actual admission must satisfy both.
-- Per-Session callback concurrency is intersected with the owner/class active-worker ceiling at dispatch; do not reject a larger Session value solely because the owner cap is lower.
-- Queue bytes/counts, retained bytes, Request credits, OnClose credits and worker permits are separate ledgers. Do not multiply or sum them as though they were distinct copies of one payload.
-- Retained-byte minimum 10 bytes covers a header-only frame. It does not promise admission of all larger valid frames; existing directional overload policies and Completion bounded-drain behavior remain binding.
-- Use checked conversions and checked counter arithmetic. These are per-owner caps, not process-wide caps; multiple Client/Server instances can each consume their own configured budgets.
-- The 1 MiB frame reference remains provisional and is not frozen by WORKER-009C.
+### 11.3 Approved Functional-Option mapping
 
-### 11.3 Functional-Option mapping
+Use one typed, independent Functional Option per semantic setting. Omitted options preserve defaults; explicit options override only their own setting. Owner worker ceilings, OnClose credits, owner Request credits and owner retained-byte ceilings follow Client/Server ownership; aggregate queued Application frame count is Server-only; per-Session concurrency and per-Session frame/Request/retained-byte limits attach to Session configuration/inheritance; worker idle grace is independently configurable per class. Do not introduce a generic map, mutable live config or hot reload. Exact exported identifiers and final constructor/Session option placement remain API-001 public-surface work.
 
-Use one typed Functional Option per semantic setting; omitted values preserve defaults and explicit values replace only their own setting. Client/Server owner options apply according to the ledger owner; aggregate queued Application frame count remains Server-only; per-Session callback concurrency belongs to Session callback configuration. Do not add a generic map or runtime mutation/hot reload. Exact exported identifiers and constructor/Session option placement remain API-001 work.
-
-**Next:** owner review of WORKER-009C proposed ranges and validation rules. Detailed table and rationale: Worker Capacity Design §17.
+**Decision:** `CLOSED / OWNER APPROVED / OPTION A`. Implementation remains NOT AUTHORIZED.

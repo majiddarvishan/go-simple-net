@@ -4,7 +4,7 @@
 
 
 **Date:** 2026-11-16  
-**Status:** DESIGN DRAFT — Q-008 / Q-009 B / Q-010 A APPROVED; exact Go API design remains OPEN  
+**Status:** RESOURCE ADMISSION + WORKER RESOURCE LIMITS APPROVED — Q-008 / Q-009 B / Q-010 A and WORKER-009A/B/C CLOSED; API-002/API-003 remain OPEN  
 **Branch:** `majiddarvishan/neta-go` / `main`  
 **Implementation:** NOT AUTHORIZED; this file contains no runnable application code.
 
@@ -210,7 +210,7 @@ The exact C++ Pinex 1.5.0 maximum frame size and Go/C++ cross-language confirmat
 
 ## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
-**Status:** WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 CLOSED / OWNER APPROVED; WORKER-009C OPEN.  
+**Status:** WORKER-009A, WORKER-009B1, WORKER-009B2, WORKER-009B3 and WORKER-009C CLOSED / OWNER APPROVED; WORKER-009C is OPTION A.  
 **Implementation:** NOT AUTHORIZED.
 
 ### 1. Scope and decomposition
@@ -221,7 +221,7 @@ WORKER-009 establishes zero-configuration defaults and finite validation boundar
 - **WORKER-009B1 — CLOSED / OWNER APPROVED:** per-Session Application/Completion callback concurrency defaults and independent idle-retirement grace defaults for all three worker classes.
 - **WORKER-009B2 — CLOSED / OWNER APPROVED:** OnClose event-credit, Application frame-count and outstanding Request-credit defaults; see §3.2 for the six approved V1 defaults.
 - **WORKER-009B3 — CLOSED / OWNER APPROVED, OPTION A:** retained Application and Completion payload-byte defaults.
-- **WORKER-009C — OPEN:** explicit configuration hard maxima, valid ranges, cross-field constraints and final Functional-Option mapping.
+- **WORKER-009C — CLOSED / OWNER APPROVED / OPTION A:** explicit configuration hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping.
 
 The existing Q-008/Q-010 defaults remain binding and are not reopened. B1, B2 and B3 defaults are owner approved. None of these defaults establishes WORKER-009C hard maxima.
 
@@ -264,7 +264,7 @@ Illustrative resolved values:
 
 ### 3. WORKER-009B — numeric defaults (B1/B2/B3 OWNER APPROVED)
 
-The following matrix records owner-approved WORKER-009B1/B2/B3 defaults. The formulas in §2 and all values in §§3.1–3.3 are owner approved; hard maxima and validation ranges remain WORKER-009C.
+The following matrix records owner-approved WORKER-009B1/B2/B3 defaults. The formulas in §2 and all values in §§3.1–3.3 are owner approved; hard maxima and validation ranges are fixed by the approved WORKER-009C contract below.
 
 #### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement (OWNER APPROVED, 2026-11-17)
 
@@ -316,6 +316,42 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 **Owner approval (2026-11-17):** Option A is approved. The four values in this table are official V1 defaults, independently configurable and lazily enforced. Client owner budgets are shared across reconnect generations; Server owner budgets cover all Sessions owned by that Server. Queue byte/count ceilings remain separate admission sub-limits over the same physical frame and are not added to retained-byte totals. These values are not hard maxima or an RSS cap.
 
+### 3.4 WORKER-009C — approved hard maxima and validation boundary (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+The owner approved Option A. The following are binding configuration-validation ceilings, not operating targets, preallocations, or process-wide limits.
+
+| Setting | V1 default | Approved valid range / hard maximum |
+|---|---:|---:|
+| Application active workers per owner | CPU-derived, cap 128 | 1..512 |
+| Completion active workers per owner | CPU-derived, cap 64 | 1..256 |
+| OnClose active workers per owner | CPU-derived, cap 32 | 1..128 |
+| Application callback concurrency per Session | 1 | 1..32 |
+| Completion callback concurrency per Session | 1 | 1..32 |
+| Each worker-class idle grace | 30s | 1ms..10m |
+| OnClose event credits per owner | 1,024 | 1..4,096 |
+| Incoming Application frames per Session | 256 | 1..1,024 |
+| Outgoing Application frames per Session | 256 | 1..1,024 |
+| Aggregate queued Application frames per Server | 65,536 | 1..262,144 |
+| Outstanding Request credits per Session | 128 | 1..512 |
+| Aggregate outstanding Request credits per owner | 32,768 | 1..131,072 |
+| Retained Application bytes per Session | 16 MiB | 10 bytes..64 MiB |
+| Aggregate retained Application bytes per owner | 512 MiB | 10 bytes..2 GiB |
+| Retained Completion bytes per Session | 16 MiB | 10 bytes..64 MiB |
+| Aggregate retained Completion bytes per owner | 256 MiB | 10 bytes..1 GiB |
+
+Validation and cross-field rules are binding:
+- Apply every option before validating the completed effective configuration; validation must precede socket creation and goroutine startup.
+- Positive count/byte limits have minimum 1; retained-byte limits have minimum 10 bytes. Worker idle grace is 1ms..10m. `EnquireLinkIdleInterval=0` remains the sole intentional zero exception.
+- Owner and Session limits are independent; aggregate capacity may be lower than the sum of theoretical Session capacities. Actual admission must satisfy every applicable limit.
+- Session callback concurrency is intersected with the owner/class worker ceiling at dispatch, not rejected because it exceeds that ceiling.
+- Queue, retained-byte, Request, OnClose and worker-permit ledgers remain separate; transitions must not double-count one payload.
+- All conversions and counter arithmetic are overflow/underflow checked. Owner limits are per Client/Server instance, not process-wide.
+- The 10-byte retained-byte minimum covers only a header-sized frame. Maximum Frame Size is a separate protocol decision; the provisional 1 MiB value is not frozen here.
+
+Typed Functional Options are independent per semantic setting and follow resource ownership: owner worker/OnClose/Request/retained-byte limits are Client/Server scoped, aggregate queued Application frame count is Server-only, and Session-specific concurrency/frame/Request/retained-byte settings attach to Session configuration/inheritance. Omitted settings retain defaults; each explicit option overrides only its own setting. Exact exported identifiers and final placement remain API-001 work; no generic map or hot reload is introduced.
+
+**Decision:** `CLOSED / OWNER APPROVED / OPTION A`. Implementation remains NOT AUTHORIZED.
+
 ### 4. Defaults already approved and unchanged
 
 | Setting | Approved default | Scope |
@@ -343,7 +379,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 ### 6. Owner decision sequence
 
-**Next: WORKER-009C.** Review the proposed hard maxima, valid ranges and cross-field rules in Worker Capacity Design §17. Exact exported Functional-Option identifiers remain API-001 work.
+**WORKER-009C is CLOSED / OWNER APPROVED / OPTION A.** The approved limits and validation rules are recorded in §3.4 and Worker Capacity Design §17. Next: API-002 and API-003. Exact exported Functional-Option identifiers remain API-001 work.
 
 **Guardrail:** design/documentation only. No Go/C++ source, tests, benchmarks, builds, dependency changes, CI, deployment or operational changes are authorized.
 
