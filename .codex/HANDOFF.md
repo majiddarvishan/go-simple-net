@@ -76,10 +76,10 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 - **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
 - **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
-- **Q-002 — OPEN:** Whether periodic Enquire Link should be optionally enabled; default recommendation is disabled.
+- **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric default interval and unanswered-probe timeout still need API/failure-policy specification. See DECISION_LOG.md.
 - **Q-003 — OPEN:** Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
 - **Q-004 — OPEN:** Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
 
 ## 8. Next action
 
-Q-001 and Q-005 are closed. Proceed to the remaining owner choices (Q-002 periodic Enquire Link, Q-003 callback ordering/thread-safety, Q-004 optional features), then finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
+Q-001, Q-005 and Q-002 are closed. Proceed to Q-003 (callback ordering/thread-safety) and Q-004 (optional features), then define the numeric default idle interval and unanswered-probe policy in GO-PINEX-002/011 before implementation. Finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
