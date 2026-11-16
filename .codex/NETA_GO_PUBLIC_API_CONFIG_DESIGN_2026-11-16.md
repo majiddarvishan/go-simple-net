@@ -70,7 +70,7 @@ Exact exported Go identifiers, whether to expose synchronous request/wait helper
 | Auto reconnect | yes | N/A | optional; retry policy to define |
 | Reconnect delay/backoff | yes | N/A | C++ reference 5s when enabled; Go default not yet approved |
 | Enquire Link idle interval | yes | yes | **Default 30s, Q-006 Option B approved**; positive => idle-only; explicit 0 => automatic sending disabled, inbound replies still active |
-| Enquire Link response deadline | yes | yes | policy/timeout OPEN |
+| Enquire Link response deadline | yes | yes | **Default 10s, configurable; Q-007 APPROVED**. Starts after full probe write, matching response by Sequence only; timeout closes Session |
 | TCP keepalive | configurable | configurable | independent of application Enquire Link |
 | Outgoing queue byte bound | per connection | per connection | mandatory bounded behavior; exact default OPEN |
 | Max protocol frame length | yes | yes | must interoperate with C++ 1 MiB receive capacity; effective bound/definition to pin |
@@ -87,7 +87,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 4. With a positive interval, when **no frame was successfully exchanged in either direction** for the entire interval, send one Enquire Link Request.
 5. While a locally initiated Enquire Link is outstanding, do not send another. The matching `enquire_link_resp` clears the pending probe; normal incoming stream frames do not by themselves satisfy sequence correlation.
 6. Re-arm idle measurement from actual activity; do not run fixed-rate pings in the presence of traffic.
-7. The deadline for a missing matching response must be bounded if enabled; choose its value and failure action separately (see Q-007).
+7. The deadline for a missing matching response is **10s by default**, configurable separately from idle interval (Q-007). Once a sent probe times out without its matching response, close Session; Client reconnects only if enabled.
 
 **Boundary under review:** What exactly counts as 'successful outgoing frame' should follow the Writer's completed full-frame write, not just queued bytes; this needs a concrete test under partial writes or disconnects.
 
@@ -97,16 +97,17 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - Send automatically only on session inactivity for this interval, measured using actual incoming and completed outgoing Pinex frames; do not send at fixed intervals during normal traffic.
 - An explicit `0` disables automatic sending but never disables responding to a peer's incoming Enquire Link.
 - The C++ Pinex implementation currently does not automatically send Enquire Link by default; this Go default remains compatible at the wire level.
-- The response timeout and action on a missing response remain **unapproved (Q-007)**.
+- The response timeout and action on a missing response are **approved in Q-007** (10s default, configurable; Session close; conditional Client reconnect).
 
-### Suggested missing-probe response policy — pending review (Q-007)
+### Approved missing-probe response policy (Q-007, 2026-11-16)
 
-- Use a separately configurable positive response deadline (not the same as the idle interval).
-- Start its timer after the probe was written; match response by protocol command and exact sequence.
-- Avoid infinitely pending probes; distinguish protocol heartbeat timeout from stream request timeout.
-- **Proposal:** on a matching-response timeout, mark the session unhealthy, close once, fail outstanding requests, and let Client reconnect only when reconnect is enabled. Alternative policy (for example, tolerate other incoming traffic while awaiting the matching probe) needs explicit review.
-- Suggested response timeout for discussion: **10 seconds**, **not approved**.
-- Never automatically resend the same probe concurrently or change wire semantics.
+- The Enquire Link response deadline is **independently configurable**, with a **10-second default** on Client and Server.
+- Start the response deadline after the entire local Enquire Link Request has actually been written; a queued but unwritten probe does not start it.
+- Clear the pending probe **only on an `enquire_link_resp` with the matching sequence number**. Ordinary `stream_req`, `stream_resp`, or other traffic may still count as activity for Q-002 idle measurement but cannot satisfy this pending probe.
+- If the matching response does not arrive before deadline, **close the Session once** and fail/complete pending operations through the Session close path. Auto Reconnect applies only to a Client explicitly configured for reconnect.
+- Handle close/timeout/late-response races with one terminal completion and no duplicate callback.
+- Preserve the single locally outstanding probe rule and existing Pinex 1.5.0 wire layout.
+- The exact default capacity and bounded failure of outgoing queues remain open under Q-008.
 
 ## 5. Request/Response tracking and callback interactions
 
@@ -142,7 +143,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | ID | Decision | Recommendation | Status |
 |---|---|---|---|
 | Q-006 | Numeric default for Enquire Link idle interval | **30s by default (Option B); 0 disables automatic sending** | CLOSED — owner approved 2026-11-16 |
-| Q-007 | Enquire Link response timeout and action | Separate configurable deadline, suggest 10s; close/reconnect on missing matching response | OPEN — engineering/owner review |
+| Q-007 | Enquire Link response timeout and action | **Default 10s, configurable; close Session on missing matching reply, Client reconnect iff enabled** | CLOSED — owner approved 2026-11-16 |
 | Q-008 | Capacity defaults and behavior at queue saturation | Bounded per-connection byte queue, fail-fast outcome; control PDUs retain progress | OPEN — further design |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
@@ -151,7 +152,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 ### Proposed task sequence (documentation only)
 
 1. Q-006 approved: default idle interval **30s**, explicit **0** disables autonomous sending.
-2. Review/close Q-007 heartbeat response timeout and action.
+2. Q-007 approved: configurable **10s** default response deadline, close on missing matching response; Client reconnect only when enabled.
 3. Close Q-008 and remaining exact Config defaults plus callback ownership rules.
 4. Pin exact C++ develop HEAD and golden-wire test vectors in GO-PINEX-001.
 5. Obtain explicit owner approval **before any** coding, go.mod/module/repository changes, tests or deployment.
