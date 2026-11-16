@@ -622,7 +622,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 ## API-001b-NORD2 — Independent Completion / OnClose Notification Sublanes (2026-11-16)
 
-**Status: CLOSED / OWNER APPROVED — Notification class separation and cross-class overlap policy.** Parent **API-001b remains PARTIALLY OPEN** for within-Completion ordering/concurrency, worker/event capacities and defaults. Session Done semantics are separately CLOSED by API-001b-DONE-A.
+**Status: CLOSED / OWNER APPROVED — Notification class separation and cross-class overlap policy.** Parent **API-001b remains PARTIALLY OPEN** for worker/event capacities and defaults, payload-byte bounds and remaining API-002/API-003 details. Within-Completion concurrency is separately CLOSED by API-001b-CORD-B; Session Done semantics are CLOSED by API-001b-DONE-A.
 
 **Owner's explicit selection:** N-ORD2 — Completion and OnClose execute in distinct, independently bounded Notification sublanes; OnClose may run concurrently with an already-running Completion callback from the same Session. N-ORD1 same-Session serialization across Completion and OnClose is **NOT SELECTED**.
 
@@ -640,7 +640,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 ### Explicitly OPEN — not approved by N-ORD2
 
-- Whether Completion callbacks are serialized per Session (recommended initial V1 policy: one running Completion per Session, FIFO by terminal-settlement enqueue order) or have configurable same-Session concurrency. Request admission order is not inherently Completion order.
+- **Resolved by API-001b-CORD-B:** configurable positive same-Session Completion concurrency; 1 is serial, values greater than 1 permit overlap. FIFO start selection follows serialized per-Session terminal-result settlement/enqueue order, not SendRequest admission order. Callback return order is not guaranteed when concurrency is greater than 1.
 - Exact Completion and OnClose worker counts, defaults, maxima, per-Session and aggregate quotas, queue/event capacities, fairness policy and validation.
 - Terminal-cause accessor and Close return behavior remain open; Done visibility and OnClose eligibility ordering are resolved by API-001b-DONE-A.
 - OnClose event-budget saturation policy (recommended: skip the event rather than block cleanup or allocate unbounded work).
@@ -648,7 +648,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 - Per-Server / per-Client versus process-wide aggregate active-worker ceiling; graceful Stop/drain and the API-002 definition of Forced Close remain open.
 - Numeric PERF-003 per-Session/Server count defaults, incoming callback event-count cap, Q-003-R1 concurrency default, API-002 timeout/reconnect/Stop and API-003 module/package.
 
-**Follow-on worker-capacity proposal:** [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §§11.7–11.8. Done semantics are now owner-approved by API-001b-DONE-A; worker counts, queue/event capacities and within-Completion concurrency remain proposals/open.
+**Follow-on worker-capacity proposal:** [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11.7. Done semantics are owner-approved by API-001b-DONE-A and within-Completion concurrency by API-001b-CORD-B; worker counts/defaults, queue/event capacities, payload-byte bounds and saturation policy remain proposals/open.
 
 **Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
 
@@ -662,7 +662,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 2. Before closing Done, the internal lifecycle must:
    - close Session admission and reject new sends/responses;
    - settle each pending Request's internal terminal result exactly once;
-   - cancel not-yet-started Application and Completion callbacks under API-001b-FC-A, releasing their queued library-owned payload/metadata and credits;
+   - on a Forced Close path, cancel not-yet-started Application and Completion callbacks under API-001b-FC-A, releasing their queued library-owned payload/metadata and credits;
    - close/detach the transport and stop internal Reader/Writer/control loops;
    - stop Session timers, remove pending/registry state and release internal queue/accounting reservations not retained by already-running callbacks;
    - publish the immutable terminal cause/state.
@@ -676,8 +676,31 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 - Exported terminal-cause accessor name/signature; the terminal cause itself must already be immutable before Done closes.
 - Whether Close() returns before, at, or after Done closes; Done is the observable internal-teardown signal and is not a user-callback join.
 - OnClose event admission/saturation policy and numeric event/worker capacities.
-- Completion within-class ordering/concurrency, all Worker numeric defaults and aggregate-scope details.
+- Completion concurrency policy is closed by API-001b-CORD-B; numeric defaults, Worker/event capacities and aggregate-scope details remain open.
 - Client/Server Stop and drain behavior under API-002.
+
+**Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
+
+## API-001b-CORD-B — Configurable Same-Session Completion Concurrency (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED.** The owner selected **C-ORD-B** for within-Completion concurrency.
+
+### Binding V1 contract
+
+1. Completion callback concurrency is configurable as a **positive per-Session limit**.
+2. A value of **1** gives serial Completion callback execution for that Session. Values greater than 1 permit multiple Completion callbacks from the same Session to overlap.
+3. The Session's Completion dispatcher preserves FIFO callback **start selection** by the order in which the internal engine serializes terminal-result settlement/enqueue for that Session. This is **not** SendRequest admission order: network responses may arrive and settle out of request order.
+4. With concurrency greater than 1, callback return/completion order is **not guaranteed** to match FIFO start order. Applications sharing mutable state between Completion callbacks must synchronize that state themselves.
+5. The configured per-Session limit is always intersected with a finite aggregate active Completion-worker ceiling for the owning Client/Server resource domain. It must never create an unbounded goroutine per Request or bypass the aggregate ceiling.
+6. Completion lifecycle admission continues to consume the existing PERF-003 Request credit from before SendRequest acceptance through pending, queued and running Completion callback until return or cancellation. A separate active Completion-worker permit is held only while the user callback is physically running.
+7. N-ORD2 remains binding: Completion and OnClose use independent bounded sublanes; OnClose may overlap a running Completion after Done has closed. Forced Close A cancels not-yet-started Completion callbacks on a Forced Close path; already-running callbacks continue and retain their active worker and Request credit until return.
+
+### Explicitly still OPEN
+
+- Completion concurrency numeric default, minimum/maximum public configuration bounds and exact exported option name.
+- Active Completion-worker counts and aggregate ceilings; whether a process-wide ceiling is needed in addition to per-owning-Client/Server limits.
+- Completion event/queue capacities, OnClose event saturation disposition and payload-byte/frame-size accounting.
+- Terminal-cause accessor name/signature and Close() return timing; API-002 Stop/drain/reconnect semantics; API-003 module/package path.
 
 **Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
 

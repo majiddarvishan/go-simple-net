@@ -176,7 +176,7 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 
 **Internal events independent of user callbacks:** protocol decoding, Control response, Bind/Unbind, Enquire Link, correlation, timer/deadline, socket close and once-only internal Request settlement must progress even while a user `OnRequest` handler is blocked. Reader and Writer must not execute arbitrary application handlers inline. No unbounded goroutine-per-message; each Session owns finite dispatch capacity and the existing Q-009/Q-010 incoming waiting queue overflow policy still closes only the offending Session. `N` active callback payloads consume additional bounded memory outside the **waiting** queue budget.
 
-**User-visible lifecycle callbacks:** `OnClose` and per-Request Completion functions remain user code. API-001b-N1 approved a bounded notification domain separate from `OnRequest`; API-001b-NORD2 now approves independent bounded Completion and OnClose sublanes, with OnClose allowed to overlap an already-running Completion callback. Worker counts, within-Completion ordering, event capacity and `Done` semantics remain open. A user callback cannot be forcibly terminated.
+**User-visible lifecycle callbacks:** `OnClose` and per-Request Completion functions remain user code. API-001b-N1 approved a bounded notification domain separate from `OnRequest`; API-001b-NORD2 now approves independent bounded Completion and OnClose sublanes, with OnClose allowed to overlap an already-running Completion callback. C-ORD-B within-Completion concurrency policy is now owner-approved; its numeric default, worker counts, event capacity and payload-byte bounds remain open. Done semantics are resolved by DONE-A. A user callback cannot be forcibly terminated.
 
 **Open constraints to review:** default maximum concurrent Application handlers per Session; optional Server-wide active Application callback limit; whether a listener's max bound Sessions multiplied by configured concurrency needs aggregate active-count protection; what constitutes an active callback's payload memory ceiling; application handler output order vs immutable TCP receipt order. No code or tests.
 
@@ -186,23 +186,32 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 - **APPROVED:** `OnClose` and per-Request Completion user callbacks are dispatched through a **bounded notification domain separate from the bounded Application `OnRequest` worker domain**. The internal protocol/timeout/transport lifecycle engine must not wait for either domain to finish.
 - **APPROVED EXISTING:** Q-003-R1 Application callbacks have configurable bounded same-Session concurrency (1 = serial), while PERF-003 A puts configurable count ceilings on outstanding Request + Completion work.
 - Blocking `OnRequest` must not by itself stall internal Close/result settlement or occupy the notification workers. An arbitrary blocking `OnClose`/Completion user function can still stall its own bounded notification domain; it is not forcibly cancelable.
-- **API-001b PARTIALLY OPEN:** Forced Close A and N-ORD2 sublane separation/overlap are owner-approved. Still open: within-Completion ordering/concurrency, worker/event capacities/defaults, terminal-cause accessor, Close() return timing, OnClose saturation policy and numerical PERF-003 limits. OnClose remains best-effort/at-most-once; forced Close A cancels unstarted Completion notifications.
+- **API-001b PARTIALLY OPEN:** Forced Close A and N-ORD2 sublane separation/overlap are owner-approved. Still open: numeric Completion concurrency default, worker/event capacities/defaults, terminal-cause accessor, Close() return timing, OnClose saturation policy and numerical PERF-003 limits. C-ORD-B policy is owner-approved. OnClose remains best-effort/at-most-once; forced Close A cancels unstarted Completion notifications.
 - Read [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1 for the binding structure; older universal serialization notes are historical/superseded by Q-003-R1.
 
 ## 16. API-001b-NORD2 — independent Completion / OnClose sublanes (OWNER APPROVED, 2026-11-16)
 
 - **APPROVED:** Completion and OnClose have distinct, independently bounded Notification sublanes. OnClose may execute concurrently with an already-running Completion callback for the same Session; it does not wait for Completion return. N-ORD1 shared serial Notification stream was not selected.
 - Completion and OnClose must not consume each other's reserved active-worker capacity. A common scheduler is acceptable only with distinct class queues/admission and reserved execution slots; one unpartitioned shared worker pool is not N-ORD2.
-- **Still open:** Completion callback concurrency/order within its own class; worker counts/defaults and aggregate limits; OnClose event cap/saturation; fairness; terminal-cause API and Close return behavior. Done visibility and Done-before-OnClose eligibility are resolved by DONE-A.
+- **Still open:** numeric Completion concurrency default; worker counts/defaults and aggregate limits; OnClose event cap/saturation; fairness; terminal-cause API and Close return behavior. C-ORD-B policy is closed. Done visibility and Done-before-OnClose eligibility are resolved by DONE-A.
 - **DONE-A OWNER APPROVED:** Session.Done() <-chan struct{} closes exactly once after internal teardown and immutable terminal-cause publication, never waits for user callbacks, and gates OnClose eligibility. OnClose may then overlap an already-running Completion under N-ORD2. See [API-001b review §§11.3 and 11.7](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md).
 - Implementation remains unauthorized.
 
 ## 17. API-001b-DONE-A — Session Done signal (OWNER APPROVED, 2026-11-16)
 
 - **APPROVED public signal:** Done() <-chan struct{}, read-only and closed exactly once after internal Session teardown and immutable terminal-cause publication.
-- Before Done closes: stop admission; settle pending Request outcomes exactly once; cancel unstarted Application/Completion callbacks under Forced Close A; stop transport and internal Reader/Writer/control loops; clean timers, registry and internal accounting not retained by already-running callbacks.
+- Before Done closes: stop admission; settle pending Request outcomes exactly once; on a Forced Close path, cancel unstarted Application/Completion callbacks under Forced Close A; stop transport and internal Reader/Writer/control loops; clean timers, registry and internal accounting not retained by already-running callbacks.
 - Done never joins or waits for running Application, Completion or OnClose callbacks. Those callbacks retain active-worker permits until return; running Completion retains its PERF-003 credit.
 - An admitted OnClose event becomes eligible only after Done closes. Under N-ORD2 it may overlap a Completion callback already running for that Session. Done does not guarantee OnClose admission/start/return.
-- **Still open:** terminal-cause accessor name/signature, Close() return timing, OnClose event saturation, Completion within-class order/concurrency and all numeric worker/event/PERF-003 capacities.
+- **Still open:** terminal-cause accessor name/signature, Close() return timing, OnClose event saturation, numeric Completion concurrency default and all numeric worker/event/PERF-003 capacities.
+- Implementation remains unauthorized.
+
+## 18. API-001b-CORD-B — Configurable Completion concurrency (OWNER APPROVED, 2026-11-16)
+
+- **APPROVED:** positive configurable per-Session maximum Completion callback concurrency; 1 means serial and values greater than 1 permit same-Session overlap.
+- FIFO applies to callback start selection by serialized per-Session terminal-result settlement/enqueue order, not SendRequest admission order. With concurrency greater than 1, callback return order is not guaranteed.
+- The per-Session limit is bounded by a finite aggregate active Completion-worker ceiling. PERF-003 Request credits cover the full admitted Completion lifecycle; active-worker permits cover physical callback execution.
+- On a Forced Close path, Forced Close A cancels not-yet-started Completion callbacks; running callbacks retain their Request credit and worker permit until return. N-ORD2 OnClose independence and DONE-A ordering remain unchanged.
+- **Still open:** numeric concurrency default and option name/range; worker counts/aggregate limits; event and payload-byte/frame-size bounds; OnClose saturation; terminal-cause and Close return API; API-002/API-003.
 - Implementation remains unauthorized.
 

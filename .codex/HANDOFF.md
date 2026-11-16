@@ -1,17 +1,17 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A, N-ORD2 and API-001b-DONE-A are **owner approved**: Completion/OnClose have independent bounded sublanes, OnClose may overlap an active Completion but is eligible only after Session Done closes, and Done closes after internal teardown without joining user callbacks. Remaining API-001b work is within-Completion ordering/concurrency and worker/event bounds; see [DECISION_LOG.md](DECISION_LOG.md) §§API-001b-NORD2 and API-001b-DONE-A.
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are **owner approved**: Completion/OnClose have independent bounded sublanes; OnClose becomes eligible only after Session Done closes and may overlap an active Completion; Session Done closes after internal teardown without joining user callbacks; Completion concurrency is configurable per Session (1=serial, greater than 1=parallel), with FIFO start selection by per-Session terminal-settlement enqueue order and no FIFO return guarantee. Remaining API-001b work is numeric worker/event capacities, aggregate bounds, payload-byte limits, OnClose saturation and API-002/API-003 details. See [DECISION_LOG.md](DECISION_LOG.md) §§API-001b-NORD2, API-001b-DONE-A and API-001b-CORD-B.
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** API-001b-FC-A, N-ORD2 and DONE-A OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion/OnClose are independent bounded sublanes; OnClose becomes eligible only after Done and may overlap a running Completion. Done does not join user callbacks. Remaining: within-Completion ordering/concurrency, Worker/event capacities/defaults, OnClose saturation and terminal-cause/Close-return API details. See §§25–26; older A/B and N-ORD1 comparisons are historical.
+**Current work:** API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion concurrency is configurable per Session (1=serial, greater than 1=parallel), FIFO by terminal-settlement enqueue order for start selection only. Completion/OnClose remain independent bounded sublanes; OnClose is eligible only after Done and may overlap a running Completion. Remaining: numeric concurrency default, Worker/event capacities and aggregate bounds, payload-byte accounting, OnClose saturation, terminal-cause/Close-return details, API-002 and API-003. See §§25–27; older alternatives are historical.
 
 ## 1. Repository state
 
 - Default branch: main
-- Latest documentation commit before this handoff update: dbf731f097222d7ebce25ea95889472c028eba24
+- Latest documentation commit before this handoff update: 35bae1ad53baffb3bfb5d1830bd3d7927981ff8c
 - Only documentation under .codex has been added/updated for this planning step.
 - No Go application source, tests, go.mod, CI, runtime configuration or dependencies were added or changed.
 
@@ -241,6 +241,8 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 - **Notification callback lane:** `OnClose`, per-Request Completion user functions dispatched separately from Application workers, with **bounded work and concurrency**, cannot prevent internal engine teardown. A stuck notification callback cannot be forcibly terminated and can stall its own worker; not a promise of guaranteed notification delivery.
 - **Owner-approved other contracts:** API-001a A nonblocking callback-first request, API-004 A functional options, PERF-002 A independent outbound snapshot + incoming owned retainable payload, PERF-003 A configurable bounded pending/completion counts per Session and Server, Q-008/009/010 admission. No change to Pinex 1.5.0 wire.
 
+**Historical snapshot:** the following open-question list predates owner approvals API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B; it is retained only as a record of the earlier state. Current open items are summarized at the top and in §§25–27.
+
 ### Explicitly OPEN — next chat should continue here
 
 1. **API-001b forced-close choice:** A (cancel queued/unstarted notification callbacks promptly) vs B (defer bounded terminal events until user callbacks return, at potential memory/worker retention cost). User did **not** select either. Reevaluate in light of independent notification lane; decide exact semantics for admitted Request callback delivery when Session closes, and `OnClose` lifecycle ordering.
@@ -259,9 +261,9 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Historical note:** this statement described the state before the owner later approved API-001b-FC-A and API-001b-NORD2. The other owner-approved contracts listed here remain authoritative.
 
-**Historical recommendation:** Forced Close A was recommended here and was subsequently approved in §24. The B comparison is no longer an open choice. N-ORD2 was subsequently approved in §25; Done and numerical capacities remain open.
+**Historical recommendation:** Forced Close A was recommended here and was subsequently approved in §24. The B comparison is no longer an open choice. N-ORD2 was subsequently approved in §25; Done semantics were subsequently resolved in §26; C-ORD-B is subsequently resolved in §27. Numeric capacities remain open.
 
-**Historical next-decision prompt:** A/B and N-ORD1/N-ORD2 have since been resolved by owner approval. The remaining sequence is recorded in §25: Done contract, within-Completion ordering/concurrency, worker/event caps, PERF-003 values, API-002 and API-003.
+**Historical next-decision prompt:** A/B and N-ORD1/N-ORD2 have since been resolved by owner approval. Done and within-Completion concurrency were subsequently resolved in §§26–27. Numeric worker/event caps, PERF-003 values, API-002 and API-003 remain open.
 
 **Guardrail unchanged:** no code/go.mod, tests, benchmarks, CI, builds, deployments, operational actions or new owner decision inferred from this document.
 
@@ -281,11 +283,11 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Approved Notification contract:** Completion and OnClose execute in distinct, independently bounded sublanes. OnClose may execute concurrently with an already-running Completion callback for the same Session; it does not wait for Completion return. A single unpartitioned Notification worker pool with no reserved OnClose capacity would violate this decision. OnClose remains best-effort/at-most-once. Forced Close A still cancels not-yet-started Completion events and does not terminate already-running callbacks.
 
-**Worker design (proposal only):** separate bounded Completion and OnClose worker capacity per owning Server/Client instance; Completion event queue uses the already-reserved PERF-003 per-Session + aggregate Request completion credits; OnClose has its own at-most-one-per-Session event and independent global active+queued event budget. Retain active-worker charges for callbacks surviving Session closure/reconnect. Prefer bounded lazy worker pools and fair ready-Session scheduling; never one goroutine per event. Candidate: at most one active Completion callback per Session, FIFO by terminal-settlement enqueue order, parallel across Sessions; same-Session Completion concurrency remains **OPEN**. Numeric worker counts, event caps, fairness and per-Server vs process-wide aggregate are **OPEN**.
+**Worker design (proposal only):** separate bounded Completion and OnClose worker capacity per owning Server/Client instance; Completion event queue uses the already-reserved PERF-003 per-Session + aggregate Request completion credits; OnClose has its own at-most-one-per-Session event and independent global active+queued event budget. Retain active-worker charges for callbacks surviving Session closure/reconnect. Prefer bounded lazy worker pools and fair ready-Session scheduling; never one goroutine per event. Historical candidate (superseded by §27): at most one active Completion callback per Session. The owner subsequently approved configurable same-Session concurrency under C-ORD-B; see §27. FIFO start selection remains by terminal-settlement enqueue order, while callback return order is not guaranteed for concurrency greater than 1. Numeric worker counts, event caps, fairness and per-Server vs process-wide aggregate are **OPEN**.
 
 **Done design:** the preceding Done proposal has been approved as API-001b-DONE-A; see §26. The read-only Session Done() <-chan struct{} closes after internal teardown and immutable terminal-cause publication, never waits for user callbacks, and gates OnClose eligibility. A running Completion retains its worker and PERF-003 credit until return; OnClose may overlap it under N-ORD2. The exported terminal-cause accessor and Close return semantics remain OPEN.
 
-**Next essential owner choice:** decide within-Completion per-Session ordering/concurrency. Then finalize worker/event capacity dimensions and numeric defaults, OnClose saturation, PERF-003 count/event limits, API-002 timeout/Stop/reconnect and API-003 package/module. Do not infer numeric values from earlier examples.
+**Next work:** finalize numeric Completion concurrency default and worker/event capacity dimensions, aggregate scope, OnClose saturation, Completion payload-byte/frame-size bounds, PERF-003 count/event limits, API-002 timeout/Stop/reconnect and API-003 package/module. Do not infer numeric values from earlier examples.
 
 **Guardrail:** no Go/C++ code, go.mod, tests, builds, benchmarks, CI or operations. All worker values remain proposals; no numeric defaults were invented.
 
@@ -293,9 +295,9 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Owner decision:** Option A is **APPROVED**. Binding source: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-DONE-A.
 
-**Contract:** Session exposes a read-only **Done() <-chan struct{}** signal. It closes exactly once after admission stops, pending Request outcomes settle once, unstarted Application/Completion callbacks are cancelled under Forced Close A, transport and internal Reader/Writer/control loops stop, timers/registry/internal accounting are cleaned up, and terminal cause is immutable. Done never joins or waits for any running Application, Completion or OnClose callback. An admitted OnClose event is eligible only after Done closes; under N-ORD2 it may overlap a Completion callback already running for the same Session. OnClose remains best-effort/at-most-once.
+**Contract:** Session exposes a read-only **Done() <-chan struct{}** signal. It closes exactly once after admission stops, pending Request outcomes settle once, on a Forced Close path, unstarted Application/Completion callbacks are cancelled under Forced Close A; transport and internal Reader/Writer/control loops stop, timers/registry/internal accounting are cleaned up, and terminal cause is immutable. Done never joins or waits for any running Application, Completion or OnClose callback. An admitted OnClose event is eligible only after Done closes; under N-ORD2 it may overlap a Completion callback already running for the same Session. OnClose remains best-effort/at-most-once.
 
-**Still open:** terminal-cause accessor name/signature; Close return semantics; OnClose event saturation; within-Completion order/concurrency; worker/event counts, defaults and aggregate scope; PERF-003 numeric limits and optional incoming event-count cap; API-002 and API-003.
+**Still open:** terminal-cause accessor name/signature; Close return semantics; numeric Completion concurrency default; worker/event counts and aggregate scope; OnClose event saturation; Completion payload-byte/frame-size bounds; PERF-003 numeric limits and optional incoming event-count cap; API-002 and API-003. C-ORD-B policy itself is closed.
 
 **Worker design recommendation (not approved as API defaults):** three separate bounded callback classes (Application, Completion, OnClose); per-Session FIFO work queues feeding finite bounded owner-instance worker capacity; fair ready-Session scheduling; no goroutine per event; no global/registry lock while invoking user code. Keep the resource ledgers distinct:
 - Application waiting frames: Q-009/Q-010 byte caps; active handlers: Q-003-R1 per-Session concurrency plus a still-open Server aggregate active-worker cap.
@@ -304,4 +306,14 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 - Running callbacks from retired Session generations continue consuming the owning Client/Server worker capacity until return, including after reconnect.
 
 **Next decision:** select the within-Completion concurrency/ordering contract. Recommended alternatives and consequences are recorded in [the detailed review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11.8. All numeric limits remain OPEN.
+
+## 27. API-001b-CORD-B approval — configurable Completion concurrency (2026-11-16)
+
+**Owner decision:** C-ORD-B is **APPROVED**. Binding authority: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-CORD-B.
+
+**Contract:** positive configurable maximum concurrent Completion callbacks per Session; 1 means serial, values greater than 1 permit overlap. The Session dispatcher preserves FIFO start selection by serialized per-Session terminal-result settlement/enqueue order, not SendRequest admission order. Callback return order is not guaranteed for concurrency greater than 1. Shared mutable state used by concurrent Completion callbacks is the application's synchronization responsibility. Per-Session concurrency is intersected with a finite aggregate active Completion-worker ceiling; no goroutine-per-Request.
+
+**Still open:** numeric default and public option name/range; active worker ceilings and aggregate scope; Completion queue/event and payload-byte/frame-size bounds; OnClose saturation; terminal-cause accessor and Close return behavior; API-002 Stop/drain/reconnect and API-003 module/package.
+
+**Guardrail:** design/docs only. No Go/C++ implementation, tests, benchmarks, builds, CI, dependencies or operations.
 

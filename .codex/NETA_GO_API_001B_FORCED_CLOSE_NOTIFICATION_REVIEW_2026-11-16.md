@@ -1,7 +1,7 @@
 # neta-go V1 — API-001b Forced Close, Notification Delivery and Worker Bound Review
 
 **Date:** 2026-11-16  
-**Status:** **Forced Close A OWNER APPROVED**; API-001b remains PARTIALLY OPEN for Notification ordering/capacity and Done. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
+**Status:** **Forced Close A, N-ORD2, DONE-A and C-ORD-B OWNER APPROVED**; API-001b remains PARTIALLY OPEN for worker/event capacities, numeric defaults, payload-byte bounds and remaining API details. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
 **Baseline:** `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811`  
 **Permission:** documentation review only. No Go/C++ code, go.mod, build, tests, benchmarks or operational changes.
 
@@ -197,7 +197,7 @@ These are **semantic dimension names only, not exported API names or approved kn
 
 ### 11.6 Decisions still awaiting owner approval
 
-**N-ORD2 and DONE-A are OWNER APPROVED**; both the cross-class Notification split and Done-before-OnClose eligibility are closed. The next essential owner decision is Completion ordering/concurrency within its own class (§11.8). Worker/event ceilings, fairness, OnClose saturation, payload-byte accounting and numeric defaults remain open. Then review PERF-003 slots/event caps, API-002 timeouts and Stop/reconnect, and API-003 module name. **No unapproved choice above is final.**
+**N-ORD2, DONE-A and C-ORD-B are OWNER APPROVED**; cross-class Notification separation, Done-before-OnClose eligibility and within-Completion concurrency policy are closed. Remaining work: numeric worker/event ceilings and defaults, aggregate scope, fairness, OnClose saturation, payload-byte/frame-size accounting and numeric PERF-003 limits. Then review API-002 timeouts and Stop/reconnect, and API-003 module name. **No unapproved choice above is final.**
 
 ### 11.7 Worker-capacity architecture and Done contract — N-ORD2 / DONE-A APPROVED; capacities remain PROPOSALS
 
@@ -218,7 +218,7 @@ The active worker limit is **not** interchangeable with Request completion credi
 - Use finite, lazily activated worker loops per callback class and per owning Client/Server resource domain. Do not allocate one permanent goroutine per Session or spawn one goroutine per event.
 - Keep Session-local FIFO metadata and a bounded ready-Session structure. A fair ready-Session round-robin is preferred over draining one busy Session indefinitely. Do not hold registry/global hot-path locks while calling user code.
 - Completion queue items consume the existing PERF-003 Request credit from SendRequest admission through response pending, queued notification and callback return/cancellation. Settlement reuses that credit; no second terminal-result slot is allocated.
-- Candidate within-Completion policy: **at most one running Completion callback per Session**, FIFO by the serialized terminal-settlement enqueue order (not Request admission order), while different Sessions run in parallel. A permanently blocked Completion then stalls later Completion callbacks for that same Session only; the independent OnClose sublane remains available. This is a recommendation, **not an owner decision**.
+- **Owner-approved C-ORD-B:** configurable positive per-Session Completion concurrency; 1 is serial and values greater than 1 permit overlap. FIFO start selection follows serialized per-Session terminal-settlement enqueue order, not Request admission order. With concurrency greater than 1, callback return order is not guaranteed. The per-Session limit is intersected with a finite aggregate active Completion-worker ceiling; numeric limits/default remain open.
 - OnClose queue/event admission has its own bounded budget, at most one event for a Session. If no event credit is available, recommended policy is to skip that OnClose invocation and record an internal diagnostic/counter; never block transport cleanup or create an overflow goroutine. The skip policy is **not yet owner-approved**.
 - The Server aggregate should account for active callbacks from **retired Session generations** until their functions return, so reconnect cannot reset worker usage. Client reconnect generations share their Client's budget. Whether separate Client/Server objects also share a process-wide singleton cap is open; the V1 recommendation is per owning Client/Server instance to avoid hidden cross-instance coupling.
 - No numeric worker count is selected. Counts should be chosen only after representative concurrency/latency and memory measurements are authorized. Zero/unlimited must not silently disable a required bounded class.
@@ -233,7 +233,7 @@ OnClose metadata is small and payload-free; count admission is the primary bound
 
 **Approved public shape:** Done() <-chan struct{} is a read-only, idempotently observable Session lifecycle signal. The channel closes exactly once after internal Session teardown is complete and after the terminal cause/state is immutable. The terminal-cause accessor name/signature remains open.
 
-The binding order is: (1) close Session admission and settle pending Request outcomes exactly once; (2) cancel unstarted Application/Completion callbacks under Forced Close A and release their queued library-owned references/credits; (3) close/detach transport, stop timers and internal Reader/Writer/control loops, remove pending/registry state and release internal accounting not retained by running callbacks; (4) publish immutable terminal cause/state; (5) close Done; (6) only after Done closes may an admitted OnClose event become eligible to start. Under N-ORD2 it may overlap a Completion callback already running for that Session.
+The binding order is: (1) close Session admission and settle pending Request outcomes exactly once; (2) on a Forced Close path, cancel unstarted Application/Completion callbacks under Forced Close A and release their queued library-owned references/credits; (3) close/detach transport, stop timers and internal Reader/Writer/control loops, remove pending/registry state and release internal accounting not retained by running callbacks; (4) publish immutable terminal cause/state; (5) close Done; (6) only after Done closes may an admitted OnClose event become eligible to start. Under N-ORD2 it may overlap a Completion callback already running for that Session.
 
 Done never waits for Application, Completion or OnClose callback return. A running callback remains charged to its active-worker budget until return; a running Completion also retains its PERF-003 credit. Done does not guarantee that every Completion ran, that OnClose was admitted/started/returned, or that application-retained payload memory was freed. Done closes even when the OnClose event cannot be admitted under its independent bound.
 
@@ -249,28 +249,18 @@ Done never waits for Application, Completion or OnClose callback return. A runni
 4. Reconnect after Session close: any old running callback continues to consume the owning instance's active-worker permit; a new Session cannot manufacture extra capacity.
 5. Completion and OnClose for one Session: OnClose may start before a running Completion returns. This overlap is owner-approved by N-ORD2; shared user state must be synchronized by the application.
 
-### 11.8 Completion within-lane concurrency — owner choice required (2026-11-16)
+### 11.8 Completion within-lane concurrency — C-ORD-B OWNER APPROVED (2026-11-16)
 
-N-ORD2 resolves only the **cross-class** relationship between Completion and OnClose. It does not determine whether multiple Completion callbacks belonging to the same Session may overlap.
+The owner selected **C-ORD-B**. This closes the same-Session Completion concurrency policy while leaving numeric capacity/default choices open.
 
-Two viable bounded V1 policies remain:
+**Binding V1 contract:**
+1. Completion concurrency is a configurable **positive per-Session maximum**.
+2. 1 means at most one Completion callback executes at a time for that Session; values greater than 1 allow Completion callbacks from the same Session to overlap.
+3. The per-Session queue preserves FIFO callback **start selection** by the order in which the internal engine serializes terminal-result settlement/enqueue for that Session. This is not original SendRequest admission order: responses may arrive and settle out of order.
+4. With concurrency greater than 1, callback return/completion order is not guaranteed to match FIFO start selection. Applications sharing mutable state across Completion callbacks must synchronize it.
+5. The configured per-Session maximum is intersected with a finite aggregate active Completion-worker ceiling for the owning Client/Server domain. It cannot create a goroutine per Request or bypass that ceiling.
+6. PERF-003 Request credits continue to bound the full admitted Completion lifecycle from before SendRequest acceptance through pending, queued and running callback until return/cancellation. A separate active-worker permit bounds physical callback execution and is held until the callback returns.
+7. Under N-ORD2, Completion and OnClose remain independently bounded; OnClose may overlap a running Completion after Done closes. Under Forced Close A, not-yet-started Completion callbacks are cancelled on a Forced Close path, while already-running callbacks continue and retain their Request credit and worker permit until return.
 
-| Policy | Same-Session behavior | Advantages | Costs / observable semantics |
-|---|---|---|---|
-| **C-ORD-A: serial per Session** | At most one Completion callback runs at a time; FIFO by terminal-settlement enqueue order | Deterministic callback return order; user state needs no extra synchronization solely due to Completion overlap; simple Session-local scheduler | A permanently blocked Completion stalls later Completion callbacks for that Session; other Sessions and the independent OnClose lane continue |
-| **C-ORD-B: configurable concurrency** | Positive per-Session Completion concurrency; 1 is serial, N>1 allows overlap. Start selection remains FIFO by terminal-settlement enqueue order | Higher throughput for slow callbacks; same configuration model as Q-003-R1 Application handlers; owner can tune per workload | Callback return order is not guaranteed when N>1; user state shared between Completion callbacks must be synchronized |
+**Still OPEN:** numeric per-Session concurrency default and exported option name/range; active Completion worker counts and aggregate scope; event/queue capacities; OnClose saturation disposition; Completion payload-byte/frame-size bounds. No numeric defaults are inferred.
 
-**Important ordering detail:** FIFO here means order in which the internal engine serializes terminal-result settlement/enqueue for that Session. It does **not** promise original SendRequest admission order: peer responses can arrive out of request order. With concurrency greater than one, FIFO dispatch/start selection does not imply FIFO callback completion.
-
-**Recommendation:** C-ORD-B with configurable positive concurrency, using 1 as the conservative default candidate. This preserves a serial mode while allowing performance tuning without redesigning the API. The default value, exact option name and any Server-wide active Completion ceiling are **not approved**. A configured per-Session limit must always be intersected with a finite owner-instance aggregate active-worker cap; it cannot multiply into unbounded goroutines.
-
-**Worker / capacity ledger (proposal):**
-- Application: Q-009/Q-010 bound waiting incoming frame bytes; Q-003-R1 bounds same-Session active OnRequest concurrency; a separate finite Server aggregate active Application-worker cap is still needed to cover many Sessions and reconnect generations.
-- Completion: PERF-003 Request credits bound the full admitted lifecycle from before SendRequest acceptance through pending, queued and running callback. A separate active Completion-worker permit bounds physically executing callbacks. Response settlement reuses its existing Request credit; it must not allocate another credit.
-- OnClose: one event maximum per Session and a distinct active-worker reserve/event budget. It never consumes Request completion credits. Done closes independently of OnClose admission; OnClose remains best-effort.
-- All started callbacks retain their active-worker permit after Session retirement until return. Reconnect cannot reset the owning Client/Server's active count.
-- Recommended aggregate scope is per owning Client/Server instance (not a hidden process-global singleton); whether Client and Server instances also share a process-wide ceiling remains open. A Server cap protects its own bound Sessions; a standalone Client cap protects its reconnecting Session generations.
-- A bounded, lazy worker pool per callback class can consume a per-owner Session-ready queue. Maintain FIFO per Session and a bounded ready-Session ring/round-robin; invoke user code without registry/global hot-path locks. Never create one goroutine per event or per Session.
-- Active worker count, queue/event admission count and retained payload-byte accounting are separate limits. PERF-003 count credits do not by themselves cap response payload bytes; response frame-size / retained-byte accounting still needs a bound. Q-010's incoming queued-frame byte cap does not automatically bound active callback stacks or memory retained by user code.
-
-**Not yet selected:** C-ORD-A vs C-ORD-B; Completion concurrency default; Server/Client aggregate active-worker values; whether any process-wide cap is required; OnClose event overflow disposition; Completion payload byte cap / maximum response frame size. No numeric values are inferred from earlier examples.

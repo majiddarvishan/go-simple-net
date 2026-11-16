@@ -221,19 +221,19 @@ No code/test/benchmark run. `API-001b` and these detailed callback semantics rem
 **Further design question:** should OnClose/user-completion callback execution use a bounded independent lane, and what ordering/at-most-once guarantee is desired on forced Close? Recommend separate control-plane settlement and bounded user notification dispatcher, but do not silently implement it.
 
 
-## 12. API-001b-N1 owner approval — separate bounded notification lane (2026-11-16)
+## 12. Historical API-001b-N1 snapshot — separate bounded notification lane (2026-11-16; superseded by §§14–17)
 
 **APPROVED STRUCTURE:** `OnClose` and per-Request Completion user callbacks execute on a **bounded notification lane independent of the bounded parallel Application `OnRequest` dispatcher**. Neither user callback domain may block internal TCP Protocol/Control/Pending/Timeout/Close machinery. A slow application handler must not occupy the notification workers. Internal request result settlement remains once-only and proceeds irrespective of user callback execution.
 
 **Important limit:** This is separation between the **Application** and **Notification** user callback classes, not approval of one goroutine per notification, an unlimited queue, or one guaranteed worker per event. A blocked notification callback can still stall its own notification worker, even though it cannot stall the internal engine. Use PERF-003's bounded completion-credit accounting and finite scheduling/memory budgets.
 
-**Still OPEN:** notification lane worker count, defaults, exact queue/memory limits and shared-vs-sub-lane organization; `OnClose`/completion relative order and fairness across Sessions; forced-close Option A cancel-unstarted vs B bounded deferred callbacks; release of credits on forced close when user code remains blocked; `Done` public semantics. The owner approved **lane separation only**, not either forced-close option.
+**Historical open-question snapshot at N1 approval time:** notification worker count/defaults, queue/memory limits, sublane organization, OnClose/Completion order, forced-close A/B and Done semantics were still open at that point. Subsequent owner approvals in §§14–17 resolve Forced Close A, N-ORD2, DONE-A and C-ORD-B; numeric capacity and saturation questions remain open.
 
 **Authoritative source:** [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1. No implementation, tests or benchmarks authorized.
 
-## 13. Historical API-001b forced-close, ordering and worker bounds review (superseded by §§14–15)
+## 13. Historical API-001b forced-close, ordering and worker bounds review (superseded by §§14–17)
 
-A separate **historical nonbinding** owner-choice review covered forced-close A vs B, delivery and `OnClose`/`Done` ordering proposals, active-worker caps across closed Session generations, the need for a separate bounded `OnClose` event budget, PERF-003 numeric/event-count choices, API-002 deadlines and API-003 module name: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). **Historical status only:** Forced Close A and N-ORD2 were subsequently owner-approved in §§14–15. Remaining capacities and Done semantics remain open.
+A separate **historical nonbinding** owner-choice review covered forced-close A vs B, delivery and `OnClose`/`Done` ordering proposals, active-worker caps across closed Session generations, the need for a separate bounded `OnClose` event budget, PERF-003 numeric/event-count choices, API-002 deadlines and API-003 module name: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). **Historical status only:** Forced Close A, N-ORD2, DONE-A and C-ORD-B were subsequently owner-approved in §§14–17. Remaining numeric capacities and saturation policies remain open.
 
 ## 14. API-001b Forced Close Option A — OWNER APPROVED (2026-11-16)
 
@@ -245,7 +245,7 @@ Binding approval: [DECISION_LOG.md](DECISION_LOG.md) § `API-001b-FC-A`. Further
 
 **OWNER APPROVED:** Completion and OnClose execute in distinct, independently bounded Notification sublanes. OnClose may run concurrently with a Completion callback already executing for the same Session; it does not wait for that callback to return. N-ORD1 shared serial Completion+OnClose stream was not selected. Binding detail: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-NORD2.
 
-**Worker design proposal (not numeric approval):** three user-code domains remain distinct — Application, Completion, OnClose. Completion queue admission reuses PERF-003 Request completion credits; active Completion worker permits are separate and remain charged until callback return. OnClose has its own active worker reserve and an independent active+queued event budget (one event maximum per Session), never consumes Request completion credits, and is best-effort if its own capacity is exhausted. Retired Session callbacks continue consuming their owning Client/Server worker budget across reconnect. Prefer finite lazy worker pools and fair ready-Session scheduling; no goroutine per event. Candidate one-at-a-time FIFO Completion callback per Session (parallel across Sessions) is **not approved**; within-class concurrency/order remains open.
+**Worker design proposal (not numeric approval):** three user-code domains remain distinct — Application, Completion, OnClose. Completion queue admission reuses PERF-003 Request completion credits; active Completion worker permits are separate and remain charged until callback return. OnClose has its own active worker reserve and an independent active+queued event budget (one event maximum per Session), never consumes Request completion credits, and is best-effort if its own capacity is exhausted. Retired Session callbacks continue consuming their owning Client/Server worker budget across reconnect. Prefer finite lazy worker pools and fair ready-Session scheduling; no goroutine per event. The earlier one-at-a-time FIFO Completion candidate was not approved and has since been superseded by owner-approved configurable C-ORD-B; see §17. FIFO start selection remains by per-Session terminal-settlement enqueue order; callback return order is not guaranteed for concurrency greater than one.
 
 **Done-A OWNER APPROVED:** Session exposes a read-only Done() <-chan struct{} signal. It closes exactly once after internal teardown and immutable terminal-cause publication; it never joins Application, Completion or OnClose callbacks. An admitted OnClose event becomes eligible only after Done closes and may overlap an already-running Completion under N-ORD2. Running callbacks retain active-worker permits (and a running Completion retains its PERF-003 credit) until return. Terminal-cause accessor and Close return semantics remain **OPEN**.
 
@@ -253,9 +253,19 @@ See [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_00
 
 ## 16. API-001b-DONE-A — Session Done semantics (OWNER APPROVED, 2026-11-16)
 
-The owner selected Option A. The public Session signal is Done() <-chan struct{}, closed exactly once after internal admission stops, pending Request outcomes settle, unstarted Application/Completion callbacks are cancelled under Forced Close A, transport and internal Reader/Writer/control loops stop, timers/registry/internal accounting are cleaned up, and terminal cause becomes immutable. **Done never waits for arbitrary user callbacks.** Only after Done closes may an admitted OnClose event become eligible; under N-ORD2 it may overlap a Completion callback already running for that Session. OnClose remains best-effort/at-most-once.
+The owner selected Option A. The public Session signal is Done() <-chan struct{}, closed exactly once after internal admission stops, pending Request outcomes settle, on a Forced Close path, unstarted Application/Completion callbacks are cancelled under Forced Close A; transport and internal Reader/Writer/control loops stop, timers/registry/internal accounting are cleaned up, and terminal cause becomes immutable. **Done never waits for arbitrary user callbacks.** Only after Done closes may an admitted OnClose event become eligible; under N-ORD2 it may overlap a Completion callback already running for that Session. OnClose remains best-effort/at-most-once.
 
 The terminal-cause accessor and Close() return timing remain open. Server/Client Stop aggregation remains API-002. Worker/event capacities and Completion within-class ordering/concurrency remain open; see [detailed review §§11.7–11.8](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md).
 
 No code, tests, benchmarks or operational changes.
+
+## 17. API-001b-CORD-B — Configurable Completion concurrency (OWNER APPROVED, 2026-11-16)
+
+The owner selected C-ORD-B: a positive configurable per-Session Completion concurrency limit. 1 gives serial execution; values above 1 permit callbacks from the same Session to overlap. FIFO start selection follows the order in which the internal engine serializes terminal-result settlement/enqueue for that Session, not SendRequest admission order. Callback return order is not guaranteed when concurrency exceeds one, and shared mutable application state must be synchronized by the application.
+
+The per-Session limit is intersected with a finite aggregate active Completion-worker ceiling. PERF-003 Request credits bound the complete admitted Completion lifecycle, while active-worker permits bound callbacks physically executing. On a Forced Close path, Forced Close A cancels callbacks that have not started; running callbacks retain their credit and worker permit until return. N-ORD2's independent OnClose lane and DONE-A's Done-before-OnClose eligibility remain unchanged.
+
+**Still open:** numeric concurrency default and public option name/range; worker counts and aggregate scope; event/queue and payload-byte/frame-size limits; OnClose saturation; terminal-cause/Close return API; API-002 and API-003.
+
+No implementation, tests, benchmarks or operational changes.
 
