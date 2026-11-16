@@ -144,18 +144,7 @@ Rules:
 
 Explicit class ceilings make upper bounds independent of current Session count, prevent one class from consuming another class's execution reserve and keep reconnect churn from multiplying active work. The cost is three additional capacity dimensions per Client/Server; this does not require eager creation of all worker goroutines.
 
-## 10. Explicitly not decided
-
-- Numeric per-Session concurrency defaults and maximums for Application/Completion.
-- Numeric owner active-worker ceilings and public option names.
-- Physical worker-pool layout and idle-worker lifecycle.
-- OnClose event-budget numbers and saturation policy (WORKER-003).
-- Incoming callback event-count cap.
-- Completion payload-byte budget and final maximum frame size.
-- PERF-003 numeric Request-credit defaults.
-- API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
-
-## 11. WORKER-003 — OnClose event-budget saturation (OPEN; RECOMMENDATION ONLY)
+## 10. WORKER-003 — OnClose event-budget saturation (OPEN; RECOMMENDATION ONLY)
 
 WORKER-002 bounds physically active OnClose callbacks but does not bound how many close events may wait behind blocked OnClose workers. A separate owner-scoped event budget is still required. It should count **queued + running OnClose events**, with at most one event per Session. Events from old Client reconnect generations remain charged to the same Client owner until their callback returns.
 
@@ -189,7 +178,7 @@ Choose **Option A**. N-ORD2 and DONE-A explicitly make OnClose independent and b
 
 **Owner decision requested:** choose WORKER-003 Option A (skip new OnClose event on saturation) or Option B (reserve event credit at Session admission and backpressure new Sessions/reconnects). No numeric event-budget default is included in this choice.
 
-## 10. Explicitly not decided
+## 11. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
