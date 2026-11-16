@@ -1,5 +1,8 @@
 # neta-go — Public API, Configuration & Session Lifecycle Design (Draft)
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 replaces the original unconditional same-Session serial `OnRequest` callbacks with a **configurable bounded concurrent Application handler** policy. Concurrency=1 yields serial application processing; internal protocol/timeout/close path is independent of user callback returns. Earlier serial assumptions below are historical. See [Decision Log](DECISION_LOG.md).
+
+
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — NOT APPROVED AS A COMPLETE API CONTRACT  
 **Repository:** majiddarvishan/neta-go / main  
@@ -214,3 +217,12 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 ## 8. Next Public API design (API-001)
 
 The design-only [Public API / Request Completion draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) specifies minimal Client, Server, Session, Request/Response and callback concepts. **API-001a is CLOSED — owner approved A:** asynchronous callback-first request completion is the primary interface; B synchronous Context-first was not selected. Performance is an explicit first-class V1 requirement; see [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). API-001b, PERF-002/003 and exact names/signatures remain open; no code/test work authorized.
+
+
+## 9. Q-003-R1 configurable callback concurrency (owner approved; names/default OPEN)
+
+- Add **typed Functional Option** to configure a positive maximum number of **concurrently executing application callbacks per Session**, inherited by accepted Server Sessions from immutable Server effective config (unless another explicitly designed scoping rule is approved). Explicit value `1` gives serial application `OnRequest` execution. Values >1 permit parallel application handlers. This is an approved semantic, but exact option name / **default** value not owner-approved.
+- Preserve FIFO dispatch selection from received Stream frames. Callback completion order and any application-generated Response ordering can differ when parallel; use the original incoming Sequence in each response. The single Writer still preserves actual outbound frame integrity.
+- Private transport state machine/Control/Pending/timers/close must progress independently of user callbacks; do not run application functions on critical internal lanes or hold locks during user code.
+- Do not increase unbounded goroutine creation; configure and validate finite count alongside existing API-004 resource knobs. The **waiting** inbound 4 MiB cap and global Server queued-byte cap do not cover all active callback memory/stack retention. A Server-wide active callback limit remains proposed/OPEN.
+- User-facing lifecycle/completion callback dispatch and forced-close cancellation/defer remain under **API-001b OPEN**, separate from the Q-003-R1 approved application callback parallelism. No hot reload.
