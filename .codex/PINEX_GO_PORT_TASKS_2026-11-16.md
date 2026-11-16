@@ -2,7 +2,7 @@
 
 **تاریخ:** 2026-11-16  
 **وضعیت:** ANALYSIS RECORDED — IMPLEMENTATION NOT AUTHORIZED  
-**مخزن مقصد:** majiddarvishan/go-simple-net  
+**مخزن مقصد:** majiddarvishan/neta-go  
 **هدف:** پیاده‌سازی یک کتابخانه TCP Messaging در Go با سازگاری Wire Protocol با Pinex C++ نسخه 1.5.0، شاخه develop.
 
 ---
@@ -447,12 +447,12 @@ Baseline فعلی Pinex:
 **تصمیم قطعی مالک در 2026-11-16: `neta-go` (NETA Go).**
 
 - نام کتابخانه بومی Go برای TCP Messaging برابر `neta-go` است.
-- مخزن فعلی `majiddarvishan/go-simple-net` و ماژول Go فعلاً بدون تغییر باقی می‌مانند.
-- Package پیشنهادی آینده `neta` است؛ اما نام Package، مسیر Module، Rename مخزن یا تغییر نام C++ Pinex مجوز اجرا ندارند.
+- مالک مسیر مخزن GitHub را به `majiddarvishan/neta-go` تغییر داده و دسترسی `main` تأیید شده است. مسیر Module/Package مستقل از تغییر مخزن است و هنوز در API-003 تعیین نشده است.
+- Package پیشنهادی آینده `neta` است؛ نام Package و مسیر Go Module هنوز تعیین نشده‌اند. تغییر بیشتر مخزن یا تغییر نام C++ Pinex مجوز اجرا ندارد.
 - سازگاری Wire Protocol با Pinex C++ نسخه 1.5.0 باید حفظ شود.
 - بررسی تعارض نام/علامت تجاری پیش از انتشار عمومی در Backlog قرار گیرد.
 
-**وضعیت:** CLOSED — نام انتخاب شد؛ بدون مجوز تغییر نام عملیاتی یا کدنویسی. [Decision Log](DECISION_LOG.md).
+**وضعیت:** CLOSED — نام انتخاب شد و مالک متعاقباً مخزن GitHub را Rename کرد؛ بدون مجوز کدنویسی یا تغییر Module/Package. [Decision Log](DECISION_LOG.md).
 
 ### Q-004 — تعیین محدوده نسخه اول neta-go
 
