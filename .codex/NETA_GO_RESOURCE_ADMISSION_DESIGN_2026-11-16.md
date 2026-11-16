@@ -1,5 +1,8 @@
 # neta-go V1 — Resource Admission and Incoming Backpressure Design
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 replaces older unconditional serial application callbacks below with **configurable bounded same-Session parallel handlers** (concurrency=1 yields serial). Q-009/Q-010 queue capacities and overload outcomes remain approved. See [Decision Log](DECISION_LOG.md).
+
+
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — Q-008 / Q-009 B / Q-010 A APPROVED; exact Go API design remains OPEN  
 **Branch:** `majiddarvishan/neta-go` / `main`  
@@ -134,3 +137,12 @@ The owner chose Option A defaults, **not** a workload-specific replacement defau
 - Pin the exact C++ develop HEAD before any cross-language test execution.
 
 **No implementation permission is implied by this document. Approved numeric defaults are not measured production sizing guarantees.**
+
+
+## 8. Callback parallelism accounting addendum — Q-003-R1 (2026-11-16)
+
+**Owner-approved:** same Session may execute up to a *configured* number of Application callbacks at once; `1` retains serial processing. Internal protocol/timeout/Close logic progresses independently of user handler return. The previous single-active-callback assumption in older sections is **superseded**.
+
+**Queue semantics unchanged:** Q-009/Q-010's 4 MiB per Session incoming limit and 256 MiB Server aggregate queue limit are for **queued/waiting** Application frames, not entire process RSS. A work item moving from waiting queue to a callback's active ownership must release waiting-queue charges in the preexisting coherent accounting model; do not double charge or silently lose ownership. Separate capacity bounds for **N simultaneously active** payloads/callback stacks must be evaluated before implementation. Avoid admitting an unbounded number of users' active callbacks across 1024 Sessions.
+
+**Still open:** choice of default application callback concurrency, global active callback budget, separate count budget for tiny queued events, whether user notification callbacks use independent bounded dispatch, and forced close of blocked active callbacks. Overflow of **waiting** incoming backlog still closes offending Session only. A newly received frame must never bypass the bound by launching unlimited new handlers. No new resource numbers silently approved.
