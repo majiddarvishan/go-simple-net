@@ -622,7 +622,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 ## API-001b-NORD2 — Independent Completion / OnClose Notification Sublanes (2026-11-16)
 
-**Status: CLOSED / OWNER APPROVED — Notification class separation and cross-class overlap policy.** Parent **API-001b remains PARTIALLY OPEN** for within-class Completion ordering/concurrency, Done, worker/event capacities and defaults.
+**Status: CLOSED / OWNER APPROVED — Notification class separation and cross-class overlap policy.** Parent **API-001b remains PARTIALLY OPEN** for within-Completion ordering/concurrency, worker/event capacities and defaults. Session Done semantics are separately CLOSED by API-001b-DONE-A.
 
 **Owner's explicit selection:** N-ORD2 — Completion and OnClose execute in distinct, independently bounded Notification sublanes; OnClose may run concurrently with an already-running Completion callback from the same Session. N-ORD1 same-Session serialization across Completion and OnClose is **NOT SELECTED**.
 
@@ -642,12 +642,42 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 - Whether Completion callbacks are serialized per Session (recommended initial V1 policy: one running Completion per Session, FIFO by terminal-settlement enqueue order) or have configurable same-Session concurrency. Request admission order is not inherently Completion order.
 - Exact Completion and OnClose worker counts, defaults, maxima, per-Session and aggregate quotas, queue/event capacities, fairness policy and validation.
-- Whether OnClose is eligible only **after** a proposed Done signal closes; exact Done semantics, visibility, terminal-cause accessor and Close return behavior.
+- Terminal-cause accessor and Close return behavior remain open; Done visibility and OnClose eligibility ordering are resolved by API-001b-DONE-A.
 - OnClose event-budget saturation policy (recommended: skip the event rather than block cleanup or allocate unbounded work).
 - Completion payload-byte accounting in addition to PERF-003 count credits; active callback and user-retained payload memory are not covered by Q-010 waiting-queue byte caps.
 - Per-Server / per-Client versus process-wide aggregate active-worker ceiling; graceful Stop/drain and the API-002 definition of Forced Close remain open.
 - Numeric PERF-003 per-Session/Server count defaults, incoming callback event-count cap, Q-003-R1 concurrency default, API-002 timeout/reconnect/Stop and API-003 module/package.
 
-**Follow-on design proposal (not approved):** [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11.7. The proposed Done signal closes after internal Session teardown and before OnClose callback start, but does not join or imply completion of any user callback. **This Done proposal is not yet owner-approved.**
+**Follow-on worker-capacity proposal:** [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §§11.7–11.8. Done semantics are now owner-approved by API-001b-DONE-A; worker counts, queue/event capacities and within-Completion concurrency remain proposals/open.
 
 **Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
+
+## API-001b-DONE-A — Session Done Signal After Internal Teardown (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED.** The owner explicitly selected **Option A** for Session Done semantics.
+
+### Binding V1 contract
+
+1. The public Session lifecycle signal is a read-only channel: **Done() <-chan struct{}**. It is closed exactly once when the Session's **internal teardown is complete**.
+2. Before closing Done, the internal lifecycle must:
+   - close Session admission and reject new sends/responses;
+   - settle each pending Request's internal terminal result exactly once;
+   - cancel not-yet-started Application and Completion callbacks under API-001b-FC-A, releasing their queued library-owned payload/metadata and credits;
+   - close/detach the transport and stop internal Reader/Writer/control loops;
+   - stop Session timers, remove pending/registry state and release internal queue/accounting reservations not retained by already-running callbacks;
+   - publish the immutable terminal cause/state.
+3. **Done never waits for arbitrary user callback return.** Already-running Application, Completion and OnClose callbacks may outlive Done and retain their active-worker permits until they return. A running Completion also retains its PERF-003 Request completion credit until return.
+4. An admitted OnClose event becomes **eligible to start only after Done has closed**. Under owner-approved N-ORD2 it may then overlap a Completion callback already running for the same Session. Done does not guarantee OnClose admission, start or return; OnClose remains best-effort/at-most-once under its separately bounded lane.
+5. Done reports internal Session/transport lifecycle termination only. It does not mean every Completion ran, any callback returned, OnClose ran, or all user-retained payload memory was released.
+6. This rule applies to the Session terminal transition regardless of which internal close path wins; Client/Server Stop aggregation and graceful-drain semantics remain API-002 work.
+
+### Explicitly still OPEN
+
+- Exported terminal-cause accessor name/signature; the terminal cause itself must already be immutable before Done closes.
+- Whether Close() returns before, at, or after Done closes; Done is the observable internal-teardown signal and is not a user-callback join.
+- OnClose event admission/saturation policy and numeric event/worker capacities.
+- Completion within-class ordering/concurrency, all Worker numeric defaults and aggregate-scope details.
+- Client/Server Stop and drain behavior under API-002.
+
+**Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
+

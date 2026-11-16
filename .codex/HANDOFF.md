@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A (Forced Close A) and N-ORD2 (independent Completion/OnClose sublanes; OnClose may overlap active Completion) are **owner approved**. Remaining API-001b work is within-lane Completion ordering, worker/event bounds and Done semantics; see [DECISION_LOG.md](DECISION_LOG.md) §API-001b-NORD2.
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A, N-ORD2 and API-001b-DONE-A are **owner approved**: Completion/OnClose have independent bounded sublanes, OnClose may overlap an active Completion but is eligible only after Session Done closes, and Done closes after internal teardown without joining user callbacks. Remaining API-001b work is within-Completion ordering/concurrency and worker/event bounds; see [DECISION_LOG.md](DECISION_LOG.md) §§API-001b-NORD2 and API-001b-DONE-A.
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** API-001b-FC-A and API-001b-NORD2 OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion/OnClose are independent bounded sublanes and OnClose may overlap a running Completion. Remaining: within-Completion ordering/concurrency, Worker/event capacities, Done semantics and numerical defaults. See §25; older A/B and N-ORD1 comparisons are historical.
+**Current work:** API-001b-FC-A, N-ORD2 and DONE-A OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion/OnClose are independent bounded sublanes; OnClose becomes eligible only after Done and may overlap a running Completion. Done does not join user callbacks. Remaining: within-Completion ordering/concurrency, Worker/event capacities/defaults, OnClose saturation and terminal-cause/Close-return API details. See §§25–26; older A/B and N-ORD1 comparisons are historical.
 
 ## 1. Repository state
 
@@ -283,8 +283,25 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Worker design (proposal only):** separate bounded Completion and OnClose worker capacity per owning Server/Client instance; Completion event queue uses the already-reserved PERF-003 per-Session + aggregate Request completion credits; OnClose has its own at-most-one-per-Session event and independent global active+queued event budget. Retain active-worker charges for callbacks surviving Session closure/reconnect. Prefer bounded lazy worker pools and fair ready-Session scheduling; never one goroutine per event. Candidate: at most one active Completion callback per Session, FIFO by terminal-settlement enqueue order, parallel across Sessions; same-Session Completion concurrency remains **OPEN**. Numeric worker counts, event caps, fairness and per-Server vs process-wide aggregate are **OPEN**.
 
-**Done design (proposal only):** expose a read-only Session completion signal, e.g. Done() <-chan struct{}, closed exactly once after internal transport lifecycle teardown: admissions stop, pending Request outcomes settle, unstarted work is cancelled, socket and internal Reader/Writer loops stop, timers/registry/internal queue accounting are released and terminal cause becomes immutable. Proposed order is Done closes **before OnClose is allowed to start**. Done does **not** wait for Application, Completion or OnClose user functions and does not imply any callback was invoked or returned. A Completion already running retains its worker and PERF-003 active credit until return; OnClose may overlap it. Exact public method/cause API, Close return semantics, and approval of this Done contract are **OPEN**.
+**Done design:** the preceding Done proposal has been approved as API-001b-DONE-A; see §26. The read-only Session Done() <-chan struct{} closes after internal teardown and immutable terminal-cause publication, never waits for user callbacks, and gates OnClose eligibility. A running Completion retains its worker and PERF-003 credit until return; OnClose may overlap it under N-ORD2. The exported terminal-cause accessor and Close return semantics remain OPEN.
 
-**Next essential owner choice:** approve or revise the proposed Done semantics (internal teardown complete; close Done before OnClose start; never join user callbacks). Then decide within-Completion per-Session ordering/concurrency and numerical worker/event budgets. PERF-003 numeric credits and optional incoming event-count cap, API-002 timeout/Stop/reconnect and API-003 package/module remain open.
+**Next essential owner choice:** decide within-Completion per-Session ordering/concurrency. Then finalize worker/event capacity dimensions and numeric defaults, OnClose saturation, PERF-003 count/event limits, API-002 timeout/Stop/reconnect and API-003 package/module. Do not infer numeric values from earlier examples.
 
 **Guardrail:** no Go/C++ code, go.mod, tests, builds, benchmarks, CI or operations. All worker values remain proposals; no numeric defaults were invented.
+
+## 26. API-001b-DONE-A — Owner-approved Session Done contract and next Worker design (2026-11-16)
+
+**Owner decision:** Option A is **APPROVED**. Binding source: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-DONE-A.
+
+**Contract:** Session exposes a read-only **Done() <-chan struct{}** signal. It closes exactly once after admission stops, pending Request outcomes settle once, unstarted Application/Completion callbacks are cancelled under Forced Close A, transport and internal Reader/Writer/control loops stop, timers/registry/internal accounting are cleaned up, and terminal cause is immutable. Done never joins or waits for any running Application, Completion or OnClose callback. An admitted OnClose event is eligible only after Done closes; under N-ORD2 it may overlap a Completion callback already running for the same Session. OnClose remains best-effort/at-most-once.
+
+**Still open:** terminal-cause accessor name/signature; Close return semantics; OnClose event saturation; within-Completion order/concurrency; worker/event counts, defaults and aggregate scope; PERF-003 numeric limits and optional incoming event-count cap; API-002 and API-003.
+
+**Worker design recommendation (not approved as API defaults):** three separate bounded callback classes (Application, Completion, OnClose); per-Session FIFO work queues feeding finite bounded owner-instance worker capacity; fair ready-Session scheduling; no goroutine per event; no global/registry lock while invoking user code. Keep the resource ledgers distinct:
+- Application waiting frames: Q-009/Q-010 byte caps; active handlers: Q-003-R1 per-Session concurrency plus a still-open Server aggregate active-worker cap.
+- Completion lifecycle: PERF-003 per-Session + aggregate Request credits reserved before SendRequest acceptance and held through pending, queued, and running callback; active Completion Worker permit is a separate physical-execution cap.
+- OnClose: at most one event per Session, independent event admission and active Worker capacity; it never consumes Request completion credits. Done closes even if OnClose cannot be admitted.
+- Running callbacks from retired Session generations continue consuming the owning Client/Server worker capacity until return, including after reconnect.
+
+**Next decision:** select the within-Completion concurrency/ordering contract. Recommended alternatives and consequences are recorded in [the detailed review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11.8. All numeric limits remain OPEN.
+
