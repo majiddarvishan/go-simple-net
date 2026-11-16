@@ -35,7 +35,8 @@
 
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
-- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006, Q-007 and Q-008 approved.
+- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 through Q-010 policy approvals are reflected.
+- NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md — detailed API-004 draft: Functional Options vs optional/pointer Config, explicit-zero keepalive, independent overrides, validation, immutable per-instance snapshot. Owner choice still OPEN.
 - NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 outgoing 4 MiB/Fail-Fast, Q-009 B incoming overflow close, and Q-010 A configurable inbound/global/session/pre-bind/control defaults are approved. API-004 design remains open.
 - DECISION_LOG.md — authoritative approved decisions Q-001 through Q-010 (as applicable), plus NAM-001; distinguishes remaining open API details.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
@@ -86,7 +87,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next design-only work:** finalize API-004 (unset vs explicit zero and all resource overrides), API-001/002 (exact Go public types, callbacks, queue accounting, close lifecycle) and API-003 (package/module path). Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
+**Next design-only work:** obtain owner choice for **API-004**: Option A (recommended typed Functional Options with internal complete defaults and immutable validated config) or B (optional/pointer Config fields), then finalize API-001/002 (Go public types, callbacks, queue accounting, close lifecycle) and API-003 (package/module path). Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
 
 ## 9. Approved Go library name
 
@@ -122,4 +123,4 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 
 **Q-010 CLOSED — OPTION A WITH ALL SETTINGS CONFIGURABLE (2026-11-16).** Approved defaults and outcomes are defined in [Decision Log](DECISION_LOG.md), [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). An omitted setting selects the approved default; an explicit valid override is honored. Exact Go representation/validation remains API-004 OPEN, particularly `EnquireLinkIdleInterval=0` vs omission.
 
-**No implementation is authorized.**
+**No implementation is authorized.** The detailed API-004 configuration model is documented, but its Option A/B choice remains OPEN.
