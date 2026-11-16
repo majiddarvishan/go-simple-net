@@ -49,3 +49,13 @@
 10. Run build, unit/integration tests, go vet, and go test -race against the complete repository source.
 
 No implementation work should be inferred as authorized from this review document.
+
+## Additional findings
+
+11. Rate limiting also applies to control commands and is per connection.
+12. Enquire Link responses are not correlated with the outstanding sequence.
+13. Listen failure exits the host process through os.Exit.
+14. Drain timeout is not a hard bound for blocked network writes.
+15. A Send racing with Close may enqueue after the Writer has stopped.
+
+See F-24 through F-28 in the primary report.
