@@ -150,3 +150,52 @@ Q-003 is **CLOSED**.
 ### Next planning work
 
 Continue Q-004 and the outstanding configuration/API details. No application implementation is authorized.
+
+---
+
+## Q-004 — Optional features scope for neta-go V1 (2026-11-16)
+
+**Status:** PROPOSED — awaiting explicit owner approval  
+**Applies to:** GO-PINEX-002, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-011, GO-PINEX-014  
+**Implementation:** NOT AUTHORIZED
+
+### Background from the existing project task plan
+
+The uploaded Go sample includes several application-oriented features that are not part of Pinex C++ 1.5.0's wire contract. Go V1 must remain a general-purpose, interoperable TCP messaging library rather than inherit SS7-specific or sample-only policy.
+
+### Proposed V1 Core (retain)
+
+- Shared Pinex-compatible codec, TCP client/server, session and Bind/Unbind state machine.
+- Opaque binary payload, stream request/response, sequence correlation and request deadlines.
+- Concurrent-safe public API, per-session ordered callbacks, frame-safe concurrent writes and independent sessions per approved Q-003.
+- Bounded queues, backpressure and connection admission for predictable resource behavior; FIFO by default.
+- Configurable client reconnect, transport timeouts, TCP keepalive and approved idle-only Enquire Link (Q-002), including `0` to disable automatic sending.
+- Controlled closure, terminal event notifications, and direct Go↔C++ Pinex interop tests.
+
+### Proposed V1 exclusions / future backlog
+
+| Feature | Proposal | Rationale |
+|---|---|---|
+| Generic Circuit Breaker | Defer to a later optional component | Application policy and failure thresholds should not obscure TCP/session behavior |
+| Business/application Rate Limiter | Defer to caller or middleware | Do not conflate with required transport backpressure and resource limits |
+| Sequence-based message Deduplicator | Exclude from Core, no implicit dedup | Pinex sequence is for correlation, not a global deduplication identity |
+| Priority Queue | Defer; use bounded FIFO in Core | Preserve simple, deterministic traffic flow and control frames' ability to progress |
+| Prometheus metrics exporter/dependency | Defer; consider minimal neutral hooks in Go API design | Avoid coupling networking Core to a metrics backend |
+| Protobuf/SS7 business handlers | Out of scope | Payload must remain opaque; application owns serialization |
+| Multi-client load-balancing Group | Separate future task | Not required for the initial client/server compatibility milestone |
+
+**Important distinction:** Transport-level queue bounds, per-session admission and backpressure **remain mandatory in Core** even though business Rate Limiter and Circuit Breaker are proposed for deferral. Control PDUs must not starve behind regular payload backlog.
+
+### Proposed acceptance checks
+
+- V1 can perform complete Bind, Stream, Enquire Link and Unbind interoperability against C++ Pinex with only the Go Core.
+- No optional application feature is needed to get a usable client/server.
+- No automatic sequence deduplication; repeated valid sequence-like payload content is not dropped.
+- Overloaded sessions use defined bounded behavior and do not cause unbounded memory growth.
+- Optional application policies can be layered outside the public API without wire changes.
+
+### Approval requested
+
+Owner to choose **A — approve the lean V1 Core and defer the optional features above**, or **B — identify specific optional capabilities that must ship in V1**.
+
+This entry is **not** an approved decision until the owner replies. No source or build modifications are authorized.
