@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — NOT APPROVED AS A COMPLETE API CONTRACT  
-**Repository:** majiddarvishan/go-simple-net / main  
+**Repository:** majiddarvishan/neta-go / main  
 **Implementation:** NOT AUTHORIZED. No Go application code, go.mod, tests or runtime changes.  
 **Compatibility target:** Pinex C++ 1.5.0, develop branch, unchanged wire protocol.
 
