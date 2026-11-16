@@ -1,7 +1,7 @@
 # neta-go V1 — Worker Capacity & Resource Accounting Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN IN PROGRESS — WORKER-001/002/003/004 OWNER APPROVED; WORKER-005 OPEN  
+**Status:** DESIGN IN PROGRESS — WORKER-001/002/003/004/005 OWNER APPROVED; WORKER-006 OPEN  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. Documentation/design only.
 
@@ -116,7 +116,7 @@ No library can terminate arbitrary user code. Finite active capacity therefore i
 - Per-Session queues and ready-session rotation localize contention; global/owner counters still need race-free reservation but must not be held while calling user code.
 - Bounded class-isolated worker loops avoid per-event goroutine creation and reduce allocation/scheduler churn. WORKER-004 fixes the pool topology; WORKER-006 will refine fair ready-Session selection.
 - Independent class budgets prevent blocked Application callbacks from consuming Completion/OnClose capacity and prevent Completion saturation from consuming OnClose's reserved capacity.
-- Fair scheduling improves tail latency and prevents a high-volume Session from monopolizing available workers, but fairness cannot overcome a class whose workers are all permanently blocked.
+- WORKER-006 proposes per-class round-robin over eligible Sessions. Fair dispatch improves tail latency and prevents a high-volume Session from monopolizing future worker starts, but cannot preempt running callbacks or overcome a class whose workers are all permanently blocked.
 - No throughput/latency SLA or numeric default is inferred. Measurement and benchmarks remain unauthorized.
 
 ## 9. WORKER-002 — Independent owner-wide active-worker ceilings (OWNER APPROVED, OPTION A)
@@ -197,60 +197,92 @@ Option B — one shared owner worker pool with strict per-class active reservati
 **Next:** WORKER-005 — Worker Lifecycle and Idle Worker Retirement. Numeric worker ceilings, idle timeout defaults, queue/event limits and payload-byte limits remain open.
 
 
-## 12. WORKER-005 — Worker Lifecycle and Idle Worker Retirement (OPEN; RECOMMENDATION ONLY)
+## 12. WORKER-005 — Worker Lifecycle and Idle Worker Retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION B.**  
+**Implementation:** NOT AUTHORIZED.
+
+The owner approved finite idle retirement rather than retaining every worker until owner shutdown.
+
+### Binding V1 contract
+
+1. Each Client/Server retains the three class-isolated WORKER-004 pools. Workers are created lazily and reused only within their own class.
+2. After a callback returns, if the worker has no dispatchable work, it may enter Idle and start a finite grace timeout belonging to that class pool.
+3. Work arriving before timeout expiry reuses/wakes the idle worker. If the timeout expires and no dispatchable work exists, the worker atomically removes itself from the pool's worker count and exits.
+4. The default warm-idle floor is **zero**. After sufficient inactivity, a class pool may return to zero idle worker goroutines.
+5. Idle timeout is independently configurable for Application, Completion and OnClose. Numeric defaults and valid ranges are deferred to WORKER-009.
+6. A worker executing user code is not idle and must never be retired, interrupted or have its active permit released because of idle timeout. A permanently blocked callback remains charged until actual return.
+7. Retirement does not discard queued work or release Application queue/event charges, Completion Request credits, OnClose event credits or other work-item ownership.
+8. Enqueue versus retirement has one linearization point. If enqueue wins, the idle worker is reused/woken; if retirement wins, the pool count is decremented before exit and dispatch creates a replacement when needed. No lost wakeup, stranded ready Session or worker-count overshoot is permitted.
+9. The timeout begins only after callback return and after the worker establishes that no dispatchable work is available. It never bounds callback duration.
+10. No goroutine per timeout and no process-global reaper. Reusable timer/wait state is preferred; repeated idle cycles should avoid unnecessary timer allocation.
+11. Owner Stop/Close and active-worker drain/cancellation semantics remain API-002.
+
+### Rationale
+
+Finite idle retirement prevents long-lived owners from retaining their historical peak number of worker goroutines and stacks indefinitely. A zero warm-idle floor gives predictable quiescent resource use across many independent owners. A finite grace period still permits reuse during short gaps, trading possible cold-start cost after long inactivity for lower idle memory and goroutine retention.
+
+**Detailed design:** this document §12.  
+**Next:** WORKER-006 — fair scheduling between Sessions. Numeric idle timeout defaults/ranges remain open for WORKER-009.
+
+## 13. WORKER-006 — Fair Scheduling Between Sessions (OPEN; RECOMMENDATION ONLY)
 
 **Status: OPEN — no owner selection yet.**  
 **Implementation:** NOT AUTHORIZED.
 
-WORKER-004 fixes three class-isolated pools per Client/Server owner. WORKER-005 defines when those pools create workers, reuse idle workers and retire workers after bursts. It does not define Stop/Close handling of active callbacks; that remains part of API-002.
+WORKER-004 fixes three class-isolated pools. WORKER-006 defines how each pool chooses among Sessions with dispatchable work; it does not merge pools or alter WORKER-001/002 ownership and capacity contracts.
 
-### Required lifecycle invariants
+### Binding constraints inherited from prior decisions
 
-- A pool creates a worker only when it has dispatchable work and no reusable idle worker in that same class.
-- A worker executes callbacks synchronously, one at a time. It cannot be retired while executing user code.
-- After callback return, the worker first checks for more dispatchable work. If work exists, it continues without an idle transition.
-- An idle worker is reusable only by its own class pool. It does not hold an active-callback permit while idle, but its goroutine and stack still consume resources.
-- Total worker goroutines per class must remain bounded by that class's WORKER-002 ceiling.
-- A permanently blocked callback is not idle and cannot be retired. Its worker and active permit remain charged until the callback actually returns.
-- Worker retirement must not discard queued Application, Completion or OnClose work or release its queue/event/Request credits. Those remain governed by their separate admission contracts.
-- Enqueue versus retirement must have one linearization point. If enqueue wins, the worker is woken or another worker is created; if retirement wins, the enqueue path observes the reduced worker count and creates a replacement when required. No lost wakeup or stranded ready Session is permitted.
-- Use the worker's own reusable timer/wait mechanism; do not create a timer goroutine or a fresh goroutine per idle timeout. The idle path must avoid repeated timer allocations.
-- Fair selection among ready Sessions is WORKER-006, not decided by this lifecycle policy.
+- Fairness is scoped to eligible Sessions within one owner and one callback class. Client reconnect generations share the Client owner scheduler; queued work from a retired generation remains visible until its own lifecycle ends.
+- Preserve FIFO work order within each Session. For Completion, C-ORD-B remains binding: FIFO callback-start selection follows serialized terminal-result settlement/enqueue order, not SendRequest admission order. Parallel callback return order remains unspecified.
+- A Session is eligible while it has queued work and an available per-Session concurrency slot. Owner/class active-worker ceilings remain binding.
+- Application, Completion and OnClose have independent ready-session state; scheduling turns cannot cross callback classes.
+- Callbacks are non-preemptive. Fairness governs dispatch opportunities/start selection, not CPU-time equality or callback completion deadlines.
+- No scheduler lock is held while user code runs. No goroutine or heap allocation is required per callback turn.
 
-### Option A — retain idle workers until owner shutdown
+### Option A — per-class round-robin, one callback per Session turn (RECOMMENDED)
 
-After a worker becomes idle, keep it parked and reusable for the remaining lifetime of its Client/Server owner. No idle timeout or retirement occurs.
+Each class pool maintains a FIFO rotation of ready Sessions. A Session appears at most once in that class's ready set. A worker dispatches one callback from the head Session's FIFO queue, then moves that Session to the tail if it still has queued work and an available per-Session slot. If the Session reaches its concurrency limit, it becomes eligible again only when a callback returns and frees a slot.
 
-**Advantages:** lowest cold-start latency after a burst; no worker recreation churn; simplest idle/wakeup path.
+**Advantages:** explicit and predictable fairness; a continuously busy Session cannot drain its entire queue before other ready Sessions receive a turn; O(1) ready-queue rotation is possible; one reusable ready node per Session/class avoids per-callback scheduling allocations; per-Session FIFO start order is preserved.
 
-**Costs:** the pool retains its historical high-water worker count, including goroutines and stacks, even if traffic becomes idle for a long period. Long-lived owners can retain resources after temporary bursts. The cost multiplies across independent owners and three callback classes.
+**Costs:** more bookkeeping than a single global FIFO; a shared ready-queue lock may contend at very high worker counts if held too long. Keep its critical section short and isolated per class. Do not add lock-free or sharded scheduling without measured evidence.
 
-### Option B — retire idle workers after a finite idle grace period (RECOMMENDED)
+**Fairness boundary:** each continuously eligible Session receives one dispatch opportunity per rotation. This does not guarantee equal CPU time when callback durations differ, and cannot preempt callbacks already running.
 
-After a worker completes a callback and finds no dispatchable work, it waits for a finite class-pool idle timeout. If it is still idle when the timeout expires, it atomically removes itself from that pool and exits. A new burst reuses any worker that has not yet expired; otherwise the pool lazily creates workers as needed. The default warm-idle floor is zero: after sufficient inactivity, the class can return to zero worker goroutines.
+### Option B — weighted round-robin / configurable per-Session quantum
 
-**Advantages:** bounds long-term idle goroutine/stack retention by recent activity rather than historical peak; preserves reuse during short gaps; requires no process-global reaper or background maintenance goroutine.
+Each Session receives a configured weight or a multi-callback quantum per turn.
 
-**Costs:** the first callback after a sufficiently long idle period may pay worker creation and scheduler wake-up latency; timeout and enqueue races require careful per-pool synchronization.
+**Advantages:** can improve throughput for intentionally prioritized Sessions and reduce scheduling overhead for homogeneous high-volume workloads.
+
+**Costs:** adds weight/quantum state and likely public configuration; equal service is no longer the default; large quanta increase tail latency for low-volume Sessions and can approximate starvation. Callback-count weights cannot guarantee CPU-time fairness because callback durations are unknown and non-preemptive.
+
+### Option C — global FIFO by enqueue time
+
+All work items from all Sessions enter one FIFO per class and workers take the oldest item.
+
+**Advantages:** simple enqueue ordering and comparatively little ready-session bookkeeping.
+
+**Costs:** no Session fairness. A busy Session can fill the queue with a burst and push sparse Sessions far back; fairness depends on arrival volume rather than Session opportunity.
 
 ### Recommendation
 
-Choose **Option B** for V1. A finite idle grace period is the better zero-configuration resource policy for a library that may be embedded in many long-lived Client/Server instances. It avoids retaining peak worker populations indefinitely while still reusing workers across short idle gaps. The timeout must be finite by default and independently configurable per class; its numeric defaults belong to WORKER-009.
+Choose **Option A** for V1: per-class round-robin over eligible Sessions, one callback dispatch per Session turn, with FIFO preserved inside each Session. It provides an understandable noisy-neighbour boundary with bounded scheduling metadata and low per-turn work. Keep scheduler critical sections short and per-class; defer lock-free/sharded implementation choices until measurements justify them.
 
-The idle-retirement timeout begins only after a callback returns and the pool has no dispatchable work. It never bounds or interrupts user callback execution. Owner shutdown and active-callback handling remain API-002.
+**Owner decision requested:** choose WORKER-006 Option A (one callback per eligible Session turn), Option B (weighted/quantum scheduling), or Option C (global FIFO by enqueue time). No weights, quantum sizes or numeric capacity defaults are implied.
 
-**Owner decision requested:** choose WORKER-005 Option A (retain idle workers until owner shutdown) or Option B (retire idle workers after a finite configurable grace period). No numeric timeout value is part of this decision.
-
-## 13. Explicitly not decided
+## 14. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
-- WORKER-005 idle-worker retirement policy and numeric idle-timeout defaults.
+- WORKER-005 numeric idle-timeout defaults and valid ranges.
 - OnClose event-budget numeric default and public option name.
 - Incoming callback event-count cap.
 - Completion payload-byte budget and final maximum frame size.
 - PERF-003 numeric Request-credit defaults.
-- WORKER-006 fair scheduling between Sessions.
+- WORKER-006 fair scheduling between Sessions (pending owner selection).
 - WORKER-007 queue and event capacities.
 - WORKER-008 resource accounting and payload-memory ceilings.
 - WORKER-009 safe defaults, valid ranges and public configuration limits.

@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-004 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-005 idle-worker lifecycle is next.** Numeric worker/event defaults, queue/event capacities, payload-byte bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-005 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-006 fair Session scheduling is next.** Numeric worker/event defaults, queue/event capacities, payload-byte bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001, WORKER-002, WORKER-003 Option A and WORKER-004 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three isolated callback pools; workers are lazy, class-local and bounded by the corresponding ceiling. Next: WORKER-005, idle-worker lifecycle and retirement. Numeric ceilings/defaults, queue/event capacities, payload-byte bounds, API-002 and API-003 remain open.
+**Current work:** WORKER-001 through WORKER-004 and WORKER-005 Option B are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after a finite configurable class-specific grace period, with zero warm-idle floor by default. Next: WORKER-006, fair scheduling between Sessions. Numeric idle timeouts, worker ceilings, queue/event capacities, payload-byte bounds, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
@@ -421,8 +421,38 @@ The owner-approved WORKER-004 Option A is now registered in the Decision Log and
 - [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md).
 - [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 
-### Next decision — WORKER-005
+### Next decision at that time — WORKER-005 (RESOLVED BY §32)
 
-Choose whether idle workers remain parked until owner shutdown or retire after a finite configurable idle grace period. The recommended policy is finite idle retirement with a zero warm-idle floor; the numeric timeout is deferred to WORKER-009.
+The owner subsequently approved finite idle retirement (Option B), with a zero warm-idle floor. The binding result is recorded in §32 and DECISION_LOG.md.
 
 **Guardrail:** documentation/design only. No Go/C++ code, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.
+
+
+## 32. WORKER-005 — Finite idle worker retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+The owner approved Option B: idle workers retire after a finite configurable grace period.
+
+### Binding contract
+
+- Worker pools remain class-isolated per WORKER-004 and workers are created lazily.
+- After callback return, a worker with no dispatchable work may enter Idle and start its class-specific finite grace timeout.
+- Work arriving before expiry reuses the idle worker. If the timeout expires with no work, the worker atomically removes itself from the pool count and exits.
+- The default warm-idle floor is zero. A class pool may return to zero idle goroutines after sufficient inactivity.
+- Application, Completion and OnClose idle timeouts are independently configurable. Numeric defaults/ranges are deferred to WORKER-009.
+- A running or permanently blocked callback is never retired by the idle timeout; its active permit remains charged until actual return.
+- Retirement never discards queued work or releases queue-byte, Request or event credits.
+- Enqueue versus retirement has one linearization point; no lost wakeup, stranded ready Session or worker-count overshoot is permitted.
+- No goroutine per timeout and no process-global reaper. Reusable timer/wait state is preferred.
+- Owner shutdown/drain behavior remains API-002.
+
+### Synchronized documents
+
+- [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-005 approval.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — WORKER-005 contract and WORKER-006 proposal.
+- API-001b review, PERF-002/003 design, Performance Contract, Public API design and Resource Admission design — lifecycle and scheduling constraints.
+
+### Next decision — WORKER-006
+
+Choose fair scheduling among eligible Sessions within each isolated callback-class pool. The recommendation is one callback per eligible Session turn using a per-class round-robin ready-session queue.
+
+**Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.

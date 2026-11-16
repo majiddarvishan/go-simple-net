@@ -843,3 +843,81 @@ Option B — one shared owner worker pool with strict per-class active reservati
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.  
 **Next:** WORKER-005 — Worker Lifecycle and Idle Worker Retirement. Numeric worker ceilings, idle timeout defaults, queue/event limits and payload-byte limits remain open.
+
+
+## WORKER-005 — Finite Idle Worker Retirement (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION B.**  
+**Owner selection:** “برای WORKER-005 گزینه B را تأیید می‌کنم.”  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+1. Each Client/Server owner retains the three class-isolated WORKER-004 pools. Workers are still created lazily and reused only within their own class.
+2. After a callback returns, if its class pool has no dispatchable work for that worker, the worker may enter Idle and start that class's finite idle-grace timeout.
+3. If work arrives before expiry, the idle worker is reused. If the timeout expires and no dispatchable work exists, the worker atomically removes itself from the pool's worker count and exits.
+4. The default warm-idle floor is **zero**: after sufficient inactivity, a class pool may return to zero idle worker goroutines. A nonzero warm floor is not part of the approved V1 default.
+5. Idle timeout is independently configurable for Application, Completion and OnClose. Its numeric default and allowed range are deferred to WORKER-009.
+6. A worker executing user code is not idle and must never be retired, interrupted or have its active permit released due to the idle timeout. A permanently blocked callback remains charged until it actually returns.
+7. Retirement does not discard queued work or release Application queue-byte/event charges, Completion Request credits, OnClose event credits or any other work-item ownership. These are released only by their own lifecycle transitions.
+8. Enqueue versus retirement must have one linearization point. If enqueue wins, an idle worker is woken/reused; if retirement wins, the pool's worker count is decremented before exit and enqueue/dispatch observes the new count and creates a replacement as needed. No lost wakeup, stranded ready Session or over-ceiling worker creation is permitted.
+9. The idle timeout starts only after callback return and after the worker has established that no dispatchable work is available. It does not bound callback duration.
+10. The implementation must not create a goroutine per idle timeout or a process-global reaper. Reusable timer/wait state is preferred; repeated idle cycles should avoid unnecessary timer allocation.
+11. Owner Stop/Close and active-worker drain/cancellation semantics remain API-002; WORKER-005 does not decide them.
+
+### Rationale
+
+Finite idle retirement prevents long-lived owners from retaining their historical peak number of worker goroutines and stacks indefinitely. A zero warm-idle floor gives predictable quiescent resource usage across many independent Client/Server owners. A finite grace period still permits reuse during short gaps, trading a possible cold-start cost after long inactivity for lower idle memory and goroutine retention.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §12.  
+**Next:** WORKER-006 — fair scheduling between Sessions within each isolated callback-class pool. Numeric idle timeout defaults/ranges remain open for WORKER-009.
+
+---
+
+## WORKER-006 — Fair Scheduling Between Sessions (OPEN; RECOMMENDATION ONLY)
+
+**Status: OPEN — no owner selection yet.**  
+**Implementation:** NOT AUTHORIZED.
+
+### Scope and invariants
+
+WORKER-004 requires independent Application, Completion and OnClose pools. WORKER-006 selects how each pool chooses among Sessions that currently have dispatchable work; it does not merge pools or alter WORKER-001/002 capacity ownership.
+
+- Fairness is scoped to **eligible Sessions within one owner and one callback class**. Client reconnect generations share the Client owner scheduler; old-generation work remains visible and charged until its own lifecycle ends.
+- Preserve FIFO work order within each Session. For Completion, the existing C-ORD-B rule remains binding: FIFO callback-start selection follows serialized terminal-result settlement/enqueue order, not SendRequest admission order. Parallel callback return order remains unspecified.
+- A Session is eligible only while it has queued work and an available per-Session concurrency slot. Owner/class active-worker ceilings remain binding.
+- Application, Completion and OnClose have separate ready-session state. No class can delay or consume another class's scheduling turns.
+- A callback is non-preemptive. Fairness governs dispatch opportunities/start selection, not CPU-time equality or callback completion deadlines.
+- No scheduler lock is held while invoking user code. No goroutine or heap allocation is required per callback turn.
+
+### Option A — per-class round-robin, one callback per Session turn (RECOMMENDED)
+
+Each class pool maintains a FIFO ready-session rotation. A Session appears at most once in that class's ready set. A worker dispatches one callback from the head Session's FIFO queue, then moves that Session to the tail if it still has queued work and an available per-Session slot. If its per-Session concurrency limit is reached, it becomes eligible again only when a callback returns and frees a slot.
+
+**Advantages:** explicit and predictable fairness; a continuously busy Session cannot drain the whole queue before other ready Sessions get a turn; O(1) ready-queue rotation is possible; one reusable ready node per Session/class avoids per-callback scheduling allocations; preserves per-Session FIFO start order.
+
+**Costs:** more scheduler bookkeeping than a single global FIFO; a shared ready-queue lock may become contended at very high worker counts if held for too much work. Keep its critical section short and isolated per class; do not optimize to lock-free or sharded scheduling without evidence.
+
+**Fairness boundary:** every continuously eligible Session receives one dispatch opportunity per rotation. This does not guarantee equal CPU time when callbacks have different durations, and it cannot preempt already-running callbacks.
+
+### Option B — weighted round-robin / configurable per-Session quantum
+
+Each Session receives a configured weight or a multi-callback quantum per turn. High-volume Sessions can dispatch more work before rotating.
+
+**Advantages:** can improve throughput for intentionally prioritized Sessions and reduce scheduler overhead for homogeneous high-volume workloads.
+
+**Costs:** introduces weights/quantum state and likely public configuration; equal service is no longer the default; incorrect weights or large quanta increase tail latency for low-volume Sessions and can approximate starvation. Callback durations are not known before execution, so callback-count weights still do not provide CPU-time fairness.
+
+### Option C — global FIFO by enqueue time
+
+All work items from all Sessions enter one FIFO per class, and workers take the oldest item.
+
+**Advantages:** simple global enqueue ordering and comparatively little ready-session bookkeeping.
+
+**Costs:** does not provide Session fairness. A busy Session can fill the queue with a burst and push sparse Sessions far back; it also increases per-event queue metadata and makes fairness depend on arrival volume rather than Session opportunity.
+
+### Recommendation
+
+Choose **Option A** for V1: per-class round-robin over eligible Sessions, one callback dispatch per Session turn, with FIFO preserved inside each Session. It offers a strong and understandable noisy-neighbour boundary with bounded scheduling metadata and low per-turn work. Use a short per-class scheduler critical section; leave lock-free/sharded implementation choices for later measurement rather than adding complexity to the contract now.
+
+**Owner decision requested:** choose WORKER-006 Option A (one callback per eligible Session turn), Option B (weighted/quantum scheduling), or Option C (global FIFO by enqueue time). No weights, quantum sizes or numeric capacity defaults are implied.
