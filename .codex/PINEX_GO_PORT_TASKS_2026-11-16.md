@@ -596,11 +596,30 @@ Baseline فعلی Pinex:
 
 ### API-001a — Request/Response completion style
 
-**وضعیت:** OPEN — دو گزینه فقط در سطح طراحی تعریف شده‌اند؛ هنوز تأیید مالک دریافت نشده است.
+**وضعیت:** CLOSED — مالک گزینه **A** را در 2026-11-16 صریحاً تأیید کرد. **Performance نیز به‌عنوان اولویت اصلی نسخه اول اعلام شد.**
 
-- **گزینه A (پیشنهاد):** `SendRequest` بدون انتظار برای Response، نتیجه Admission را فوری برگرداند (مثلاً Accepted Sequence یا Queue Full) و نتیجه نهایی Request فقط از یک مسیر Callback اعلام شود؛ `SendResponse` با Sequence اصلی جواب بدهد.
-- **گزینه B:** `Request(ctx, payload)` به‌صورت synchronous/Context-first، Response یا Error را برگرداند؛ خطر Wait داخل Callback سریال همان Session باید در API مشخص شود.
+- **گزینه A (تأییدشده):** `SendRequest` بدون انتظار برای Response، نتیجه Admission را فوری برگرداند (مثلاً Accepted Sequence یا Queue Full) و نتیجه نهایی Request فقط از یک مسیر Callback اعلام شود؛ `SendResponse` با Sequence اصلی جواب بدهد.
+- **گزینه B (انتخاب نشد):** `Request(ctx, payload)` به‌صورت synchronous/Context-first مسیر اصلی API نسخه اول نیست. در صورت نیاز، Helper آینده با تصمیم مستقل بررسی می‌شود.
 - در هر دو گزینه: درخواست/پاسخ Wire مشابه Pinex C++ 1.5.0، Payload خام `[]byte` و عدم Deduplication خودکار، همان حقوق Bind Type و سیاست‌های Resource Admission.
 - جزییات Callback/Close/Done، Ownership بایت‌ها و Timer/Reconnect در API-001b/API-002 همچنان Draft هستند.
 
-**مرجع:** [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md). بدون مجوز کدنویسی.
+**مرجع:** [Public API Design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) و [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). API-001a بسته شد؛ API-001b/PERF-002/003 همچنان بازند. بدون مجوز کدنویسی.
+
+### PERF-001 — Performance-first acceptance methodology
+
+**وضعیت:** OWNER REQUIREMENT ثبت شد — Performance برای نسخه اول بسیار مهم است. عدد هدف/بودجه نهایی هنوز OPEN است؛ هیچ Benchmark اجرا نشده است.
+
+- Benchmark تکرارپذیر برای throughput، p50/p95/p99 latency، allocations/op، bytes/op، تعداد Copy Payload، GC، CPU و memory.
+- سناریوهای multi-Session، چند Producer هم‌زمان، اندازه‌های مختلف Payload، Queue Full، Callback کند، Bind/Reconnect/Close، Go↔C++ Pinex.
+- Race/Soak/Interop Correctness مستقل از Benchmark Performance؛ بهبود سرعت نباید Frame/Sequence، Goroutine Safety، FIFO، Callback Ordering یا Resource Bounds را نقض کند.
+- Benchmark workload، environment و آستانه‌های Acceptance پس از اندازه‌گیری واقعی مشخص شوند؛ **هیچ عدد کارایی تضمین نشده است**.
+
+### PERF-002 — Payload Ownership / Copy Cost
+
+**وضعیت:** OPEN — انتخاب مدل مالکیت `[]byte` برای ارسال/دریافت. Option A Safe Copy Default vs Option B Borrowed Callback-Lifetime/Ownership Contract. اثر بر Allocation و GC و خطر Retain/Mutation بررسی شود. هیچ Zero-Copy بدون قرارداد معتبر فرض نشود.
+
+### PERF-003 — Bounded Pending/Completion
+
+**وضعیت:** OPEN — سقف Pending Request و صف Callback Completion و رفتار اشباع؛ مدل Async نباید باعث ایجاد Goroutine به‌ازای هر Request یا رشد نامحدود حافظه شود.
+
+**مرجع:** [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). تا مجوز صریح، هیچ کدی نوشته یا Benchmark اجرا نشود.
