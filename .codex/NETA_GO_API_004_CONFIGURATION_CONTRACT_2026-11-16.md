@@ -245,7 +245,7 @@ API-002-02 Frame Assembly Timeout is CLOSED / OWNER APPROVED / OPTION A; see §1
 - **Resource interaction:** partial Header holds only bounded parser storage. After Header validation, reserve full declared-frame retained bytes and applicable queue/count capacity before Body allocation. Expiry releases partial storage and all applicable reservations exactly once. Completion-capacity scratch-buffer Body drain is subject to the same original deadline; drain expiry closes Session without a Resource Capacity Completion.
 - **Pre-Bind:** the approved 30s absolute handshake deadline from TCP acceptance remains independent and unchanged; FrameAssemblyTimeout does not extend it.
 
-No wire change is introduced. Pinex C++ 1.5.0 has no separate equivalent bound-session assembly deadline. API-002-03 TCP Connect Timeout is next. No implementation or tests are authorized.
+No wire change is introduced. Pinex C++ 1.5.0 has no separate equivalent bound-session assembly deadline. API-002-03 ConnectTimeout is CLOSED / OWNER APPROVED; API-002-04 Bind response timeout is next. No implementation or tests are authorized.
 
 
 ### 11.6 API-002-03 — approved ConnectTimeout configuration (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
