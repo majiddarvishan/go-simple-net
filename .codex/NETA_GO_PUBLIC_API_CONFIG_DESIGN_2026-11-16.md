@@ -107,7 +107,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - If the matching response does not arrive before deadline, **close the Session once** and fail/complete pending operations through the Session close path. Auto Reconnect applies only to a Client explicitly configured for reconnect.
 - Handle close/timeout/late-response races with one terminal completion and no duplicate callback.
 - Preserve the single locally outstanding probe rule and existing Pinex 1.5.0 wire layout.
-- The exact default capacity and bounded failure of outgoing queues remain open under Q-008.
+- The outgoing Application queue capacity and saturation behavior are approved in Q-008 (4 MiB default FIFO per Session, Fail-Fast). Inbound queue and aggregate resource defaults remain open under Q-009 and Q-010.
 
 ## 5. Request/Response tracking and callback interactions
 
@@ -148,8 +148,8 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - Outgoing application Stream frames are admitted into a bounded FIFO. If a new frame would exceed capacity, `SendRequest`/`SendResponse` fail promptly with a dedicated **queue-full** error: do not block indefinitely and do not silently drop or partially enqueue the frame.
 - Request pending/sequence tracking must be rolled back or left unadmitted when enqueue fails; a rejected frame must not later time out as if it was sent.
 - Keep control frames (`enquire_link_req/resp`, `unbind_req/resp`) operable even when the application FIFO is full via separate **bounded** control capacity/coordination; never interleave bytes, bypass invalid protocol states or reorder application messages. On incoming Unbind, honor the existing Pinex-compatible queued-write drain plus 10s deadline contract.
-- Bound incoming callback backlog as well. Its byte/count limit and pause/resume behavior need a separate technical contract; do not let slow callbacks grow memory without bound.
-- A per-session cap alone is insufficient if unlimited sessions can be accepted. A global/server memory budget or maximum bound-session admission must also be specified; no specific numerical global value is currently approved.
+- Bound incoming callback backlog as well. Its byte/count limit and pause/resume behavior are under separate review (Q-009/Q-010); do not let slow callbacks grow memory without bound. See [Resource Admission Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
+- A per-session cap alone is insufficient if unlimited sessions can be accepted. A global/server queued-frame budget and maximum bound-session admission must also be specified; numerical values are open under Q-010. A queued-frame budget is not a full process RSS cap.
 - No additional business Rate Limiter, Circuit Breaker, Priority Queue, or automatic Deduplicator is added.
 
 **Option B (not selected):**
@@ -167,7 +167,9 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-006 | Numeric default for Enquire Link idle interval | **30s by default (Option B); 0 disables automatic sending** | CLOSED — owner approved 2026-11-16 |
 | Q-007 | Enquire Link response timeout and action | **Default 10s, configurable; close Session on missing matching reply, Client reconnect iff enabled** | CLOSED — owner approved 2026-11-16 |
 | Q-008 | Capacity defaults and behavior at queue saturation | **Option A: 4 MiB per-session outgoing Application FIFO, immediate Queue Full, bounded control path** | CLOSED — approved 2026-11-16 |
-| Q-009 | Incoming callback backlog, global queued memory and bound-session admission | Bounded ingress and global resource policy; detailed proposal in resource design | OPEN — awaiting review |
+| Q-009 | Incoming callback overload policy | Option A: pause/resume bounded application delivery; Option B: close saturated Session | OPEN — owner choice |
+| Q-010 | Numeric ingress/global/session admission defaults | Inbound 4 MiB, aggregate queued frames 256 MiB, max 1024 bound sessions are **illustrative proposals only** | OPEN — not approved |
+| API-004 | Unset vs explicit zero Enquire Link interval | Prefer Options or optional field to preserve 30s default and explicit 0 disable | OPEN — API design |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
 | API-003 | Package/module path | Library brand `neta-go` approved; package `neta` proposed; no rename | OPEN |
