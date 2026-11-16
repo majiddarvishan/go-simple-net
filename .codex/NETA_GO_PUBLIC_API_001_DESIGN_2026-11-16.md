@@ -1,7 +1,7 @@
 # neta-go — API-001 Public Client/Server/Session and Callback Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN DRAFT — API-001 OPEN / API-004 APPROVED OPTION A  
+**Status:** DESIGN DRAFT — API-001a APPROVED OPTION A (async callback-first), API-001b OPEN / API-004 APPROVED OPTION A  
 **Repository:** `majiddarvishan/go-simple-net`, branch `main`  
 **Implementation:** NOT AUTHORIZED. This is architecture/documentation; no Go source, go.mod, test, build, or repository rename.
 
@@ -52,9 +52,9 @@ Keep serialization, Codec, reader/writer loops, request tracker and system ID ma
 - Keep an incoming callback backlog bounded (Q-009/Q-010). On overflow, close **only** the offender; previously queued callback work must follow an explicit terminal/cancellation policy. Do not deliver a user callback concurrently just to force a close notification.
 - Request timeouts and local heartbeats are tracked internally independently of user callback execution; ensure that a blocked callback does not prevent TCP shutdown or request bookkeeping release.
 
-## 4. API-001 decision point: how does user code receive Request results?
+## 4. API-001a — Owner-approved asynchronous callback-first Request completion
 
-### Option A — asynchronous, callback-first (recommended for V1)
+### Option A — asynchronous, callback-first (APPROVED for V1)
 
 - A nonblocking `SendRequest`-style action returns an immediately known submission outcome, e.g., Session not bound, Queue Full, or accepted Sequence. It must **not** claim the peer received or processed the message merely because local enqueue succeeded.
 - The caller supplies a per-request completion handler or uses an agreed Session-level response handler. Exactly **one ownership path** for each request result: response, request deadline, transport failure, or close. Never deliver both per-request and global completion for the same request unless the API contract explicitly separates diagnostics from completion.
@@ -62,14 +62,14 @@ Keep serialization, Codec, reader/writer loops, request tracker and system ID ma
 - A `SendNoWait`-style operation may emit a standard `stream_req` without registering a pending response. It must not invent a new PDU, guarantee remote processing, or silently deduplicate.
 - Callback-based nonblocking requests avoid waiting inside a Session callback and fit the C++ Pinex callback-oriented model, but terminal completion event ordering and callback backlog costs still need a detailed contract.
 
-### Option B — synchronous `Request(ctx, payload) → Response/error` as primary
+### Option B — synchronous `Request(ctx, payload) → Response/error` as primary (NOT SELECTED)
 
 - Expose context-aware, blocking request/response result to calling goroutines; retain `SendResponse` for peer-initiated requests. Internally complete the Context wait independently of the serial user callback worker, so a response does not depend on callbacks returning.
 - Provide a separate one-way/no-wait send for callers that do not expect a response.
 - Risk: a caller that synchronously waits for application progress inside a Session's own serialized `OnRequest` callback can cause self-inflicted deadlock at the application level. Specify and document limitations; the library must still keep transport shutdown bounded.
 - A response must have a single terminal completion per request. Do not simultaneously promise a separate response callback for the same completion without a distinct policy.
 
-**Neither Option A nor B is owner-approved.** A is recommended for the initial callback-centric TCP Messaging API; B can be introduced if the user explicitly prefers a blocking, Context-first Go interface. Both are wire-compatible with Pinex.
+**Owner decision:** the owner selected **Option A** for API-001a on 2026-11-16. A nonblocking SendRequest-style operation returns the **local admission result** without waiting for the network response; the later response, error or timeout completes exactly once through an agreed callback. The synchronous Context-first primary API (B) is **not selected** for V1. Exact callback shape and payload lifetime remain API-001b/PERF-002 OPEN. Both designs would preserve Pinex wire compatibility, but only A is approved.
 
 ## 5. Proposed request lifecycle and wire constraints
 
@@ -121,10 +121,27 @@ The exact method names, callback registration style, `Done` signaling, timer def
 | ID | Decision | Recommendation | State |
 |---|---|---|---|
 | API-004 | Config representation | Functional Options + private effective defaults, validated before network use | **CLOSED — owner approved A** |
-| API-001a | Request/Response completion style | **A** nonblocking/callback-first vs **B** blocking/Context-first | **OPEN — OWNER CHOICE** |
-| API-001b | Callback/Close/Done and buffer ownership details | Per-Session serialized event callbacks + immediate `Done` on transport termination; safe bytes snapshot proposed | DRAFT — additional review |
+| API-001a | Request/Response completion style | **A: asynchronous/nonblocking submission + callback completion**; B synchronous primary API not selected | **CLOSED — owner approved A, 2026-11-16** |
+| API-001b / PERF-002 | Callback/Close/Done and payload ownership | Preserve per-Session callback serialization; choose safe-copy or explicitly borrowed payload lifetime, weigh allocation/GC cost, bound completion delivery | OPEN — performance-critical design |
 | API-002 | Dial/Bind timeout defaults, request deadline, reconnect, graceful stop | C++ reference values are input, not automatically Go approvals | OPEN |
 | API-003 | Go package/module path | Library name `neta-go` approved; no repo/module rename authorized | OPEN |
 | GO-PINEX-001 | Pin exact C++ develop HEAD/golden frames | Ensure current baseline before implementation/tests | OPEN |
 
-**Next requested owner choice:** API-001a **A (asynchronous callback-first)** or **B (synchronous Context-first)**. No public API code has been created or authorized.
+**Next design question:** **PERF-002 / API-001b** — `[]byte` ownership/lifetime (safe owned copies vs explicit callback-lifetime borrowed buffers) and bounded callback completion dispatch. Performance is a first-class V1 requirement; benchmark acceptance methodology is in [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). No public API code has been created or authorized.
+
+## 10. Performance-first requirement and follow-on design (2026-11-16)
+
+The owner explicitly stated **performance is very important** while selecting API-001a **Option A**. This raises throughput, latency distribution (especially p99), allocations/op, copies per Frame, memory/GC pressure and contention across concurrent Sessions to **first-class V1 engineering evaluation criteria**, not guaranteed numerical targets.
+
+**Detailed draft:** [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). It covers reproducible benchmarks for varied payload sizes, single vs many Sessions, concurrent senders, Go↔C++ interoperability, callback stalls, queue saturation, churn and memory stability; none have been run.
+
+### Performance-safe API-001a details
+
+- Fast `SendRequest` submission must return a local queue-admission outcome, not pretend the peer acknowledged anything. Local Queue Full must fail promptly without pending tracker leaks.
+- A response completion callback must have exactly one owner and be driven independently of the calling goroutine's wait state. Do not promise immediate callback delivery behind a user callback that never returns.
+- Avoid a goroutine per Request or unbounded completion events; investigate bounded pending capacity and callback dispatch cost under **PERF-003**.
+- Allocation/copy cost depends on `[]byte` lifetime. Under **PERF-002**, owner has **not** approved either safe-copy or borrowed buffers. Do not silently optimize into data races, use-after-recycle or an API that retains mutable caller memory without a contract.
+- Reuse buffers or batch work only when validated by Go benchmark/race/soak tests and without changing Pinex frame format or per-Session callback order.
+- The exact exported method names remain proposals; API-004 typed Functional Options is already approved and unaffected.
+
+**API-001a CLOSED — Option A. API-001b/PERF-002 and PERF-003 remain OPEN. No implementation authorization.**
