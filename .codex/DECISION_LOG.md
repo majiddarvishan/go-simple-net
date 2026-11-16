@@ -577,7 +577,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 4. Internal completion outcome is settled once, irrespective of if/when a user notification executes. Preserve PERF-003's approved per-Session and Server-aggregate count-bounded pending/completion admission. No duplicate completion or extra completion slot allocation merely because a response arrived.
 5. Preserve Pinex 1.5.0 wire protocol, frame-safe single Writer, Q-008 Queue Full behavior, Q-009 incoming Session-only close-on-overflow, Q-010 bounded byte admission, PERF-002 owned payload contract, and API-004 typed Functional Options.
 
-### Explicitly OPEN (not silently approved)
+### Explicitly OPEN at N1 approval time (historical snapshot; later decisions supersede relevant items)
 
 - Whether `OnClose` and per-Request Completion share one notification worker pool vs have sublanes/partitions, and their exact scheduling/ordering/fairness across Sessions. **One bounded notification domain independent of the application domain is the approved minimum.**
 - Notification worker-count/default/capacity configuration and aggregate safeguards; **no numeric default was approved**. Previously suggested 1024 per-Session / 65536 Server PERF-003 completion credits are still examples, not chosen values.
@@ -616,7 +616,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 7. Callback start versus Forced Close must have a single race resolution: if Close wins before dispatch start, cancel; if callback-start wins, it is already-running and cannot be stopped. Exact dispatch handoff mechanism is an engineering design detail, not authorization to write code.
 8. Preserve approved PERF-003 A per-Session/Server completion-credit admission, Q-008/009/010 bounded queue outcomes, immutable ownership PERF-002 A, API-001a A and API-004 A. No new numeric default is approved.
 
-**Not decided by this approval:** graceful Stop/drain contract, taxonomy of conditions classified as Forced Close under API-002, `Done` publication, `OnClose` versus Completion execution ordering, single versus partitioned Notification worker domains, Application/Notification worker counts and aggregate budgets, OnClose event capacity, callback concurrency default, PERF-003 numeric credits/event count, API-002 request deadlines and reconnect, API-003 module/package path.
+**Not decided by this approval (historical snapshot):** graceful Stop/drain contract, taxonomy of conditions classified as Forced Close under API-002, `Done` publication, `OnClose` versus Completion execution ordering, single versus partitioned Notification worker domains, Application/Notification worker counts and aggregate budgets, OnClose event capacity, callback concurrency default, PERF-003 numeric credits/event count, API-002 request deadlines and reconnect, API-003 module/package path. Subsequent N-ORD2 and DONE-A entries resolve the Notification sublane and Done-publication questions; worker limits, saturation, graceful Stop and remaining API details stay open.
 
 **Follow-on proposals (not approved):** [Forced-close review and Notification ordering/capacity analysis](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11; [Handoff](HANDOFF.md) §24. **Documentation only; no code, tests, benchmarks, module or operational change.**
 
