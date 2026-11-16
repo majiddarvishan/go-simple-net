@@ -124,6 +124,8 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. موارد Q-006/Q-007/Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+
 موارد لازم:
 - تعریف Configهای Client و Server
 - تعریف Handlerهای Bind، Request، Response، Timeout، Close و Error
@@ -497,3 +499,20 @@ Baseline فعلی Pinex:
 - هیچ API یا Wire Behavior هنوز پیاده‌سازی نشده است.
 - این سند صرفاً برنامه و خروجی تحلیل است.
 - شروع پیاده‌سازی نیازمند دستور صریح بعدی مالک است.
+
+### Q-006 — مقدار پیش‌فرض Enquire Link Idle Interval
+
+**وضعیت:** OPEN — کاربر قبلاً تأیید کرده که Interval قابل پیکربندی است و مقدار `0` ارسال خودکار را غیرفعال می‌کند؛ ولی مقدار **پیش‌فرض** هنوز انتخاب نشده است.
+
+- گزینه A: پیش‌فرض `0` و فعال‌سازی با تنظیم مقدار مثبت (مانند رفتار پیش‌فرض C++ Pinex).
+- گزینه B: پیش‌فرض پیشنهادی `30s` و امکان خاموش کردن با `0`.
+
+**مرجع:** [پیش‌نویس Public API و Config](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md).
+
+### Q-007 — Deadline پاسخ Enquire Link
+
+**وضعیت:** OPEN — پیشنهاد فنی (تصویب نشده): Timeout مستقل، مثلاً `10s`، شروع شمارش پس از ارسال واقعی Probe؛ در صورت نبود پاسخ مطابق Sequence، Session بسته شود و Reconnect فقط در صورت فعال بودن انجام شود. رفتار حین رسیدن ترافیک عادی با Probe معلق باید مشخص شود.
+
+### Q-008 — سیاست Backpressure و Default ظرفیت
+
+**وضعیت:** OPEN — پیشنهاد فنی (تصویب نشده): صف bounded FIFO به‌ازای هر Session با حد بایت، Fail-Fast برای صف پر، و مسیر مجزا/رزرو منطقی برای Control PDU بدون نقض ترتیب لازم Unbind.
