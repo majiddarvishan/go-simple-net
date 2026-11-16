@@ -490,3 +490,34 @@ GitHub connector reads confirm existing `.codex` files are present under the new
 
 **Detailed design:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md).  
 **Next:** PERF-003, then API-001b. No coding, tests, benchmarks or operational changes.
+
+---
+
+## PERF-003 — Bounded Pending / Completion Admission (2026-11-16)
+
+**Status:** OWNER APPROVED OPTION A — **count-bounded model APPROVED**; numeric defaults and remaining lifecycle details OPEN  
+**Approval:** Project owner explicitly selected Option A after comparison with reliance on existing byte queue limits (Option B).  
+**Implementation:** NOT AUTHORIZED
+
+### Approved model (policy level)
+
+1. Asynchronous callback-based `SendRequest` uses **bounded outstanding Request/Completion count** rather than relying solely on outgoing byte queues. A request may have left the Writer's FIFO and still be pending a response or queued for delivery to a callback. Such work must remain accounted.
+2. Apply **independently configurable per-Session and Server-aggregate count ceilings**. This includes Client-owned Sessions locally; the Server aggregate counts its own Sessions. Capacity is a lazy admission limit, not eager preallocation.
+3. The count admission covers the **complete async lifecycle** of an accepted request: waiting for a peer response, a terminal result queued for callback delivery, and the actively executing completion callback (subject to forced-close semantics still open under API-001b). A response/timeout/close transition must not create additional unbounded completion work.
+4. On reaching either count ceiling, **reject a new callback-based Request immediately**, without publishing a frame or retaining its pending/sequence state; **keep that Session connected**. The public error should be distinguishable from normal success and from Q-008's outgoing byte-based Queue Full; exact exported error spelling is still OPEN.
+5. Preserve all **previously approved** Q-003 same-Session callback serialization and Session independence, Q-008 outgoing 4 MiB/Session byte cap and fail-fast behavior, Q-009 incoming overload closes only offender, and Q-010 aggregate queued-byte budget. These limits complement rather than replace one another.
+6. Use the already-approved **API-004 typed Functional Options** to configure the new count ceilings independently; invalid zero/negative count limits should be rejected at configuration validation, not treated as unbounded. Avoid per-Request goroutine fan-out and unbounded callback queues in the design.
+
+### Not approved by this selection
+
+- The previously illustrated count values **1024 per Session** and **65536 per Server** were *examples only*. They are **NOT APPROVED defaults or SLAs**; final defaults, practical maxima and sizing methodology still require assessment/approval.
+- A **separate incoming callback event-count cap**, although technically recommended to protect the number of small/empty events, was **not explicit in the owner's selected Option A wording**; the precise cap and overload policy extension remain a design proposal. Existing Q-009/Q-010 incoming **byte limits** and Session-only close reaction stay binding.
+- Forced-close behavior, exact completion callback delivery/credits release for a stuck user callback, `OnClose` vs `Done` and terminal event order remain **API-001b OPEN**. Internal once-only settlement is not a promise of unconditional callback execution.
+- Start of Request deadline (on admission vs completed TCP Write), defaults, Connect/Bind/Reconnect/Stop policy remain **API-002 OPEN**.
+- Specific completion scheduler / timer implementation, any optional internal pooling, exported API names, numerical performance thresholds, builds/benchmarks/tests remain OPEN.
+
+### Next design-only review
+
+Finalize API-001b's forced-close/callback guarantees and then the remaining PERF-003 numerical/event-count details. Keep the contract and open questions reflected in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md) and [Handoff](HANDOFF.md).
+
+**Option B (byte FIFO bounds only) is NOT SELECTED. No code, tests, benchmarks or operational changes are authorized.**
