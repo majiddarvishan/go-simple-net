@@ -4,7 +4,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** design-only API/performance review (PERF-002, PERF-003, API-001b); owner choices remain open
+**Current work:** PERF-002 A owner-approved; design-only PERF-003 pending/completion bounds and API-001b callback-close decision still OPEN
 
 ## 1. Repository state
 
@@ -158,9 +158,25 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **New design draft:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). This contains **proposals, not new owner approvals**:
 
-- **PERF-002 OPEN:** recommended A — single private snapshot of outbound `[]byte` on accepted asynchronous admission; direct read into fresh owned, retainable receive payload to avoid an extra receive copy. Borrowed callback-lifetime and explicit ownership transfer remain alternatives; neither selected. Pooling only for proven-safe private internal buffers, after evidence; no end-to-end zero-copy claim.
+- **PERF-002 CLOSED / OWNER APPROVED A:** outbound independent snapshot before accepted async send returns, receiving directly into owned user-retainable payload with no extra receive copy. Borrowed callback-lifetime B and transfer C were not selected. Pooling only for proven-safe private internal buffers after evidence; no end-to-end zero-copy claim.
 - **PERF-003 OPEN:** bounded per-Session completion credits for pending + queued + active completion, with a Server aggregate ceiling; separate count cap for zero-length incoming callback events; no goroutine per Request. Suggested `1024` and `65536` are illustrative **unapproved** counts, not defaults. Queue byte budgets and overload outcomes approved under Q-008/009/010 stay unchanged.
 - **API-001b OPEN:** blocked callback makes prompt `OnClose` and strict per-Session callback serialization mutually incompatible. Proposed `Done()` reflects transport/accounting termination independent of arbitrary callback return; `OnClose` at-most-once on serial dispatcher. Forced-close Option A cancels unstarted callbacks promptly but creates an explicit exception to user-visible completion delivery; Option B retains bounded deferred completions but may retain closed workers indefinitely. **Owner must choose**; do not silently claim callback-delivery exactly once in all failure modes.
 - **API-002 / API-003 OPEN:** timeouts/reconnect/Stop defaults and module path `github.com/majiddarvishan/neta-go` / package `neta` proposed only; no `go.mod` added.
 
-**Next owner decision:** PERF-002 Option A vs B/C, then PERF-003 admission model and API-001b forced-close tradeoff. Existing owner decisions Q-001..Q-010, NAM-001, API-004 A and API-001a A remain unchanged. No Go/C++ source, test, benchmark, build, CI, deployment or operational change performed. Main has documentation commits only for this review.
+**Next owner decision:** PERF-003 count-based pending/completion admission model (including configuration and global limit), then API-001b forced-close tradeoff. PERF-002 A is CLOSED. Existing owner decisions Q-001..Q-010, NAM-001, API-004 A and API-001a A remain unchanged. No Go/C++ source, test, benchmark, build, CI, deployment or operational change performed. Main has documentation commits only for this review.
+
+
+## 19. PERF-002 owner approval and remaining work (2026-11-16)
+
+**Owner approval just recorded:** **PERF-002 CLOSED / Option A (Safe Snapshot + Owned Receive)**; authoritative entry in [DECISION_LOG.md](DECISION_LOG.md). This is an **API semantics** decision, not implementation authorization. For accepted asynchronous Stream sends, one independent outbound payload snapshot is complete before successful return; the caller can then reuse its source. A callback-visible received payload is separately owned, directly filled where possible, may be retained after callback return and is never returned to a library pool. No end-to-end zero-copy promise; no concurrent mutation during the outbound snapshot.
+
+**Synced docs:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md), [PINEX_GO_PORT_TASKS_2026-11-16.md](PINEX_GO_PORT_TASKS_2026-11-16.md).
+
+**Remaining design questions (not approved):**
+
+1. **PERF-003:** approve count-bounded completion-credit admission for all pending/queued/active callback-based requests, Server aggregate cap, and incoming callback event-count cap. Rejection of *new* SendRequest on count exhaustion leaves Session connected, separate from Q-008 byte-based Queue Full. Incoming application event overflow follows already-approved Session-only close policy, but proposed count limit and numeric defaults require review. Illustrative 1024 per Session / 65536 Server are **NOT APPROVED**; no benchmark has run.
+2. **API-001b:** choose forced-close Option A (prompt cancel of not-yet-executing user callbacks with at-most-once `OnClose`, `Done` closes independently) vs B (defer bounded terminal completion to worker, possible unbounded worker lifetime for permanently blocked user code), and callback registration API shape. Internal request result settlement once is distinct from invocation of user callback; do not claim both immediate `OnClose` and same-Session serialization under permanent user block.
+3. **API-002:** decide request deadline origin (admission vs wire Write), timeout/reconnect/Stop defaults, pending cancellation and terminal errors. Preserve approved Q-006/007 idle heartbeat and Pinex wire deadline.
+4. **API-003:** Go module path still undecided; no `go.mod` creation. C++ develop HEAD and golden-wire vectors must be pinned before authorized implementation/testing.
+
+**Current guardrail:** docs only. No Go/C++ code, tests, benchmarks, builds, live operations or module changes performed. Latest source HEAD before this documentation sequence was `08fb5df8f582d7d91c53308988f31906a68ac557`.
