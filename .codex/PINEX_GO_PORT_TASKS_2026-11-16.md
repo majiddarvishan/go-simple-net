@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. جزئیات انتخاب مدل Config، Override و Validation در [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) (هنوز OPEN) مستند شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast)، Q-009 (بستن Session هنگام سرریز صف ورودی) و Q-010 (سقف‌های قابل تنظیم) بسته شدند**؛ قرارداد دقیق API هنوز باز است؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. مدل Config، Override و Validation در [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) با **گزینه A (Functional Options) تأیید و بسته شد**. پیش‌نویس API متدها و Callbackها در [API-001](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) ثبت شد و هنوز نیازمند تصمیم مالک است. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast)، Q-009 (بستن Session هنگام سرریز صف ورودی) و Q-010 (سقف‌های قابل تنظیم) بسته شدند**؛ قرارداد دقیق API هنوز باز است؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -555,15 +555,15 @@ Baseline فعلی Pinex:
 
 ### API-004 — تفکیک پیش‌فرض و صفر در تنظیمات Go
 
-**وضعیت:** OPEN — پیش‌نویس کامل قرارداد Config و Validation ثبت شد؛ هنوز تصمیم مالک درباره شکل API لازم است.
+**وضعیت:** CLOSED — مالک در 2026-11-16 گزینه A، Functional Options، را تأیید کرد. تصمیم مربوط به روش Config بسته شد؛ نام دقیق متدها و Typeهای صادرشده هنوز در API-001 باز است.
 
-**گزینه A (پیشنهاد من):** Functional Options با پیش‌فرض‌های کامل داخلی؛ هر تنظیمِ ارائه‌نشده مقدار تأییدشده را بگیرد و Override صریح مستقل اعمال شود. بنابراین نبود Idle Interval یعنی `30s` و تنظیم صریح `0` یعنی غیرفعال شدن Probe خروجی. Instance یک Effective Config اعتبارسنجی‌شده و Immutable نگه دارد.
+**گزینه A (تأییدشده):** Functional Options با پیش‌فرض‌های کامل داخلی؛ هر تنظیمِ ارائه‌نشده مقدار تأییدشده را بگیرد و Override صریح مستقل اعمال شود. بنابراین نبود Idle Interval یعنی `30s` و تنظیم صریح `0` یعنی غیرفعال شدن Probe خروجی. Instance یک Effective Config اعتبارسنجی‌شده و Immutable نگه دارد.
 
-**گزینه B:** Config Struct با Optional/Pointer Fields؛ Presence جدا از مقدار باشد تا صفر صریح با Unset اشتباه نشود.
+**گزینه B (انتخاب نشد):** Config Struct با Optional/Pointer Fields به‌عنوان روش اصلی Public API. Internal Config Struct همچنان قابل استفاده است.
 
 **مشترک:** پیش‌فرض‌های Q-008 و Q-010 قابل Override مستقل‌اند؛ صفر/منفی برای سقف منابع الزامی معتبر تلقی نشود و بی‌صدا به Unbounded یا Default تبدیل نگردد؛ خطا قبل از Dial/Listen برگردد؛ تغییر Data منبع پس از ساخت، Instance موجود را تغییر ندهد. Hot Reload هنوز تصویب نشده است.
 
-**مرجع:** [API-004 Configuration Contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). امضای نهایی متدها و تمام APIها همچنان باز هستند و کدنویسی مجاز نیست.
+**مرجع:** [API-004 Configuration Contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). تصمیم شیوه Config بسته است؛ امضای نهایی متدها و Callbackها همچنان در API-001 باز هستند و کدنویسی مجاز نیست.
 
 ---
 
@@ -593,3 +593,14 @@ Baseline فعلی Pinex:
 - هیچ API یا Wire Behavior هنوز پیاده‌سازی نشده است.
 - این سند صرفاً برنامه و خروجی تحلیل است.
 - شروع پیاده‌سازی نیازمند دستور صریح بعدی مالک است.
+
+### API-001a — Request/Response completion style
+
+**وضعیت:** OPEN — دو گزینه فقط در سطح طراحی تعریف شده‌اند؛ هنوز تأیید مالک دریافت نشده است.
+
+- **گزینه A (پیشنهاد):** `SendRequest` بدون انتظار برای Response، نتیجه Admission را فوری برگرداند (مثلاً Accepted Sequence یا Queue Full) و نتیجه نهایی Request فقط از یک مسیر Callback اعلام شود؛ `SendResponse` با Sequence اصلی جواب بدهد.
+- **گزینه B:** `Request(ctx, payload)` به‌صورت synchronous/Context-first، Response یا Error را برگرداند؛ خطر Wait داخل Callback سریال همان Session باید در API مشخص شود.
+- در هر دو گزینه: درخواست/پاسخ Wire مشابه Pinex C++ 1.5.0، Payload خام `[]byte` و عدم Deduplication خودکار، همان حقوق Bind Type و سیاست‌های Resource Admission.
+- جزییات Callback/Close/Done، Ownership بایت‌ها و Timer/Reconnect در API-001b/API-002 همچنان Draft هستند.
+
+**مرجع:** [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md). بدون مجوز کدنویسی.
