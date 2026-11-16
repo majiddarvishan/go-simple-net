@@ -145,3 +145,8 @@ The owner explicitly stated **performance is very important** while selecting AP
 - The exact exported method names remain proposals; API-004 typed Functional Options is already approved and unaffected.
 
 **API-001a CLOSED — Option A. API-001b/PERF-002 and PERF-003 remain OPEN. No implementation authorization.**
+
+
+## 11. PERF-002 / PERF-003 / API-001b follow-up (2026-11-16; DRAFT ONLY)
+
+See [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) for the nonbinding comparison of safe-copy/owned-receive, borrowed and transfer ownership; proposed count-bounded pending/completion admission; and the explicitly unresolved choice between prompt forced-close callback cancellation versus deferred bounded terminal events. Approved API-001a callback-first submission and Q-003 same-Session callback non-overlap remain unchanged. No API-001b/PERF-002/PERF-003 option or exported signature is approved by this cross-reference.
