@@ -556,3 +556,35 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 - No implementation, tests, benchmark, builds, Go module changes or operational actions are authorized.
 
 **References:** [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Resource admission](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md), [Async completion design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Handoff](HANDOFF.md).
+
+---
+
+## API-001b-N1 — Independent Bounded User Notification Dispatch (2026-11-16)
+
+**Status:** CLOSED — OWNER APPROVED STRUCTURAL SEPARATION  
+**Owner confirmation:** Explicit “yes” to delivering `OnClose` and Request Completion callbacks through a separate **bounded** callback path, independent of the Application `OnRequest` worker path.  
+**Parent contract:** API-001b remains **PARTIALLY OPEN** for exact completion/close ordering, capacity defaults, and forced-close policy.  
+**Implementation:** NOT AUTHORIZED.
+
+### Approved contract
+
+1. Separate three execution domains:
+   - **Internal protocol/lifecycle engine:** TCP Reader/Writer, frame decode, Bind/Unbind and Enquire Link control handling, request/response correlation, timeout, once-only logical settlement, connection Close and internal resource/accounting cleanup. **Must not invoke arbitrary application/user callback inline or wait for one to return.**
+   - **Application dispatch:** `OnRequest` user handlers; bounded same-Session parallelism under **Q-003-R1** with independently configurable positive concurrency (1 = serial application handlers), bounded inbound queue, existing Q-009/Q-010 overload outcomes.
+   - **User notification dispatch:** `OnClose` and per-Request Completion user callbacks use a **separate bounded lane** so blocking `OnRequest` callbacks do not occupy the notification lane or prevent internal lifecycle settlement.
+2. The notification lane must **not** run user callbacks on a protocol-engine goroutine, own an unbounded queue, or create an unbounded goroutine per event. It requires explicit queue/admission, worker/concurrency, memory and shutdown bounds consistent with **PERF-003**. Multiple Sessions remain independent as far as bounded resource scheduling permits.
+3. A blocked application callback must not by itself block `OnClose`/completion **dispatch** or internal protocol/transport cleanup. This does **not** guarantee that a notification callback itself returns; it is still arbitrary user code and cannot be forcibly terminated by Go.
+4. Internal completion outcome is settled once, irrespective of if/when a user notification executes. Preserve PERF-003's approved per-Session and Server-aggregate count-bounded pending/completion admission. No duplicate completion or extra completion slot allocation merely because a response arrived.
+5. Preserve Pinex 1.5.0 wire protocol, frame-safe single Writer, Q-008 Queue Full behavior, Q-009 incoming Session-only close-on-overflow, Q-010 bounded byte admission, PERF-002 owned payload contract, and API-004 typed Functional Options.
+
+### Explicitly OPEN (not silently approved)
+
+- Whether `OnClose` and per-Request Completion share one notification worker pool vs have sublanes/partitions, and their exact scheduling/ordering/fairness across Sessions. **One bounded notification domain independent of the application domain is the approved minimum.**
+- Notification worker-count/default/capacity configuration and aggregate safeguards; **no numeric default was approved**. Previously suggested 1024 per-Session / 65536 Server PERF-003 completion credits are still examples, not chosen values.
+- Delivery policy on forced close: **API-001b Option A** cancel not-yet-started callbacks for bounded teardown vs **Option B** retain finite terminal callbacks for conditional later delivery. Neither option was selected by this approval.
+- Whether transport-level `Done` and observable terminal cause are exposed, `OnClose` ordering/at-most-once invocation details, independent notification-lane congestion policy, and timing of credit release if a user notification blocks.
+- Q-003-R1 application callback concurrency *default*, global active-callback ceiling; API-002 request deadline origin and other timeouts; API-003 Go module/package name.
+
+**Next:** finish API-001b forced-close notification guarantees and numeric bounds, not implementation. No code, tests, benchmarks, builds, dependency/module changes or operational operations.
+
+**References:** [API/performance detailed draft](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Public API](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Handoff](HANDOFF.md).
