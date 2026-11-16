@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — Q-008 / Q-009 B / Q-010 A APPROVED; exact Go API design remains OPEN  
-**Branch:** `majiddarvishan/go-simple-net` / `main`  
+**Branch:** `majiddarvishan/neta-go` / `main`  
 **Implementation:** NOT AUTHORIZED; this file contains no runnable application code.
 
 ## 1. Source and approved boundary
