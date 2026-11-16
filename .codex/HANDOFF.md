@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 and WORKER-002 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. Next: WORKER-004, choose three class-isolated worker pools versus one shared owner pool with strict per-class reservations. Numeric worker/event defaults, payload-byte bounds, idle-worker lifecycle, terminal-cause/Close-return details, API-002 and API-003 remain open.
+**Current work:** WORKER-001, WORKER-002 and WORKER-003 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. OnClose event saturation permanently skips the new event without retry or teardown wait. Next: WORKER-004, choose three class-isolated worker pools versus one shared owner pool with strict per-class reservations. Numeric worker/event defaults, payload-byte bounds, idle-worker lifecycle, terminal-cause/Close-return details, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
