@@ -66,18 +66,19 @@ Therefore, copying the sample's protocol handling verbatim would not interoperat
 
 See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
-- GO-PINEX-001: analyzed; owner confirmation still required.
+- GO-PINEX-001: protocol analyzed; owner approved Q-001 Option A on 2026-11-16; golden frames and further contract details are still open.
 - GO-PINEX-002 through GO-PINEX-014: open.
 - Cross-language tests have not been run.
 - No implementation has been started.
 
-## 7. Owner decisions pending
+## 7. Owner decisions
 
-- Q-001: Bind authorization. Pinex wire protocol has no password/token field. Recommended design is an application Bind Validator callback using System ID and Remote Address, without changing the protocol.
-- Q-002: Whether periodic Enquire Link should be optionally enabled; default recommendation is disabled.
-- Q-003: Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
-- Q-004: Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
+- **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
+- **Q-005 — OPEN:** Default if no Bind Validator callback is configured: fail closed or Pinex-compatible allow.
+- **Q-002 — OPEN:** Whether periodic Enquire Link should be optionally enabled; default recommendation is disabled.
+- **Q-003 — OPEN:** Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
+- **Q-004 — OPEN:** Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
 
 ## 8. Next action
 
-Resolve Q-001 first, then finalize the public API and the compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
+Resolve Q-005 (no-validator default), then proceed to the remaining owner choices, finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
