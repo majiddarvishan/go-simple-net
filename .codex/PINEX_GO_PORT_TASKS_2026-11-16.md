@@ -376,7 +376,7 @@ Baseline فعلی Pinex:
 | Application Enquire Link | در Core: فقط هنگام Idle؛ Idle Interval قابل تنظیم، 0 = بدون ارسال خودکار (Q-002 تأیید شد) |
 | Protobuf Handlerها | خارج از کتابخانه؛ Payload opaque |
 
-این موارد در صورت تأیید مالک می‌توانند به Backlog نسخه‌های بعدی اضافه شوند.
+این جدول هنوز **پیشنهاد Q-004** است و به‌عنوان تأیید مالک تلقی نمی‌شود. در صورت انتخاب گزینه A، قابلیت‌های جانبی به Backlog نسخه‌های بعدی منتقل خواهند شد.
 
 ---
 
@@ -452,11 +452,22 @@ Baseline فعلی Pinex:
 
 **وضعیت:** CLOSED — نام انتخاب شد؛ بدون مجوز تغییر نام عملیاتی یا کدنویسی. [Decision Log](DECISION_LOG.md).
 
-### Q-004 — انتقال قابلیت‌های جانبی نمونه
+### Q-004 — تعیین محدوده نسخه اول neta-go
 
-پیشنهاد: ابتدا فقط Core Protocol و قابلیت‌های اصلی Pinex پیاده‌سازی شوند؛ Circuit Breaker، Rate Limiter، Deduplication، Priority و Metrics به Backlog مستقل منتقل شوند.
+**وضعیت:** PROPOSED — در انتظار تأیید مالک (نه تصمیم قطعی).
 
-**وضعیت:** پیشنهاد ثبت شده؛ نیازمند تأیید.
+**پیشنهاد A — Core سبک:**
+- حفظ TCP Client/Server، Codec، Bind/Unbind، Session، Stream Request/Response، Sequence، Timeout و Reconnect.
+- حفظ Backpressure، صف محدود FIFO، محدودیت منابع، Shutdown کنترل‌شده، API هم‌زمان امن، Callbackهای ترتیبی و Enquire Link فقط در زمان Idle طبق Q-002.
+- انتقال Circuit Breaker، Rate Limiter تجاری، Priority Queue و Prometheus exporter به Backlog آینده.
+- عدم پیاده‌سازی Deduplication خودکار بر اساس Sequence؛ Sequence برای Correlation است.
+- Protobuf/SS7 Handlerها و Client Group جزو نسخه اول نیستند؛ Payload باینری opaque باقی می‌ماند.
+- Metrics Hook ساده و بدون وابستگی خاص صرفاً در مرحله طراحی API بررسی شود و اکنون تعهد قطعی ایجاد نکند.
+- Control PDUها در شرایط Backpressure نباید دچار Starvation شوند.
+
+**گزینه B:** مالک قابلیت‌های جانبی مشخصی را برای نسخه اول ضروری اعلام کند تا اثر آن‌ها بر API، منابع و تست‌های سازگاری بررسی شود.
+
+**معیار خروج:** تأیید صریح مالک روی A یا مشخص کردن افزونه‌های ضروری در B. [شرح فنی در Decision Log](DECISION_LOG.md).
 
 ---
 
