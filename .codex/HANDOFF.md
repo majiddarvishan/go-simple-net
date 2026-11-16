@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 Option A is now owner approved:** every Client and Server instance owns an independent callback-worker resource domain; Sessions share their Server budget, Client reconnect generations share their Client budget, and callbacks from retired generations remain charged until return. No mandatory process-global worker pool/cap. Numeric capacities, per-class aggregate-cap policy, event/payload bounds and remaining API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 and WORKER-002 Option A are owner approved:** each Client/Server instance owns three independent owner-wide active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with the corresponding class ceiling; classes cannot borrow permits; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 OnClose event-budget saturation remains open; numeric capacities, payload/event bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 Option A is CLOSED / OWNER APPROVED. Client and Server instances own independent callback-worker resource domains; Sessions share the owning Server budget, reconnect generations share the owning Client budget, and running callbacks from retired generations remain charged until return. Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B remain binding. Next: WORKER-002, explicit per-class owner-wide active-worker ceilings versus ceilings derived from Session limits. Numeric worker defaults, event/payload bounds, OnClose saturation, terminal-cause/Close-return details, API-002 and API-003 remain open.
+**Current work:** WORKER-001 and WORKER-002 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. Next: WORKER-003, OnClose event-budget saturation. Numeric worker/event defaults, payload-byte bounds, physical pool layout, terminal-cause/Close-return details, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
@@ -345,3 +345,31 @@ This decision fixes only the worker **ownership scope**. It does not select nume
 Choose explicit independent owner-wide active-worker ceilings for Application, Completion and OnClose (recommended) versus deriving aggregate ceilings from existing Session limits. Numeric defaults are not part of this decision.
 
 **Guardrail:** documentation/design only. No Go/C++ code, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.
+
+## 29. WORKER-002 — Independent owner-wide active-worker ceilings (OWNER APPROVED, 2026-11-16)
+
+**Owner selection:** WORKER-002 Option A.
+
+### Binding contract
+
+Each Client and Server instance has three independently configurable aggregate active-worker ceilings:
+
+- Application callbacks.
+- Completion callbacks.
+- OnClose callbacks.
+
+Per-Session concurrency is intersected with the remaining owner-wide ceiling for the same class. Classes cannot borrow or consume one another's active permits. Ceilings count physically executing callbacks; queued/event populations are separately bounded.
+
+WORKER-001 owner scope remains binding across all Sessions and Client reconnect generations. A started callback from a retired Session remains charged to the same owner/class ceiling until it returns. There is no mandatory process-global active-worker ceiling.
+
+### Synchronized documents
+
+- [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-002 entry.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — detailed capacity model and WORKER-003 proposal.
+- API-001b review, PERF-002/003 design, Public API design, Performance Contract and Resource Admission design updated.
+
+### Next decision — WORKER-003
+
+Choose the OnClose saturation policy: skip a new OnClose callback when the owner's bounded active+queued event budget is full (recommended, consistent with best-effort delivery), or reserve an event slot at Session admission and apply backpressure to new Session/reconnect admission when no reservation is available.
+
+Numeric defaults and public option names remain open. No implementation, tests, benchmarks, builds or operational changes.
