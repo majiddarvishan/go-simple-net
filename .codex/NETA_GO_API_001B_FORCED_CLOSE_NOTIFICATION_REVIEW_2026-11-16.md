@@ -294,7 +294,7 @@ A Session's configured per-Session concurrency is intersected with the remaining
 
 WORKER-001 ownership applies: Server Sessions share their Server's three ceilings; all Client reconnect generations share the Client's ceilings; started callbacks from retired generations remain charged until return. Independent instances do not share a process-global ceiling.
 
-No numeric defaults, public option names, physical worker-pool layout or event capacities are selected. The next open decision is **WORKER-003**, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§9–11.
+No numeric defaults, public option names, physical worker-pool layout or event capacities are selected. The next open decision is **WORKER-003**, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§9–12.
 
 No code, tests, benchmarks, builds, dependencies or operational changes.
 
