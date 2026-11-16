@@ -122,7 +122,7 @@ The exact method names, callback registration style, `Done` signaling, timer def
 |---|---|---|---|
 | API-004 | Config representation | Functional Options + private effective defaults, validated before network use | **CLOSED — owner approved A** |
 | API-001a | Request/Response completion style | **A: asynchronous/nonblocking submission + callback completion**; B synchronous primary API not selected | **CLOSED — owner approved A, 2026-11-16** |
-| API-001b / PERF-002 | Callback/Close/Done and payload ownership | Preserve per-Session callback serialization; choose safe-copy or explicitly borrowed payload lifetime, weigh allocation/GC cost, bound completion delivery | OPEN — performance-critical design |
+| PERF-002 | Payload ownership | Outgoing snapshot before successful admission return; inbound directly received buffer retainable beyond callback | **CLOSED — OWNER APPROVED A** |\n| API-001b | Callback/Close/Done | Serial callbacks, decide forced-close notification/cancellation policy | **OPEN — performance-critical design** |
 | API-002 | Dial/Bind timeout defaults, request deadline, reconnect, graceful stop | C++ reference values are input, not automatically Go approvals | OPEN |
 | API-003 | Go package/module path | Library name `neta-go` approved; no repo/module rename authorized | OPEN |
 | GO-PINEX-001 | Pin exact C++ develop HEAD/golden frames | Ensure current baseline before implementation/tests | OPEN |
@@ -150,3 +150,10 @@ The owner explicitly stated **performance is very important** while selecting AP
 ## 11. PERF-002 / PERF-003 / API-001b follow-up (2026-11-16; DRAFT ONLY)
 
 See [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) for the nonbinding comparison of safe-copy/owned-receive, borrowed and transfer ownership; proposed count-bounded pending/completion admission; and the explicitly unresolved choice between prompt forced-close callback cancellation versus deferred bounded terminal events. Approved API-001a callback-first submission and Q-003 same-Session callback non-overlap remain unchanged. No API-001b/PERF-002/PERF-003 option or exported signature is approved by this cross-reference.
+
+
+## 12. PERF-002 owner approval and API-001b next work (2026-11-16)
+
+The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes for an accepted async Stream send before returning success; direct receive into an owned retainable callback-visible `[]byte` where possible, never recycled by the library after handoff. Caller may reuse outgoing input after successful Send return but must not race an in-progress snapshot. No end-to-end zero-copy promise. Exact private buffer pooling strategy remains PERF-004 OPEN. Source of truth: [DECISION_LOG.md](DECISION_LOG.md).
+
+**API-001b stays OPEN.** An admitted request logically settles once via response/timeout/close; serialized callback invocation after forced Close is not yet specified. A permanently blocked same-Session callback precludes both forced immediate `OnClose` and strict callback serialization. See [follow-up design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) for explicit options A/B; do not finalize without the owner. Pending/completion credit count limits and their numbers (**PERF-003**) remain OPEN. No implementation authorized.
