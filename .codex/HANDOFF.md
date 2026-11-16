@@ -77,9 +77,14 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 - **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
 - **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
 - **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric default interval and unanswered-probe timeout still need API/failure-policy specification. See DECISION_LOG.md.
-- **Q-003 — OPEN:** Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
+- **Q-003 — APPROVED (2026-11-16):** Goroutine-safe Client/Server/Session APIs; non-overlapping, receipt-ordered callbacks per Session; isolation across Sessions; frame-safe concurrent sends; controlled shutdown for callbacks and pending operations. Implementation details (queue capacity, deadline, API signatures) still need design. See DECISION_LOG.md.
 - **Q-004 — OPEN:** Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
 
 ## 8. Next action
 
-Q-001, Q-005 and Q-002 are closed. Proceed to Q-003 (callback ordering/thread-safety) and Q-004 (optional features), then define the numeric default idle interval and unanswered-probe policy in GO-PINEX-002/011 before implementation. Finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
+Q-001, Q-005, Q-002 and Q-003 are closed. Next: discuss NAM-001 (library naming; no name approved yet), Q-004 (optional features), and the numeric idle interval / unanswered-probe policy under GO-PINEX-002/011. Finalize public Go API and compatibility baseline before requesting explicit authorization to implement. No code, module or repository rename is authorized.
+
+
+## 9. Naming discussion
+
+NAM-001 is OPEN. Owner has previously preferred NEMA ("Network Easy Messaging API") as a future C++ Pinex name, but the C++ project has not been renamed. Suggested family naming is "NEMA Go" for the native Go implementation; alternatives: NEMGO, PIMA, NETA. No naming decision or repository/module change has been approved. See DECISION_LOG.md.
