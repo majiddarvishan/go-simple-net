@@ -235,3 +235,9 @@ See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOU
 - Numeric defaults, public option names, physical pool layout and event capacities remain open.
 
 See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-003 is next.
+
+## 21. WORKER-003 — OnClose saturation (OWNER APPROVED, OPTION A, 2026-11-16)
+
+OnClose event admission is best-effort/at-most-once. The owner-scoped event budget counts queued + running events. After Done closes, the engine attempts one nonblocking reservation; if the budget is full, that Session's OnClose invocation is skipped permanently. No retry, overflow goroutine or teardown wait is allowed. An admitted event holds its event credit until callback return, including while queued. Done and transport cleanup are unaffected.
+
+Numeric event capacity and public option name remain open. Next: WORKER-004, worker-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10.
