@@ -2,7 +2,7 @@
 
 **تاریخ بررسی:** 2026-11-16  
 **مرجع:** majiddarvishan/pinex — branch develop — version 1.5.0  
-**وضعیت:** SOURCE-BASED ANALYSIS — OWNER CONFIRMATION PENDING  
+**وضعیت:** SOURCE-BASED ANALYSIS — Q-001 OPTION A APPROVED؛ سایر جزئیات همچنان در بررسی  
 **پیاده‌سازی:** NOT STARTED
 
 ---
@@ -292,9 +292,10 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 
 ## 14. تصمیم‌های باز
 
-1. مدل احراز هویت Bind: Wire فعلی credential ندارد. پیشنهاد، Bind Validator Callback بدون تغییر پروتکل است.
-2. Enquire Link دوره‌ای: پیشنهاد، اختیاری و پیش‌فرض خاموش.
-3. Thread Safety API Go: پیشنهاد، API امن برای فراخوانی هم‌زمان و Callback ترتیبی در هر Session.
-4. قابلیت‌های جانبی نمونه Go: پیشنهاد، خارج از Core نسخه اول.
+1. **Q-001 — CLOSED / APPROVED OPTION A:** مالک Bind Validator Callback بر اساس System ID و Remote Address را بدون هیچ تغییر در Wire Protocol Pinex 1.5.0 تأیید کرد (2026-11-16). رمز عبور یا Token جدید روی Wire تعریف نمی‌شود. این روش معادل احراز هویت رمزنگاری‌شده نیست.
+2. **Q-005 — OPEN:** انتخاب رفتار پیش‌فرض Go Server در صورت عدم ارائه Bind Validator (Reject یا Allow).
+3. **Q-002 — OPEN:** Enquire Link دوره‌ای؛ پیشنهاد، اختیاری و پیش‌فرض خاموش.
+4. **Q-003 — OPEN:** Thread Safety API Go؛ پیشنهاد، API امن برای فراخوانی هم‌زمان و Callback ترتیبی در هر Session.
+5. **Q-004 — OPEN:** قابلیت‌های جانبی نمونه Go؛ پیشنهاد، خارج از Core نسخه اول.
 
-این موارد در فایل PINEX_GO_PORT_TASKS_2026-11-16.md نیز ثبت شده‌اند.
+جزئیات در [DECISION_LOG.md](DECISION_LOG.md) و فایل PINEX_GO_PORT_TASKS_2026-11-16.md ثبت شده‌اند.
