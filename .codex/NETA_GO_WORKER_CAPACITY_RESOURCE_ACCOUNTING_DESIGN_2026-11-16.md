@@ -319,23 +319,26 @@ Two class-separated ledgers provide a direct finite bound for payload memory ret
 
 The hot path adds a bounded reservation/release alongside queue/count admission. Session-local and owner counters must be updated with short race-safe operations; no owner lock may be held during user code or network I/O. Any future sharding must preserve a strict aggregate ceiling. These ledgers bound library-owned frame/payload storage, not process RSS, allocator fragmentation, Go metadata/stacks, kernel buffers or memory retained by the application.
 
-### Explicitly unresolved; must close before Architecture Freeze
+### Remaining follow-up after WORKER-009 closure
 
-- The exact C++ Pinex 1.5.0 maximum is source-verified as 1 MiB total Frame including the header; cross-language confirmation remains pending (see PROTOCOL-001).
-- Numeric retained-byte ceilings, count defaults, worker ceilings, valid ranges and public option identifiers remain WORKER-009/API-004 design work.
+- WORKER-009A, WORKER-009B1/B2/B3 and WORKER-009C are all CLOSED / OWNER APPROVED. Worker ceilings, numeric defaults, valid ranges, cross-field validation and semantic Functional-Option mapping are no longer open design items.
+- Pinex C++ 1.5.0 maximum Frame is source-verified as 1 MiB total including Header. Golden-frame artifacts and real Go↔C++ socket confirmation remain open until implementation/test authorization.
+- Exact exported option identifiers, public constructor signatures and Session option placement remain API-001 work.
+- API-002 lifecycle deadlines, reconnect, graceful Stop and terminal-cause surface remain in progress; API-003 module/package structure remains open.
 
-**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §15.  
-**Next:** WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits.
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§15–18.  
+**Next:** API-002 lifecycle decisions, then API-003. Worker capacity/resource accounting contract is complete at the design/owner-decision level.
 
 ---
 
 ## 16. Explicitly not decided
 
-- WORKER-009A and WORKER-009B1/B2/B3 defaults are CLOSED / OWNER APPROVED; WORKER-009C proposed explicit hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping remain under owner review.
-- WORKER-008 Completion retained-byte exhaustion policy is resolved. Pinex 1.5.0 maximum Frame is source-verified as 1 MiB total; only golden-frame and Go/C++ cross-language confirmation remain open.
-- Exact maximum Pinex frame size and Go/C++ cross-language confirmation.
-- API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
-- Final exported option identifiers and constructor signatures under API-001/API-004.
+- Golden-frame artifacts and real Go↔C++ socket-level confirmation for the source-verified 1 MiB total Frame limit.
+- API-002 remaining Connect/Bind/Unbind deadlines, write-stall behavior, reconnect policy, final Stop semantics and terminal-cause accessor.
+- API-003 module/package structure and exact public package boundaries.
+- Final exported option identifiers, public constructor signatures and Session option placement under API-001.
+
+WORKER-009A..C and WORKER-008 retained-byte exhaustion policy are CLOSED / OWNER APPROVED; no worker default, hard maximum or resource-accounting owner decision remains open.
 
 **Guardrail:** design/documentation only. No Go/C++ source, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.
 

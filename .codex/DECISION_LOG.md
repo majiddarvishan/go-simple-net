@@ -1189,7 +1189,7 @@ Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 
 **References:** [API-002 lifecycle design](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md) §5; API-004 configuration contract §11.4.
 
-**Next:** API-002-02 — Frame Assembly Timeout. Proposed finite absolute deadline: 30s from first byte of a Frame Header; do not reset on incremental progress. This is a separate owner decision. Implementation remains NOT AUTHORIZED.
+**API-002-02 is now CLOSED / OWNER APPROVED / OPTION A:** 30s absolute Frame Assembly Timeout from the first byte of each Frame Header on a Bound Session, never reset by progress; expiry closes only the affected Session and releases partial reservations exactly once. **Next:** API-002-03 TCP Connect Timeout; proposed 30s absolute per Dial attempt. Implementation remains NOT AUTHORIZED.
 
 
 ## API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -1202,6 +1202,6 @@ Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 
 **Future acceptance criteria (not run):** fragmented/slow-trickle Header and Body; no deadline reset on progress; exact-boundary completion race; partial reservation release exactly once; Completion scratch-drain expiry; Session isolation; no callback/Request resurrection.
 
-**References:** API-002 lifecycle design §5.5; API-004 configuration contract §11.5; WORKER-008; Resource Admission Design §10.
+**References:** API-002 lifecycle design §5.1; API-004 configuration contract §11.5; WORKER-008; Resource Admission Design §10.
 
 **Next:** API-002-03 — TCP Connect Timeout. Proposal: 30s absolute deadline per Dial attempt. Implementation remains NOT AUTHORIZED.

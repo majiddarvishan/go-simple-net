@@ -231,7 +231,7 @@ Use one typed, independent Functional Option per semantic setting. Omitted optio
 - **Timeout after Writer claim:** send ownership cannot be revoked. Ignore a later Response for settlement purposes; keep Writer-owned payload memory accounted until Write completion or transport teardown.
 - Timeout alone does not close Session. Timeout/Response/Close race has one terminal settlement winner. B (start after full Write) and C (mandatory per-call timeout) were not selected.
 
-API-002-02 Frame Assembly Timeout remains open; see the API-002 lifecycle design. No implementation or tests are authorized.
+API-002-02 Frame Assembly Timeout is CLOSED / OWNER APPROVED / OPTION A; see §11.5. API-002-03 TCP Connect Timeout is the next owner decision. No implementation or tests are authorized.
 
 
 ### 11.5 API-002-02 — approved FrameAssemblyTimeout configuration (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)

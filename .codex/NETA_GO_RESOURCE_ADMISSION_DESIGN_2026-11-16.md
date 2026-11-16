@@ -136,9 +136,10 @@ The owner chose Option A defaults, **not** a workload-specific replacement defau
 
 - **Q-009 CLOSED / APPROVED B:** close only Session whose incoming callback backlog cannot admit a new Application frame; other Sessions are unaffected.
 - **Q-010 CLOSED / APPROVED A:** all numeric ingress/global/session/pre-bind/control defaults are configurable and the global overload reactions are approved, as recorded above.
-- **API-004 OPEN:** Go configuration must distinguish **unset** from explicit `EnquireLinkIdleInterval=0`. A plain zero-valued `time.Duration` field cannot simultaneously implement approved **default 30s** and explicit **0 disables**. Prefer Functional Options with complete defaults and immutable validated snapshot; optional/pointer Config remains an alternative. See [API-004 detailed configuration contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md); no choice has been approved.
-- Existing **API-001..003** also remain open: exported types, callbacks, capacity config validation, module/package naming.
-- Pin the exact C++ develop HEAD before any cross-language test execution.
+- **API-004 CLOSED / OWNER APPROVED OPTION A:** typed Functional Options apply independent explicit overrides over complete defaults; validate the final effective configuration before sockets/goroutines and retain an immutable per-owner snapshot. Explicit zero is invalid except `EnquireLinkIdleInterval=0`, which disables outgoing Enquire Link only. See [API-004 detailed configuration contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md).
+- **WORKER-009A..C CLOSED / OWNER APPROVED:** all worker defaults, count/byte limits, hard maxima, valid ranges and cross-field/resource accounting rules are settled.
+- **API-002 IN PROGRESS:** API-002-01 RequestTimeout and API-002-02 FrameAssemblyTimeout are closed; API-002-03 TCP Connect Timeout is next. API-003 module/package boundaries remain open.
+- Pinex C++ source baseline and 1 MiB maximum are pinned/source-verified; only golden-frame and real socket-level Go↔C++ confirmation remain open after implementation/test authorization.
 
 **No implementation permission is implied by this document. Approved numeric defaults are not measured production sizing guarantees.**
 

@@ -103,7 +103,7 @@ The Request timeout must bound the full lifetime of an accepted callback-first R
 
 
 
-### API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+### 5.1 API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
 
 **Approved policy:** an absolute **30-second** deadline for assembling each inbound Frame on a Bound Session.
 
