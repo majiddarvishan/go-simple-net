@@ -168,7 +168,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-007 | Enquire Link response timeout and action | **Default 10s, configurable; close Session on missing matching reply, Client reconnect iff enabled** | CLOSED — owner approved 2026-11-16 |
 | Q-008 | Capacity defaults and behavior at queue saturation | **Option A: 4 MiB per-session outgoing Application FIFO, immediate Queue Full, bounded control path** | CLOSED — approved 2026-11-16 |
 | Q-009 | Incoming callback overload policy | **Option B:** close the Session promptly if a new Application frame cannot fit its bounded callback backlog; do not affect other Sessions | CLOSED — approved 2026-11-16 |
-| Q-010 | Numeric ingress/global/session admission defaults | Inbound 4 MiB, aggregate queued frames 256 MiB, max 1024 bound sessions remain **proposals only**; global-overload reaction and bounded control reserve also need design | OPEN — not approved |
+| Q-010 | Numeric ingress/global/session admission defaults | **Option A proposal:** 4 MiB inbound, 256 MiB aggregate queued, 1024 bound, 128 pre-bind/30s, 4 KiB control; outgoing global saturation => Queue Full; incoming global saturation => close responsible Session. Option B: owner-tuned. | OPEN — not approved; see resource design |
 | API-004 | Unset vs explicit zero Enquire Link interval | Prefer Options or optional field to preserve 30s default and explicit 0 disable | OPEN — API design |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
