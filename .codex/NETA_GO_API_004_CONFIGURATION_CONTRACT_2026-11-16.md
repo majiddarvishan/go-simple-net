@@ -74,8 +74,9 @@ The keys below describe semantic configuration, not final exported Go API identi
 | MaxBoundSessions | **1024** | Server | positive integer |
 | MaxPendingPreBindSessions | **128** | Server/listener | positive integer |
 | PreBindHandshakeTimeout | **30s** | Server/listener | positive finite duration, absolute from accept |
+| RequestTimeout | **30s (API-002-01 approved)** | Client + Server owner; inherited by Sessions | positive finite duration; starts after successful local admission; zero invalid |
 
-Additional C++-observed reference values (client Connect/Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
+Additional C++-observed reference values (client Connect/Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. RequestTimeout=30s is a separately owner-approved Go default under API-002-01; C++ Pinex does not define a default. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
 
 ### Cross-field validation — draft
 
@@ -217,3 +218,16 @@ Binding validation invariants:
 Use one typed, independent Functional Option per semantic setting. Omitted options preserve defaults; explicit options override only their own setting. Owner worker ceilings, OnClose credits, owner Request credits and owner retained-byte ceilings follow Client/Server ownership; aggregate queued Application frame count is Server-only; per-Session concurrency and per-Session frame/Request/retained-byte limits attach to Session configuration/inheritance; worker idle grace is independently configurable per class. Do not introduce a generic map, mutable live config or hot reload. Exact exported identifiers and final constructor/Session option placement remain API-001 public-surface work.
 
 **Decision:** `CLOSED / OWNER APPROVED / OPTION A`. Implementation remains NOT AUTHORIZED.
+
+
+### 11.4 API-002-01 — approved RequestTimeout configuration (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- **Default:** 30 seconds.
+- **Scope:** independently configured on each Client or Server owner using a typed Functional Option; accepted Sessions inherit their owner's immutable effective setting. There is no per-call timeout override in V1.
+- **Validation:** strictly positive finite duration; explicit zero is invalid and does not disable Request timeout. No additional upper hard maximum has been approved.
+- **Start point:** immediately after successful atomic local Request admission (Sequence/Request credit/queue frame+bytes/retained-payload reservation and FIFO insertion). Queue wait, Writer wait/Write and peer response time all consume the same deadline.
+- **Timeout before Writer claim:** cancel the queued frame so it cannot be transmitted; release queue and queued-payload accounting exactly once. Deliver one timeout Completion; Request credit and Sequence protection remain until Completion callback return or permitted cancellation.
+- **Timeout after Writer claim:** send ownership cannot be revoked. Ignore a later Response for settlement purposes; keep Writer-owned payload memory accounted until Write completion or transport teardown.
+- Timeout alone does not close Session. Timeout/Response/Close race has one terminal settlement winner. B (start after full Write) and C (mandatory per-call timeout) were not selected.
+
+API-002-02 Frame Assembly Timeout remains open; see the API-002 lifecycle design. No implementation or tests are authorized.

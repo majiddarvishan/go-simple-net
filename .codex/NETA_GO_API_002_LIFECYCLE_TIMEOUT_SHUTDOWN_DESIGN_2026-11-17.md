@@ -1,7 +1,7 @@
 # neta-go V1 — API-002 Timeout, Reconnect and Lifecycle/Shutdown Design
 
 **Date:** 2026-11-17  
-**Status:** DESIGN IN PROGRESS — owner decisions required; no implementation authorization  
+**Status:** DESIGN IN PROGRESS — API-002-01 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited `develop` HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`  
 **Authority:** [DECISION_LOG.md](DECISION_LOG.md), [API-001](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md), [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md), [Protocol Compatibility](PINEX_WIRE_PROTOCOL_2026-11-16.md).
@@ -62,7 +62,7 @@ C++ uses a single-threaded `io_context` convention. That is not copied into Go: 
 | TCP Connect | Not yet approved | 30s, matching Pinex reference; configurable |
 | Bind response | Not yet approved | 30s, matching Pinex reference; configurable |
 | Server Pre-Bind handshake | 30s approved by Q-010 | Keep 30s; configurable |
-| Request response | No Go default approved | **API-002-01 owner decision required; see §5** |
+| Request response | **30s approved** | Starts at successful local admission; queue, Writer and peer-response time all count; independently configurable per Client/Server owner |
 | Enquire Link idle | 30s approved | Keep 30s; zero disables outgoing probes |
 | Enquire Link response | 10s approved | Keep 10s; timeout closes Session |
 | Graceful Unbind | Not yet approved for Go | 10s, matching Pinex protocol deadline; configurable |
@@ -72,34 +72,34 @@ C++ uses a single-threaded `io_context` convention. That is not copied into Go: 
 
 Timeouts are independent. Request timeout is not Enquire Link timeout; Connect/Bind/Pre-Bind deadlines do not share a single mutable timer. All timers must be cancelled or made generation-safe during close/reconnect so stale callbacks cannot mutate a newer Session.
 
-## 5. API-002-01 — Request deadline origin and default (OPEN; OWNER DECISION REQUIRED)
+## 5. API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
 
 The Request timeout must bound the full lifetime of an accepted callback-first Request, including time spent waiting behind the bounded outbound FIFO. Starting only after a complete TCP write can retain Request credits indefinitely when a Writer is stalled.
 
-**Option A — start at successful local admission; 30s default (RECOMMENDED)**
+**APPROVED OPTION A — start at successful local admission; 30s default**
 
 - Reserve Sequence, Request credit, outgoing frame count/bytes and pending state atomically.
-- Only after the complete local admission succeeds, start the Request deadline.
+- The admission linearization point is the successful atomic reservation of the Request/Sequence/queue/retained-payload ledgers and insertion into the bounded outbound FIFO. Start the Request deadline immediately after that admission succeeds and before returning successful submission to the caller.
 - Default is 30s; independently configurable on Client and Server via typed Functional Options. No per-call timeout override in V1, keeping the hot-path API small.
 - Queue delay, Writer delay and peer response time all consume the same deadline.
-- If timeout wins before the Writer claims the frame, remove/cancel that queued frame, release its queue and retained-payload charges exactly once, release Request tracking as defined by PERF-003, and never transmit it.
-- If Writer has already claimed/started the frame, the library cannot retract bytes. Settle the Request once as timed out; any later response is late/unknown and must not resurrect completion. Do not claim that the peer did not receive it.
-- Request timeout alone does not close the Session. It delivers exactly one timeout Completion through the existing bounded Completion lane; the Request credit remains held until callback return or permitted cancellation.
+- If timeout wins before the Writer claims the frame, atomically cancel/remove that queued frame so the Writer cannot transmit it; release its outgoing queue frame/byte charges and queued-payload retention exactly once. The accepted Request still receives its single timeout Completion, and its Request credit remains held through Completion callback return or permitted cancellation under PERF-003. Keep the Sequence/Request entry protected against late-response collision until its lifecycle is fully settled.
+- The Writer-claim transition is the send-ownership linearization point. If the Writer has claimed the frame before timeout wins, the library cannot revoke that ownership or promise that no bytes will be sent. Settle the Request once as timed out; a later response is late/unknown and must not resurrect completion. Any Writer-owned buffer remains retained/accounted until Write completes or transport teardown; timeout must never free memory still referenced by Writer.
+- Request timeout alone does not close the Session. It delivers exactly one timeout Completion through the existing bounded Completion lane; the Request credit and Completion callback resources remain accounted until callback return or permitted cancellation.
 - Timeout/response/close races use one terminal-settlement winner. No duplicate callback and no Sequence reuse while a live Request entry remains.
 
-**Option B — start after complete TCP Write; 30s default**
+**Rejected Option B — start after complete TCP Write; 30s default**
 
 - Request admission and queue accounting are the same as A, but the response timer starts only after the entire frame has been written.
 - Queue/Writer delay is outside the response timeout. A stalled Writer can therefore retain accepted Request credits and frame memory until a separate write/close condition intervenes.
 - This is closer to a narrow interpretation of “response timeout”, but weaker as a total lifecycle bound.
 
-**Option C — require a per-call timeout; no owner default**
+**Rejected Option C — require a per-call timeout; no owner default**
 
 - Each SendRequest call supplies its own positive timeout.
 - No default Request timeout is applied by Client/Server.
 - This adds a per-call parameter or request-options object to the hot-path API and makes omission impossible only if the language/API enforces it.
 
-**Decision requested:** choose A, B or C. The 30s value in A/B is a proposed Go default, not a C++ default (C++ receives it as a constructor argument).
+**Owner decision:** Option A approved on 2026-11-17. Options B and C were not selected. The 30s Go default is independently configurable on Client and Server through typed Functional Options; no per-call timeout override is part of V1. This is a Go API policy, not a claim that C++ Pinex defines the same default. Request timeout must be positive; zero does not disable it. No additional upper hard maximum has been approved.
 
 ## 6. Proposed graceful shutdown and forced-close contract (design proposal; no new owner decision yet)
 
@@ -154,13 +154,15 @@ Proposed semantics:
 - Pinex uses a fixed 5s retry delay. A fleet-scale Go policy should consider bounded exponential backoff with jitter to avoid synchronized reconnect storms. Whether to preserve fixed 5s or use bounded exponential backoff is an owner decision still open.
 - Explicit Client Stop cancels the reconnect timer and prevents every future attempt. A stale callback from an older generation must not start, close or mutate the new generation.
 
-## 8. Remaining API-002 technical review items
+## 8. Remaining API-002 decisions and technical review
 
-1. **API-002-01:** Request timeout origin/default — owner decision in §5.
-2. **Frame assembly deadline:** decide whether a bound Session that receives a valid header and then stalls mid-Body must be closed after a configurable finite deadline. Resource credits bound memory, but not time; Pinex C++ 1.5.0 has no separate bound-frame assembly timeout.
-3. **Write stall deadline:** decide whether a stalled TCP Writer should close a Session after a configurable deadline, beyond the existing bounded Unbind deadline and Request timeout.
-4. **Reconnect policy:** fixed 5s compatibility delay versus bounded exponential backoff with jitter; AutoReconnect default false is recommended.
-5. **Stop API signatures and terminal cause accessor:** exact exported method/error names remain API-001 surface work; lifecycle semantics should be frozen before implementation.
+1. **API-002-02 — Frame Assembly Timeout (next owner decision):** whether a bound Session must be closed when a peer begins a Frame but does not complete its Header/Body within a finite absolute deadline. Proposed Option A: 30s absolute deadline from the first byte of the Frame Header; progress/trickled bytes do not reset it; timeout closes only the offending Session and releases partial-frame reservations. The already-approved 30s absolute Pre-Bind handshake deadline remains unchanged.
+2. **Connect timeout:** proposed 30s default, independently configurable; not yet owner-approved.
+3. **Bind response timeout:** proposed 30s default, independently configurable; not yet owner-approved.
+4. **Graceful Unbind timeout:** proposed 10s default, independently configurable; not yet owner-approved.
+5. **Write stall deadline:** decide whether a stalled TCP Writer should close a Session after a configurable deadline, beyond Request timeout and Unbind deadline.
+6. **Reconnect policy:** fixed 5s compatibility delay versus bounded exponential backoff with jitter; AutoReconnect default false remains a proposal, not yet owner-approved.
+7. **Stop API signatures and terminal cause accessor:** exact exported method/error names remain API-001 surface work; lifecycle semantics should be frozen before implementation.
 
 ## 9. Non-goals
 

@@ -1177,3 +1177,16 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 ## API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
 Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 must preserve Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. The first outstanding owner choice is **API-002-01 — Request deadline origin/default**: A starts at successful local admission with a proposed 30s default; B starts after full TCP Write with a proposed 30s default; C requires a positive per-call timeout and has no owner default. Recommendation: A, because queue/Writer delay must not retain bounded Request credits indefinitely. No implementation or tests authorized.
+
+
+## API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+**Decision:** Option A — start the Request deadline immediately after successful local admission. The Go default is **30 seconds**, independently configurable for Client and Server via typed Functional Options; no per-call timeout override is included in V1. The deadline includes time spent in the bounded outbound FIFO, waiting for Writer ownership, TCP Write, and peer response. The timeout must be positive; zero does not disable it. No additional upper hard maximum has been approved.
+
+**Admission and timeout race contract:** successful admission is the atomic reservation of Sequence, Request credit, outgoing queue frame/byte capacity and retained-payload capacity plus insertion into the bounded FIFO. If timeout wins before Writer claim, cancel the queued frame so it cannot be sent and release queue and queued-payload charges exactly once. The accepted Request still produces exactly one timeout Completion; Request credit and Sequence protection remain until Completion callback return or permitted cancellation under PERF-003. If Writer claim wins first, the library cannot revoke send ownership or promise that no bytes will be transmitted; Writer-owned memory remains accounted until Write completion or transport teardown. A late Response cannot resurrect the timed-out Request. Timeout alone does not close the Session. Timeout/Response/Close races have exactly one terminal-settlement winner.
+
+**Alternatives not selected:** B (start after full TCP Write) and C (mandatory per-call timeout with no owner default).
+
+**References:** [API-002 lifecycle design](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md) §5; API-004 configuration contract §11.4.
+
+**Next:** API-002-02 — Frame Assembly Timeout. Proposed finite absolute deadline: 30s from first byte of a Frame Header; do not reset on incremental progress. This is a separate owner decision. Implementation remains NOT AUTHORIZED.

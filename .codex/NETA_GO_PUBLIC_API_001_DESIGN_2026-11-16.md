@@ -126,8 +126,9 @@ The exact method names, callback registration style, `Done` signaling, timer def
 | API-004 | Config representation | Functional Options + private effective defaults, validated before network use | **CLOSED — owner approved A** |
 | API-001a | Request/Response completion style | **A: asynchronous/nonblocking submission + callback completion**; B synchronous primary API not selected | **CLOSED — owner approved A, 2026-11-16** |
 | PERF-002 | Payload ownership | Outgoing snapshot before successful admission return; inbound directly received buffer retainable beyond callback | **CLOSED — OWNER APPROVED A** |
-| API-001b | Callback/Close/Done | Serial callbacks, decide forced-close notification/cancellation policy | **OPEN — performance-critical design** |\n| PERF-003 | Outstanding Request/Completion count ceiling | Configurable Session and Server aggregate count-based rejection | **MODEL APPROVED A; numeric defaults and forced-close behavior OPEN** |
-| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | [API-002 lifecycle design](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md); first owner choice is Request deadline origin/default | IN PROGRESS |
+| API-001b | Callback/Close/Done | Callback lanes, Forced Close cancellation and Done semantics | **Policy CLOSED; exact exported names/signatures remain API-001 work** |
+| PERF-003 | Outstanding Request/Completion count ceiling | Configurable Session and owner aggregate credits, held through Completion settlement | **CLOSED — model and numeric defaults approved** |
+| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | API-002-01 approved: Request timeout 30s from successful local admission; API-002-02 Frame Assembly Timeout is next | IN PROGRESS |
 | API-003 | Go package/module path | Library name `neta-go` approved; no repo/module rename authorized | OPEN |
 | GO-PINEX-001 | Pin exact C++ develop HEAD/golden frames | Ensure current baseline before implementation/tests | OPEN |
 

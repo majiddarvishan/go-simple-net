@@ -611,4 +611,16 @@ Pinned source snapshot: `majiddarvishan/pinex` branch `develop`, HEAD `f7bd1eb77
 
 ## 43. API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It records the observed Pinex 1.5.0 timing reference (Connect 30s, Bind 30s, Pre-Bind 30s, Unbind 10s, reconnect 5s; Request timeout is a required C++ constructor argument, not a C++ default), preserves all already-approved Done/Forced Close/Notification/Worker contracts, and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. First outstanding owner decision: API-002-01 Request timeout origin/default (recommended: successful local admission, 30s default). Frame-assembly/write-stall deadlines and reconnect backoff remain under design. No implementation or tests authorized.
+Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It records the observed Pinex 1.5.0 timing reference (Connect 30s, Bind 30s, Pre-Bind 30s, Unbind 10s, reconnect 5s; Request timeout is a required C++ constructor argument, not a C++ default), preserves all already-approved Done/Forced Close/Notification/Worker contracts, and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. API-002-01 is now CLOSED / OWNER APPROVED / OPTION A: Request timeout is 30s by default, starts immediately after successful local admission and includes Queue/Writer/peer time; it is independently configurable per Client/Server owner, never disabled by zero, and timeout alone does not close Session. The next owner decision is API-002-02 Frame Assembly Timeout; proposed 30s absolute from the first byte of a Frame Header, not reset by trickle progress. Connect/Bind/Unbind defaults, write-stall handling and reconnect policy remain open. No implementation or tests authorized.
+
+
+## 44. API-002-01 — Request Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- Default: **30s**, independently configurable per Client/Server owner with typed Functional Options; positive only; zero does not disable.
+- Start: immediately after successful atomic local admission (Sequence + Request credit + queue frame/bytes + retained-payload reservation + FIFO insertion). Queue wait, Writer wait/Write and peer response all consume the deadline.
+- If timeout wins before Writer claim: cancel queued frame; release queue and queued-payload charges exactly once; never transmit. Deliver one timeout Completion; retain Request credit/Sequence protection until Completion callback return or permitted cancellation.
+- If Writer claim wins first: send ownership cannot be revoked; late Response is ignored; Writer-owned memory stays accounted until Write completion or transport teardown.
+- Timeout alone does not close Session; timeout/Response/Close race has one terminal settlement winner.
+- Rejected: start-after-full-Write and per-call-required timeout.
+
+**Next owner decision:** API-002-02 Frame Assembly Timeout. Proposal: 30s absolute from first byte of Frame Header, no reset on incremental progress; expiry closes only the affected bound Session and releases partial-frame reservations. No implementation/tests authorized.

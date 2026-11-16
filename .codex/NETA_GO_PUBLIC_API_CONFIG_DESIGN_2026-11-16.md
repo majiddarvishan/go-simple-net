@@ -201,7 +201,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-010 | Configurable resource limits and global overload | **Approved A:** inbound 4 MiB per Session, aggregate 256 MiB per Server, 1024 bound, 128 pre-bind/30s, Control reserve 4 KiB per Session; outgoing overflow => Queue Full, incoming => close offender | CLOSED — owner approved 2026-11-16; ALL CONFIGURABLE |
 | API-004 | Default/explicit override and validation | **APPROVED A:** typed Functional Options over complete defaults, independent explicit overrides, validated immutable effective config. [Contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) | CLOSED — owner approved 2026-11-16 |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
-| API-002 | Deadline/reconnect and shutdown configuration defaults | [API-002 lifecycle design](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md); preserve approved Q-006/Q-007 and DONE/FC contracts | IN PROGRESS |
+| API-002 | Deadline/reconnect and shutdown configuration defaults | API-002-01 approved: RequestTimeout=30s from successful local admission; API-002-02 Frame Assembly Timeout is next | IN PROGRESS |
 | API-003 | Package/module path | Library brand `neta-go` approved; package `neta` proposed; no rename | OPEN |
 
 ### Proposed task sequence (documentation only)
