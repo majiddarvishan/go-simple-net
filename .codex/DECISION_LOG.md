@@ -103,3 +103,54 @@ Q-005 is **CLOSED**. No implementation, tests, or build commands were run as par
 7. Go Client ↔ C++ Pinex Server and C++ Pinex Client ↔ Go Server => valid control PDU exchange.
 
 Q-002 is **CLOSED** at the policy level. No code, tests or build actions were authorized or performed.
+
+---
+
+## Q-003 — Concurrency Safety and Callback Ordering (2026-11-16)
+
+**Status:** APPROVED — owner confirmed all five proposed rules  
+**Applies to:** GO-PINEX-002, GO-PINEX-004, GO-PINEX-007, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-013  
+**Implementation:** NOT AUTHORIZED
+
+### Confirmed contract
+
+1. **Goroutine-safe public APIs:** Go Client, Server and Session methods must support concurrent calls from multiple goroutines.
+2. **Per-session callback ordering:** Callbacks for a given Session must execute serially, in message-receipt order. There must not be simultaneous callbacks for the same Session.
+3. **Session independence:** A slow or blocked callback for one Session must not stall callbacks or network handling for unrelated Sessions. The owner approved independence, not unlimited background goroutines.
+4. **Concurrent sends:** Multiple goroutines may send over a single Session concurrently; outgoing Frame bytes must not interleave or corrupt. A session-local serialized writer must preserve the integrity of each frame.
+5. **Controlled shutdown:** On disconnect or shutdown, callback completion/cancellation and outstanding operations must be handled deterministically without duplicate terminal notifications, goroutine leaks, hangs or corrupted state.
+
+### Engineering constraints for later API design
+
+- The precise callback signatures, queue capacities, backpressure strategy, shutdown deadline and pending-request error taxonomy remain to be designed within GO-PINEX-002/004/007/010 and must not be silently assumed from this policy.
+- Keep blocking user callback execution off unrelated Session readers/writers. Do not hold global/session transport locks across user callbacks.
+- Race tests, concurrent-send frame-integrity tests, per-session order tests, cross-session isolation tests, and shutdown/churn tests are part of the planned acceptance work.
+- These are requirements to implement later; **no application code is approved**.
+
+Q-003 is **CLOSED**.
+
+---
+
+## NAM-001 — Go library naming (2026-11-16)
+
+**Status:** UNDER DISCUSSION — no final name approved  
+**Implementation / repository rename:** NOT AUTHORIZED
+
+### Owner intent
+
+The new library is a **native Go TCP Messaging Client/Server** compatible with the Pinex 1.5.0 C++ wire protocol, not merely a Go wrapper around C++. The name should be short, easy to pronounce, and convey messaging/network simplicity.
+
+The owner previously preferred **NEMA — Network Easy Messaging API** as a *future* name for the C++ Pinex library; that C++ rename has **not** been authorized. Reusing the naming family for the interoperable Go implementation could improve clarity, but is only a proposal.
+
+### Naming candidates (proposed, not approved)
+
+- **NEMA Go** — family name NEMA, native implementation for Go; potential repository name `nema-go` and package name `nema`. Preferred for C++/Go consistency.
+- **NEMGO** — Network Easy Messaging for Go; more Go-specific but less natural pronunciation.
+- **PIMA** — Pinex Interoperable Messaging API; highlights wire compatibility, but anchors brand to Pinex name.
+- **NETA** — Network Easy Transport API; emphasizes transport rather than message-level interaction.
+
+These are candidates, **not** claims of trademark, module-path, repository-handle or domain availability. Verify conflicts before any public rename. Do not rename `go-simple-net`, change imports, change `go.mod`, or rebrand Pinex until the owner chooses a name explicitly.
+
+### Open question
+
+Should Go and C++ have a common brand (e.g. NEMA C++ / NEMA Go), or should the Go implementation use an entirely independent brand?
