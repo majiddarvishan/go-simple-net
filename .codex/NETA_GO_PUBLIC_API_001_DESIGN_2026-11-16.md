@@ -128,11 +128,11 @@ The exact method names, callback registration style, `Done` signaling, timer def
 | PERF-002 | Payload ownership | Outgoing snapshot before successful admission return; inbound directly received buffer retainable beyond callback | **CLOSED — OWNER APPROVED A** |
 | API-001b | Callback/Close/Done | Callback lanes, Forced Close cancellation and Done semantics | **Policy CLOSED; exact exported names/signatures remain API-001 work** |
 | PERF-003 | Outstanding Request/Completion count ceiling | Configurable Session and owner aggregate credits, held through Completion settlement | **CLOSED — model and numeric defaults approved** |
-| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | API-002-01 Request timeout and API-002-02 Frame Assembly Timeout are approved; API-002-03 TCP Connect Timeout is next | IN PROGRESS |
+| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | API-002-01 Request, API-002-02 Frame Assembly and API-002-03 Connect timeouts are approved; API-002-04 Bind timeout is next | IN PROGRESS |
 | API-003 | Go package/module path | Library name `neta-go` approved; no repo/module rename authorized | OPEN |
 | GO-PINEX-001 | Pin exact C++ develop HEAD/golden frames | Ensure current baseline before implementation/tests | OPEN |
 
-**Next design question:** **PERF-002 / API-001b** — `[]byte` ownership/lifetime (safe owned copies vs explicit callback-lifetime borrowed buffers) and bounded callback completion dispatch. Performance is a first-class V1 requirement; benchmark acceptance methodology is in [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). No public API code has been created or authorized.
+**Current design queue:** finish API-002 lifecycle decisions, then approve API-003 module/package boundaries and close remaining API-001 exported surface names/signatures. PERF-002, PERF-003 and worker/resource policies are already owner-approved in later sections and the Decision Log; historical OPEN statements above are superseded by their later approval records. No public API code has been created or authorized.
 
 ## 10. Performance-first requirement and follow-on design (2026-11-16)
 

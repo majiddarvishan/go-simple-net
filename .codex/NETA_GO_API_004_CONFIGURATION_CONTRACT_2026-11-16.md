@@ -76,8 +76,9 @@ The keys below describe semantic configuration, not final exported Go API identi
 | PreBindHandshakeTimeout | **30s** | Server/listener | positive finite duration, absolute from accept |
 | RequestTimeout | **30s (API-002-01 approved)** | Client + Server owner; inherited by Sessions | positive finite duration; starts after successful local admission; zero invalid |
 | FrameAssemblyTimeout | **30s (API-002-02 approved)** | Client + Server owner; inherited by Sessions | positive finite duration; absolute from first Frame Header byte on Bound Session; zero invalid |
+| ConnectTimeout | **30s (API-002-03 approved)** | Client Dial attempt only | positive finite duration; absolute from Dial start; includes DNS + TCP; earlier caller Context wins; zero invalid |
 
-Additional C++-observed reference values (client Connect/Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. RequestTimeout=30s and FrameAssemblyTimeout=30s are separately owner-approved Go defaults under API-002-01/02; C++ Pinex does not define a RequestTimeout default and has no equivalent bound-session Frame Assembly deadline. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
+Additional C++-observed reference values (Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. ConnectTimeout=30s is separately owner-approved for Go under API-002-03. RequestTimeout=30s and FrameAssemblyTimeout=30s are separately owner-approved Go defaults under API-002-01/02; C++ Pinex does not define a RequestTimeout default and has no equivalent bound-session Frame Assembly deadline. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
 
 ### Cross-field validation — draft
 
@@ -245,3 +246,16 @@ API-002-02 Frame Assembly Timeout is CLOSED / OWNER APPROVED / OPTION A; see §1
 - **Pre-Bind:** the approved 30s absolute handshake deadline from TCP acceptance remains independent and unchanged; FrameAssemblyTimeout does not extend it.
 
 No wire change is introduced. Pinex C++ 1.5.0 has no separate equivalent bound-session assembly deadline. API-002-03 TCP Connect Timeout is next. No implementation or tests are authorized.
+
+
+### 11.6 API-002-03 — approved ConnectTimeout configuration (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- **Default:** 30 seconds absolute per Client Dial attempt.
+- **Scope:** Client only; each Dial attempt receives a fresh independent deadline. This is not a whole reconnect-loop deadline.
+- **Start/coverage:** starts immediately before Dial and covers DNS/name resolution and TCP establishment. Use a context-aware Dial operation so resolution is also bounded.
+- **Context:** caller cancellation always applies. If the caller has an earlier deadline, it takes precedence; otherwise ConnectTimeout supplies the bound.
+- **Outcome:** timeout cancels the current attempt and produces no Session, Bind or Session worker/Reader/Writer startup. Close any socket returned after timeout has won. A successful Dial proceeds to the separate BindResponseTimeout phase.
+- **Validation:** positive finite duration; explicit zero invalid; no additional upper hard maximum approved.
+- This does not enable AutoReconnect or authorize retries. Pinex C++ 1.5.0 also uses a 30s connect reference; this is an explicit Go owner approval, not an inferred default.
+
+API-002-04 Bind response timeout is next. No implementation or tests are authorized.

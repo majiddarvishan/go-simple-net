@@ -124,7 +124,7 @@ Approved Q-003 requires **non-overlapping callbacks within a Session**. If user 
 1. **PERF-002 — CLOSED / APPROVED A:** send snapshot once, receive directly into owned retainable buffer. Borrowed callback-lifetime B and transfer C not selected as V1 public contracts.
 2. **PERF-003 — MODEL APPROVED A:** per-Session and Server aggregate count-bounded pending/completion work, configurable, new Request rejected without Session close on saturation. **Still OPEN:** numerical defaults (1024 / 65536 illustrative only), incoming event-count cap, forced-close credit accounting and deadline origin. Incoming separate event-count cap was not explicitly in the owner's final Option A wording and remains a proposal.
 3. **API-001b:** decide **forced-close Option A** prompt cancellation/best-effort callback vs **Option B** deferred bounded callback delivery; choose exact callback registration shape.
-4. **API-002:** resolve dial/bind/reconnect/request/Stop defaults and terminal errors; do not silently promote all observed C++ timings to Go approvals.
+4. **API-002:** API-002-01 RequestTimeout=30s, API-002-02 FrameAssemblyTimeout=30s and API-002-03 ConnectTimeout=30s are now owner-approved. Remaining: Bind/Unbind deadlines, write-stall policy, reconnect and Stop aggregation; do not silently promote other C++ timings to Go approvals.
 5. **API-003:** decide Go module path. Library `neta-go` name is already approved; proposed import path `github.com/majiddarvishan/neta-go` and Go package identifier `neta` are still **OPEN**. No `go.mod` yet.
 6. **GO-PINEX-001:** pin exact Pinex C++ `develop` HEAD and golden frames **before** cross-language implementation/tests.
 

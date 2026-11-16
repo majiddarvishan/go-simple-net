@@ -1,7 +1,7 @@
 # neta-go V1 — API-002 Timeout, Reconnect and Lifecycle/Shutdown Design
 
 **Date:** 2026-11-17  
-**Status:** DESIGN IN PROGRESS — API-002-01 and API-002-02 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
+**Status:** DESIGN IN PROGRESS — API-002-01 through API-002-03 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited `develop` HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`  
 **Authority:** [DECISION_LOG.md](DECISION_LOG.md), [API-001](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md), [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md), [Protocol Compatibility](PINEX_WIRE_PROTOCOL_2026-11-16.md).
@@ -59,7 +59,7 @@ C++ uses a single-threaded `io_context` convention. That is not copied into Go: 
 
 | Timeout | Current Go contract | API-002 proposal / state |
 |---|---|---|
-| TCP Connect | Not yet approved | 30s, matching Pinex reference; configurable |
+| TCP Connect | **30s approved (API-002-03)** | Absolute per Dial attempt from Dial start; includes DNS + TCP establishment; earlier caller Context wins; Client-only |
 | Bind response | Not yet approved | 30s, matching Pinex reference; configurable |
 | Server Pre-Bind handshake | 30s approved by Q-010 | Keep 30s; configurable |
 | Request response | **30s approved** | Starts at successful local admission; queue, Writer and peer-response time all count; independently configurable per Client/Server owner |
@@ -70,7 +70,7 @@ C++ uses a single-threaded `io_context` convention. That is not copied into Go: 
 | Partial-frame assembly | **30s approved** | Absolute per-Frame deadline from first Header byte on Bound Sessions; no reset on progress; timeout closes only the affected Session |
 | Generic socket write | No Go rule | Open technical review; do not silently add a deadline without considering slow peers and queue semantics |
 
-Timeouts are independent. Request timeout is not Enquire Link timeout; Connect/Bind/Pre-Bind and Frame Assembly deadlines do not share a single mutable timer. Frame Assembly Timeout applies to every inbound Frame on a Bound Session, including partial Header and Body assembly. The already-approved Pre-Bind handshake deadline remains absolute from TCP accept and is not reset or extended by Frame progress. All timers must be cancelled or made generation-safe during close/reconnect so stale callbacks cannot mutate a newer Session.
+Timeouts are independent. Request timeout is not Enquire Link timeout; Connect/Bind/Pre-Bind and Frame Assembly deadlines do not share a single mutable timer. The approved ConnectTimeout bounds only one Client Dial attempt, including DNS resolution; Bind response has its own independent deadline. Frame Assembly Timeout applies to every inbound Frame on a Bound Session, including partial Header and Body assembly. The already-approved Pre-Bind handshake deadline remains absolute from TCP accept and is not reset or extended by Frame progress. All timers must be cancelled or made generation-safe during close/reconnect so stale callbacks cannot mutate a newer Session.
 
 ## 5. API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
 
@@ -122,6 +122,23 @@ The Request timeout must bound the full lifetime of an accepted callback-first R
 **Future acceptance criteria (not run):** fragmented Header and Body; slow-trickle Body that never resets the deadline; completion just before deadline; simultaneous timeout/full-read race; partial-header and partial-body reservation release exactly once; Completion-budget drain expiry; isolation across Sessions; no callback or pending Request resurrection after close.
 
 **Owner decision:** Option A approved. No implementation or tests authorized.
+
+
+
+### 5.2 API-002-03 — TCP Connect Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+**Approved policy:** an absolute **30-second** deadline for each Client TCP Dial attempt.
+
+- Start the deadline immediately before the Dial operation begins. It covers the complete operation, including DNS/name resolution and TCP connection establishment; DNS is not allowed to run outside the deadline.
+- Implement through a derived Dial context / `net.Dialer.DialContext` (or equivalent) so the deadline and caller cancellation propagate through both resolution and socket establishment. Do not implement DNS resolution as an unbounded preliminary step.
+- The caller's Context always has precedence when it is cancelled or its deadline is earlier than the configured ConnectTimeout. If the caller has no earlier deadline, the internal 30s ConnectTimeout bounds the attempt. Caller cancellation is not converted into a successful or retryable Session state.
+- If the ConnectTimeout wins, cancel the Dial attempt and terminate only that attempt. No Session is created or published, no Bind is sent, and no Session Reader/Writer or callback worker is started. If a connection is returned concurrently after timeout has won, close that socket before it can escape the Dial operation.
+- If TCP establishment wins before the deadline, proceed to the separate Bind handshake stage; BindResponseTimeout is independent and is not consumed from the remaining ConnectTimeout budget.
+- ConnectTimeout is Client-only, independently configurable through a typed Functional Option. It is a per-attempt deadline, not a total reconnect-loop deadline. This decision does not enable AutoReconnect or authorize retries; reconnect remains a separate API-002 decision.
+- Validation: positive finite duration; explicit zero is invalid. No additional hard upper maximum is approved.
+- A timeout/connection-success race must have one linearized winner. A late successful socket after cancellation is closed and cannot create a stale Session generation.
+
+**Owner decision:** Option A approved on 2026-11-17. The 30s value matches the observed Pinex C++ 1.5.0 connect reference, but the Go deadline is explicitly owner-approved here. No wire change is introduced. No implementation or tests authorized.
 
 ## 6. Proposed graceful shutdown and forced-close contract (design proposal; no new owner decision yet)
 
@@ -178,12 +195,11 @@ Proposed semantics:
 
 ## 8. Remaining API-002 decisions and technical review
 
-1. **API-002-03 — TCP Connect Timeout (next owner decision):** proposed 30s absolute deadline for one Dial attempt; not yet owner-approved.
-2. **Bind response timeout:** proposed 30s absolute deadline, independently configurable; not yet owner-approved.
-3. **Graceful Unbind timeout:** proposed 10s absolute deadline, independently configurable; not yet owner-approved.
-4. **Write stall deadline:** decide whether a stalled TCP Writer should close a Session after a configurable deadline, beyond Request timeout and Unbind deadline.
-5. **Reconnect policy:** fixed 5s compatibility delay versus bounded exponential backoff with jitter; AutoReconnect default false remains a proposal, not yet owner-approved.
-6. **Stop API signatures and terminal cause accessor:** exact exported method/error names remain API-001 surface work; lifecycle semantics should be frozen before implementation.
+1. **API-002-04 — Bind response timeout:** proposed 30s absolute deadline beginning after TCP establishment and before the Bind PDU is sent; not yet owner-approved.
+2. **API-002-05 — Graceful Unbind timeout:** proposed 10s total graceful-drain deadline beginning when local Unbinding starts; not yet owner-approved.
+3. **API-002-06 — Generic Writer stall timeout:** decide whether every frame Write needs an independent absolute deadline; not yet owner-approved.
+4. **API-002-07 — Client reconnect policy:** AutoReconnect default, retryable outcomes, and fixed-vs-jittered backoff remain owner decisions.
+5. **API-002-08 — Stop/Close lifecycle:** Client/Server Stop aggregation and graceful-to-forced transition require owner approval; exact exported method/error names and terminal-cause accessor remain API-001 surface work.
 
 ## 9. Non-goals
 

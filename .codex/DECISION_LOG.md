@@ -1176,7 +1176,7 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 
 ## API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 preserves Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. **API-002-01 and API-002-02 are CLOSED / OWNER APPROVED / OPTION A:** Request timeout is 30s from successful local admission; Frame Assembly Timeout is 30s absolute from the first byte of each Frame Header on a Bound Session, not reset by progress, and closes only the affected Session. Both are positive-only independently configurable owner settings. Pre-Bind handshake remains 30s absolute from TCP accept. The next owner choice is API-002-03 TCP Connect Timeout. No implementation or tests authorized.
+Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 preserves Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. **API-002-01 through API-002-03 are CLOSED / OWNER APPROVED / OPTION A:** RequestTimeout=30s from successful local admission; FrameAssemblyTimeout=30s absolute from first Frame Header byte on a Bound Session, not reset by progress; ConnectTimeout=30s absolute per Client Dial attempt, including DNS and TCP establishment, with an earlier caller Context taking precedence. Each setting is independently configurable and positive-only. Pre-Bind remains 30s absolute from TCP accept. Next: API-002-04 Bind response timeout. No implementation or tests authorized.
 
 
 ## API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -1205,3 +1205,14 @@ Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 **References:** API-002 lifecycle design §5.1; API-004 configuration contract §11.5; WORKER-008; Resource Admission Design §10.
 
 **Next:** API-002-03 — TCP Connect Timeout. Proposal: 30s absolute deadline per Dial attempt. Implementation remains NOT AUTHORIZED.
+
+
+## API-002-03 — TCP Connect Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+**Decision:** Option A — a **30-second absolute deadline** for each Client TCP Dial attempt, starting immediately before Dial and covering DNS/name resolution plus TCP establishment. Use a context-aware Dial path so DNS is not performed outside the deadline.
+
+The caller's Context cancellation always applies; an earlier caller deadline takes precedence over the internal ConnectTimeout. If ConnectTimeout wins, terminate only that attempt: no Session is created/published, no Bind is sent, and no Session Reader/Writer or callback worker starts. A socket returned concurrently after timeout has won must be closed. If TCP establishment wins, the independent Bind response deadline begins in the next phase; ConnectTimeout does not carry over. The setting is Client-only, independently configurable through a typed Functional Option, positive-only (zero invalid), and has no additional approved hard maximum. This decision does not enable AutoReconnect or authorize retries.
+
+**References:** API-002 lifecycle design §5.2; API-004 configuration contract §11.6.
+
+**Next:** API-002-04 — Bind response timeout. Proposal: 30s absolute from TCP establishment, before sending Bind, covering Bind Write and response wait. Implementation remains NOT AUTHORIZED.

@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. WORKER-009C is CLOSED / OWNER APPROVED / OPTION A; its limits and validation contract are synchronized across the design records. WORKER-008 Completion-byte exhaustion behavior is resolved under Option A. Remaining architecture work: API-002 lifecycle/timeouts, API-003 package architecture and golden-frame / socket-level Go↔C++ confirmation against the pinned Pinex baseline. Maximum Frame Size is source-verified. No implementation is authorized.
+**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. WORKER-009C is CLOSED / OWNER APPROVED / OPTION A; its limits and validation contract are synchronized across the design records. WORKER-008 Completion-byte exhaustion behavior is resolved under Option A. Remaining architecture work: API-002-04..08 lifecycle decisions, API-003 package architecture, final API-001 public surface, and golden-frame / socket-level Go↔C++ confirmation against the pinned Pinex baseline. Maximum Frame Size is source-verified. No implementation is authorized.
 
 ## 1. Repository state
 
@@ -611,7 +611,7 @@ Pinned source snapshot: `majiddarvishan/pinex` branch `develop`, HEAD `f7bd1eb77
 
 ## 43. API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It records Pinex 1.5.0 timing evidence, preserves all approved Done/Forced Close/Notification/Worker contracts, and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. **API-002-01 CLOSED / OWNER APPROVED / OPTION A:** Request timeout is 30s from successful local admission and includes Queue/Writer/peer time; independently configurable per Client/Server owner, positive-only; timeout alone does not close Session. **API-002-02 CLOSED / OWNER APPROVED / OPTION A:** Frame Assembly Timeout is 30s absolute from first byte of each Frame Header on a Bound Session; progress does not reset it; expiry closes only that Session and releases partial-frame reservations exactly once. The 30s absolute Pre-Bind handshake deadline from TCP accept remains unchanged. Next owner decision: API-002-03 TCP Connect Timeout (proposed 30s per Dial attempt). Bind, Unbind, write-stall, reconnect and final Stop/API signatures remain open. No implementation or tests authorized.
+Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It preserves all approved Done/Forced Close/Notification/Worker contracts and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. **API-002-01 CLOSED / OWNER APPROVED / OPTION A:** RequestTimeout=30s from successful local admission, including Queue/Writer/peer time. **API-002-02 CLOSED / OWNER APPROVED / OPTION A:** FrameAssemblyTimeout=30s absolute from first byte of each Frame Header on a Bound Session, not reset by progress; expiry closes only that Session. **API-002-03 CLOSED / OWNER APPROVED / OPTION A:** ConnectTimeout=30s absolute per Client Dial attempt, including DNS and TCP establishment; earlier caller Context deadline/cancellation wins; timeout creates no Session and does not enable reconnect. These settings are independently configurable and positive-only. Pre-Bind remains 30s absolute from TCP accept. Next owner decision: API-002-04 Bind response timeout. Unbind, write-stall, reconnect, Stop aggregation and API-001 surface names remain open. No implementation or tests authorized.
 
 
 ## 44. API-002-01 — Request Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -623,7 +623,7 @@ Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 - Timeout alone does not close Session; timeout/Response/Close race has one terminal settlement winner.
 - Rejected: start-after-full-Write and per-call-required timeout.
 
-**Next owner decision:** API-002-03 TCP Connect Timeout. Proposal: 30s absolute deadline per Dial attempt, with an earlier caller Context deadline taking precedence. No implementation/tests authorized.
+**Next owner decision:** API-002-04 Bind response timeout. Proposal: 30s absolute deadline from TCP establishment, before Bind Write, covering Bind Write and matching Bind Response wait. No implementation/tests authorized.
 
 
 ## 45. API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -638,4 +638,17 @@ Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 - Independently configurable per Client/Server owner via typed Functional Options; positive-only, explicit zero invalid; accepted Server Sessions inherit the Server value. No additional hard maximum approved.
 - The absolute 30s Pre-Bind handshake deadline from TCP accept remains unchanged and is not extended by Frame progress. Pinex C++ 1.5.0 has no separate equivalent deadline; no wire change.
 
-**Next:** API-002-03 TCP Connect Timeout. Proposal: 30s absolute per Dial attempt; a shorter caller Context deadline wins. No implementation/tests authorized.
+**Next:** API-002-04 Bind response timeout. Proposal: 30s absolute from TCP establishment, covering Bind Write and response wait. No implementation/tests authorized.
+
+
+## 46. API-002-03 — TCP Connect Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- **Default:** 30s absolute per Client Dial attempt.
+- **Start/scope:** immediately before Dial; includes DNS/name resolution and TCP establishment. No DNS lookup outside the bounded context.
+- **Context precedence:** caller cancellation always applies; an earlier caller deadline wins. If the caller has no earlier deadline, internal ConnectTimeout bounds the attempt.
+- **Timeout outcome:** cancel only the current Dial attempt. No Session is created/published, no Bind is sent, and no Session Reader/Writer or callback worker starts. Close a socket returned concurrently after timeout has won.
+- **Success:** if TCP establishment wins, proceed to the separate Bind handshake and its own deadline; ConnectTimeout is not reused.
+- **Configuration:** Client-only typed Functional Option; positive finite duration; zero invalid; no additional hard maximum approved.
+- This does not enable AutoReconnect or authorize retries. No wire change; no implementation/tests authorized.
+
+**Next:** API-002-04 Bind response timeout. Proposal: 30s absolute from TCP establishment, before Bind Write, including Bind Write and matching response wait.
