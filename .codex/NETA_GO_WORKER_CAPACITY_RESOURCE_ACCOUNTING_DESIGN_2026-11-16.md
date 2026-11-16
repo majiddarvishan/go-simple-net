@@ -321,7 +321,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ### Explicitly unresolved; must close before Architecture Freeze
 
-- The compatibility reference currently records a 1 MiB maximum frame, but the exact C++ Pinex 1.5.0 maximum and Go/C++ cross-language confirmation are not yet frozen.
+- The exact C++ Pinex 1.5.0 maximum is source-verified as 1 MiB total Frame including the header; cross-language confirmation remains pending (see PROTOCOL-001).
 - Numeric retained-byte ceilings, count defaults, worker ceilings, valid ranges and public option identifiers remain WORKER-009/API-004 design work.
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §15.  
@@ -332,7 +332,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 ## 16. Explicitly not decided
 
 - WORKER-009A and WORKER-009B1/B2/B3 defaults are CLOSED / OWNER APPROVED; WORKER-009C proposed explicit hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping remain under owner review.
-- WORKER-008 Completion retained-byte exhaustion policy is resolved: bounded Body drain + terminal Resource Capacity Completion without payload under Option A. The exact C++ Pinex maximum frame size and Go/C++ cross-language confirmation remain open.
+- WORKER-008 Completion retained-byte exhaustion policy is resolved. Pinex 1.5.0 maximum Frame is source-verified as 1 MiB total; only golden-frame and Go/C++ cross-language confirmation remain open.
 - Exact maximum Pinex frame size and Go/C++ cross-language confirmation.
 - API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
 - Final exported option identifiers and constructor signatures under API-001/API-004.
@@ -440,10 +440,10 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the source-verified 1 MiB total-frame maximum, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
-The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including the 10-byte header (maximum Body 1,048,566 bytes). Cross-language confirmation remains pending; WORKER-009B does not set this protocol limit.
 
 **Separate WORKER-008 owner decision (2026-11-17):** Completion retained-byte admission exhaustion is CLOSED / OWNER APPROVED, OPTION A. For a valid matching Response whose full declared frame cannot reserve the Session or owner Completion byte budget, the Reader drains exactly the Body through a small fixed-size scratch buffer (no body-sized allocation). If drain succeeds and the Request has not already been terminally settled, deliver one Completion callback with no payload and a typed terminal Resource Capacity error; keep the Session open and retain its existing Request credit until callback return/cancellation. If another terminal event wins during drain, do not deliver a duplicate. If drain fails, close the Session under transport-error/Forced Close policy. Malformed or over-maximum frames do not use this path.
 
@@ -483,7 +483,7 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 7. Protect all byte conversions, capacity calculations, and counter increments/decrements against integer overflow/underflow. Failed reservations must not partially mutate accounting.
 8. All owner ceilings are scoped to one Client or Server instance, not process-wide. Client reconnect generations share that Client's owner ledgers; separate Client/Server instances retain independent budgets.
 9. The 10-byte retained-byte minimum covers only a header-sized frame. It does not guarantee admission of larger valid frames; existing directional overload and bounded Completion-drain policies remain binding.
-10. The provisional 1 MiB Maximum Frame Size is not approved or frozen by WORKER-009C. Exact maximum-frame compatibility with Pinex C++ 1.5.0 remains a separate Protocol Compatibility item.
+10. WORKER-009C does not set Maximum Frame Size. PROTOCOL-001 source-verifies 1 MiB total Frame including Header against pinned Pinex C++ 1.5.0; golden-frame and cross-language confirmation remain pending.
 
 **Approved Functional-Option mapping:** provide one typed, independent Functional Option per semantic setting. Owner worker ceilings, OnClose credits, owner Request credits, and owner retained-byte ceilings are scoped to their owning Client/Server; aggregate queued Application frame count is Server-only; per-Session callback concurrency and per-Session frame/Request/retained-byte limits attach to Session configuration/inheritance; worker idle grace is independently configurable per worker class. Omitted options preserve the approved defaults; each explicit option changes only its own setting. Do not introduce a generic map, mutable live config, or hot reload. Exact exported identifier spelling and final constructor/Session option placement remain API-001 public-surface work.
 

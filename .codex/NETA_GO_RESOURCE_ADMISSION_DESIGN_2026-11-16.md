@@ -309,10 +309,10 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the source-verified 1 MiB total-frame maximum, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
-The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including the 10-byte header (maximum Body 1,048,566 bytes). Cross-language confirmation remains pending; WORKER-009B does not set this protocol limit.
 
 **Owner approval (2026-11-17):** Option A is approved. The four values in this table are official V1 defaults, independently configurable and lazily enforced. Client owner budgets are shared across reconnect generations; Server owner budgets cover all Sessions owned by that Server. Queue byte/count ceilings remain separate admission sub-limits over the same physical frame and are not added to retained-byte totals. These values are not hard maxima or an RSS cap.
 
@@ -346,7 +346,7 @@ Validation and cross-field rules are binding:
 - Session callback concurrency is intersected with the owner/class worker ceiling at dispatch, not rejected because it exceeds that ceiling.
 - Queue, retained-byte, Request, OnClose and worker-permit ledgers remain separate; transitions must not double-count one payload.
 - All conversions and counter arithmetic are overflow/underflow checked. Owner limits are per Client/Server instance, not process-wide.
-- The 10-byte retained-byte minimum covers only a header-sized frame. Maximum Frame Size is a separate protocol decision; the provisional 1 MiB value is not frozen here.
+- The 10-byte retained-byte minimum covers only a header-sized frame. Maximum Frame Size is separate from WORKER-009C and is source-verified as 1 MiB total including Header against pinned Pinex 1.5.0; cross-language confirmation remains pending.
 
 Typed Functional Options are independent per semantic setting and follow resource ownership: owner worker/OnClose/Request/retained-byte limits are Client/Server scoped, aggregate queued Application frame count is Server-only, and Session-specific concurrency/frame/Request/retained-byte settings attach to Session configuration/inheritance. Omitted settings retain defaults; each explicit option overrides only its own setting. Exact exported identifiers and final placement remain API-001 work; no generic map or hot reload is introduced.
 

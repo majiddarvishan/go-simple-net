@@ -54,7 +54,7 @@ Payload در سطح کتابخانه opaque است. برنامه مصرف‌کن
 - Thread Safety: https://github.com/majiddarvishan/pinex/blob/develop/docs/thread-safety.md
 - تغییرات پروتکل: https://github.com/majiddarvishan/pinex/blob/develop/docs/migration.md
 
-نسخه 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. پیش از شروع پیاده‌سازی، SHA دقیق HEAD شاخه develop باید دوباره ثبت شود تا تست‌های سازگاری به یک Snapshot مشخص متصل باشند.
+نسخه 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. Snapshot بررسی‌شده در 2026-11-17 برابر `f7bd1eb779baff0d10e624f20522df345e6ee747` است؛ قبل از Cross-Language tests یا پیاده‌سازی، HEAD مجدداً بررسی و در صورت تغییر re-audit شود. Maximum accepted inbound Frame در این Snapshot برابر 1 MiB total شامل Header ده‌بایتی است (Maximum Body: 1,048,566 bytes).
 
 ### مرجع کد Go ارسالی
 
@@ -111,10 +111,11 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-001 — تثبیت Wire Protocol
 
-**وضعیت:** مبنای پروتکل تحلیل شده است؛ Q-001 (گزینه A) در 2026-11-16 تأیید شد. تکمیل Golden Frame و تأیید سایر جزئیات همچنان باز است. پیاده‌سازی مجاز نیست.
+**وضعیت:** Wire contract و Maximum Frame Size از Source بررسی و Snapshot دقیق Pinex C++ 1.5.0 pin شده‌اند؛ Q-001 (گزینه A) نیز تأیید شده است. Snapshot: `f7bd1eb779baff0d10e624f20522df345e6ee747`. Golden Frameهای قابل‌استفاده و Cross-Language confirmation همچنان باز هستند. پیاده‌سازی مجاز نیست.
 
 خروجی‌ها:
 - ثبت Header ده‌بایتی
+- ثبت Maximum Frame Size برابر 1 MiB total شامل Header (Maximum Body برابر 1,048,566 bytes) و Snapshot دقیق C++
 - ثبت تمام Command IDها و Statusها
 - ثبت Bind Type و Payloadهای Bind
 - ثبت Stream Request/Response
@@ -122,8 +123,9 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 - ثبت اختلاف‌های نمونه Go با Pinex 1.5.0
 
 معیار خروج:
-- هیچ اختلاف حل‌نشده‌ای در Byte Layout پروتکل وجود نداشته باشد.
+- هیچ اختلاف حل‌نشده‌ای در Byte Layout یا Maximum Frame Size وجود نداشته باشد.
 - Golden Frameهای مرجع برای تست Go و C++ آماده باشند.
+- Socket-level Go↔C++ verification پس از مجوز تست انجام شود.
 
 ### GO-PINEX-002 — طراحی Public API
 

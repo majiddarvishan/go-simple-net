@@ -1,8 +1,8 @@
 # Pinex 1.5.0 — Wire Protocol Compatibility Contract برای Go
 
-**تاریخ بررسی:** 2026-11-16  
+**تاریخ بررسی:** 2026-11-17  
 **مرجع:** majiddarvishan/pinex — branch develop — version 1.5.0  
-**وضعیت:** SOURCE-BASED ANALYSIS — Q-001 OPTION A APPROVED؛ سایر جزئیات همچنان در بررسی  
+**وضعیت:** SOURCE-VERIFIED BASELINE — Pinex 1.5.0 develop HEAD pinned؛ Maximum Frame Size دقیقاً 1 MiB total؛ golden frames و cross-language verification اجرا نشده  
 **پیاده‌سازی:** NOT STARTED
 
 ---
@@ -25,7 +25,11 @@
 - [stream_response.hpp](https://github.com/majiddarvishan/pinex/blob/develop/include/pa/pinex/pdu/stream_response.hpp)
 - [session.hpp](https://github.com/majiddarvishan/pinex/blob/develop/include/pa/pinex/net/session.hpp)
 
-Version 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. SHA دقیق HEAD شاخه باید قبل از شروع تست‌های Cross-Language مجدداً Pin شود.
+Version 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. Snapshot بررسی‌شده در 2026-11-17 برابر `f7bd1eb779baff0d10e624f20522df345e6ee747` است. پیش از هر تست Cross-Language یا شروع پیاده‌سازی، HEAD شاخه باید دوباره بررسی و در صورت تغییر، اختلاف‌ها re-audit شوند.
+
+**حداکثر Frame — SOURCE VERIFIED:** در `include/pa/pinex/net/session.hpp`، بافر دریافت از نوع `detail::flat_buffer<uint8_t, 1024 * 1024>` است و Parser هر `command_length` بزرگ‌تر از `capacity()` را رد می‌کند. `command_length` طول کل Frame و شامل Header ده‌بایتی است. بنابراین Maximum Frame Size برابر **1,048,576 bytes total** و Maximum Body برابر **1,048,566 bytes** است. این سقف در مرحله Pre-Bind و پس از Bind یکسان است. `flat_buffer::capacity()` سقف ثابت پروتکل است، نه اندازه فعلی allocation.
+
+Pinex فعلی در مسیر `send_impl()` سقف متناظر را پیش از ارسال enforce نمی‌کند؛ با این حال گیرنده Pinex چنین Frameی را نمی‌پذیرد. neta-go باید سقف 1 MiB را برای ورودی و خروجی اعمال کند تا Frame غیرقابل‌قبول تولید نکند. این نتیجه از Source استخراج شده و مستقل از WORKER-009C است. Golden Frame و Socket-level cross-language verification هنوز اجرا نشده‌اند.
 
 ---
 
@@ -49,7 +53,7 @@ Version 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. SHA د�
 4. command_id با بیت بالایی 0x80 نوع Response را مشخص می‌کند.
 5. command_status در Header است، نه در ابتدای Body.
 6. sequence_number در Header و Big Endian است.
-7. سقف Frame باید با محدودیت 1 MiB فعلی Pinex هم‌راستا باشد؛ مقدار دقیق باید در تست Cross-Language به‌عنوان قرارداد ثابت شود.
+7. سقف دقیق Frame برابر **1 MiB total (1,048,576 bytes شامل Header ده‌بایتی)** است؛ Maximum Body برابر **1,048,566 bytes**. Source این مقدار را در Pinex 1.5.0 تأیید می‌کند. neta-go باید سقف را در هر دو جهت اعمال کند. Golden Frame و Cross-Language test هنوز اجرا نشده‌اند.
 
 ---
 
@@ -199,7 +203,7 @@ Correlation:
 مبنای فعلی Pinex:
 - TCP خام، بدون TLS در خود Wire Protocol
 - Header ثابت 10 بایتی
-- سقف Frame هم‌راستا با 1 MiB
+- Maximum Frame Size برابر 1 MiB total، شامل Header ده‌بایتی (Maximum Body برابر 1,048,566 bytes)
 - TCP_NODELAY در Session
 - TCP Keepalive با inactivity timeout قابل تنظیم
 - Pre-Bind Handshake Timeout پیش‌فرض 30 ثانیه
@@ -299,7 +303,7 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 1. **Q-001 — CLOSED / APPROVED OPTION A:** مالک Bind Validator Callback بر اساس System ID و Remote Address را بدون هیچ تغییر در Wire Protocol Pinex 1.5.0 تأیید کرد (2026-11-16). رمز عبور یا Token جدید روی Wire تعریف نمی‌شود. این روش معادل احراز هویت رمزنگاری‌شده نیست.
 2. **Q-005 — CLOSED / APPROVED OPTION B (2026-11-16):** اگر Validator تعریف نشده باشد، Go Server یک Bind معتبر با `system_id` یکتا را مانند Pinex C++ می‌پذیرد. با وجود Validator، تصمیم Allow/Reject آن اعمال می‌شود. بررسی فرمت پروتکل، وضعیت Session، محدودیت منابع و Duplicate System ID در هر دو حالت پابرجاست. این Default معادل احراز هویت نیست.
 3. **Q-002 — CLOSED / APPROVED (2026-11-16):** ارسال خودکار Enquire Link فقط پس از بی‌ترافیکی واقعی Session به مدت Idle Interval قابل پیکربندی انجام می‌شود؛ `0` ارسال خودکار را غیرفعال می‌کند. پاسخ به درخواست ورودی همواره برقرار است. **Q-006: پیش‌فرض Idle برابر 30s** و **Q-007: پیش‌فرض Timeout پاسخ برابر 10s، قابل پیکربندی** در 2026-11-16 تأیید شدند؛ بدون پاسخ متناظر Session بسته می‌شود.
-4. **Q-003 — CLOSED / APPROVED (2026-11-16):** متدهای عمومی Client/Server/Session باید Goroutine-safe باشند؛ Callbackهای هر Session به ترتیب دریافت و بدون هم‌پوشانی اجرا شوند؛ Sessionها از هم مستقل بمانند؛ Concurrent Send باید Frame-safe باشد؛ Shutdown باید کنترل‌شده باشد. جزئیات API در سند تسک‌ها و Decision Log تکمیل می‌شوند.
+4. **Q-003-R1 — CLOSED / APPROVED (2026-11-16):** APIهای عمومی Client/Server/Session باید Goroutine-safe باشند؛ Application callbackهای هر Session دارای parallelism محدود و قابل تنظیم هستند (مقدار 1 رفتار serial می‌دهد)؛ Sessionها مستقل می‌مانند و Concurrent Send باید Frame-safe باشد. جزئیات lifecycle در API-002 تکمیل می‌شوند.
 5. **Q-004 — CLOSED / APPROVED OPTION A (2026-11-16):** نسخه اول Core سبک است؛ Circuit Breaker، Rate Limiter تجاری، Priority Queue، Prometheus exporter و وابستگی‌های کاربردی به نسخه‌های بعد منتقل می‌شوند؛ Deduplication خودکار Sequence در Core وجود ندارد. محدودیت منابع و Backpressure همچنان الزامی است.
 
 جزئیات در [DECISION_LOG.md](DECISION_LOG.md) و فایل PINEX_GO_PORT_TASKS_2026-11-16.md ثبت شده‌اند.
@@ -309,3 +313,11 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 
 
 **Q-007 — CLOSED / APPROVED (2026-11-16):** مهلت پاسخ Enquire Link به‌صورت مستقل قابل پیکربندی است و پیش‌فرض `10s` دارد. Deadline فقط بعد از ارسال کامل درخواست فعال می‌شود. تنها `enquire_link_resp` با Sequence متناظر آن را تکمیل می‌کند؛ عبور Stream یا هر Frame نامرتبط جای پاسخ را نمی‌گیرد. با Timeout پاسخ، Session بسته می‌شود و فقط Client دارای Auto Reconnect مجاز به تلاش مجدد است. در هر Session فقط یک Probe محلی Pending باشد و پاسخ‌گویی به Probe ورودی حتی هنگام Idle Interval صفر ادامه پیدا کند. قالب Wire ثابت می‌ماند.
+
+
+## 15. Pinned source baseline و وضعیت Maximum Frame Size
+
+- Pinex `develop` HEAD بررسی‌شده: `f7bd1eb779baff0d10e624f20522df345e6ee747` (CMake version 1.5.0).
+- Maximum accepted inbound Frame: **1,048,576 bytes total**, Header included; maximum Body: **1,048,566 bytes**.
+- Go compatibility rule: apply the same maximum to inbound validation and outbound admission.
+- هنوز هیچ Golden Frame test یا Socket-level Go↔C++ test اجرا نشده است؛ GO-PINEX-001 تا آماده شدن Golden Frameهای قابل‌استفاده و مجوز تست، کامل بسته نمی‌شود.

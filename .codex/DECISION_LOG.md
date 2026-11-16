@@ -970,8 +970,8 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ### Explicitly unresolved; must close before Architecture Freeze
 
-- The compatibility reference currently records a 1 MiB maximum frame, but the exact C++ Pinex 1.5.0 maximum and Go/C++ cross-language confirmation are not yet frozen.
-- Numeric retained-byte ceilings, count defaults, worker ceilings, valid ranges and public option identifiers remain WORKER-009/API-004 design work.
+- The exact C++ Pinex 1.5.0 inbound maximum is source-verified as 1 MiB total Frame including the 10-byte header (1,048,566-byte maximum Body), against pinned develop HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`. Go/C++ cross-language confirmation and golden-frame execution remain pending; see PROTOCOL-001 below.
+- Numeric retained-byte ceilings, count defaults, worker ceilings and valid ranges are now closed by WORKER-009A/B/C. Exact exported option identifiers remain API-001 public-surface work.
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §15.  
 **Next:** WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits.
@@ -1079,10 +1079,10 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the source-verified 1 MiB total-frame maximum, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
-The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including the 10-byte header. Cross-language confirmation remains pending; WORKER-009B/009C do not set this protocol limit.
 
 **Separate WORKER-008 owner decision (2026-11-17):** Completion retained-byte admission exhaustion is CLOSED / OWNER APPROVED, OPTION A. For a valid matching Response whose full declared frame cannot reserve the Session or owner Completion byte budget, the Reader drains exactly the Body through a small fixed-size scratch buffer (no body-sized allocation). If drain succeeds and the Request has not already been terminally settled, deliver one Completion callback with no payload and a typed terminal Resource Capacity error; keep the Session open and retain its existing Request credit until callback return/cancellation. If another terminal event wins during drain, do not deliver a duplicate. If drain fails, close the Session under transport-error/Forced Close policy. Malformed or over-maximum frames do not use this path.
 
@@ -1122,7 +1122,7 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 7. Protect all byte conversions, capacity calculations, and counter increments/decrements against integer overflow/underflow. Failed reservations must not partially mutate accounting.
 8. All owner ceilings are scoped to one Client or Server instance, not process-wide. Client reconnect generations share that Client's owner ledgers; separate Client/Server instances retain independent budgets.
 9. The 10-byte retained-byte minimum covers only a header-sized frame. It does not guarantee admission of larger valid frames; existing directional overload and bounded Completion-drain policies remain binding.
-10. The provisional 1 MiB Maximum Frame Size is not approved or frozen by WORKER-009C. Exact maximum-frame compatibility with Pinex C++ 1.5.0 remains a separate Protocol Compatibility item.
+10. WORKER-009C does not set Maximum Frame Size. PROTOCOL-001 separately source-verifies 1 MiB total Frame (header included) against pinned Pinex C++ 1.5.0; cross-language golden-frame confirmation remains pending.
 
 **Approved Functional-Option mapping:** provide one typed, independent Functional Option per semantic setting. Owner worker ceilings, OnClose credits, owner Request credits, and owner retained-byte ceilings are scoped to their owning Client/Server; aggregate queued Application frame count is Server-only; per-Session callback concurrency and per-Session frame/Request/retained-byte limits attach to Session configuration/inheritance; worker idle grace is independently configurable per worker class. Omitted options preserve the approved defaults; each explicit option changes only its own setting. Do not introduce a generic map, mutable live config, or hot reload. Exact exported identifier spelling and final constructor/Session option placement remain API-001 public-surface work.
 
@@ -1161,3 +1161,14 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 
 ---
 
+
+
+## PROTOCOL-001 — Pinex 1.5.0 source baseline and Maximum Frame Size (SOURCE VERIFIED, 2026-11-17)
+
+**Compatibility baseline:** `majiddarvishan/pinex`, branch `develop`, exact audited HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`; `CMakeLists.txt` declares version `1.5.0`. Re-pin the branch and re-audit before any future cross-language test or implementation in case it advances.
+
+**Maximum Frame Size:** `session.hpp` uses `detail::flat_buffer<uint8_t, 1024 * 1024>`; its receive parser rejects `command_length < 10` or `command_length > receive_buf_.capacity()`. `command_length` is the total Frame length and includes the 10-byte Header. Thus the maximum accepted inbound Frame is exactly **1,048,576 bytes total**, with at most **1,048,566 Body bytes**. The same buffer/bound applies before Bind and after Bind.
+
+**Go compatibility requirement:** reject inbound and outbound total Frames above 1 MiB. Pinex's current `send_impl()` does not preflight the same outbound cap before serialization/queueing, but a peer running this Pinex version rejects such an oversized inbound Frame; neta-go must not emit one. This requirement preserves peer acceptance and does not change the wire layout.
+
+**Status:** source baseline and maximum-frame fact verified; golden-frame artifacts and real Go↔C++ socket confirmation remain OPEN and must be completed only after implementation/test authorization. No test or implementation was run for this source review.
