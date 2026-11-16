@@ -284,9 +284,7 @@ The owner selected Option A: each Client and Server instance has three independe
 
 The ceilings count physically executing callbacks; waiting queues/event populations remain separately bounded. WORKER-001 ownership applies across all Sessions and reconnect generations, including callbacks still running from retired Sessions. There is no mandatory process-global active-worker cap.
 
-Numeric values, public option names, physical worker-pool layout and event/queue capacities remain open. Next: WORKER-003, OnClose event saturation.
-
-See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). No implementation, tests or benchmarks authorized.
+Numeric values, public option names, physical worker-pool layout and event/queue capacities remain open. WORKER-003 was subsequently resolved by owner approval of Option A (skip OnClose when the queued+running event budget is full). The current next decision is WORKER-004, logical worker-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11. No implementation, tests or benchmarks authorized.
 
 ## 20. WORKER-003 — OnClose event saturation (OWNER APPROVED, OPTION A, 2026-11-16)
 
