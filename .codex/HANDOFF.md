@@ -526,7 +526,7 @@ The owner approved Option A. At Client/Server effective-configuration constructi
 
 The owner approved all five defaults: Application callback concurrency=1 per Session; Completion callback concurrency=1 per Session; Application idle grace=30s; Completion idle grace=30s; OnClose idle grace=30s. All are independently configurable. Concurrency 1 preserves serial callback execution by default; higher positive values remain configurable subject to the existing per-Session and owner-wide ceilings. Each idle grace starts only after callback return and when no dispatchable work exists; it never interrupts running callbacks. WORKER-005's zero warm-idle floor, class isolation and atomic enqueue/retirement rules remain binding. Explicit zero is not Unlimited or an immediate-retirement shorthand and is invalid for these positive settings.
 
-**Next:** WORKER-009B3 — retained Application and Completion payload-byte defaults. WORKER-009B2 is CLOSED / OWNER APPROVED; WORKER-009C remains open.
+**Next:** WORKER-009C — proposed hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping. WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED.
 
 **Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.
 
@@ -546,7 +546,7 @@ The owner approved all six proposed defaults as official V1 defaults, independen
 
 Incoming local or aggregate count saturation closes only the offending Session. Outgoing local or aggregate count saturation returns Queue Full and keeps the Session open. OnClose saturation permanently skips the new event. Request-credit saturation rejects a new callback-based SendRequest before enqueue/transmission with a typed capacity error; it does not close the Session. SendNoWait and SendResponse do not consume Request credits. Completion reuses the PERF-003 Request credit; OnClose reuses the WORKER-003 event credit. Queue bytes/counts, active-worker permits, Request/Event credits and retained-payload bytes remain distinct admission ledgers, not additive physical-memory totals. Aggregate frame-count and Request-credit defaults are intentionally lower than the sum of their theoretical per-Session ceilings; cross-field validation must not force the aggregate values to equal or exceed those products. These values are defaults, not WORKER-009C hard maxima.
 
-**Next:** WORKER-009B3 — retained Application and Completion payload-byte defaults; then WORKER-009C.
+**Next:** WORKER-009C — owner review of proposed hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping.
 
 **Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.
 
