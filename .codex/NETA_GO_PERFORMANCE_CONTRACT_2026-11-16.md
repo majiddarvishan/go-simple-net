@@ -122,3 +122,10 @@ Earlier sections describing PERF-002 as OPEN are historical and superseded by [t
 **Performance plan (NOT EXECUTED):** compare 1/2/4/8/16 concurrent handlers per Session and large Session counts; monitor p50/p95/p99 handler scheduling delay, completed callbacks per second, active/queued payload memory, GC, goroutine counts, starvation, fairness and Control response latency under permanently blocked handlers. Test callbacks producing `SendResponse` out-of-order: wire reply Sequence must always match its request and writer remains single-frame serialized, though response *time order* may differ from request arrival. This is not permission to reorder received wire parsing.
 
 **Open decisions:** choose default concurrency and potential Server-wide active callback guard; select separate bounded user lifecycle/completion callback dispatcher vs unified worker admission in API-001b; decide forced Close policy and callback completion guarantees. The 256 MiB Server queued Application cap does not cover N running user callbacks or user-retained payloads. No numeric SLA or new default approved.
+
+
+## 11. API-001b-N1 approved notification isolation (2026-11-16)
+
+**APPROVED:** separate **bounded** user Notification dispatch (`OnClose` and Request Completion) from concurrent bounded Application `OnRequest` dispatch. Both are external user code, isolated from the internal TCP/Timeout/Pending/Close engine. The latter must progress without waiting for either user callback class. This enables application stalls not to automatically occupy the notification workers; it does not guarantee completion of an arbitrarily stuck notification callback.
+
+PERF-003 count ceilings remain binding at the model level; exact numeric default, dispatcher-worker count and forced-close cancel/defer semantics are **OPEN**. Benchmark plan (not executed) should compare notification latency under blocked `OnRequest`, slow completion callbacks, many sessions, and queue saturation. See [Decision Log](DECISION_LOG.md) § API-001b-N1. No code/tests/benchmarks.
