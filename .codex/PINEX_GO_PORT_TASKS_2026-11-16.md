@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 با انتخاب B بسته شد (پیش‌فرض 30s)**؛ Q-007/Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 با انتخاب B بسته شد (پیش‌فرض 30s) و Q-007 نیز بسته شد (پیش‌فرض Timeout پاسخ 10s)**؛ Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -487,7 +487,18 @@ Baseline فعلی Pinex:
 
 ### Q-007 — Deadline پاسخ Enquire Link
 
-**وضعیت:** OPEN — پیشنهاد فنی (تصویب نشده): Timeout مستقل، مثلاً `10s`، شروع شمارش پس از ارسال واقعی Probe؛ در صورت نبود پاسخ مطابق Sequence، Session بسته شود و Reconnect فقط در صورت فعال بودن انجام شود. رفتار حین رسیدن ترافیک عادی با Probe معلق باید مشخص شود.
+**وضعیت:** CLOSED — تأیید صریح مالک در 2026-11-16.
+
+- Timeout پاسخ Enquire Link برای Client و Server قابل پیکربندی و مقدار پیش‌فرض آن **`10s`** است؛ مستقل از Idle Interval.
+- شمارش Deadline پس از **ارسال کامل** Enquire Link Request روی TCP آغاز شود، نه با قرار گرفتن آن در صف.
+- فقط `enquire_link_resp` دارای **Sequence دقیقاً متناظر** درخواست Pending، پاسخ معتبر محسوب شود. ترافیک عادی و سایر Frameها این Pending Probe را تأیید یا حذف نمی‌کنند.
+- در صورت انقضای Deadline بدون پاسخ متناظر، Session **بسته** شود و Close فقط یک‌بار اعلان شود؛ Requestهای Pending طبق قرارداد Close خاتمه یابند.
+- Client فقط اگر Auto Reconnect روشن باشد برای اتصال مجدد اقدام کند؛ Server اتصال معکوس برقرار نمی‌کند.
+- حداکثر یک Enquire Link محلی در انتظار پاسخ باشد؛ Enquire Link ورودی همیشه پاسخ داده شود، حتی با Idle Interval صفر.
+- تست هم‌زمانی پاسخ و Timeout، خطای Write، ارسال ترافیک نامرتبط و عدم دوباره‌کاری Close در GO-PINEX-012/013 لازم است.
+- این تصمیم هیچ تغییری در Wire Protocol Pinex C++ ایجاد نمی‌کند.
+
+**جزئیات در [Decision Log](DECISION_LOG.md). هنوز مجوز کدنویسی صادر نشده است.
 
 ### Q-008 — سیاست Backpressure و Default ظرفیت
 
