@@ -298,8 +298,11 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 
 1. **Q-001 — CLOSED / APPROVED OPTION A:** مالک Bind Validator Callback بر اساس System ID و Remote Address را بدون هیچ تغییر در Wire Protocol Pinex 1.5.0 تأیید کرد (2026-11-16). رمز عبور یا Token جدید روی Wire تعریف نمی‌شود. این روش معادل احراز هویت رمزنگاری‌شده نیست.
 2. **Q-005 — CLOSED / APPROVED OPTION B (2026-11-16):** اگر Validator تعریف نشده باشد، Go Server یک Bind معتبر با `system_id` یکتا را مانند Pinex C++ می‌پذیرد. با وجود Validator، تصمیم Allow/Reject آن اعمال می‌شود. بررسی فرمت پروتکل، وضعیت Session، محدودیت منابع و Duplicate System ID در هر دو حالت پابرجاست. این Default معادل احراز هویت نیست.
-3. **Q-002 — CLOSED / APPROVED (2026-11-16):** ارسال خودکار Enquire Link فقط پس از بی‌ترافیکی واقعی Session به مدت Idle Interval قابل پیکربندی انجام می‌شود؛ `0` ارسال خودکار را غیرفعال می‌کند. پاسخ به درخواست ورودی همواره برقرار است. Default عددی و Response Timeout هنوز تعیین نشده‌اند.
+3. **Q-002 — CLOSED / APPROVED (2026-11-16):** ارسال خودکار Enquire Link فقط پس از بی‌ترافیکی واقعی Session به مدت Idle Interval قابل پیکربندی انجام می‌شود؛ `0` ارسال خودکار را غیرفعال می‌کند. پاسخ به درخواست ورودی همواره برقرار است. **Q-006: مقدار پیش‌فرض 30s در 2026-11-16 تأیید شد**؛ Response Timeout هنوز در Q-007 باز است.
 4. **Q-003 — CLOSED / APPROVED (2026-11-16):** متدهای عمومی Client/Server/Session باید Goroutine-safe باشند؛ Callbackهای هر Session به ترتیب دریافت و بدون هم‌پوشانی اجرا شوند؛ Sessionها از هم مستقل بمانند؛ Concurrent Send باید Frame-safe باشد؛ Shutdown باید کنترل‌شده باشد. جزئیات API در سند تسک‌ها و Decision Log تکمیل می‌شوند.
 5. **Q-004 — CLOSED / APPROVED OPTION A (2026-11-16):** نسخه اول Core سبک است؛ Circuit Breaker، Rate Limiter تجاری، Priority Queue، Prometheus exporter و وابستگی‌های کاربردی به نسخه‌های بعد منتقل می‌شوند؛ Deduplication خودکار Sequence در Core وجود ندارد. محدودیت منابع و Backpressure همچنان الزامی است.
 
 جزئیات در [DECISION_LOG.md](DECISION_LOG.md) و فایل PINEX_GO_PORT_TASKS_2026-11-16.md ثبت شده‌اند.
+
+
+**Q-006 — CLOSED / APPROVED OPTION B (2026-11-16):** پیش‌فرض Idle Interval برای neta-go Client و Server برابر `30s` است. ارسال Request فقط پس از بی‌ترافیکی واقعی انجام می‌شود، نه با Ticker ثابت در طول تبادل پیام. مقدار `0` فقط ارسال خودکار را خاموش می‌کند. Q-007 (Timeout و رفتار نبود پاسخ) همچنان باز است؛ این تنظیم هیچ Byte یا Command ID جدیدی به Wire Protocol اضافه نمی‌کند.
