@@ -1,61 +1,83 @@
-# Review Handoff — 2026-11-16
+# Project Handoff — Go Simple Net / Pinex Compatibility
 
-## وضعیت
+**Updated:** 2026-11-16  
+**Repository:** majiddarvishan/go-simple-net  
+**Branch:** main  
+**Implementation status:** NOT STARTED — NOT AUTHORIZED  
+**Current work:** protocol analysis and task planning only
 
-- Review: STATIC REVIEW COMPLETE
-- Implementation: NOT STARTED
-- Application source changes: NONE
-- Test/build execution: NOT PERFORMED
-- Primary report: [SERVER_REVIEW_2026-11-16.md](SERVER_REVIEW_2026-11-16.md)
+## 1. Repository state
 
-## Source snapshot
+- Default branch: main
+- Latest documentation commit before this handoff update: dbf731f097222d7ebce25ea95889472c028eba24
+- Only documentation under .codex has been added/updated for this planning step.
+- No Go application source, tests, go.mod, CI, runtime configuration or dependencies were added or changed.
 
-- Uploaded archive: ss7.tgz
+## 2. Source inputs
+
+### Uploaded Go sample
+
+- Archive: ss7.tgz
 - SHA-256: 25b3e0cdfed10c170cf1a4aa02945bfe765bfa1378ef979ed5546883dadd8aa3
-- Archive contains 24 Go files.
-- No go.mod, tests, configuration examples, or source .proto files were included.
+- 24 Go files total; 14 non-generated package files and generated Protobuf files.
+- Treat it as a behavioral/features reference, not as the authoritative current Pinex wire specification.
 
-## Repository baseline
+### C++ Pinex compatibility target
 
-- Repository: majiddarvishan/go-simple-net
-- Branch: main
-- HEAD before review documentation: d7f1b25e1d8ebb1899f922f4694a59bfa3241902
-- At review start, the repository contained only LICENSE. The report is therefore explicitly tied to the uploaded archive snapshot.
+- Repository: github.com/majiddarvishan/pinex
+- Branch: develop
+- Version: 1.5.0
+- High-level API: messaging_client / messaging_server
+- Exact develop HEAD SHA must be pinned immediately before implementation and cross-language testing.
+- Main is not the compatibility target for this work.
 
-## Highest-priority issues
+## 3. New planning documents
 
-1. Real authentication is not implemented; Bind only checks duplicate IDs.
-2. Commands are not gated by connection state.
-3. Missing nested Protobuf fields can panic the process.
-4. Server Stop does not unblock Accept and does not wait for real connection goroutines.
-5. Unbound connections are not tracked by the server registry.
-6. Server-initiated close can leave stale entries in the bound-connection registry.
-7. Per-message goroutine creation defeats the intended bounded processing model and loses ordering.
-8. Bind-time ID mutation has data-race risks.
-9. Pending request cleanup can cause missing or duplicate callbacks.
-10. Queue overflow/rate-limit/dedup paths can silently drop messages.
+- PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
+- PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
+- SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
-## Recommended next sequence
+## 4. Confirmed protocol facts
 
-1. Confirm the authentication and network trust model.
-2. Freeze the command/state transition contract, including Bind and Unbind.
-3. Fix Protobuf validation and malformed-input behavior.
-4. Redesign Server/Connection lifecycle and shutdown ownership.
-5. Make connection registration and removal atomic and identity-safe.
-6. Replace goroutine-per-message dispatch with bounded processing and an explicit ordering policy.
-7. Correct pending-request/sequence lifecycle and exactly-one terminal callback behavior.
-8. Define overload semantics, capacity limits, and accurate metrics.
-9. Add the regression tests listed in the primary report.
-10. Run build, unit/integration tests, go vet, and go test -race against the complete repository source.
+- 10-byte header: total length BE u32, command ID u8, command status u8, sequence BE u32.
+- Command IDs: Bind 0x01/0x81, Stream 0x02/0x82, Unbind 0x03/0x83, Enquire Link 0x04/0x84.
+- Status: rok 0x00, rfail 0xFF.
+- Bind body: bind_type u8 followed by null-terminated system_id; bind_type 0=uni_direction, 1=bi_direction.
+- Bind Response uses the same body shape and carries server system_id.
+- Stream payload is raw remaining frame bytes, with no extra length prefix or mandatory Protobuf envelope.
+- Enquire Link response and Unbind response reuse the request sequence number.
+- Sequence is per Session, increments, and skips zero.
+- Pinex uses a 10-second Unbind protocol deadline.
+- Current Pinex pre-bind defaults: 30-second handshake deadline, 128 pending sessions, optional per-IP quota disabled by default.
+- Current Pinex Client defaults documented on develop: 30-second connect timeout, 30-second Bind response timeout, 5-second reconnect delay when auto-reconnect is enabled.
+- Pinex default behavior responds to Enquire Link and uses OS TCP Keepalive; it does not send periodic Enquire Link by default.
 
-No implementation work should be inferred as authorized from this review document.
+## 5. Important incompatibilities found in uploaded Go sample
 
-## Additional findings
+1. Go Bind Request/Response bodies omit the Bind Type byte required by Pinex 1.5.0.
+2. Go ConnectionReader drops command_status from the Header.
+3. Go ClientProtocolHandler.handleBindResponse incorrectly reads the first Body byte as Status; Pinex status is Header offset 5 and Bind Body begins with bind_type.
+4. submit_req/submit_resp names differ from Pinex stream_req/stream_resp, but their numeric wire values match (0x02/0x82).
+5. The sample uses random Sequence values and automatic deduplication; Pinex uses per-session increasing nonzero sequence values and does not define Sequence-based deduplication as a protocol feature.
 
-11. Rate limiting also applies to control commands and is per connection.
-12. Enquire Link responses are not correlated with the outstanding sequence.
-13. Listen failure exits the host process through os.Exit.
-14. Drain timeout is not a hard bound for blocked network writes.
-15. A Send racing with Close may enqueue after the Writer has stopped.
+Therefore, copying the sample's protocol handling verbatim would not interoperate with current Pinex.
 
-See F-24 through F-28 in the primary report.
+## 6. Task status
+
+See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
+
+- GO-PINEX-001: analyzed; owner confirmation still required.
+- GO-PINEX-002 through GO-PINEX-014: open.
+- Cross-language tests have not been run.
+- No implementation has been started.
+
+## 7. Owner decisions pending
+
+- Q-001: Bind authorization. Pinex wire protocol has no password/token field. Recommended design is an application Bind Validator callback using System ID and Remote Address, without changing the protocol.
+- Q-002: Whether periodic Enquire Link should be optionally enabled; default recommendation is disabled.
+- Q-003: Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
+- Q-004: Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
+
+## 8. Next action
+
+Resolve Q-001 first, then finalize the public API and the compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
