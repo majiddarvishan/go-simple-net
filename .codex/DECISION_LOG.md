@@ -978,96 +978,137 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ---
 
-## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits (OPEN; RECOMMENDATION ONLY)
+## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
-**Status: OPEN — no numeric defaults or defaulting strategy approved yet.**  
+**Status:** WORKER-009A CLOSED / OWNER APPROVED OPTION A; WORKER-009B OPEN (numeric defaults are proposals only).  
 **Implementation:** NOT AUTHORIZED.
 
 ### 1. Scope and decomposition
 
-WORKER-009 is the umbrella for safe zero-configuration defaults and finite validation boundaries. To avoid combining unrelated choices into one oversized approval, split it into:
+WORKER-009 establishes zero-configuration defaults and finite validation boundaries without weakening the bounded-resource contracts.
 
-- **WORKER-009A:** default derivation model for worker ceilings versus fixed resource quotas. This is the current owner decision.
-- **WORKER-009B:** approve the numeric default matrix for worker/concurrency/idle settings, event and Request credits, Application queue counts and retained-payload bytes.
-- **WORKER-009C:** approve hard validation ranges, cross-field constraints and the configuration-to-public-Functional-Options mapping.
+- **WORKER-009A — CLOSED:** derive the three owner active-worker defaults from GOMAXPROCS; keep other resource quotas fixed and finite.
+- **WORKER-009B1 — OPEN:** per-Session Application/Completion callback concurrency defaults and per-class idle-retirement grace defaults.
+- **WORKER-009B2 — OPEN:** OnClose event, Application frame-count and outstanding Request-credit defaults.
+- **WORKER-009B3 — OPEN:** retained Application and Completion payload-byte defaults.
+- **WORKER-009C — OPEN:** explicit configuration hard maxima, valid ranges, cross-field constraints and final Functional-Option mapping.
 
-The existing Q-008/Q-010 approved defaults remain unchanged. The proposed values below are engineering candidates only, not approved limits or performance SLAs.
+The existing Q-008/Q-010 defaults remain binding and are not reopened. Candidate numbers in B1–B3 are not approved until the owner selects them.
 
-### 2. WORKER-009A — default derivation model
+### 2. WORKER-009A — CPU-derived worker defaults (OWNER APPROVED OPTION A, 2026-11-17)
 
-**Option A — CPU-derived worker ceilings, fixed finite resource quotas (RECOMMENDED)**
+The owner approved Option A.
 
-At Client/Server effective-config construction, capture P = max(1, runtime.GOMAXPROCS(0)) once. Resolve only the three owner active-worker defaults from P, with finite caps:
+At Client/Server effective-configuration construction, capture:
 
-- Application workers: min(max(4, 4 × P), 128); explicit configuration hard maximum proposed as 256.
-- Completion workers: min(max(2, 2 × P), 64); explicit configuration hard maximum proposed as 128.
-- OnClose workers: min(max(2, P), 32); explicit configuration hard maximum proposed as 64.
+`P = max(1, runtime.GOMAXPROCS(0))`
 
-All other capacities remain fixed finite defaults, independently configurable and independent of P. The resolved settings are immutable for the lifetime of the Client/Server instance; no live adaptation, automatic resizing or hot reload is implied. Worker pools remain lazy, class-isolated and have zero warm-idle floor.
+Resolve the default owner-wide active-worker ceilings once:
 
-**Advantages:** scales callback execution with the available CPU budget without requiring user configuration; avoids one fixed worker count being excessive on small hosts or too restrictive on larger hosts; retains deterministic, independently bounded byte/count quotas.
+| Worker class | Approved default formula | Default cap |
+|---|---:|---:|
+| Application | `min(max(4, 4 × P), 128)` | 128 |
+| Completion | `min(max(2, 2 × P), 64)` | 64 |
+| OnClose | `min(max(2, P), 32)` | 32 |
 
-**Costs:** the same program configuration resolves to different worker ceilings on hosts with different GOMAXPROCS values. The resolved values must be inspectable/documented, and deployment reproducibility requires recording the effective configuration.
+Binding interpretation:
 
-**Option B — fixed worker defaults independent of CPU**
+1. These are per-Client or per-Server owner-wide active-worker ceilings, independently maintained for the three physically isolated callback classes.
+2. The formula is resolved once when effective configuration is built and is immutable for that Client/Server lifetime. A later CPU quota or GOMAXPROCS change does not resize a live owner.
+3. Worker goroutines remain lazy, reused only within their class, and subject to WORKER-005 finite idle retirement with zero warm-idle floor. The formula is a ceiling, not eager goroutine preallocation.
+4. Per-Session callback concurrency is a separate limit and intersects the remaining owner/class ceiling. WORKER-009A does not decide the per-Session concurrency default.
+5. The values 128/64/32 are caps on the CPU-derived **defaults**. They are not approved hard maxima for explicit user overrides; those belong to WORKER-009C.
+6. All queue, event, Request-credit and retained-payload byte quotas remain fixed finite defaults independent of P. They remain separately configurable through API-004 Functional Options.
+7. No live adaptation, hot reload, process-global worker pool or process-global worker ceiling is introduced.
 
-Use one fixed positive Application/Completion/OnClose worker default on every host; users explicitly tune for larger or smaller systems.
+Illustrative resolved values:
 
-**Advantages:** identical defaults across machines and simpler capacity prediction.
+| P | Application | Completion | OnClose |
+|---:|---:|---:|---:|
+| 1 | 4 | 2 | 2 |
+| 2 | 8 | 4 | 2 |
+| 4 | 16 | 8 | 4 |
+| 8 | 32 | 16 | 8 |
+| 16 | 64 | 32 | 16 |
+| 32 or more | 128 | 64 | 32 |
 
-**Costs:** a fixed conservative value can underuse large hosts; a high fixed value can retain too many goroutines/stacks on small hosts. It does not adapt to the execution budget already exposed by Go.
+### 3. WORKER-009B — numeric defaults (PROPOSAL ONLY)
 
-**Option C — require explicit worker settings**
+The following matrix is the current engineering recommendation. Only the three worker formulas in §2 are approved; every other value below remains open.
 
-Do not provide worker defaults; require every Client/Server to configure all class ceilings.
+#### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement
 
-**Not recommended:** violates Zero-Configuration by Default and makes a basic Client/Server unnecessarily difficult to construct.
-
-### 3. Candidate numeric matrix for WORKER-009B (NOT APPROVED)
-
-| Setting | Candidate default | Scope | Notes |
+| Setting | Recommended default | Scope | Reason |
 |---|---:|---|---|
-| Application callback concurrency | 1 | Per Session | Preserves serial default; positive configurable values permit overlap |
-| Completion callback concurrency | 1 | Per Session | C-ORD-B; higher values opt into overlap |
-| Application active workers | min(max(4, 4P), 128) | Per Client/Server | Owner-wide; class-isolated |
-| Completion active workers | min(max(2, 2P), 64) | Per Client/Server | Owner-wide; class-isolated |
-| OnClose active workers | min(max(2, P), 32) | Per Client/Server | Owner-wide; one OnClose event maximum per Session |
-| Idle timeout per class | 30s | Per class, per owner | Finite grace; zero warm-idle floor |
-| OnClose event credits | 1024 | Per Client/Server | Queued + running; skip permanently on saturation |
-| Incoming Application frame count | 256 | Per Session | Includes Reader reservation and waiting Request callback frame |
-| Outgoing Application frame count | 256 | Per Session | Includes current Writer frame until full Write |
-| Aggregate queued Application frame count | 65,536 | Per Server | Incoming + outgoing; WORKER-007 scope |
-| Outstanding Request credits | 128 | Per Session | Entire Request lifecycle through Completion return/cancellation |
-| Aggregate outstanding Request credits | 32,768 | Per Client/Server owner | No duplicate Completion event credit |
-| Retained Application bytes | 16 MiB | Per Session | Incoming Request + outgoing private frame storage |
-| Aggregate retained Application bytes | 512 MiB | Per Client/Server owner | Includes in-progress, queued and active library-owned Application frames |
-| Retained Completion bytes | 4 MiB | Per Session | Matched Response through Completion callback return/cancellation |
-| Aggregate retained Completion bytes | 256 MiB | Per Client/Server owner | Independent from Application retained bytes |
+| Application callback concurrency | 1 | Per Session | Preserves serial behavior by default; users opt into overlap explicitly |
+| Completion callback concurrency | 1 | Per Session | Preserves FIFO callback-start order without overlap by default |
+| Application worker idle grace | 30s | Application pool per owner | Reuses workers across short traffic gaps |
+| Completion worker idle grace | 30s | Completion pool per owner | Avoids churn during response bursts |
+| OnClose worker idle grace | 30s | OnClose pool per owner | Gives close bursts a reuse window while retaining finite retirement |
 
-For context, the already-approved defaults remain: outgoing queue 4 MiB/Session; incoming queue 4 MiB/Session; aggregate queued Application frame bytes 256 MiB/Server; 1024 bound Sessions/Server; 128 pre-bind connections/listener; 30s absolute pre-bind deadline; 4 KiB Control reserve/Session; Enquire Link idle 30s (explicit zero disables outgoing probes); matching Enquire Link response timeout 10s.
+The already-approved zero warm-idle floor remains in force. The grace period starts only after a worker returns from user code and has no dispatchable work; it never interrupts a running callback.
 
-The 1 MiB maximum frame in the Pinex wire reference is provisional pending exact C++ HEAD and cross-language confirmation. It is not made a frozen WORKER-009 default by this proposal.
+#### 3.2 WORKER-009B2 — event, frame-count and Request-credit defaults
 
-### 4. Zero and validation principles
+| Setting | Recommended default | Scope | Accounting and saturation |
+|---|---:|---|---|
+| OnClose event credits | 1,024 | Per Client/Server owner | Queued + running; on saturation permanently skip the new OnClose per WORKER-003 |
+| Incoming Application frame count | 256 | Per Session | Reader reservation + waiting Request callback frames; if admission fails, close only that Session |
+| Outgoing Application frame count | 256 | Per Session | Includes current Writer-owned frame until full Write/discard; fail fast with Queue Full |
+| Aggregate queued Application frame count | 65,536 | Per Server | Combined incoming + outgoing queued frames; incoming overflow closes offender, outgoing overflow returns Queue Full |
+| Outstanding Request credits | 128 | Per Session | Full async Request lifecycle through Completion callback return/cancellation |
+| Aggregate outstanding Request credits | 32,768 | Per Client/Server owner | Same Request credits; no duplicate Completion event credit |
 
-- Omitted Functional Options select the documented positive finite default.
+Rationale: count limits protect tiny/empty-frame metadata that byte budgets alone do not bound. The 1,024 OnClose event budget matches the currently approved 1,024 bound-Session default for a single close wave, while remaining finite across churn and permanently blocked callbacks. The 65,536 Server frame ceiling limits the aggregate population independently of the per-Session 256 ceilings. PERF-003 credits remain the sole Completion event-count mechanism.
+
+#### 3.3 WORKER-009B3 — retained-payload byte defaults
+
+| Setting | Recommended default | Scope | Accounting |
+|---|---:|---|---|
+| Retained Application bytes | 16 MiB | Per Session | Inbound Request payload from header reservation through callback return/cancellation, plus outbound private frame through full Write/discard |
+| Aggregate retained Application bytes | 512 MiB | Per Client/Server owner | All library-owned Application payloads across that owner's Sessions and reconnect generations |
+| Retained Completion bytes | 16 MiB | Per Session | Matched Response payload from header reservation through Completion callback return/cancellation |
+| Aggregate retained Completion bytes | 256 MiB | Per Client/Server owner | All library-owned Completion payloads for that owner |
+
+Rationale:
+
+- The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
+- The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
+- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
+
+The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+
+### 4. Defaults already approved and unchanged
+
+| Setting | Approved default | Scope |
+|---|---:|---|
+| Outgoing Application queue bytes | 4 MiB | Per Session |
+| Incoming Application waiting-queue bytes | 4 MiB | Per Session |
+| Aggregate queued Application frame bytes | 256 MiB | Per Server, incoming + outgoing |
+| Bound Sessions | 1,024 | Per Server |
+| Pending pre-Bind connections | 128 | Per listener |
+| Absolute pre-Bind handshake deadline | 30s | From TCP acceptance |
+| Control-PDU allowance | 4 KiB | Per Session |
+| Enquire Link idle interval | 30s | Explicit zero disables outgoing probes only |
+| Enquire Link response timeout | 10s | Per Session |
+
+### 5. Zero, ownership and admission rules
+
+- Omitted Functional Options select the approved/recommended positive finite default.
 - Zero is never interpreted as Unlimited for worker, queue, event, Request-credit or retained-byte limits.
-- Explicit zero/negative values for required positive limits and worker idle timeouts are rejected. The already-approved EnquireLinkIdleInterval=0 remains the one intentional zero-valued disable switch.
-- Per-Session concurrency and owner active-worker ceilings are independent; effective dispatch is bounded by both.
+- Explicit zero/negative values for required positive limits and worker idle grace are rejected. The already-approved EnquireLinkIdleInterval=0 remains the intentional disable switch.
+- Per-Session concurrency and owner active-worker ceilings are independent; actual dispatch is bounded by both.
 - Every count/byte limit is lazy admission capacity, not eager allocation.
-- Queue bytes/counts, active-worker permits, Request credits, OnClose event credits and retained-payload bytes remain distinct ledgers. They are not summed as if they represented separate physical buffers.
-- CPU-derived worker defaults are captured once during effective-config construction; all other defaults are fixed and independently overrideable.
-- The exact hard maxima and cross-field validation matrix are WORKER-009C, not approved by WORKER-009A.
+- Queue bytes/counts, active-worker permits, Request credits, OnClose event credits and retained-payload bytes remain distinct ledgers. Do not sum them as if they were separate physical buffers.
+- Client reconnect generations share the same Client owner budgets. Independent Client/Server instances remain isolated; no process-global cap is introduced.
+- Completion-byte exhaustion must never silently discard a matching Response. Its exact terminal policy remains open and must be decided before Architecture Freeze.
 
-### 5. Owner decision requested — WORKER-009A
+### 6. Owner decision sequence
 
-Choose the default derivation model:
+**Next: WORKER-009B1.** Confirm or revise the two per-Session callback-concurrency defaults (Application=1, Completion=1) and the three per-class idle grace defaults (30s each). After that, resolve B2 and B3 independently. WORKER-009C follows once numeric defaults are approved.
 
-- **Option A:** CPU-derived, capped worker ceilings; fixed finite queue/count/byte quotas. Recommended.
-- **Option B:** fixed worker ceilings independent of CPU.
-- **Option C:** require explicit worker settings, with no worker defaults.
-
-No numeric value in the candidate matrix is owner-approved by this proposal. If A is approved, the next decision is the numeric matrix in WORKER-009B; valid ranges and hard maxima follow in WORKER-009C.
+**Guardrail:** design/documentation only. No Go/C++ source, tests, benchmarks, builds, dependency changes, CI, deployment or operational changes are authorized.
 
 ---
 
