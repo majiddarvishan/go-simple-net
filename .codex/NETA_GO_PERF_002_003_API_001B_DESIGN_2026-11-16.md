@@ -277,3 +277,13 @@ The owner approved Option A: each Client and each Server instance owns an indepe
 This closes only the capacity **ownership boundary**. It does not approve numeric worker counts, physical pool layout, per-class aggregate cap configuration, event/queue limits, payload-byte limits or saturation policy.
 
 See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Next: WORKER-002, explicit per-class owner-wide active ceilings versus ceilings derived from Session limits. No implementation or performance validation authorized.
+
+## 19. WORKER-002 — Independent per-class owner active ceilings (OWNER APPROVED, 2026-11-16)
+
+The owner selected Option A: each Client and Server instance has three independently configurable aggregate active-worker ceilings for Application, Completion and OnClose. Per-Session concurrency is intersected with the corresponding owner/class remaining capacity. The three classes cannot borrow or consume one another's active permits.
+
+The ceilings count physically executing callbacks; waiting queues/event populations remain separately bounded. WORKER-001 ownership applies across all Sessions and reconnect generations, including callbacks still running from retired Sessions. There is no mandatory process-global active-worker cap.
+
+Numeric values, public option names, physical worker-pool layout and event/queue capacities remain open. Next: WORKER-003, OnClose event saturation.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). No implementation, tests or benchmarks authorized.
