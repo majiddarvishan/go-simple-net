@@ -59,7 +59,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 - A frame moving from the waiting queue to active callback ownership must transfer its accounting without an uncharged gap or accidental double charge.
 - Each started handler consumes one per-Session active slot and one owning Client/Server active Application slot until callback return.
 - Active callback payload and goroutine stack are not covered by the waiting-frame byte budget.
-- A separate incoming event-count limit for zero/small frames is proposed under WORKER-007; it is not yet owner approved.
+- Separate incoming/outgoing Application frame-count limits are proposed under WORKER-007; they are not yet owner approved.
 
 ### 4.2 Completion
 
@@ -114,9 +114,9 @@ No library can terminate arbitrary user code. Finite active capacity therefore i
 
 - Owner-scoped budgets avoid a mandatory process-global synchronization point on every callback admission.
 - Per-Session queues and ready-session rotation localize contention; global/owner counters still need race-free reservation but must not be held while calling user code.
-- Bounded class-isolated worker loops avoid per-event goroutine creation and reduce allocation/scheduler churn. WORKER-004 fixes the pool topology; WORKER-006 will refine fair ready-Session selection.
+- Bounded class-isolated worker loops avoid per-event goroutine creation and reduce allocation/scheduler churn. WORKER-004 fixes the pool topology; WORKER-006 approves fair ready-Session selection.
 - Independent class budgets prevent blocked Application callbacks from consuming Completion/OnClose capacity and prevent Completion saturation from consuming OnClose's reserved capacity.
-- WORKER-006 proposes per-class round-robin over eligible Sessions. Fair dispatch improves tail latency and prevents a high-volume Session from monopolizing future worker starts, but cannot preempt running callbacks or overcome a class whose workers are all permanently blocked.
+- WORKER-006's approved per-class round-robin over eligible Sessions improves tail latency and prevents a high-volume Session from monopolizing future callback starts, but cannot preempt running callbacks or overcome a class whose workers are all permanently blocked.
 - No throughput/latency SLA or numeric default is inferred. Measurement and benchmarks remain unauthorized.
 
 ## 9. WORKER-002 — Independent owner-wide active-worker ceilings (OWNER APPROVED, OPTION A)
@@ -275,7 +275,7 @@ WORKER-007 defines the count dimension and ownership of waiting work/event popul
 - **Completion:** PERF-003 already approves count credits per Session and Server aggregate for the complete callback-based Request lifecycle: waiting for response, terminal result queued and Completion callback executing until return/cancellation. A queued Completion is a subset of that lifecycle and must not acquire a second event credit.
 - **OnClose:** WORKER-003 already approves a separate owner-scoped event budget counting queued + running OnClose events; at most one event per closed Session; if full, skip permanently.
 - **Active execution:** WORKER-002 active-worker permits remain separate from waiting queue/event populations. The internal engine remains outside user callback pools.
-- **Scheduler metadata:** WORKER-006's ready queue contains at most one reusable node per eligible Session/class, so its size is bounded by the Session population, not callback count.
+- **Scheduler metadata:** WORKER-006's ready queue contains at most one reusable node per eligible Session/class, so its size is bounded by the number of Sessions with eligible work, not callback count; OnClose eligibility is additionally bounded by WORKER-003 event credits.
 
 ### The unresolved count-accounting gap
 
@@ -328,10 +328,9 @@ Numeric defaults, practical maxima and public configuration names are not part o
 - Numeric owner active-worker ceilings.
 - WORKER-005 numeric idle-timeout defaults and valid ranges.
 - OnClose event-budget numeric default and public option name.
-- Incoming callback event-count cap.
+- Application incoming/outgoing queued-frame count caps and aggregate Server frame-count cap (WORKER-007 pending).
 - Completion payload-byte budget and final maximum frame size.
 - PERF-003 numeric Request-credit defaults.
-- WORKER-007 queue/event count policy (pending owner selection).
 - WORKER-007 numeric count-cap defaults and public configuration names (pending owner selection on policy).
 - WORKER-008 resource accounting and payload-memory ceilings.
 - WORKER-009 safe defaults, valid ranges and public configuration limits.

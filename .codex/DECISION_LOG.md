@@ -870,7 +870,7 @@ Option B — one shared owner worker pool with strict per-class active reservati
 Finite idle retirement prevents long-lived owners from retaining their historical peak number of worker goroutines and stacks indefinitely. A zero warm-idle floor gives predictable quiescent resource usage across many independent Client/Server owners. A finite grace period still permits reuse during short gaps, trading a possible cold-start cost after long inactivity for lower idle memory and goroutine retention.
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §12.  
-**Next:** WORKER-006 — fair scheduling between Sessions within each isolated callback-class pool. Numeric idle timeout defaults/ranges remain open for WORKER-009.
+**Next at that time:** WORKER-006 (subsequently approved as Option A; see the WORKER-006 decision below). Numeric idle timeout defaults/ranges remain open for WORKER-009.
 
 ---
 

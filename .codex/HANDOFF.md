@@ -451,9 +451,9 @@ The owner approved Option B: idle workers retire after a finite configurable gra
 - [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — WORKER-005 contract and WORKER-006 proposal.
 - API-001b review, PERF-002/003 design, Performance Contract, Public API design and Resource Admission design — lifecycle and scheduling constraints.
 
-### Next decision — WORKER-006
+### Next decision at that time — WORKER-006 (RESOLVED BY §33)
 
-Choose fair scheduling among eligible Sessions within each isolated callback-class pool. The recommendation is one callback per eligible Session turn using a per-class round-robin ready-session queue.
+The owner subsequently approved Option A: per-class round-robin, one callback per eligible Session turn. The binding result is recorded in §33 and DECISION_LOG.md.
 
 **Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
 
