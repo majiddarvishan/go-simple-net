@@ -1172,3 +1172,8 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 **Go compatibility requirement:** reject inbound and outbound total Frames above 1 MiB. Pinex's current `send_impl()` does not preflight the same outbound cap before serialization/queueing, but a peer running this Pinex version rejects such an oversized inbound Frame; neta-go must not emit one. This requirement preserves peer acceptance and does not change the wire layout.
 
 **Status:** source baseline and maximum-frame fact verified; golden-frame artifacts and real Go↔C++ socket confirmation remain OPEN and must be completed only after implementation/test authorization. No test or implementation was run for this source review.
+
+
+## API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
+
+Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 must preserve Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. The first outstanding owner choice is **API-002-01 — Request deadline origin/default**: A starts at successful local admission with a proposed 30s default; B starts after full TCP Write with a proposed 30s default; C requires a positive per-call timeout and has no owner default. Recommendation: A, because queue/Writer delay must not retain bounded Request credits indefinitely. No implementation or tests authorized.
