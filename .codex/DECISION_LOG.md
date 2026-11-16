@@ -62,3 +62,44 @@ The no-validator default is permissive admission, **not** cryptographic authenti
 6. All four cases must be exercised against the matching C++ Pinex baseline, without adding custom fields to Bind frames.
 
 Q-005 is **CLOSED**. No implementation, tests, or build commands were run as part of this decision.
+
+---
+
+## Q-002 — Idle-only Enquire Link (2026-11-16)
+
+**Status:** APPROVED — configurable idle interval, `0` disables automatic sending  
+**Approved by:** Project owner  
+**Applies to:** GO-PINEX-002, GO-PINEX-006, GO-PINEX-011, GO-PINEX-012, GO-PINEX-013  
+**Implementation:** NOT AUTHORIZED
+
+### Owner requirement
+
+"Enquire Link همیشه استفاده نمی شه. فقط وقتی که بسته ای رد و بدل نمی شه، ارسال می شه. قابل پیکربندی باشه. اگر 0 بود، ارسال نمی کنیم."
+
+### Decision
+
+- Expose a configurable **Enquire Link idle interval** on Go Client and Go Server connections. A positive interval enables idle-only automatic Enquire Link; **`0` disables automatic sending**.
+- An Enquire Link Request may be sent only after no TCP protocol frame has been successfully exchanged **in either direction** on that bound session for the configured idle interval. This is inactivity detection, **not** a fixed-rate periodic ticker that sends pings while normal traffic is flowing.
+- Any successfully received or sent Pinex frame constitutes session traffic and resets the inactivity measurement. The measurement is per connection/session and begins after successful Bind. Local pending work that has not been written on the wire is not proof of traffic.
+- A new Enquire Link Request must not be initiated while another locally initiated Enquire Link is pending on the same session.
+- Receiving an Enquire Link Request must still trigger the compatible Enquire Link Response with the same sequence number, **even when automatic sending is disabled (`0`)**.
+- Preserve the Pinex 1.5.0 PDU encoding: `enquire_link_req=0x04`, `enquire_link_resp=0x84`, header-only frames and unchanged sequence correlation. This is a configurable Go-side keepalive policy, **not a wire format change**.
+- Both client and server require tests with active traffic, inactive traffic, zero interval, a pending probe, and cross-language peers.
+
+### Not specified by this approval
+
+- The owner has not selected a numeric positive default interval. Document the exact configuration default at the public API/configuration design step; do **not** silently assert a default of `0` or any positive duration as part of this decision.
+- The unanswered-probe response deadline, failure threshold and resulting session close behavior require a separate reviewed specification under GO-PINEX-011. Do not invent them while implementing.
+- TCP keepalive is independent of this application-layer probe.
+
+### Planned acceptance tests (not yet run)
+
+1. Positive interval, ordinary inbound/outbound traffic at intervals shorter than the threshold => no automatic Enquire Link Request.
+2. Positive interval, no traffic in either direction for the threshold => an Enquire Link Request is sent.
+3. Any real incoming/outgoing Pinex frame before expiry => timer is rearmed from actual activity; it cannot send prematurely.
+4. Interval `0` => no automatic Enquire Link Request, regardless of how long the session stays idle.
+5. Interval `0` and peer sends Enquire Link Request => matching Enquire Link Response is still sent.
+6. Locally initiated Enquire Link pending => do not send a second outstanding probe.
+7. Go Client ↔ C++ Pinex Server and C++ Pinex Client ↔ Go Server => valid control PDU exchange.
+
+Q-002 is **CLOSED** at the policy level. No code, tests or build actions were authorized or performed.
