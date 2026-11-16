@@ -307,3 +307,16 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 - A large number of sessions cannot grow unchecked because Q-009 must additionally define aggregate admission.
 
 **Q-008 is CLOSED; implementation is still not authorized.**
+
+---
+
+## Q-009 / Q-010 — Follow-on resource design (2026-11-16)
+
+**Status:** OPEN — PROPOSALS ONLY; owner has **not** approved these.  
+**Reference:** [NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
+
+- Q-009 Option A (recommended): pause/resume per-Session incoming application callback delivery under bounded backpressure; retain control progress as far as ordered TCP framing and finite buffers permit. Option B: close saturated Session.
+- Q-010: proposed, unapproved examples: 4 MiB inbound callback queue per Session, 256 MiB global queued Application frames per Server, 1024 bound Sessions, separate finite control headroom. Numbers need sizing and approval.
+- API-004: choose a public Go config representation distinguishing **omitted** `EnquireLinkIdleInterval` (approved default 30s) from an explicitly provided `0` (approved disable). Ordinary zero-valued `time.Duration` alone cannot represent both states.
+
+The only **approved** 4 MiB value so far is **outgoing FIFO per Session** from Q-008. No implementation is authorized.
