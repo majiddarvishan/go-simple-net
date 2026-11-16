@@ -1,10 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. Historical sections below discussing strict serial user Callback scheduling are not the current contract; see [DECISION_LOG.md](DECISION_LOG.md) §Q-003-R1. API-001b external notification behavior still OPEN.
+
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** PERF-002 A closed; PERF-003 A count-admission model approved (numeric details open); API-001b forced-close/callback semantics OPEN
+**Current work:** Q-003-R1 parallel Application callback dispatch owner-approved; internal engine decoupled. API-001b notification/forced-close semantics, concurrency defaults and quotas OPEN. PERF-002 A and PERF-003 A model remain approved.
 
 ## 1. Repository state
 
@@ -82,7 +84,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 - **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
 - **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
 - **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric idle default is **30s** (Q-006); matching-probe response timeout default **10s** and failure closure are approved (Q-007). See DECISION_LOG.md.
-- **Q-003 — APPROVED (2026-11-16):** Goroutine-safe Client/Server/Session APIs; non-overlapping, receipt-ordered callbacks per Session; isolation across Sessions; frame-safe concurrent sends; controlled shutdown for callbacks and pending operations. Implementation details (queue capacity, deadline, API signatures) still need design. See DECISION_LOG.md.
+- **Q-003 — REVISED BY Q-003-R1 (2026-11-16):** Goroutine-safe Client/Server/Session APIs; **configurable bounded parallel Application callbacks per Session (1 = serial)** with FIFO dispatch selection; callback completion may be out-of-order at >1. Cross-Session isolation, frame-safe concurrent sends and controlled shutdown remain. Internal protocol/timer/Close engine proceeds independently of user callbacks. Exact concurrency default and user-facing notification callback lanes remain OPEN. Implementation details (queue capacity, deadline, API signatures) still need design. See DECISION_LOG.md.
 - **Q-004 — CLOSED / APPROVED OPTION A (2026-11-16):** Lean V1 Core retains Pinex interoperability, sessions, backpressure, bounded FIFO, reconnect/timeout and idle-only Enquire Link. Defer Circuit Breaker, business Rate Limiter, Priority Queue, Prometheus exporter and SS7/Protobuf integrations; exclude automatic sequence dedup. Transport admission/backpressure remains mandatory. See DECISION_LOG.md.
 
 ## 8. Next action
@@ -200,3 +202,28 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 - [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md), [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), and [PINEX_GO_PORT_TASKS_2026-11-16.md](PINEX_GO_PORT_TASKS_2026-11-16.md) reflect approval.
 
 **Next owner decision:** choose **API-001b forced-close Option A vs Option B** after explicit tradeoff explanation. Do not finalize without approval. Afterward review PERF-003 numerical count defaults and inbound event-count cap. No code, go.mod, tests, benchmarks, builds or operational changes. Branch `main` docs only.
+
+## 21. Q-003-R1 owner revision: parallel callbacks + independent internal engine (2026-11-16)
+
+**Repository:** `github.com/majiddarvishan/neta-go` / `main`. **Last verified HEAD BEFORE this documentation sequence:** `4f12ce80e28e8fd2fb56a626058bbc7132441207`.
+
+**Owner action:** explicitly rejected old Q-003 mandatory serial same-Session processing as wrong and selected **Option B: configurable parallel Application callbacks**, with `Concurrency=1` providing serial application handling. Asked whether the library's *internal* callbacks/events can remain independent of blocked user callbacks. **Answer: yes** — isolate internal protocol and lifecycle state transitions from arbitrary user handler execution.
+
+### Current approved semantics
+
+1. **Q-003-R1 CLOSED / OWNER APPROVED:** per-Session, bounded, configurable positive max simultaneous Application callbacks; `1` serial and >1 concurrent; incoming queue dispatch selection FIFO, completion ordering unconstrained in parallel mode. TCP Wire and single Writer remain unchanged.
+2. Internal Control (Bind/Unbind/Enquire Link), Reader/Writer, Request/Response correlation, Timers, internal once-only terminal state and transport Close/Done settlement **cannot depend on return of Application callback**, regardless of concurrency. This does not mean arbitrarily blocked **user** callbacks can be killed.
+3. Q-009/Q-010 remain active: per-Session 4 MiB waiting incoming queue + 256 MiB aggregate Server queued Application budget; saturation closes only offending Session. A maximum of N executing user callbacks creates extra active-payload/stack resource cost beyond those waiting queues; separate accounting and lifecycle-safe global concurrency caps are **OPEN** design.
+4. PERF-002 A snapshot/owned receive and PERF-003 A bounded outstanding Request/Completion **model** remain approved. PERF-003 counts (1024 Session / 65536 Server) remain unapproved examples.
+
+### Open API-001b design choices — do not finalize without owner
+
+- `OnClose` and per-Request completion handlers are **user callbacks**, not internal engine logic. Consider a **separate, bounded user notification dispatcher** isolated from Application callback workers, so `OnRequest` blockage does not automatically stall these notifications. A stuck notification callback still cannot be forcibly stopped, and resource bounds/forced-close behavior must be explicit.
+- Old API-001b Forced Close Option A (cancel not-yet-started callbacks) versus B (retain bounded terminal callbacks for eventual delivery if work progresses) remains **OPEN** and must be reconsidered in the parallel-handler design. Owner's **Q-003-R1 Option B** is NOT an approval of forced-close Option B.
+- Choose callback concurrency **default**, max validation, optional global running-handler budget and behavior if previous Session's user callback remains blocked after forced Close / reconnect; avoid accumulated orphan workers. Choose event count cap for empty incoming frames (still open).
+- Decide whether `Done()` should signal prompt internal transport closure separately from `OnClose` callback, callback lane ordering, forced-close terminal delivery guarantee, and API-002 Request timeout start. All remain **OPEN**.
+- Library name and repository path approved; Go module/package path still API-003 OPEN.
+
+**Docs updated:** [Decision Log](DECISION_LOG.md), [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Public API/Config draft](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md), [Resource Admission draft](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md), [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md), [PERF-002/PERF-003/API-001b](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Tasks](PINEX_GO_PORT_TASKS_2026-11-16.md).
+
+**No implementation authorization:** documentation-only. No Go/C++ source code, `go.mod`, tests, benchmarks, CI or operations. Further owner decision only needed for API-001b user notification/forced-close semantics and callback concurrency defaults/aggregate resource caps.
