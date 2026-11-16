@@ -264,3 +264,18 @@ The owner selected **C-ORD-B**. This closes the same-Session Completion concurre
 
 **Still OPEN:** numeric per-Session concurrency default and exported option name/range; active Completion worker counts and aggregate scope; event/queue capacities; OnClose saturation disposition; Completion payload-byte/frame-size bounds. No numeric defaults are inferred.
 
+
+## 12. WORKER-001 — Owner-scoped worker capacity (OWNER APPROVED, 2026-11-16)
+
+The owner selected **Option A**.
+
+- Every Client instance and every Server instance owns an independent callback-worker resource domain.
+- Sessions of one Server share that Server's worker budgets. All reconnect generations of one Client share the same Client budget.
+- A started callback from a retired Session remains charged to its owning instance until it returns; reconnect cannot reset the charge.
+- Independent Client/Server instances do not share a hidden process-global worker pool or mandatory process-global active-worker cap.
+
+This decision defines only the **owner boundary**. It does not approve physical worker-pool layout, per-class aggregate-cap configuration, numeric worker counts/defaults, queue/event limits, payload-byte bounds, public option names or OnClose saturation behavior.
+
+**Next owner decision:** WORKER-002 — explicit independent owner-wide active-worker ceilings per callback class versus aggregate ceilings derived from Session limits. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §9.
+
+No code, tests, benchmarks, builds, dependencies or operational changes.
