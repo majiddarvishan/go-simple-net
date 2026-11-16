@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s) و Q-008 (صف 4 MiB + Fail-Fast) بسته شدند**؛ Q-009 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast) و Q-009 (بستن Session هنگام سرریز صف ورودی) بسته شدند**؛ Q-010 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -515,19 +515,22 @@ Baseline فعلی Pinex:
 
 **مرجع:** [Decision Log](DECISION_LOG.md)، [Public API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) و [Resource Admission Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md). هیچ کدنویسی مجاز نیست.
 
-### Q-009 — Incoming Backpressure و Global Admission
+### Q-009 — Incoming Callback Backpressure
 
-**وضعیت:** OPEN — طراحی تکمیلی برای محدود کردن صف Callbackهای ورودی و مصرف حافظه کل سرور، جدا از Q-008. اعداد و سیاست دقیق هنگام اشباع ورودی/سراسری هنوز تأیید نشده‌اند و نباید از 4 MiB خروجی استنتاج شوند.
+**وضعیت:** CLOSED — مالک در 2026-11-16 گزینه **B** را صریحاً تأیید کرد.
 
-**گزینه A (پیشنهادی):** در صورت پر شدن صف Callback ورودی، Dispatch پیام Application در همان Session موقتاً Pause شود و با آزاد شدن ظرفیت Resume شود؛ TCP/Read باید bounded بماند، سایر Sessionها مستقل پیش بروند و مسیر Control PDU تا حد مجاز پروتکل حفظ شود. اگر پیشروی ناممکن شد Deadline/Close کنترل‌شده لازم است.
+- اگر Frame جدید Application در صف محدود Callback ورودی همان Session جا نشود، **فقط همان Session فوراً بسته شود**، با دلیل خطای Resource Limit / Inbound Queue Overflow.
+- Sessionهای دیگر، Registry و Callbackهای آن‌ها نباید متوقف یا تخریب شوند.
+- هیچ Drop پنهانی، انتظار نامحدود، افزایش بی‌حد صف یا بازگشت به سیاست Pause/Resume برای Overflow وجود نداشته باشد.
+- Callbackها برای هر Session طبق Q-003 مرتب و بدون هم‌پوشانی‌اند؛ از یک Callback مسدود در کد کاربر نمی‌توان به‌زور خارج شد، پس بستن Transport نباید برای همیشه منتظر آن بماند. دقیق بودن اعلان Close هنوز جزو جزئیات طراحی API است.
+- با بسته‌شدن Session، Pendingها، Timerها و سهمیه‌ها باید آزاد شوند و Close دوباره گزارش نشود؛ Client فقط طبق Auto Reconnect فعال مجاز به تلاش مجدد است.
+- **عدد ظرفیت صف ورودی و نحوه برخورد با سرریز بودجه سراسری در Q-010 باز هستند** و با انتخاب B تعیین نشده‌اند.
 
-**گزینه B:** در صورت سرریز صف Callback ورودی، همان Session بسته شود (رفتار ساده‌تر، ولی احتمال قطع اتصال در ترافیک لحظه‌ای بالاتر).
-
-**مرجع:** [طراحی منابع و Backpressure](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
+**مرجع:** [Decision Log](DECISION_LOG.md) و [طراحی منابع](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md). بدون مجوز کدنویسی.
 
 ### Q-010 — اعداد سقف منابع سراسری و صف ورودی
 
-**وضعیت:** OPEN — اندازه پیشنهادی صف Callback ورودی هر Session، سقف Aggregate Queue Bytes، تعداد Bound Session مجاز و سهمیه Control PDU هنوز تأیید نشده است. نمونه‌های ظرفیت در سند طراحی مرجع برای بررسی‌اند، نه انتخاب مالک.
+**وضعیت:** OPEN — پیشنهاد اولیه برای تصمیم مالک: صف ورودی هر Session **4 MiB**، سقف مجموع صف‌های Application یک Server **256 MiB**، حداکثر **1024** Session Bindشده، حداکثر **128** اتصال Pre-Bind و Timeout آن **30s**. این اعداد، نحوه واکنش به اشباع سهمیه سراسری و سهمیه دقیق Control PDUها **هنوز تصویب نشده‌اند**؛ به‌ویژه 256 MiB حد RSS نیست. ظرفیت‌ها باید قابل تنظیم و قابل آزمایش باشند. [طراحی منابع](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 
 ### API-004 — تفکیک پیش‌فرض و صفر در تنظیمات Go
 
