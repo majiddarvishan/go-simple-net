@@ -269,3 +269,11 @@ The per-Session limit is intersected with a finite aggregate active Completion-w
 
 No implementation, tests, benchmarks or operational changes.
 
+
+## 18. WORKER-001 — owner-scoped Worker capacity (OWNER APPROVED, 2026-11-16)
+
+The owner approved Option A: each Client and each Server instance owns an independent callback-worker resource domain. Sessions belonging to one Server share its aggregate budgets; all reconnect generations of one Client share its budget. A callback started in a retired Session remains charged until return. Independent instances do not share a hidden process-global worker pool or active-worker ceiling.
+
+This closes only the capacity **ownership boundary**. It does not approve numeric worker counts, physical pool layout, per-class aggregate cap configuration, event/queue limits, payload-byte limits or saturation policy.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Next: WORKER-002, explicit per-class owner-wide active ceilings versus ceilings derived from Session limits. No implementation or performance validation authorized.
