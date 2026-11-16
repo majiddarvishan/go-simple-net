@@ -1,7 +1,7 @@
 # neta-go V1 — Performance Engineering Contract (Design, Not Implementation)
 
 **Date:** 2026-11-16  
-**Status:** PERFORMANCE PRIORITY APPROVED BY OWNER; specific techniques, numeric targets and payload-ownership model remain DRAFT / OPEN.  
+**Status:** PERFORMANCE PRIORITY APPROVED; PERF-002 payload ownership **APPROVED OPTION A**; other techniques, numeric targets and PERF-003/API-001b remain DRAFT / OPEN.  
 **Source of priority:** Owner explicitly approved API-001a Option A (asynchronous/callback-first) and stated that performance is **very important**.  
 **Scope:** neta-go native Go TCP messaging Client/Server wire-compatible with C++ Pinex 1.5.0.  
 **Implementation:** NOT AUTHORIZED. No source, Go module, benchmark or operational changes.
@@ -80,7 +80,7 @@
 | ID | Subject | Alternatives / concern | Status |
 |---|---|---|---|
 | PERF-001 | Performance measurement policy | V1 benchmarks and allocation/latency/soak gates required; numeric pass/fail targets after measurement | DRAFT follow-up |
-| PERF-002 / API-001b | `[]byte` lifetime and ownership | A: safe-copy default for send/receive; B: explicit bounded borrowed-buffer callback lifetime / ownership transfer (faster potential, harder API and retention); possible dual-API only if justified | **OPEN — HIGH PRIORITY** |
+| PERF-002 | `[]byte` lifetime and ownership | A: one outbound snapshot and owned, directly received retainable inbound buffer; no borrowed default | **CLOSED — APPROVED A (2026-11-16)** |
 | PERF-003 | Pending completion cap and callback dispatch overhead | bounded outstanding operations, callback queue count/bytes, failure when full; no unbounded goroutine per request | OPEN — detailed contract |
 | PERF-004 | Allocation/pooling policies | choose after benchmark; pools must never leak borrowed buffer data after recycle | OPEN — engineering validation |
 | API-001b | Callback execution + Close/Done semantics | must reconcile per-Session callback ordering and blocked user callback on shutdown | OPEN |
@@ -96,3 +96,10 @@ No coding or benchmarks are authorized at this stage. When the owner later autho
 ## 7. Follow-up design review (2026-11-16; ALL NEW CHOICES OPEN)
 
 A detailed copy/ownership/retention matrix, bounded pending/completion-credit proposal, callback lifecycle impossibility boundary, and owner decision list are recorded in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). Recommended **PERF-002 A** is one outbound snapshot copy on successful async admission and zero *extra* receive payload copies by decoding directly into an owned user-retainable buffer. This is a proposal, not an approval. PERF-003 numerical example limits and API-001b forced-close tradeoffs also remain OPEN; no benchmark or implementation was run.
+
+
+## 8. Owner approval notice (2026-11-16)
+
+**PERF-002 CLOSED / Option A approved**: outgoing asynchronous sends snapshot the caller's payload before successful return, once in the intended hot path; receiving reads directly into a new owned user-retainable buffer where possible, without a redundant second payload copy. The library never pools an incoming buffer after handing its ownership to user code. The caller cannot concurrently write to its source during the copy; after a successful Send return it may reuse the source. This is not an end-to-end zero-copy guarantee.
+
+Earlier sections describing PERF-002 as OPEN are historical and superseded by [the approved Decision Log](DECISION_LOG.md) and [updated design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). **PERF-003**, **API-001b**, numerical targets, optional buffer pooling and all performance validation remain OPEN. No benchmark, test or implementation authorized.
