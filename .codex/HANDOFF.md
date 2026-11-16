@@ -337,12 +337,12 @@ This decision fixes only the worker **ownership scope**. It does not select nume
 ### Synchronized design records
 
 - [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-001 entry.
-- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — consolidated resource ledgers and WORKER-002 proposal.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — consolidated resource ledgers; WORKER-001 and WORKER-002 are approved; WORKER-003 is the next open decision.
 - [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [PERF-002/003 design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md) and [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) updated consistently.
 
-### Next decision — WORKER-002
+### Next decision at that time — WORKER-002 (SUPERSEDED / RESOLVED BY §29)
 
-Choose explicit independent owner-wide active-worker ceilings for Application, Completion and OnClose (recommended) versus deriving aggregate ceilings from existing Session limits. Numeric defaults are not part of this decision.
+The owner subsequently approved explicit independent owner-wide active-worker ceilings for Application, Completion and OnClose. See §29 and the binding Decision Log entry.
 
 **Guardrail:** documentation/design only. No Go/C++ code, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.
 
