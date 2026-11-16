@@ -35,6 +35,7 @@
 
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
+- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; decisions Q-006/007/008 pending.
 - DECISION_LOG.md — approved Q-001 Option A and Q-005 Option B.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
@@ -82,7 +83,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Next: design public Go Client/Server configuration and callback API, then resolve numeric idle interval and unanswered-probe policy under GO-PINEX-002/011. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Next: resolve Q-006 (default idle interval 0 or positive, suggested 30s), Q-007 (unanswered Enquire Link response deadline and failure policy), Q-008 (bounded queue defaults), then complete exported API decisions. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
 
 
 ## 9. Approved Go library name
