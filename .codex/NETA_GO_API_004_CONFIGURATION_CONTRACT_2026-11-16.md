@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16  
 **Status:** CLOSED — APPROVED OPTION A (Functional Options), 2026-11-16; precise exported names still under API-001  
-**Repository:** `majiddarvishan/go-simple-net` / `main`  
+**Repository:** `majiddarvishan/neta-go` / `main`  
 **Implementation:** **NOT AUTHORIZED** (no application source, Go module, examples, test runs, build or repository rename).
 
 ## 1. Goal and approved constraints
