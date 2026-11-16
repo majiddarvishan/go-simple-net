@@ -146,3 +146,12 @@ The owner chose Option A defaults, **not** a workload-specific replacement defau
 **Queue semantics unchanged:** Q-009/Q-010's 4 MiB per Session incoming limit and 256 MiB Server aggregate queue limit are for **queued/waiting** Application frames, not entire process RSS. A work item moving from waiting queue to a callback's active ownership must release waiting-queue charges in the preexisting coherent accounting model; do not double charge or silently lose ownership. Separate capacity bounds for **N simultaneously active** payloads/callback stacks must be evaluated before implementation. Avoid admitting an unbounded number of users' active callbacks across 1024 Sessions.
 
 **Still open:** choice of default application callback concurrency, global active callback budget, separate count budget for tiny queued events, whether user notification callbacks use independent bounded dispatch, and forced close of blocked active callbacks. Overflow of **waiting** incoming backlog still closes offending Session only. A newly received frame must never bypass the bound by launching unlimited new handlers. No new resource numbers silently approved.
+
+
+## 9. Worker capacity ownership addendum — WORKER-001 (OWNER APPROVED, 2026-11-16)
+
+The owner approved **Option A**: callback-worker capacity is owned independently by each Client instance and each Server instance. Sessions of one Server share that Server's aggregate worker budget. All reconnect generations of one Client share the same Client budget. Started callbacks from retired Session generations remain charged until return; reconnect cannot reset their resource usage. Independent instances do not share a hidden process-global worker pool or mandatory process-wide active-worker cap.
+
+This decision does not change Q-008/Q-009/Q-010 byte admission or overload behavior and does not approve numeric active-worker/event/payload limits. The waiting-frame byte budgets remain distinct from active callback stacks and payload ownership.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-002 remains open.
