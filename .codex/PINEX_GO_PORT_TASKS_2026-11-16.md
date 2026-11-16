@@ -567,33 +567,6 @@ Baseline فعلی Pinex:
 
 ---
 
-## 7. ترتیب اجرا
-
-ترتیب وابستگی پیشنهادی:
-
-1. GO-PINEX-001 و ثبت تصمیم‌های بسته‌شده Q-001 و Q-005
-2. GO-PINEX-002
-3. GO-PINEX-003
-4. GO-PINEX-004 و GO-PINEX-005
-5. GO-PINEX-006 و GO-PINEX-007
-6. GO-PINEX-008 و GO-PINEX-009
-7. GO-PINEX-010 و GO-PINEX-011
-8. GO-PINEX-012
-9. GO-PINEX-013
-10. GO-PINEX-014
-
-پیاده‌سازی Client و Server پس از آماده شدن Codec و Session مشترک می‌تواند موازی پیش برود.
-
----
-
-## 8. محدودیت مجوز فعلی
-
-- هیچ فایل Application Source تغییر نکرده است.
-- هیچ تست یا Build اجرا نشده است.
-- هیچ API یا Wire Behavior هنوز پیاده‌سازی نشده است.
-- این سند صرفاً برنامه و خروجی تحلیل است.
-- شروع پیاده‌سازی نیازمند دستور صریح بعدی مالک است.
-
 ### API-001a — Request/Response completion style
 
 **وضعیت:** CLOSED — مالک گزینه **A** را در 2026-11-16 صریحاً تأیید کرد. **Performance نیز به‌عنوان اولویت اصلی نسخه اول اعلام شد.**
@@ -623,3 +596,32 @@ Baseline فعلی Pinex:
 **وضعیت:** OPEN — سقف Pending Request و صف Callback Completion و رفتار اشباع؛ مدل Async نباید باعث ایجاد Goroutine به‌ازای هر Request یا رشد نامحدود حافظه شود.
 
 **مرجع:** [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). تا مجوز صریح، هیچ کدی نوشته یا Benchmark اجرا نشود.
+
+---
+
+## 7. ترتیب اجرا
+
+ترتیب وابستگی پیشنهادی:
+
+1. GO-PINEX-001 و ثبت تصمیم‌های بسته‌شده Q-001 و Q-005
+2. GO-PINEX-002
+3. GO-PINEX-003
+4. GO-PINEX-004 و GO-PINEX-005
+5. GO-PINEX-006 و GO-PINEX-007
+6. GO-PINEX-008 و GO-PINEX-009
+7. GO-PINEX-010 و GO-PINEX-011
+8. GO-PINEX-012
+9. GO-PINEX-013
+10. GO-PINEX-014
+
+پیاده‌سازی Client و Server پس از آماده شدن Codec و Session مشترک می‌تواند موازی پیش برود.
+
+---
+
+## 8. محدودیت مجوز فعلی
+
+- هیچ فایل Application Source تغییر نکرده است.
+- هیچ تست یا Build اجرا نشده است.
+- هیچ API یا Wire Behavior هنوز پیاده‌سازی نشده است.
+- این سند صرفاً برنامه و خروجی تحلیل است.
+- شروع پیاده‌سازی نیازمند دستور صریح بعدی مالک است.
