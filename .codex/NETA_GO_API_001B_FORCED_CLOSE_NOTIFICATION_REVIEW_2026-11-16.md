@@ -297,3 +297,13 @@ WORKER-001 ownership applies: Server Sessions share their Server's three ceiling
 No numeric defaults, public option names, physical worker-pool layout or event capacities are selected. The next open decision is **WORKER-003**, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§9–11.
 
 No code, tests, benchmarks, builds, dependencies or operational changes.
+
+## 14. WORKER-003 — OnClose saturation (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner selected **Option A: skip a new OnClose event when the owner event budget is full**.
+
+The owner-scoped OnClose event budget counts queued plus running events. After Session Done closes, the engine makes one nonblocking reservation attempt. On success, the event is queued and holds its event credit until callback return. On saturation, the callback is permanently skipped: no retry, overflow goroutine, hidden queue or wait. Done, transport teardown, terminal cause and reconnect are unaffected. The event budget is shared across Client reconnect generations and remains charged for callbacks from retired generations.
+
+This implements the already-approved best-effort/at-most-once OnClose contract. No numeric budget, public option name or diagnostic API is selected.
+
+**Next:** WORKER-004 — logical execution-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10.
