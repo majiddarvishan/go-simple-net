@@ -1,5 +1,8 @@
 # neta-go V1 — PERF-002 / PERF-003 / API-001b Design Review
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 supersedes earlier assumptions of strictly serial application callbacks in this document. Configurable parallel Application handlers now **owner-approved**; concurrency=1 is serial. The earlier forced-close alternatives presuppose one serialized user dispatcher and must be **reassessed** under independent internal engine/lifecycle notification lanes. API-001b is OPEN. See [Decision Log](DECISION_LOG.md).
+
+
 **Date:** 2026-11-16
 **Repository:** `majiddarvishan/neta-go`, branch `main`
 **Baseline HEAD reviewed:** `0fe42d3f0ac634a5a1c9617d1e800b68a00fdf9f`
@@ -198,3 +201,21 @@ Use an internally once-only terminal state and a `Done`-like transport closure n
 **Suggested API clarity:** If Option A wins, explicitly document that success means Request **admitted**, not that its completion callback is guaranteed to run after forced transport Close. `Done` and a terminal cause/state accessor expose the transport outcome independently from notification callbacks. If the application requires guaranteed results, it must use its own durable state/reconciliation layer; TCP library does not provide delivery guarantees. If B wins, promises are still conditional on callbacks returning.
 
 No code/test/benchmark run. `API-001b` and these detailed callback semantics remain OPEN.
+
+
+## 11. Callback-concurrency owner revision and API-001b reframing (2026-11-16)
+
+**Q-003-R1 OWNER APPROVED:** Bounded parallel **Application** handler dispatch per Session with configurable maximum concurrency; setting `1` restores serial application handling. All previously stated unconditional serial application callback requirements here are superseded. Handler dispatch accepts in TCP-received FIFO queue order, but handlers may complete out of order. The bounded waiting ingress queue and Q-009 overload/Session closure remain unchanged.
+
+**Internal engine independence (binding intent):** no transport Reader, Writer, Control response, timeout/pending resolution, once-only internal completion settlement or Close/Done transport cleanup path may depend on arbitrary application handler completion. Never hold lifecycle or global locks through callback invocation. A stuck handler occupies one of the configured worker slots, not the engine.
+
+**Proposed three-domain scheduler (NOT API-001b APPROVED):**
+1. **Internal protocol engine, not user callbacks:** single Writer, receive parser, correlation, timers, state transitions, predictable terminal cleanup. Bounded, event-driven, independent of user handlers.
+2. **Application handler lane:** concurrency-configurable Session-local dispatch with finite queue, no goroutine per inbound Frame, Q-009/Q-010 overflow reaction. Multiple SendResponse calls may complete out of order and still use each request's original Sequence/Status; outgoing serialized Writer preserves frame integrity.
+3. **User notification lane(s):** bounded delivery of per-Request completion callbacks, OnClose and other user-supplied functions, **distinct from internal settlement**. Recommended separate from Application handler lane so an OnRequest stall does not necessarily starve notifications; user notification handler itself can stall, so finite worker/queue and forced-close cancellation/defer still require **owner choice**.
+
+**API-001b competing alternatives STILL OPEN:** A — forced close cancels unstarted callback notifications/application work for bounded teardown; B — retain finite pending completion notifications for conditional future dispatch (may retain closed Session resources indefinitely if a user callback never returns). New parallelism means neither alternative should be treated as selected by the owner's **Q-003-R1 Option B**; these are separate decision IDs.
+
+**PERF-003 unchanged:** Request completion slot counts already owner-approved at model level, numeric defaults remain unapproved. Completion callback stuck in the user notification lane must not prevent *internal* response settlement or transport close. The Request credit lifetime on forced close depends on A/B and remains OPEN.
+
+**Further design question:** should OnClose/user-completion callback execution use a bounded independent lane, and what ordering/at-most-once guarantee is desired on forced Close? Recommend separate control-plane settlement and bounded user notification dispatcher, but do not silently implement it.
