@@ -83,7 +83,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B and Q-007 are CLOSED (idle interval default 30s; Enquire Link response timeout default 10s, close Session on missing matching response, reconnect Client only if configured). Next: resolve Q-008 (bounded queue defaults), then complete exported API decisions. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B and Q-007 are CLOSED (idle interval default 30s; Enquire Link response timeout default 10s, close Session on missing matching response, reconnect Client only if configured). Next: resolve Q-008 (owner choice: proposal A = 4 MiB outgoing per-session FIFO + fail-fast, proposal B = context-aware wait; control PDU headroom and separate aggregate/inbound bounds required), then complete exported API decisions. This is a proposal, not an approved default. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
 
 
 ## 9. Approved Go library name
