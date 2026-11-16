@@ -78,11 +78,11 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 - **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
 - **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric default interval and unanswered-probe timeout still need API/failure-policy specification. See DECISION_LOG.md.
 - **Q-003 — APPROVED (2026-11-16):** Goroutine-safe Client/Server/Session APIs; non-overlapping, receipt-ordered callbacks per Session; isolation across Sessions; frame-safe concurrent sends; controlled shutdown for callbacks and pending operations. Implementation details (queue capacity, deadline, API signatures) still need design. See DECISION_LOG.md.
-- **Q-004 — OPEN:** Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
+- **Q-004 — PROPOSED / AWAITING APPROVAL:** Lean V1 Core retains Pinex wire interoperability, sessions, backpressure, bounded FIFO, reconnect/timeout and idle-only Enquire Link. Proposal is to defer Circuit Breaker, business Rate Limiter, Priority Queue, Prometheus exporter and SS7/Protobuf integrations, and exclude automatic sequence dedup. Transport admission/backpressure remains mandatory. Owner must explicitly approve A or identify required extras (B). See DECISION_LOG.md.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003 and NAM-001 are closed. Next: resolve Q-004 (optional features), and the numeric idle interval / unanswered-probe policy under GO-PINEX-002/011. Finalize public Go API and compatibility baseline before requesting explicit authorization to implement. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003 and NAM-001 are closed. Next: obtain owner approval on proposed Q-004 lean Core (or identify must-have optional features), and specify numeric idle interval / unanswered-probe policy under GO-PINEX-002/011. Finalize public Go API and compatibility baseline before requesting explicit authorization to implement. No code, module or repository rename is authorized.
 
 
 ## 9. Approved Go library name
