@@ -11,7 +11,7 @@
 ## 1. Repository state
 
 - Default branch: main
-- Current verified remote HEAD before this documentation update: `01035a575371d0fef6f6068d14ed9a7a1328aa17`.
+- Current verified remote HEAD before this HANDOFF synchronization: `d375a935edfb07be4179070f0ee6bc599eec4dc4`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
