@@ -589,7 +589,7 @@ Baseline فعلی Pinex:
 
 ### PERF-002 — Payload Ownership / Copy Cost
 
-**وضعیت:** OPEN — انتخاب مدل مالکیت `[]byte` برای ارسال/دریافت. Option A Safe Copy Default vs Option B Borrowed Callback-Lifetime/Ownership Contract. اثر بر Allocation و GC و خطر Retain/Mutation بررسی شود. هیچ Zero-Copy بدون قرارداد معتبر فرض نشود.
+**وضعیت:** CLOSED — گزینه A با تأیید مالک در 2026-11-16. ارسال Async یک Snapshot مستقل از Payload پیش از بازگشت موفق می‌سازد؛ دریافت مستقیماً در بافر اختصاصی قابل نگهداری پس از Callback انجام می‌شود و کتابخانه آن را recycle نمی‌کند. کارایی هدف: یک کپی در مسیر ارسال و بدون کپی اضافی در مسیر دریافت. Pooling داخلی (PERF-004) و ادعای Zero-Copy نهایی نشده‌اند. مرجع [Decision Log](DECISION_LOG.md).
 
 ### PERF-003 — Bounded Pending/Completion
 
@@ -625,3 +625,8 @@ Baseline فعلی Pinex:
 - هیچ API یا Wire Behavior هنوز پیاده‌سازی نشده است.
 - این سند صرفاً برنامه و خروجی تحلیل است.
 - شروع پیاده‌سازی نیازمند دستور صریح بعدی مالک است.
+
+
+### PERF-002 approval / PERF-003 next handoff (2026-11-16)
+
+**PERF-002 CLOSED — OWNER APPROVED A**: independent outgoing snapshot on successful async admission; owned inbound payload can outlive callback return. No implementation was authorized. The detailed contract and next PERF-003 count-bound pending/completion design are in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). **PERF-003 and API-001b remain OPEN**. Proposed numeric completion counts are illustrative, not approved defaults. No code/test/benchmark execution.
