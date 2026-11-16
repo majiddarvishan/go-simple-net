@@ -1,17 +1,17 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are **owner approved**: Completion/OnClose have independent bounded sublanes; OnClose becomes eligible only after Session Done closes and may overlap an active Completion; Session Done closes after internal teardown without joining user callbacks; Completion concurrency is configurable per Session (1=serial, greater than 1=parallel), with FIFO start selection by per-Session terminal-settlement enqueue order and no FIFO return guarantee. Remaining API-001b work is numeric worker/event capacities, aggregate bounds, payload-byte limits, OnClose saturation and API-002/API-003 details. See [DECISION_LOG.md](DECISION_LOG.md) §§API-001b-NORD2, API-001b-DONE-A and API-001b-CORD-B.
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 Option A is now owner approved:** every Client and Server instance owns an independent callback-worker resource domain; Sessions share their Server budget, Client reconnect generations share their Client budget, and callbacks from retired generations remain charged until return. No mandatory process-global worker pool/cap. Numeric capacities, per-class aggregate-cap policy, event/payload bounds and remaining API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion concurrency is configurable per Session (1=serial, greater than 1=parallel), FIFO by terminal-settlement enqueue order for start selection only. Completion/OnClose remain independent bounded sublanes; OnClose is eligible only after Done and may overlap a running Completion. Remaining: numeric concurrency default, Worker/event capacities and aggregate bounds, payload-byte accounting, OnClose saturation, terminal-cause/Close-return details, API-002 and API-003. See §§25–27; older alternatives are historical.
+**Current work:** WORKER-001 Option A is CLOSED / OWNER APPROVED. Client and Server instances own independent callback-worker resource domains; Sessions share the owning Server budget, reconnect generations share the owning Client budget, and running callbacks from retired generations remain charged until return. Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B remain binding. Next: WORKER-002, explicit per-class owner-wide active-worker ceilings versus ceilings derived from Session limits. Numeric worker defaults, event/payload bounds, OnClose saturation, terminal-cause/Close-return details, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
 - Default branch: main
-- Latest documentation commit before this handoff update: 35bae1ad53baffb3bfb5d1830bd3d7927981ff8c
+- Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
 - No Go application source, tests, go.mod, CI, runtime configuration or dependencies were added or changed.
 
@@ -42,6 +42,7 @@
 - NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md — draft Client/Server/Session Public API; API-001a owner approved A (nonblocking/callback-first). API-001b, ownership and callback termination semantics remain OPEN.
 - NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md — owner explicitly requires performance as first-class V1 concern; measurement matrix, copy/allocation and bounded completion design work (PERF-001..003), no numeric targets approved.
 - NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 outgoing 4 MiB/Fail-Fast, Q-009 B incoming overflow close, and Q-010 A configurable inbound/global/session/pre-bind/control defaults are approved. API-004 design remains open.
+- NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md — WORKER-001 owner-approved Client/Server instance-scoped worker ownership; WORKER-002 active-worker ceiling topology is the next open decision.
 - DECISION_LOG.md — authoritative approved decisions Q-001 through Q-010 (as applicable), plus NAM-001; distinguishes remaining open API details.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
@@ -317,3 +318,30 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Guardrail:** design/docs only. No Go/C++ implementation, tests, benchmarks, builds, CI, dependencies or operations.
 
+
+## 28. WORKER-001 — Owner-scoped Worker capacity and next design decision (2026-11-16)
+
+**Verified baseline before this documentation sequence:** `main@525487737c1b75c62d021a391a395e03c1aadb1e`.  
+**Owner decision:** WORKER-001 **Option A APPROVED**.
+
+### Binding contract
+
+- Each Client instance and each Server instance owns an independent callback-worker resource domain.
+- All Sessions of one Server share its Server-owned budgets.
+- All reconnect generations of one Client share its Client-owned budgets.
+- A callback started by a retired Session generation remains charged to the owning instance until it returns; reconnect cannot reset the charge.
+- Independent Client/Server instances do not share a hidden process-global worker pool or mandatory process-global active-worker cap.
+
+This decision fixes only the worker **ownership scope**. It does not select numeric worker counts, physical pool layout, per-class aggregate-cap policy, queue/event limits, payload-byte bounds or OnClose saturation behavior.
+
+### Synchronized design records
+
+- [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-001 entry.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — consolidated resource ledgers and WORKER-002 proposal.
+- [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [PERF-002/003 design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md) and [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) updated consistently.
+
+### Next decision — WORKER-002
+
+Choose explicit independent owner-wide active-worker ceilings for Application, Completion and OnClose (recommended) versus deriving aggregate ceilings from existing Session limits. Numeric defaults are not part of this decision.
+
+**Guardrail:** documentation/design only. No Go/C++ code, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.
