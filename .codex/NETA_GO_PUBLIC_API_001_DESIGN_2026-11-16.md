@@ -272,3 +272,10 @@ WORKER-006 now defines the scheduling fairness policy. See [Worker Capacity & Re
 WORKER-006 is OWNER APPROVED, OPTION A: per-class round-robin over eligible Sessions, one callback per Session turn, with FIFO inside each Session. Each Session has at most one reusable ready node per class; Completion preserves C-ORD-B terminal-result settlement/enqueue start order. This is an internal scheduling contract, not a request for a public weight/priority API.
 
 WORKER-007 remains OPEN. Recommended policy: count incoming and outgoing queued Application frames per Session and aggregate queued Application frames across a Server, in addition to existing byte limits. Reuse PERF-003 Request credits for Completion and WORKER-003 event credits for OnClose; do not expose duplicate count settings. Numeric count defaults and public configuration names remain deferred to WORKER-009/API-004. No public API names are selected here.
+
+
+## 25. WORKER-007 / WORKER-008 — resource configuration handoff (2026-11-16)
+
+WORKER-007 is OWNER APPROVED, OPTION A: per-Session incoming/outgoing Application frame-count limits plus one aggregate Server queued-frame count across both directions. Completion uses existing PERF-003 Request credits and OnClose uses WORKER-003 event credits; no duplicate count options are added.
+
+WORKER-008 remains OPEN. Recommended internal accounting is separate owner-scoped retained-payload byte ceilings for Application and Completion callback classes. Existing queue byte/count limits remain sub-limits. Numeric byte/count defaults and public option names remain for WORKER-009/API-004. No public configuration names are selected here.

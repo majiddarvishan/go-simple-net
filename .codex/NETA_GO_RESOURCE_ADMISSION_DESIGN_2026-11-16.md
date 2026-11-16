@@ -205,3 +205,12 @@ The existing Q-008/Q-009/Q-010 Application queue byte caps, PERF-003 Completion 
 - Numeric count defaults, maxima and public option names remain open for WORKER-009/API-004. No eager preallocation.
 
 **Recommended:** WORKER-007 Option A — per-Session incoming/outgoing frame-count caps plus one aggregate Server count across both directions, reusing existing Completion and OnClose credits. Options B (per-Session count only) and C (retain byte-only Application queues) remain alternatives. No policy selected yet; no implementation, tests or benchmarks authorized.
+
+
+## 16. WORKER-007 — Queue Capacity and Event Capacity (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner approved per-Session incoming and outgoing Application frame-count limits plus one Server-aggregate queued Application frame-count limit across both directions. Incoming count saturation closes only the offending Session under Q-009/Q-010; outgoing count saturation returns Queue Full and keeps the Session. Outgoing count/bytes remain charged through full Writer completion. Incoming Request count is released at callback start. Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 queued+running event credits; no duplicate event credits or shared cross-class budget. Existing Q-008/Q-009/Q-010 byte limits and the separate 4 KiB Control reserve remain unchanged. Numeric count defaults/ranges and public names remain WORKER-009/API-004.
+
+## 17. WORKER-008 — retained payload memory (OPEN; RECOMMENDATION ONLY)
+
+Recommended: introduce separate per-Session and per-owner retained-payload byte ledgers for Application and Completion classes. Application retained bytes cover inbound Stream Request payload from validated-header reservation through queued/active OnRequest callback return, and outgoing private frame storage from accepted admission through full Writer completion. Completion retained bytes cover matching Stream Response payload from before body allocation through queued/running Completion callback return or Forced Close A cancellation. Existing queue byte/count limits remain queue sub-limits, not additive estimates of process memory. A queue-to-active transition releases only queue charges while retaining the same payload-byte reservation until callback return. The exact Completion byte-cap overflow disposition and numeric defaults remain open. See [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §15. No implementation authorized.

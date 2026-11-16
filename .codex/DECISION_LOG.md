@@ -909,65 +909,126 @@ The policy gives dispatch fairness, not CPU-time fairness: a slow callback remai
 
 ---
 
-## WORKER-007 — Queue Capacity and Event Capacity (OPEN; RECOMMENDATION ONLY)
+## WORKER-007 — Queue Capacity and Event Capacity (OWNER APPROVED, OPTION A, 2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Owner selection:** “گزینه A”  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+1. Add a configurable incoming Application callback-frame count ceiling per Session, alongside the existing incoming byte ceiling. It bounds admitted inbound Stream Request events waiting to start an Application callback. A matching Stream Response destined for a Completion callback is already bounded by its PERF-003 Request credit and must not acquire a duplicate Completion event-count credit.
+2. Add a configurable outgoing Application frame count ceiling per Session, alongside the existing outgoing byte ceiling. It covers every admitted Application frame, including the frame currently owned by the Writer, until the full frame is written or definitively discarded.
+3. Add one configurable Server-aggregate queued Application frame count ceiling covering the combined incoming and outgoing queued Application frame populations. It is distinct from the already-approved aggregate queued-frame byte ceiling. It is a Server scope; Client reconnect generations continue to share Client-owned capacity according to WORKER-001 and the later payload accounting contract.
+4. Incoming count admission is reserved before the body is allocated/read once the fixed header has established a valid Application Request frame. The count remains held while the frame is waiting to start its Application callback and is released at the callback-start linearization point. The in-progress Reader reservation must not create an unbounded or unaccounted frame.
+5. If the incoming per-Session count or Server aggregate count cannot admit a valid Request frame, close only the originating Session under the already-approved Q-009/Q-010 overload policy. Do not drop, pause/resume, or defer without bound.
+6. If the outgoing per-Session count or Server aggregate count is full, reject the new Send immediately with Queue Full, keep the Session connected, and create no pending/sequence state or transmitted frame for a rejected SendRequest.
+7. Keep the existing byte limits independent: outgoing 4 MiB per Session (Q-008), incoming 4 MiB per Session (Q-010), and 256 MiB aggregate queued Application frame bytes per Server (Q-010). The aggregate byte budget covers incoming + outgoing queued Application frames. A frame is charged to exactly one queued owner bucket at a time.
+8. Completion count remains the PERF-003 per-Session and Server-aggregate Request credit covering the complete Request lifecycle through callback return/cancellation. Do not add a second Completion event-count ceiling or reserve another credit on terminal settlement.
+9. OnClose count remains the WORKER-003 owner-scoped event budget covering queued + running OnClose events. Do not add a second OnClose queue/event count.
+10. Control-PDU headroom remains separate at the existing configurable 4 KiB per Session. Do not merge Control, Application or Completion populations into one cross-class event queue/budget.
+11. All count limits are lazy admission ceilings, not eager preallocation. Numeric defaults, valid ranges, public option names and maxima remain deferred to WORKER-009/API-004.
+
+### Rationale and performance consequences
+
+Byte-only limits do not adequately bound queue-node and event metadata for tiny or empty frames. Per-Session counts isolate noisy peers; the Server aggregate count prevents the sum of many individually compliant Sessions from producing an unbounded queued-frame population. Reusing PERF-003 and WORKER-003 credits avoids duplicate Completion/OnClose accounting.
+
+The additional hot-path cost is a bounded count reservation/release alongside byte admission. The Server aggregate count is a shared cache-line/counter and may contend under high fan-in; implementation should keep the reservation path short and avoid a long-held lock. Any sharding/token-cache optimization requires later measurements and must preserve a strict aggregate ceiling.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §14.  
+**Next:** WORKER-008 — Resource Accounting and Payload Memory Ceiling.
+
+---
+
+## WORKER-008 — Resource Accounting and Payload Memory Ceiling (OPEN; RECOMMENDATION ONLY)
 
 **Status: OPEN — no owner selection yet.**  
 **Implementation:** NOT AUTHORIZED.
 
-### Scope and existing binding limits
+### 1. Problem and binding inputs
 
-WORKER-007 defines the count dimension and ownership of waiting work/event populations. It does not reopen existing byte caps, active-worker ceilings, PERF-003 Request-credit semantics or WORKER-003 OnClose saturation.
+WORKER-008 defines how library-owned payload memory is reserved, charged, transferred and released. It does not reopen:
 
-- **Application incoming callback backlog:** Q-009/Q-010 already approve 4 MiB per Session and 256 MiB aggregate queued Application-frame bytes per Server. The incoming overflow action is close only the offending Session.
-- **Application outgoing FIFO:** Q-008/Q-010 already approve 4 MiB per Session and the 256 MiB aggregate Server queued-frame byte budget. Byte-cap exhaustion returns Queue Full and keeps the Session connected.
-- **Control PDU headroom:** Q-010's separate 4 KiB per-Session byte budget remains isolated from Application traffic; Pinex ordering and the Unbind deadline remain binding.
-- **Completion:** PERF-003 already approves count credits per Session and Server aggregate for the complete callback-based Request lifecycle: waiting for response, terminal result queued and Completion callback executing until return/cancellation. A queued Completion is a subset of that lifecycle and must not acquire a second event credit.
-- **OnClose:** WORKER-003 already approves a separate owner-scoped event budget counting queued + running OnClose events; at most one event per closed Session; if full, skip permanently.
-- **Active execution:** WORKER-002 active-worker permits remain separate from waiting queue/event populations. The internal engine remains outside user callback pools.
-- **Scheduler metadata:** WORKER-006's ready queue contains at most one reusable node per eligible Session/class, so its size is bounded by the Session population, not callback count.
+- PERF-002 A: outgoing payload is snapshotted into private storage before successful Send return; incoming payload is read into owned storage and may be retained by the application after callback return; the library never recycles user-visible inbound buffers.
+- Q-008/Q-009/Q-010: existing 4 MiB per-Session outgoing/incoming byte limits, 256 MiB Server aggregate queued Application-frame byte limit, 4 KiB per-Session Control reserve, and approved overload behavior.
+- PERF-003: Request credits cover the entire callback-based Request lifecycle, including waiting for response, queued Completion and running Completion until callback return/cancellation.
+- API-001b Forced Close A: unstarted Application/Completion callbacks are cancelled and release queued library-owned state; started callbacks cannot be interrupted and retain their active permits and relevant Request credit until return.
+- WORKER-001: all reconnect generations of a Client share Client-owned aggregate capacity; all Sessions of a Server share Server-owned aggregate capacity.
+- WORKER-002/004/006: active workers are class-isolated, bounded and fairly scheduled. Worker capacity and payload-byte capacity are different ledgers.
+- WORKER-007 A: Application incoming/outgoing frame counts and the Server aggregate queued-frame count are independent of byte budgets; Completion and OnClose reuse their existing count credits.
 
-### The unresolved count-accounting gap
+### 2. Required memory populations
 
-Byte-only Application queues can retain a large number of small/empty frames and their queue metadata. PERF-003 explicitly recommends an incoming callback event-count cap, but that cap and its aggregate scope were not approved. The outgoing Application FIFO also has a byte cap but no explicit frame-count cap. The count dimension should protect queue nodes and event metadata independently of payload bytes.
+| Population | Library ownership interval | Existing/required bound |
+|---|---|---|
+| Outgoing Application frame | Successful admission through full Writer completion/failure | Q-008 outgoing bytes + WORKER-007 outgoing count; retained Application bytes proposed |
+| Incoming Stream Request | Header validation/body assembly through queue wait and active OnRequest callback return/cancellation | Q-009/Q-010 incoming queue bytes + WORKER-007 incoming count while waiting; retained Application bytes proposed across in-progress/queued/active |
+| Incoming Stream Response | Header validation/body assembly through queued/running Completion callback return/cancellation | Existing aggregate queued-frame bytes while queued + PERF-003 Request credit; retained Completion bytes proposed |
+| Reader in-progress body | After valid length is known until complete read or abort | Must reserve against the eventual destination ledger before allocation; one Reader/frame per Session |
+| Writer in-progress frame | Until full write or definitive failure/discard | Already included in outgoing bytes/count; no second charge |
+| Control PDU | Queue/admission through full write; bounded inbound control parsing | Separate Q-010 4 KiB per-Session Control allowance; never consume Application budget |
+| Pending Request after request write | Until terminal settlement/cancellation | Metadata/Request credit only; do not retain outgoing payload bytes solely for correlation |
+| OnClose | Queued + running event | WORKER-003 event credit; no payload-byte ledger unless API later adds payload |
+| User-retained inbound payload | After callback return, if application retained the slice | Outside enforceable library-owned ceiling; never pool/recycle it |
 
-### Option A — two-dimensional Application queue admission, with existing Completion/OnClose credits reused (RECOMMENDED)
+### 3. Option A — owner-scoped retained-payload ledgers per callback class (RECOMMENDED)
 
-Add independent count ceilings alongside the existing Application byte ceilings:
+Introduce two new finite byte ledgers for library-owned user payloads:
 
-1. **Incoming Application callback backlog:** count queued frames per Session and across the Server aggregate. Count only frames waiting to start an Application callback; do not count an active callback as a queued event. On dispatch, transfer ownership to the active callback under one atomic accounting transition. If either incoming count ceiling cannot admit the next valid frame, close only the originating Session under the existing Q-009/Q-010 overload outcome.
-2. **Outgoing Application FIFO:** count admitted frames per Session and across the Server aggregate, including the frame currently being written until the full frame is written. If either outgoing count ceiling is full, fail the new Send promptly with Queue Full; do not close an otherwise healthy Session and do not publish pending state for a rejected SendRequest.
-3. **Server aggregate count:** one aggregate queued-Application-frame count covers incoming + outgoing queued frames, matching the existing combined MaxAggregateQueuedFrameBytes scope. A frame is charged to exactly one queued owner bucket at a time. The incoming queue-to-active transition must not create a charge gap; its active payload accounting is finalized under WORKER-008.
-4. **Completion:** reuse PERF-003 Request credits. They already bound queued + running Completion work and the preceding pending-response lifecycle; do not add a second Completion event-count cap or reserve a new credit on terminal settlement.
-5. **OnClose:** reuse WORKER-003's queued+running event credit. No second OnClose queue cap. A full budget permanently skips the new OnClose event.
-6. Keep the Control PDU byte headroom separate. Do not merge Control or callback events into the Application frame-count budget or a shared cross-class event pool.
+**Application retained bytes**
+- A per-Session ceiling and an aggregate per-owner ceiling (per Client or Server).
+- Covers incoming Stream Request payloads from the point the Reader has validated the fixed header and reserved the declared frame length, through in-progress body read, queued callback wait and active OnRequest execution until callback return/cancellation.
+- Covers outgoing Application frame storage from admission and private snapshot allocation through full Writer completion/failure. Count the complete serialized frame length, including the 10-byte Pinex header, conservatively and consistently with Q-008.
+- Existing incoming/outgoing queue byte/count limits remain separate sub-limits. They are not added together to estimate memory. When an incoming callback starts, release only its waiting-queue byte/count charges; keep its retained-payload charge until callback return. When an outgoing frame fully writes, release its retained-payload and outgoing queue charges.
+- Client aggregate accounting spans reconnect generations. A callback from an old generation remains charged to the same Client owner after Session teardown/reconnect until it returns.
 
-**Advantages:** protects against tiny-frame/metadata floods; keeps inbound and outbound overload reactions consistent with already approved Q-009/Q-010 behavior; provides an aggregate Server bound across many Sessions; avoids duplicate Completion/OnClose credits and cross-class interference.
+**Completion retained bytes**
+- A separate per-Session and per-owner byte ceiling for Stream Response payloads retained for Completion delivery.
+- Reserve before allocating/reading a matching response body; retain through queued and actively executing Completion callback; release on callback return or Forced Close A cancellation.
+- PERF-003 Request credit remains the only Completion event/count credit and is held until the complete Request lifecycle ends. The Completion byte ledger is a different dimension, not another event credit.
+- A started Completion callback retains its payload-byte charge and Request credit until it returns, including after Done/Session teardown. An unstarted Completion cancelled by Forced Close A releases its payload and Request credit.
+- Do not retain the original outgoing request payload after its Writer frame is fully written; correlation state retains only the required metadata.
 
-**Costs:** adds count reservations to Application ingress/egress admission and an aggregate Server counter. These counters must be atomic/race-safe and must not become a long-held global lock. Exact numeric values and public option names remain for WORKER-009/API-004.
+**Reservation and transfer rules**
+1. Read the fixed 10-byte header into bounded fixed storage. Validate command, Session state and command_length against the protocol maximum before allocating the body.
+2. Once the body length and destination class are known, reserve the appropriate per-Session and owner byte ledgers plus the applicable queue byte/count sub-limits before allocating/reading the body. A partial read holds its full declared reservation conservatively; abort/error releases it.
+3. For outgoing Send, validate and reserve count/byte/retained-byte capacity before allocating the private contiguous frame and copying the caller payload once. On any failed admission/allocation, roll back every reservation; no frame or pending tracker becomes visible.
+4. Ownership transitions are linearized. Incoming queue → active callback releases queue-only charges but does not release/reacquire the retained-payload charge. Outgoing FIFO → active Writer does not release any charge. Full Write/callback return/cancellation releases exactly once.
+5. A response frame that has no live Pending Request is late/unknown; it must not resurrect a settled Request or create a Completion event. Prefer bounded discard after header validation rather than retaining an unowned response payload.
+6. Control traffic retains its own finite reserve and ordering. Pre-bind connections remain bounded by Q-010's 128 pending sockets and 30-second absolute handshake deadline; Bind PDU parsing should use its protocol-specific small bound rather than allocating a Stream-sized body.
+7. No eager maximum-capacity preallocation, goroutine per payload/event, or pooling of user-visible incoming payloads.
 
-### Option B — per-Session Application frame-count caps only
+### 4. Frame-size and metadata boundaries
 
-Add incoming and outgoing frame-count ceilings per Session, but no Server aggregate frame-count ceiling. Keep the existing 256 MiB aggregate byte budget and existing Completion/OnClose credits.
+- The Pinex wire header is 10 bytes. The current compatibility reference says a 1 MiB maximum frame, but the exact ceiling still requires cross-language confirmation; reject oversized declared lengths before body allocation. Do not silently infer that the 4 MiB queue cap permits a 4 MiB wire frame.
+- One Reader and one Writer per Session bound in-progress transport work. The Writer's current Application frame remains charged to the outgoing FIFO limits until complete.
+- Queue/event count ceilings, MaxBoundSessions, pre-bind connection limits and worker ceilings bound metadata populations and goroutine stacks; byte ledgers bound payload/frame storage. These are complementary.
+- Go object headers, allocator fragmentation, GC metadata, goroutine stacks, socket/kernel buffers and application-retained payloads are not byte-exactly covered by these payload ledgers. The sum of finite owner/class limits provides a predictable library-owned payload bound, not a strict process RSS cap.
+- A callback may retain an incoming []byte after return. The library cannot observe that retention; release its library charge at callback return but never reuse that backing array.
 
-**Advantages:** simpler aggregate hot path and per-Session isolation; one noisy Session cannot exceed its own event count.
+### 5. Option B — separate byte ceiling for every lifecycle stage
 
-**Costs:** up to MaxBoundSessions Sessions can each consume their full count allowance. Aggregate queue metadata can therefore grow to the per-Session cap multiplied by the Session limit, even while aggregate payload bytes remain within 256 MiB. This is a weaker owner-wide metadata bound.
+Give incoming-in-progress, incoming-queued, active Application, outgoing FIFO/Writer, Completion-queued and Completion-running independent byte ceilings, transferring reservations at every stage boundary.
 
-### Option C — retain byte-only Application queue admission
+**Advantages:** maximum per-stage tuning and the ability to isolate a pathological stage.
 
-Do not add Application incoming/outgoing frame-count ceilings. Keep Q-008/Q-009/Q-010 byte limits, PERF-003 Request credits and WORKER-003 OnClose event credits as they are.
+**Costs:** many more counters and configuration dimensions; every transfer needs a multi-ledger atomic transaction; dispatch can stall when the destination stage is full even while queue capacity remains; double-reserve/rollback logic increases hot-path work and race surface. It is harder to prove no charge gap or deadlock.
 
-**Advantages:** no new count reservation or configuration dimension for Application frame queues.
+### 6. Option C — derive active bounds from frame size, count and worker ceilings
 
-**Costs:** byte limits alone are not a useful practical bound on queue-node/event metadata for very small frames; a burst of tiny frames can create a large number of queued objects and scheduler operations. This leaves the incoming count-cap gap already identified by PERF-003 unresolved.
+Add no new retained-payload byte ledgers. Rely on a hard maximum frame size, existing queue-byte limits, WORKER-007 counts, PERF-003 Request credits and WORKER-002 active-worker ceilings.
 
-### Recommendation
+**Advantages:** lowest accounting overhead and fewest configuration options.
 
-Choose **Option A**. Add per-Session incoming/outgoing frame-count limits plus one aggregate Server queued-Application-frame count covering both directions. Keep Completion Request credits and OnClose event credits as their existing independent ledgers; do not double-count them or introduce a shared budget across callback classes. Count only waiting Application events in the incoming queue; active callback execution is already bounded by WORKER-002 and active payload memory is WORKER-008.
+**Costs:** worst-case active/Completion memory becomes the product of frame maximum and active/count ceilings. Numeric count/worker limits are not yet approved, and this derived upper bound may be too large. It offers no independent protection against many maximum-sized active payloads and does not make memory tuning explicit.
 
-Numeric defaults, practical maxima and public configuration names are not part of WORKER-007; defer them to WORKER-009 and API-004. Do not preallocate queue capacity.
+### 7. Recommendation and unresolved details
 
-**Owner decision requested:** choose WORKER-007 Option A (per-Session incoming/outgoing frame counts plus aggregate Server frame count), Option B (per-Session counts only), or Option C (keep Application queues byte-only). No numeric count defaults are implied.
+Choose **Option A**. It preserves queue-specific overload behavior while giving each callback class a clear owner-scoped retained-payload ceiling. The incoming queue-to-active transition has no accounting gap: the queue sub-limit is released, but the retained-payload reservation stays with the same owned buffer until callback return. Application and Completion byte ledgers are independent so a large Request-handler payload population cannot consume the Completion payload reserve, or vice versa.
+
+Numeric byte ceilings, count defaults, worker ceilings, exact protocol maximum frame size and public configuration names remain for WORKER-009/API-004 and protocol cross-language confirmation. The exact overflow disposition when a valid matching Completion response cannot reserve its Completion byte budget must be resolved before Architecture Freeze; do not silently drop the response or invent a second Request credit. No implementation, tests or benchmarks are authorized.
+
+**Owner decision requested:** choose WORKER-008 Option A (owner-scoped retained-payload ledgers per Application and Completion class), Option B (separate byte limits per lifecycle stage), or Option C (derive bounds only from frame/count/worker limits). No numeric byte defaults are implied.
 
 ---
 

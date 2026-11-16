@@ -335,3 +335,10 @@ Application, Completion and OnClose idle timeouts are independently configurable
 WORKER-006 is OWNER APPROVED, OPTION A: each isolated callback-class pool uses a FIFO round-robin ready-Session queue, dispatching one callback per eligible Session turn and preserving FIFO within each Session. Completion start order remains governed by C-ORD-B. This does not alter Done/OnClose ordering, the WORKER-003 skip-on-saturation rule or active-worker permits.
 
 WORKER-007 remains OPEN. The recommendation is to add per-Session incoming/outgoing Application frame-count caps plus an aggregate Server count across both directions, alongside existing byte limits. Completion already uses PERF-003 Request credits; OnClose already uses WORKER-003 queued+running event credits. Do not duplicate those credits or create a shared cross-class event budget. Numeric count defaults/ranges remain for WORKER-009. No implementation, tests or benchmarks authorized.
+
+
+## 18. WORKER-007 / WORKER-008 — queue counts and retained payload accounting (2026-11-16)
+
+WORKER-007 is OWNER APPROVED, OPTION A: per-Session incoming/outgoing Application frame-count ceilings plus one Server-aggregate queued Application frame-count ceiling across both directions. Incoming count overflow closes only the offending Session; outgoing count overflow returns Queue Full. Completion reuses PERF-003 Request credits; OnClose reuses WORKER-003 event credits.
+
+WORKER-008 remains OPEN. The recommendation is separate owner-scoped retained-payload byte ledgers for Application and Completion classes. Started callbacks retain their payload charge until return even after Done/Session teardown; unstarted callbacks cancelled by Forced Close A release queued payload and credits. Numeric ceilings and Completion-byte exhaustion behavior remain open. No implementation authorized.

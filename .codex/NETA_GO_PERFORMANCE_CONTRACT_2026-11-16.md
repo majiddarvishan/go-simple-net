@@ -176,3 +176,12 @@ Each callback-class pool uses a FIFO round-robin ready-Session queue. One callba
 ## 17. WORKER-007 — queue/event capacity design (OPEN; RECOMMENDATION ONLY)
 
 The recommended extension is a count dimension alongside existing byte caps for queued Application frames: per-Session incoming and outgoing counts plus one aggregate Server count across both directions. Incoming count saturation closes only the offending Session; outgoing count saturation returns Queue Full. Completion remains bounded by PERF-003 whole-lifecycle Request credits, and OnClose by WORKER-003 queued+running event credits. Avoid duplicate or shared cross-class budgets. Numeric defaults and limits remain deferred to WORKER-009. No implementation, tests or benchmarks authorized.
+
+
+## 18. WORKER-007 — Application queue count ceilings (OWNER APPROVED, OPTION A, 2026-11-16)
+
+Per-Session incoming/outgoing Application frame-count limits and one Server-aggregate queued Application frame-count limit across both directions are approved. Incoming Request count releases at callback start; outgoing count remains until full Writer completion. Incoming overflow closes only the offending Session; outgoing overflow returns Queue Full. Completion and OnClose retain their existing independent credits.
+
+## 19. WORKER-008 — payload memory ceiling (OPEN; RECOMMENDATION ONLY)
+
+Recommended separate per-Session and per-owner retained-payload byte ledgers for Application and Completion classes. Application covers incoming Request payload through callback return and outgoing frame storage through full write. Completion covers matching response payload through Completion callback return/cancellation. Queue-specific budgets remain independent sub-limits; ownership transfer must not create a charge gap. User-retained inbound memory after callback return is outside the library ceiling. Numeric defaults and Completion-byte exhaustion disposition remain open.
