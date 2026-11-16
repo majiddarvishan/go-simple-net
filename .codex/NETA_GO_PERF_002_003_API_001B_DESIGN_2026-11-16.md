@@ -64,10 +64,10 @@ The outgoing FIFO byte limit does **not** cap outstanding requests: a sent frame
 
 ### 3.1 Owner-approved bounded model — exact capacities and lifecycle details still open
 
-- Use **one shared completion-credit limit per Session**, covering all accepted requests whose callback has not completed (waiting response, terminal result queued, or currently executing). Reserve one credit **before** accepting each callback-based SendRequest; release after the callback returns, or after explicit terminal cancellation on forced teardown. Do not create one goroutine per Request.
-- A separate **Server aggregate completion-credit ceiling** prevents multiplying the per-Session maximum by up to 1024 bound Sessions. Client standalone sessions use their local ceiling.
-- **Illustrative, NOT APPROVED defaults:** `MaxOutstandingCompletionSlots=1024` per Session; `MaxAggregateCompletionSlots=65536` per Server. Both configurable typed Functional Options if accepted. Capacity is lazily accounted, not preallocated. Final numbers require workload discussion/measurement.
-- On an exhausted completion credit, reject the **new** callback-based request immediately with a distinct typed capacity error (proposed `ErrCompletionCapacity`), do not enqueue/transmit, and leave Session connected. Q-008 `Queue Full` for outgoing **byte** exhaustion remains unchanged. SendNoWait / SendResponse do not use a pending-response completion slot.
+- Use **one shared Request-credit limit per Session**, covering all accepted callback-based requests whose Completion callback has not completed (waiting response, terminal result queued, or currently executing). Reserve one credit **before** accepting each callback-based SendRequest. An unstarted Completion callback cancelled by the approved Forced Close A path releases its credit exactly once; a started callback retains its credit until it actually returns. Do not create one goroutine per Request.
+- A separate aggregate Request-credit ceiling per **Client/Server owner** prevents multiplying the per-Session maximum by the Session population. Server Sessions share their Server owner's budget; all Client reconnect generations share their Client owner's budget.
+- **WORKER-009B2 approved defaults (2026-11-17):** `MaxOutstandingCompletionSlots=128` per Session; `MaxAggregateCompletionSlots=32768` per Client/Server owner. These replace the earlier illustrative 1024/65536 values. Both are independently configurable typed Functional Options. Capacity is lazily accounted, not preallocated; WORKER-009C will define public hard maxima and valid ranges.
+- On exhausted per-Session or owner Request credits, reject the **new** callback-based request immediately with a distinct typed capacity error (exact exported name remains API-001), do not enqueue/transmit, and leave Session connected. Q-008 `Queue Full` for outgoing byte/frame-count exhaustion remains unchanged. SendNoWait / SendResponse do not use a Request credit.
 - The existing **4 MiB/Session incoming callback backlog** and Server **256 MiB aggregate application-frame queue** continue to bound waiting response/request payload bytes. Add a configurable **event-count cap** to incoming callback backlog to prevent unbounded queues of empty frames; preserve the approved Q-009 closure policy if an incoming application event cannot fit. Do not silently substitute a new overflow behavior.
 - Count the **active** callback payload and one in-progress read/write frame separately, with bounded Session lifecycle ownership; avoid double-charge or charge gaps when moving between FIFO, active Writer, callback queue and callback.
 - Completion metadata (Sequence/status/cause) and payload reservation must be charged exactly once in their respective capacities; response timeout/close/cancellation race has a single settlement winner. A response that misses its pending entry is late/unknown and cannot resurrect a settled request.
@@ -328,7 +328,7 @@ The Completion-byte exhaustion disposition and exact maximum frame size remain o
 
 ## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
-**Status:** WORKER-009A CLOSED / OWNER APPROVED; WORKER-009B1 CLOSED / OWNER APPROVED; WORKER-009B2/B3 and WORKER-009C OPEN.  
+**Status:** WORKER-009A, WORKER-009B1 and WORKER-009B2 CLOSED / OWNER APPROVED; WORKER-009B3 and WORKER-009C OPEN.  
 **Implementation:** NOT AUTHORIZED.
 
 ### 1. Scope and decomposition
@@ -337,11 +337,11 @@ WORKER-009 establishes zero-configuration defaults and finite validation boundar
 
 - **WORKER-009A — CLOSED:** derive the three owner active-worker defaults from GOMAXPROCS; keep other resource quotas fixed and finite.
 - **WORKER-009B1 — CLOSED / OWNER APPROVED:** per-Session Application/Completion callback concurrency defaults and independent idle-retirement grace defaults for all three worker classes.
-- **WORKER-009B2 — OPEN:** OnClose event, Application frame-count and outstanding Request-credit defaults.
+- **WORKER-009B2 — CLOSED / OWNER APPROVED:** OnClose event-credit, Application frame-count and outstanding Request-credit defaults; see §3.2 for the six approved V1 defaults.
 - **WORKER-009B3 — OPEN:** retained Application and Completion payload-byte defaults.
 - **WORKER-009C — OPEN:** explicit configuration hard maxima, valid ranges, cross-field constraints and final Functional-Option mapping.
 
-The existing Q-008/Q-010 defaults remain binding and are not reopened. Candidate numbers in B1–B3 are not approved until the owner selects them.
+The existing Q-008/Q-010 defaults remain binding and are not reopened. B1 and B2 defaults are owner approved; B3 remains a recommendation pending owner approval. None of these defaults establishes WORKER-009C hard maxima.
 
 ### 2. WORKER-009A — CPU-derived worker defaults (OWNER APPROVED OPTION A, 2026-11-17)
 
@@ -382,7 +382,7 @@ Illustrative resolved values:
 
 ### 3. WORKER-009B — numeric defaults (PROPOSAL ONLY)
 
-The following matrix distinguishes approved WORKER-009B1 defaults from the still-proposed B2/B3 values. The formulas in §2 and all values in §3.1 are owner approved; B2/B3 remain recommendations only.
+The following matrix distinguishes owner-approved WORKER-009B1/B2 defaults from the still-proposed B3 values. The formulas in §2 and all values in §§3.1–3.2 are owner approved; B3 remains a recommendation only.
 
 #### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement (OWNER APPROVED, 2026-11-17)
 
@@ -401,7 +401,7 @@ The already-approved zero warm-idle floor remains in force. The grace period sta
 
 #### 3.2 WORKER-009B2 — event, frame-count and Request-credit defaults
 
-| Setting | Recommended default | Scope | Accounting and saturation |
+| Setting | Approved default | Scope | Accounting and saturation |
 |---|---:|---|---|
 | OnClose event credits | 1,024 | Per Client/Server owner | Queued + running; on saturation permanently skip the new OnClose per WORKER-003 |
 | Incoming Application frame count | 256 | Per Session | Reader reservation + waiting Request callback frames; if admission fails, close only that Session |
@@ -410,7 +410,9 @@ The already-approved zero warm-idle floor remains in force. The grace period sta
 | Outstanding Request credits | 128 | Per Session | Full async Request lifecycle through Completion callback return/cancellation |
 | Aggregate outstanding Request credits | 32,768 | Per Client/Server owner | Same Request credits; no duplicate Completion event credit |
 
-Rationale: count limits protect tiny/empty-frame metadata that byte budgets alone do not bound. The 1,024 OnClose event budget matches the currently approved 1,024 bound-Session default for a single close wave, while remaining finite across churn and permanently blocked callbacks. The 65,536 Server frame ceiling limits the aggregate population independently of the per-Session 256 ceilings. PERF-003 credits remain the sole Completion event-count mechanism.
+Rationale: count limits protect tiny/empty-frame metadata that byte budgets alone do not bound. The 1,024 OnClose event budget matches the approved 1,024 bound-Session default for a single close wave, while remaining finite across churn and permanently blocked callbacks. The 65,536 Server frame ceiling limits the aggregate population independently of the per-Session 256 ceilings. PERF-003 Request credits remain the sole Completion lifecycle/count mechanism; no second Completion event credit is created.
+
+**Owner approval (2026-11-17):** the owner approved all six defaults in §3.2 (Option A). OnClose credits count queued + running events per Client/Server owner and saturation permanently skips the new OnClose event under WORKER-003. Incoming count reserves after a valid fixed header and before body allocation/read; it covers the in-progress Reader reservation plus waiting Request callback frames and is released at callback start. If either the Session or Server incoming count cannot admit the frame, close only that Session. Outgoing count includes the Writer-owned frame until full Write or definitive discard; local or Server aggregate exhaustion returns Queue Full without closing the Session or creating Pending/Sequence state. The Server aggregate frame count covers incoming + outgoing queued Application frames, not a second physical population. Outstanding Request credits are reserved before accepting callback-based SendRequest and remain through response wait, terminal settlement, queued Completion and active Completion callback until callback return or permitted cancellation. The per-Session limit is 128; the aggregate limit is 32,768 per Client/Server owner, shared by all Server Sessions and all Client reconnect generations. A saturated Request-credit admission rejects the new request before enqueue/transmission with a typed capacity error; it does not close the Session. SendNoWait and SendResponse do not consume Request credits. All six limits are independently configurable, lazy admission ceilings (not preallocation), and explicit zero is invalid. The aggregate frame-count and Request-credit defaults are intentionally lower than the sum of their theoretical per-Session ceilings; no cross-field requirement forces aggregate capacity to equal or exceed the product of Session count and local capacity. These defaults do not set WORKER-009C hard maxima.
 
 #### 3.3 WORKER-009B3 — retained-payload byte defaults
 
@@ -457,7 +459,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 ### 6. Owner decision sequence
 
-**Next: WORKER-009B2.** Review the candidate defaults for OnClose event credits, incoming/outgoing Application frame counts, Server aggregate queued Application frame count, and per-Session/owner outstanding Request credits. WORKER-009B3 retained-payload byte defaults follow; WORKER-009C establishes hard maxima and cross-field validation.
+**Next: WORKER-009B3.** Review retained Application and Completion payload-byte defaults. WORKER-009C follows to establish hard maxima, valid ranges, cross-field validation and public Functional-Option limits.
 
 **Guardrail:** design/documentation only. No Go/C++ source, tests, benchmarks, builds, dependency changes, CI, deployment or operational changes are authorized.
 

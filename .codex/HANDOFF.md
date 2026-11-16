@@ -1,17 +1,17 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 is CLOSED / OWNER APPROVED, OPTION A:** per-Session incoming/outgoing Application frame counts plus one Server-aggregate queued Application frame count across both directions. Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 event credits. **WORKER-008 is CLOSED / OWNER APPROVED, OPTION A:** separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. **WORKER-009A is CLOSED / OWNER APPROVED, OPTION A:** the three owner worker ceilings are derived once from GOMAXPROCS (Application=min(max(4,4P),128); Completion=min(max(2,2P),64); OnClose=min(max(2,P),32)); all other quotas remain fixed. **WORKER-009B numeric defaults are next.** Completion-byte exhaustion disposition, final frame maximum and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 is CLOSED / OWNER APPROVED, OPTION A:** per-Session incoming/outgoing Application frame counts plus one Server-aggregate queued Application frame count across both directions. Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 event credits. **WORKER-008 is CLOSED / OWNER APPROVED, OPTION A:** separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. **WORKER-009A is CLOSED / OWNER APPROVED, OPTION A:** the three owner worker ceilings are derived once from GOMAXPROCS (Application=min(max(4,4P),128); Completion=min(max(2,2P),64); OnClose=min(max(2,P),32)); all other quotas remain fixed. **WORKER-009B2 is CLOSED / OWNER APPROVED. WORKER-009B3 retained-payload defaults are next.** Completion-byte exhaustion disposition, final frame maximum and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A and WORKER-009B1 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. Next: WORKER-009B2, count/event and outstanding Request-credit defaults; WORKER-009B3 payload-byte defaults and WORKER-009C validation limits remain open. WORKER-008 Completion-byte exhaustion behavior and exact frame maximum remain open for Architecture Freeze; API-002 and API-003 also remain open.
+**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1 and WORKER-009B2 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. Next: WORKER-009B3 retained-payload byte defaults, then WORKER-009C hard maxima/valid ranges. WORKER-008 Completion-byte exhaustion behavior and exact frame maximum remain open for Architecture Freeze; API-002 and API-003 also remain open.
 
 ## 1. Repository state
 
 - Default branch: main
-- Current verified remote HEAD before this documentation update: `2f8cbebd27f34777598982e7157c0de45b29c461`.
+- Current verified remote HEAD before this documentation update: `0fed04996f3bb46c1951e6539df1ee67bfca3d20`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
@@ -515,7 +515,7 @@ WORKER-009A and WORKER-009B1 are now CLOSED / OWNER APPROVED. B1 defaults: Appli
 
 The owner approved Option A. At Client/Server effective-configuration construction, capture P=max(1,runtime.GOMAXPROCS(0)) once. Resolve owner-wide active-worker defaults as Application=min(max(4,4P),128), Completion=min(max(2,2P),64), and OnClose=min(max(2,P),32). These are lazy worker ceilings, not eager goroutine counts. The resulting values remain immutable for the owner lifetime; later CPU quota/GOMAXPROCS changes do not resize a live instance. All other queue, count and retained-byte quotas remain fixed finite defaults, independently configurable. The formula caps are not hard maxima for explicit overrides; WORKER-009C will decide those.
 
-**Next:** WORKER-009B2 — review count/event and Request-credit defaults. WORKER-009B1 is CLOSED / OWNER APPROVED: Application and Completion concurrency=1 per Session; each isolated pool's idle-retirement grace=30s.
+**Next:** WORKER-009B3 — review retained Application and Completion payload-byte defaults. WORKER-009B2 is CLOSED / OWNER APPROVED; its six count/event defaults and saturation rules are recorded in §38 and DECISION_LOG.md.
 
 **Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.
 
@@ -524,6 +524,26 @@ The owner approved Option A. At Client/Server effective-configuration constructi
 
 The owner approved all five defaults: Application callback concurrency=1 per Session; Completion callback concurrency=1 per Session; Application idle grace=30s; Completion idle grace=30s; OnClose idle grace=30s. All are independently configurable. Concurrency 1 preserves serial callback execution by default; higher positive values remain configurable subject to the existing per-Session and owner-wide ceilings. Each idle grace starts only after callback return and when no dispatchable work exists; it never interrupts running callbacks. WORKER-005's zero warm-idle floor, class isolation and atomic enqueue/retirement rules remain binding. Explicit zero is not Unlimited or an immediate-retirement shorthand and is invalid for these positive settings.
 
-**Next:** WORKER-009B2 — OnClose event credits, incoming/outgoing Application frame counts, aggregate queued frame count and outstanding Request-credit defaults. WORKER-009B3 and WORKER-009C remain open.
+**Next:** WORKER-009B3 — retained Application and Completion payload-byte defaults. WORKER-009B2 is CLOSED / OWNER APPROVED; WORKER-009C remains open.
+
+**Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.
+
+
+## 38. WORKER-009B2 — count/event and Request-credit defaults (OWNER APPROVED OPTION A, 2026-11-17)
+
+The owner approved all six proposed defaults as official V1 defaults, independently configurable through typed Functional Options:
+
+| Setting | Approved default | Scope |
+|---|---:|---|
+| OnClose event credits | 1,024 | Per Client/Server owner; queued + running |
+| Incoming Application frames | 256 | Per Session |
+| Outgoing Application frames | 256 | Per Session, including Writer-owned frame until full Write/discard |
+| Aggregate queued Application frames | 65,536 | Per Server, incoming + outgoing |
+| Outstanding Requests | 128 | Per Session, full async lifecycle through Completion callback return/cancellation |
+| Aggregate outstanding Requests | 32,768 | Per Client/Server owner; Client reconnect generations share the same budget |
+
+Incoming local or aggregate count saturation closes only the offending Session. Outgoing local or aggregate count saturation returns Queue Full and keeps the Session open. OnClose saturation permanently skips the new event. Request-credit saturation rejects a new callback-based SendRequest before enqueue/transmission with a typed capacity error; it does not close the Session. SendNoWait and SendResponse do not consume Request credits. Completion reuses the PERF-003 Request credit; OnClose reuses the WORKER-003 event credit. Queue bytes/counts, active-worker permits, Request/Event credits and retained-payload bytes remain distinct admission ledgers, not additive physical-memory totals. Aggregate frame-count and Request-credit defaults are intentionally lower than the sum of their theoretical per-Session ceilings; cross-field validation must not force the aggregate values to equal or exceed those products. These values are defaults, not WORKER-009C hard maxima.
+
+**Next:** WORKER-009B3 — retained Application and Completion payload-byte defaults; then WORKER-009C.
 
 **Guardrail:** documentation/design only. No code, tests, benchmarks, builds, dependency or operational changes.

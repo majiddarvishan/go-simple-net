@@ -88,6 +88,21 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 - The 4 KiB Control allowance must remain separate/bounded and preserve single-writer semantics and Pinex Unbind ordering/10s deadline. Do not interpret its presence as a priority queue or permission to overtake application frames.
 - Include a clear field-specific error category (e.g. `invalid_config`) for invalid overrides. Exact exported error names are not decided.
 
+### WORKER-009B2 approved count/event defaults (2026-11-17)
+
+The following six count limits are part of the effective Client/Server configuration. Each is an independent typed Functional Option over its approved default; none is preallocated. Exact exported option names remain API-001 work.
+
+| Semantic setting | Approved default | Scope |
+|---|---:|---|
+| OnClose event credits | 1,024 | Per Client/Server owner; queued + running |
+| Incoming Application frames | 256 | Per Session; Reader reservation + waiting Request callbacks |
+| Outgoing Application frames | 256 | Per Session; includes Writer-owned frame until full Write/discard |
+| Aggregate queued Application frames | 65,536 | Per Server; incoming + outgoing |
+| Outstanding Requests | 128 | Per Session; through Completion callback return/cancellation |
+| Aggregate outstanding Requests | 32,768 | Per Client/Server owner; shared across Sessions/reconnect generations |
+
+Incoming count saturation closes only the offending Session; outgoing count saturation returns Queue Full and keeps the Session open. Server aggregate frame-count saturation follows the same direction-specific behavior. OnClose saturation permanently skips the new event. Request-credit saturation rejects the new callback-based SendRequest before enqueue/transmission with a typed capacity error and leaves the Session open. SendNoWait and SendResponse do not consume Request credits. These limits are distinct from worker permits, retained-payload bytes and queue-byte ledgers; no physical buffer is double-counted. Explicit zero/negative values are invalid. The aggregate frame-count and Request-credit defaults are intentionally lower than the sum of their theoretical per-Session ceilings; cross-field validation must not force aggregate limits to equal or exceed those products.
+
 ## 5. Resolution, ownership and lifetime — approved principles, draft API detail
 
 1. **Defaults:** build complete defaults when constructing the Client or Server.
@@ -111,7 +126,9 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 - No options: all approved defaults load, including **30s** idle and **10s** response timeout.
 - Explicit idle interval `0`: outgoing Enquire Link disabled; incoming Enquire Link responses still work.
 - Explicit positive idle duration: accepted and honored; negative rejected.
-- Independently override each of the six Q-010 defaults and the Q-008 outgoing cap; omitted values remain unchanged.
+- Independently override each Q-008/Q-010 setting and each WORKER-009B2 count limit; omitted values remain unchanged.
+- Verify each B2 count limit's exact-at-limit and non-fitting behavior, including direction-specific Session/Server saturation and no leaked Request credits.
+- Verify OnClose queued+running saturation skips permanently, and Request-credit saturation rejects before enqueue/transmission without closing Session.
 - Explicit zero and negative queue caps, session counts or mandatory timeouts: reject deterministically; no network side effects.
 - Concurrent Client/Server creation from the same option/config inputs never shares mutable effective state.
 - Mutating source Config inputs after construction cannot change live Session behavior.
@@ -141,6 +158,6 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 
 WORKER-008 Option A is owner approved: separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. Queue byte/count limits are separate admission dimensions, not additive physical-memory totals. Reconnect generations share Client owner accounting; started callbacks retain their charges until actual return.
 
-WORKER-009 is open. The recommended default model is to resolve only owner worker ceilings from GOMAXPROCS at Client/Server configuration construction, with finite caps, while keeping queue/count/Request/Event/retained-byte quotas as fixed finite defaults. The resolved config remains immutable; no live adaptation or hot reload. The candidate numeric matrix is in [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §17. The owner has approved WORKER-009A Option A: CPU-derived, capped worker defaults for the three owner callback classes, resolved once at Client/Server effective-config construction. WORKER-009B1 is now CLOSED / OWNER APPROVED: Application and Completion concurrency defaults are 1 per Session, and idle-retirement grace defaults are 30s independently for Application, Completion and OnClose. The current owner decision is WORKER-009B2: count/event and Request-credit defaults.
+WORKER-009A, WORKER-009B1 and WORKER-009B2 are CLOSED / OWNER APPROVED. WORKER-009A resolves owner worker ceilings once from GOMAXPROCS. WORKER-009B1 sets Application/Completion concurrency=1 per Session and independent 30s idle grace for Application, Completion and OnClose. WORKER-009B2 approves OnClose event credits=1,024 per owner; incoming/outgoing Application frame counts=256 per Session; aggregate queued Application frame count=65,536 per Server; outstanding Request credits=128 per Session and 32,768 per Client/Server owner. These are independently configurable finite defaults; saturation and ledger semantics are specified above and in Worker Capacity Design §17. WORKER-009B3 retained-payload byte defaults and WORKER-009C hard maxima/valid ranges remain open.
 
 The exact public option names remain API-001 work. Omitted values use defaults; explicit zero is invalid for required positive resource limits, except the already-approved EnquireLinkIdleInterval=0 disable behavior. No implementation or tests authorized.
