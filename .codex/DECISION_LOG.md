@@ -155,7 +155,7 @@ Continue Q-004 and the outstanding configuration/API details. No application imp
 
 ## Q-004 — Optional features scope for neta-go V1 (2026-11-16)
 
-**Status:** PROPOSED — awaiting explicit owner approval  
+**Status:** CLOSED — APPROVED OPTION A (lean V1 Core), 2026-11-16  
 **Applies to:** GO-PINEX-002, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-011, GO-PINEX-014  
 **Implementation:** NOT AUTHORIZED
 
@@ -163,7 +163,7 @@ Continue Q-004 and the outstanding configuration/API details. No application imp
 
 The uploaded Go sample includes several application-oriented features that are not part of Pinex C++ 1.5.0's wire contract. Go V1 must remain a general-purpose, interoperable TCP messaging library rather than inherit SS7-specific or sample-only policy.
 
-### Proposed V1 Core (retain)
+### Approved V1 Core (retain)
 
 - Shared Pinex-compatible codec, TCP client/server, session and Bind/Unbind state machine.
 - Opaque binary payload, stream request/response, sequence correlation and request deadlines.
@@ -172,7 +172,7 @@ The uploaded Go sample includes several application-oriented features that are n
 - Configurable client reconnect, transport timeouts, TCP keepalive and approved idle-only Enquire Link (Q-002), including `0` to disable automatic sending.
 - Controlled closure, terminal event notifications, and direct Go↔C++ Pinex interop tests.
 
-### Proposed V1 exclusions / future backlog
+### Approved V1 exclusions / future backlog
 
 | Feature | Proposal | Rationale |
 |---|---|---|
@@ -186,7 +186,7 @@ The uploaded Go sample includes several application-oriented features that are n
 
 **Important distinction:** Transport-level queue bounds, per-session admission and backpressure **remain mandatory in Core** even though business Rate Limiter and Circuit Breaker are proposed for deferral. Control PDUs must not starve behind regular payload backlog.
 
-### Proposed acceptance checks
+### Approved acceptance checks (to verify during implementation)
 
 - V1 can perform complete Bind, Stream, Enquire Link and Unbind interoperability against C++ Pinex with only the Go Core.
 - No optional application feature is needed to get a usable client/server.
@@ -194,8 +194,8 @@ The uploaded Go sample includes several application-oriented features that are n
 - Overloaded sessions use defined bounded behavior and do not cause unbounded memory growth.
 - Optional application policies can be layered outside the public API without wire changes.
 
-### Approval requested
+### Approval resolution
 
-Owner to choose **A — approve the lean V1 Core and defer the optional features above**, or **B — identify specific optional capabilities that must ship in V1**.
+The owner explicitly selected **Option A** on 2026-11-16. The lean V1 scope above is **approved** and Q-004 is **CLOSED**.
 
-This entry is **not** an approved decision until the owner replies. No source or build modifications are authorized.
+The approval does **not** authorize code implementation, module/repository renaming, tests, deployments, or changes in the C++ Pinex repository. Detailed API signatures and numerical limits remain open for design.
