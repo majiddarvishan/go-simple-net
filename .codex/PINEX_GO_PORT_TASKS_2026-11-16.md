@@ -292,14 +292,15 @@ Baseline فعلی Pinex:
 موارد لازم:
 - Timeout درخواست‌های تجاری
 - TCP Keepalive قابل تنظیم
-- پاسخ به Enquire Link
-- امکان Enquire Link دوره‌ای به‌صورت تنظیم اختیاری
-- تشخیص Peer بی‌پاسخ
+- پاسخ به Enquire Link مستقل از مقدار Interval (حتی در حالت 0)
+- Enquire Link فقط پس از بی‌ترافیکی واقعیِ دوطرفه Session به مدت Idle Interval قابل پیکربندی؛ 0 یعنی عدم ارسال خودکار
+- ریست زمان بی‌ترافیکی با هر Frame واقعاً دریافت‌شده یا ارسال‌شده، بعد از Bind موفق
+- تشخیص Peer بی‌پاسخ؛ سیاست Timeout/Failure Threshold نیازمند بررسی جداگانه است
 - جلوگیری از چند Enquire Link هم‌زمان
 - Retry و Backoff برای Client
 - تفکیک خطای Connect، Bind، Session و Request Timeout
 
-نکته: Pinex فعلی به‌صورت پیش‌فرض Enquire Link دوره‌ای ارسال نمی‌کند؛ آن را دریافت و پاسخ می‌دهد و از TCP Keepalive استفاده می‌کند. رفتار Enquire Link دوره‌ای نمونه Go نباید بدون تصمیم جداگانه به‌عنوان رفتار پیش‌فرض منتقل شود.
+نکته: Pinex C++ فعلی به Enquire Link ورودی پاسخ می‌دهد و به‌صورت پیش‌فرض Enquire Link خودکار ارسال نمی‌کند. طبق تصمیم Q-002 مالک، Go می‌تواند Enquire Link را **فقط هنگام Idle بودن** به‌صورت Configurable ارسال کند. این رفتار Wire Protocol را تغییر نمی‌دهد. پیش‌فرض عددی Interval و سیاست Timeout پاسخ هنوز تصویب نشده‌اند.
 
 ### GO-PINEX-012 — تست Cross-Language
 
@@ -372,7 +373,7 @@ Baseline فعلی Pinex:
 | Deduplicator | به‌صورت پیش‌فرض پیاده‌سازی نشود |
 | Priority Queue | فعلاً FIFO محدود و قابل پیش‌بینی |
 | Prometheus Metrics | Hook/Interface ساده ابتدا؛ Integration بعدی |
-| Application Enquire Link دوره‌ای | اختیاری؛ پیش‌فرض خاموش برای هم‌رفتاری با Pinex |
+| Application Enquire Link | در Core: فقط هنگام Idle؛ Idle Interval قابل تنظیم، 0 = بدون ارسال خودکار (Q-002 تأیید شد) |
 | Protobuf Handlerها | خارج از کتابخانه؛ Payload opaque |
 
 این موارد در صورت تأیید مالک می‌توانند به Backlog نسخه‌های بعدی اضافه شوند.
@@ -408,11 +409,22 @@ Baseline فعلی Pinex:
 
 **تست پذیرش آینده:** بدون Validator و ID یکتا => Bind موفق؛ بدون Validator و ID تکراری => Bind ردشده؛ با Validator => تابع تصمیم‌گیر؛ Bind نامعتبر => همچنان ردشده.
 
-### Q-002 — Enquire Link دوره‌ای
+### Q-002 — Enquire Link هنگام بی‌ترافیکی
 
-پیشنهاد: پاسخ‌گویی به Enquire Link همیشه فعال باشد؛ ارسال دوره‌ای به‌صورت Option و پیش‌فرض خاموش باشد.
+**تصمیم قطعی مالک در 2026-11-16: APPROVED.**
 
-**وضعیت:** پیشنهاد ثبت شده؛ نیازمند تأیید.
+- Enquire Link خودکار نباید با یک Ticker مستقل و در حین تبادل عادی داده ارسال شود.
+- روی Client و Server، یک Idle Interval قابل پیکربندی داشته باشیم: مقدار مثبت یعنی پس از این مدت بدون Frame ارسالی **و** دریافتی، Enquire Link Request فرستاده شود؛ مقدار **0 یعنی هیچ ارسال خودکاری انجام نشود**.
+- ثبت Activity فقط پس از ارسال/دریافت واقعی Frame باشد؛ شروع سنجش Idle پس از Bind موفق.
+- پاسخ به Enquire Link ورودی همیشه فعال باشد، حتی وقتی Idle Interval برابر 0 است.
+- حداکثر یک Enquire Link ارسالی و در انتظار پاسخ برای هر Session مجاز است.
+- قالب Frame، Command ID و Sequence همان Pinex 1.5.0 باقی می‌مانند.
+
+**وضعیت:** CLOSED — سیاست ارسال مورد تأیید است؛ هنوز پیاده‌سازی مجاز نیست.
+
+**جزئیات موکول‌شده به طراحی Config و Failure Policy:** پیش‌فرض عددی Idle Interval، مهلت پاسخ Enquire Link و نحوه برخورد با عدم دریافت پاسخ. هیچ مقداری برای این موارد از طرف مالک فرض نشود.
+
+**تست پذیرش آینده:** ترافیک مداوم => عدم ارسال؛ Idle با Interval مثبت => ارسال؛ 0 => عدم ارسال خودکار اما پاسخ‌گویی فعال؛ عدم ارسال چند Probe هم‌زمان؛ تست با Pinex C++.
 
 ### Q-003 — Thread Safety و Callback Ordering
 
