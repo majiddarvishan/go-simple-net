@@ -206,4 +206,35 @@ The approval does **not** authorize code implementation, module/repository renam
 
 The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). It distinguishes approved owner contracts from suggested (unapproved) exported API structure, numerical defaults, queue capacity and missing Enquire Link response behavior.
 
-**Open:** Q-006 (numeric idle interval default, 0 vs proposed 30s), Q-007 (Probe response deadline/action), Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). These are **not approved** and no code work is authorized.
+**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved). **Still open:** Q-007 (Probe response deadline/action), Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
+
+---
+
+## Q-006 — Default Enquire Link idle interval (2026-11-16)
+
+**Status:** CLOSED — APPROVED OPTION B  
+**Approved by:** Project owner  
+**Applies to:** GO-PINEX-002, GO-PINEX-006, GO-PINEX-011, GO-PINEX-012  
+**Implementation:** NOT AUTHORIZED
+
+### Decision
+
+- The default value of `EnquireLinkIdleInterval` for **neta-go Client and Server** is **30 seconds**.
+- This is an *inactivity threshold*, not a fixed-period heartbeat. Automatic Enquire Link is sent only if no valid Pinex frame has actually been exchanged in **either direction** on the bound session for 30 seconds, or for the configured positive interval.
+- Each completed outgoing/incoming Pinex frame refreshes the per-session activity timestamp; the idle timer begins once Bind succeeds.
+- Setting the interval explicitly to `0` disables **automatic sending**; responding to a peer's incoming Enquire Link remains mandatory.
+- At most one locally initiated Enquire Link can be pending for a session. Requests and responses retain the Pinex 1.5.0 control PDU wire format and sequence behavior.
+- The default differs from the current C++ Pinex implementation's lack of automatically initiated Enquire Link, but is **wire compatible** with that implementation.
+
+### Unresolved, not part of Q-006
+
+**Q-007** remains open: response deadline for an outstanding Enquire Link and whether to close the session if the matching reply is missing. No default deadline or failure action was approved by selecting Q-006 B.
+
+### Future tests (not run)
+
+- Default no-traffic session after Bind sends a probe on 30s idle, not on a 30s fixed ticker during active messaging.
+- A recent inbound or outbound frame prevents a premature probe.
+- Explicit zero disables automatic probes but responses to peer probes still work.
+- One pending local probe does not generate another, and Go↔C++ Pinex control frames interoperate.
+
+**No code, tests, module changes or repository renames are authorized by this decision.**
