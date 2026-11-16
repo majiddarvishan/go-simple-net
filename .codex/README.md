@@ -7,6 +7,7 @@
 - [بازبینی فنی Server به زبان Go — 2026-11-16](SERVER_REVIEW_2026-11-16.md)
 - [برنامه تسک‌های Go Client/Server سازگار با Pinex](PINEX_GO_PORT_TASKS_2026-11-16.md)
 - [قرارداد Wire Protocol سازگار با Pinex 1.5.0](PINEX_WIRE_PROTOCOL_2026-11-16.md)
+- [تصمیم‌های معماری و Bind Validator تأییدشده](DECISION_LOG.md)
 - [وضعیت و Handoff پروژه](HANDOFF.md)
 
 ## قاعده اعتبار منابع
