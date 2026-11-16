@@ -290,10 +290,10 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 
 ---
 
-## 14. تصمیم‌های باز
+## 14. تصمیم‌های ثبت‌شده و موارد باز
 
 1. **Q-001 — CLOSED / APPROVED OPTION A:** مالک Bind Validator Callback بر اساس System ID و Remote Address را بدون هیچ تغییر در Wire Protocol Pinex 1.5.0 تأیید کرد (2026-11-16). رمز عبور یا Token جدید روی Wire تعریف نمی‌شود. این روش معادل احراز هویت رمزنگاری‌شده نیست.
-2. **Q-005 — OPEN:** انتخاب رفتار پیش‌فرض Go Server در صورت عدم ارائه Bind Validator (Reject یا Allow).
+2. **Q-005 — CLOSED / APPROVED OPTION B (2026-11-16):** اگر Validator تعریف نشده باشد، Go Server یک Bind معتبر با `system_id` یکتا را مانند Pinex C++ می‌پذیرد. با وجود Validator، تصمیم Allow/Reject آن اعمال می‌شود. بررسی فرمت پروتکل، وضعیت Session، محدودیت منابع و Duplicate System ID در هر دو حالت پابرجاست. این Default معادل احراز هویت نیست.
 3. **Q-002 — OPEN:** Enquire Link دوره‌ای؛ پیشنهاد، اختیاری و پیش‌فرض خاموش.
 4. **Q-003 — OPEN:** Thread Safety API Go؛ پیشنهاد، API امن برای فراخوانی هم‌زمان و Callback ترتیبی در هر Session.
 5. **Q-004 — OPEN:** قابلیت‌های جانبی نمونه Go؛ پیشنهاد، خارج از Core نسخه اول.
