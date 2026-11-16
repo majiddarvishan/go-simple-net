@@ -1,7 +1,7 @@
-# Project Handoff — Go Simple Net / Pinex Compatibility
+# Project Handoff — neta-go / Pinex Compatibility
 
 **Updated:** 2026-11-16  
-**Repository:** majiddarvishan/go-simple-net  
+**Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
 **Current work:** protocol analysis and task planning only
@@ -93,7 +93,7 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 
 ## 9. Approved Go library name
 
-**NAM-001 CLOSED (2026-11-16):** The owner selected `neta-go` as the name of the native Go TCP Messaging library. NETA was originally proposed as "Network Easy Transport API" but the selected name itself, rather than the expansion, is the approved decision. Current GitHub repository is still `majiddarvishan/go-simple-net`; no repository/module/package renames have been authorized or performed. Pinex C++ stays named Pinex. No code has been written. See DECISION_LOG.md.
+**NAM-001 CLOSED (2026-11-16):** The owner selected `neta-go` as the name of the native Go TCP Messaging library. NETA was originally proposed as "Network Easy Transport API" but the selected name itself, rather than the expansion, is the approved decision. The project owner subsequently renamed the GitHub repository to `majiddarvishan/neta-go` (confirmed accessible on `main`). No Go module/package-path change or source implementation has been performed or approved in this documentation phase. Pinex C++ stays named Pinex. No code has been written. See DECISION_LOG.md.
 
 
 ## 10. Enquire Link default decision
@@ -140,3 +140,13 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 **PERFORMANCE OWNER PRIORITY:** high throughput/low tail latency/low allocation overhead and scalability are important for V1. Propose reproducible measurements of msgs/s, p50/p95/p99 latency, allocation and copy counts, GC/RSS, contention and multi-Session load without precommitting unsupported numeric SLAs. See [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
 
 **Next open decisions:** PERF-002 payload `[]byte` lifetime (safe-copy vs borrowed), PERF-003 pending/completion bounds and API-001b callback/Close/Done semantics. No coding or tests permitted.
+
+## 17. GitHub repository path changed by owner (2026-11-16)
+
+**Current canonical repository:** `majiddarvishan/neta-go`  
+**SSH URL:** `git@github.com:majiddarvishan/neta-go.git`  
+**Branch:** `main` — existing `.codex` documents verified accessible via the GitHub connector.
+
+The owner **already renamed the GitHub repository** from `majiddarvishan/go-simple-net`; this update only synchronizes documentation references. No repository rename, source code edit, `go.mod` edit, test, or build is performed by the assistant. A `go.mod` file was **not found at repository root on main**; do not presume a Go module path is configured. Keep API-003 (package/module path) open. C++ Pinex remains unchanged.
+
+**Next:** continue PERF-002 payload ownership/copy-lifetime and PERF-003 bounded async completions; performance remains first-class V1 requirement. No coding authorization.
