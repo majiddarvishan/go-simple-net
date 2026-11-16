@@ -331,7 +331,7 @@ The hot path adds a bounded reservation/release alongside queue/count admission.
 
 ## 16. Explicitly not decided
 
-- WORKER-009A default derivation model; WORKER-009B numeric defaults; WORKER-009C hard validation ranges and cross-field constraints.
+- WORKER-009A and WORKER-009B1/B2/B3 defaults are CLOSED / OWNER APPROVED; WORKER-009C proposed explicit hard maxima, valid ranges, cross-field constraints and semantic Functional-Option mapping remain under owner review.
 - WORKER-008 Completion retained-byte exhaustion policy is resolved: bounded Body drain + terminal Resource Capacity Completion without payload under Option A. The exact C++ Pinex maximum frame size and Go/C++ cross-language confirmation remain open.
 - Exact maximum Pinex frame size and Go/C++ cross-language confirmation.
 - API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
@@ -451,7 +451,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 ### 3.4 WORKER-009C — proposed hard maxima and validation boundary (OPEN; OWNER REVIEW PENDING)
 
-The following is a bounded engineering proposal, not an approved contract. Hard maxima are configuration-validation ceilings, not recommended operating points or preallocation targets.
+The following is a bounded engineering proposal, not an approved contract. Hard maxima are configuration-validation ceilings, not recommended operating points or preallocation targets. This proposal covers the worker, event/count-credit and retained-payload settings introduced by WORKER-009; existing Q-008/Q-010 queue-byte, session-admission and pre-Bind defaults are not reopened by this table and remain governed by their own contracts.
 
 | Setting | V1 default | Proposed valid range / hard maximum |
 |---|---:|---:|
