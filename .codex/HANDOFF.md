@@ -108,7 +108,7 @@ Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Life
 
 **Q-009 CLOSED / APPROVED B (2026-11-16):** if a new incoming Application Frame cannot fit the bounded Callback queue, promptly close **that Session only** with an overload cause; no silent drop or pause/resume fallback. Other Sessions continue unaffected. Go cannot forcibly terminate a blocked user callback; avoid indefinite shutdown waits and finalize terminal callback semantics in API design.
 
-**Q-010 OPEN:** inbound queue default, global queued-frame budget, max bound sessions, Pre-Bind defaults and bounded control headroom. Illustrative sizing values in NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md are unapproved proposals; global-overload handling is also undecided.
+**Q-010 OPEN:** numeric capacities + global-overload reaction. Proposal A: incoming 4 MiB per Session, 256 MiB aggregate queued Application frames per Server (NOT RSS), 1024 bound Sessions, 128 pre-bind, 30s pre-bind deadline, 4 KiB bounded control reserve per Session. Proposed global capacity outcomes: outgoing Send => Queue Full and keep connection; incoming non-fitting Frame => close offending Session; at bound-session cap reject new Bind, never evict existing. All Q-010 values and global reaction remain **UNAPPROVED**. Proposal B: owner-tuned alternative. See resource design.
 
 **API-004 OPEN:** exact Go API must make configured `EnquireLinkIdleInterval=0` observably different from an omitted config (approved 30s default).
 
