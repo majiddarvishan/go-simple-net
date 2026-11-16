@@ -179,3 +179,12 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 **User-visible lifecycle callbacks are a distinct open question:** `OnClose`, per-Request completion functions and error callbacks remain user code even when triggered by the internal engine. A dedicated bounded notification dispatcher can isolate them from blocked `OnRequest`, but their own non-returning functions remain unkillable. Decide their worker count, ordering, independent lane and forced-close cancellation/defer semantics in API-001b. A `Done`-like closed transport signal is recommended independently; not approved yet.
 
 **Open constraints to review:** default maximum concurrent Application handlers per Session; optional Server-wide active Application callback limit; whether a listener's max bound Sessions multiplied by configured concurrency needs aggregate active-count protection; what constitutes an active callback's payload memory ceiling; application handler output order vs immutable TCP receipt order. No code or tests.
+
+
+## 15. API-001b-N1 — user notification lane separation (OWNER APPROVED, 2026-11-16)
+
+- **APPROVED:** `OnClose` and per-Request Completion user callbacks are dispatched through a **bounded notification domain separate from the bounded Application `OnRequest` worker domain**. The internal protocol/timeout/transport lifecycle engine must not wait for either domain to finish.
+- **APPROVED EXISTING:** Q-003-R1 Application callbacks have configurable bounded same-Session concurrency (1 = serial), while PERF-003 A puts configurable count ceilings on outstanding Request + Completion work.
+- Blocking `OnRequest` must not by itself stall internal Close/result settlement or occupy the notification workers. An arbitrary blocking `OnClose`/Completion user function can still stall its own bounded notification domain; it is not forcibly cancelable.
+- **API-001b STILL OPEN:** exact `OnClose` vs completion scheduling/order, notification-lane capacity and worker counts/defaults, forced-close cancel-vs-defer behavior, a public `Done` signal and credit release semantics. No numeric count or definitive callback-delivery guarantee approved.
+- Read [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1 for the binding structure; older universal serialization notes are historical/superseded by Q-003-R1.
