@@ -312,7 +312,7 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 
 ## Q-009 / Q-010 — Follow-on resource design (2026-11-16)
 
-**Status:** Q-009 CLOSED / APPROVED OPTION B; Q-010 OPEN — proposed defaults only.  
+**Status:** Q-009 CLOSED / APPROVED OPTION B; Q-010 subsequently CLOSED / APPROVED OPTION A with all defaults configurable (2026-11-16).  
 **Reference:** [NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
 
 - **Q-009 APPROVED B:** close the specific Session promptly on an incoming Application frame that cannot be admitted to its bounded callback backlog; no pause/resume recovery policy for queue overflow in V1. See the Q-009 decision below.
