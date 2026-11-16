@@ -330,7 +330,7 @@ The exact C++ Pinex 1.5.0 maximum frame size and Go/C++ cross-language confirmat
 
 ## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
-**Status:** WORKER-009A, WORKER-009B1 and WORKER-009B2 CLOSED / OWNER APPROVED; WORKER-009B3 and WORKER-009C OPEN.  
+**Status:** WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 CLOSED / OWNER APPROVED; WORKER-009C OPEN.  
 **Implementation:** NOT AUTHORIZED.
 
 ### 1. Scope and decomposition
@@ -340,10 +340,10 @@ WORKER-009 establishes zero-configuration defaults and finite validation boundar
 - **WORKER-009A — CLOSED:** derive the three owner active-worker defaults from GOMAXPROCS; keep other resource quotas fixed and finite.
 - **WORKER-009B1 — CLOSED / OWNER APPROVED:** per-Session Application/Completion callback concurrency defaults and independent idle-retirement grace defaults for all three worker classes.
 - **WORKER-009B2 — CLOSED / OWNER APPROVED:** OnClose event-credit, Application frame-count and outstanding Request-credit defaults; see §3.2 for the six approved V1 defaults.
-- **WORKER-009B3 — OPEN:** retained Application and Completion payload-byte defaults.
+- **WORKER-009B3 — CLOSED / OWNER APPROVED, OPTION A:** retained Application and Completion payload-byte defaults.
 - **WORKER-009C — OPEN:** explicit configuration hard maxima, valid ranges, cross-field constraints and final Functional-Option mapping.
 
-The existing Q-008/Q-010 defaults remain binding and are not reopened. B1 and B2 defaults are owner approved; B3 remains a recommendation pending owner approval. None of these defaults establishes WORKER-009C hard maxima.
+The existing Q-008/Q-010 defaults remain binding and are not reopened. B1, B2 and B3 defaults are owner approved. None of these defaults establishes WORKER-009C hard maxima.
 
 ### 2. WORKER-009A — CPU-derived worker defaults (OWNER APPROVED OPTION A, 2026-11-17)
 
@@ -382,9 +382,9 @@ Illustrative resolved values:
 | 16 | 64 | 32 | 16 |
 | 32 or more | 128 | 64 | 32 |
 
-### 3. WORKER-009B — numeric defaults (PROPOSAL ONLY)
+### 3. WORKER-009B — numeric defaults (B1/B2/B3 OWNER APPROVED)
 
-The following matrix distinguishes owner-approved WORKER-009B1/B2 defaults from the still-proposed B3 values. The formulas in §2 and all values in §§3.1–3.2 are owner approved; B3 remains a recommendation only.
+The following matrix records owner-approved WORKER-009B1/B2/B3 defaults. The formulas in §2 and all values in §§3.1–3.3 are owner approved; hard maxima and validation ranges remain WORKER-009C.
 
 #### 3.1 WORKER-009B1 — per-Session concurrency and idle retirement (OWNER APPROVED, 2026-11-17)
 
@@ -416,9 +416,9 @@ Rationale: count limits protect tiny/empty-frame metadata that byte budgets alon
 
 **Owner approval (2026-11-17):** the owner approved all six defaults in §3.2 (Option A). OnClose credits count queued + running events per Client/Server owner and saturation permanently skips the new OnClose event under WORKER-003. Incoming count reserves after a valid fixed header and before body allocation/read; it covers the in-progress Reader reservation plus waiting Request callback frames and is released at callback start. If either the Session or Server incoming count cannot admit the frame, close only that Session. Outgoing count includes the Writer-owned frame until full Write or definitive discard; local or Server aggregate exhaustion returns Queue Full without closing the Session or creating Pending/Sequence state. The Server aggregate frame count covers incoming + outgoing queued Application frames, not a second physical population. Outstanding Request credits are reserved before accepting callback-based SendRequest and remain through response wait, terminal settlement, queued Completion and active Completion callback until callback return or permitted cancellation. The per-Session limit is 128; the aggregate limit is 32,768 per Client/Server owner, shared by all Server Sessions and all Client reconnect generations. A saturated Request-credit admission rejects the new request before enqueue/transmission with a typed capacity error; it does not close the Session. SendNoWait and SendResponse do not consume Request credits. All six limits are independently configurable, lazy admission ceilings (not preallocation), and explicit zero is invalid. The aggregate frame-count and Request-credit defaults are intentionally lower than the sum of their theoretical per-Session ceilings; no cross-field requirement forces aggregate capacity to equal or exceed the product of Session count and local capacity. These defaults do not set WORKER-009C hard maxima.
 
-#### 3.3 WORKER-009B3 — retained-payload byte defaults
+#### 3.3 WORKER-009B3 — retained-payload byte defaults (OWNER APPROVED OPTION A, 2026-11-17)
 
-| Setting | Recommended default | Scope | Accounting |
+| Setting | Approved default | Scope | Accounting |
 |---|---:|---|---|
 | Retained Application bytes | 16 MiB | Per Session | Inbound Request payload from header reservation through callback return/cancellation, plus outbound private frame through full Write/discard |
 | Aggregate retained Application bytes | 512 MiB | Per Client/Server owner | All library-owned Application payloads across that owner's Sessions and reconnect generations |
@@ -429,10 +429,12 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by the approved 16 MiB default. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
 The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+
+**Owner approval (2026-11-17):** Option A is approved. The four values in this table are official V1 defaults, independently configurable and lazily enforced. Client owner budgets are shared across reconnect generations; Server owner budgets cover all Sessions owned by that Server. Queue byte/count ceilings remain separate admission sub-limits over the same physical frame and are not added to retained-byte totals. These values are not hard maxima or an RSS cap.
 
 ### 4. Defaults already approved and unchanged
 
@@ -461,7 +463,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 
 ### 6. Owner decision sequence
 
-**Next: WORKER-009B3.** Review retained Application and Completion payload-byte defaults. WORKER-009C follows to establish hard maxima, valid ranges, cross-field validation and public Functional-Option limits.
+**Next: WORKER-009C.** Review the proposed hard maxima, valid ranges and cross-field rules in Worker Capacity Design §17. Exact exported Functional-Option identifiers remain API-001 work.
 
 **Guardrail:** design/documentation only. No Go/C++ source, tests, benchmarks, builds, dependency changes, CI, deployment or operational changes are authorized.
 
