@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. موارد Q-006/Q-007/Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 با انتخاب B بسته شد (پیش‌فرض 30s)**؛ Q-007/Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -474,12 +474,16 @@ Baseline فعلی Pinex:
 
 ### Q-006 — مقدار پیش‌فرض Enquire Link Idle Interval
 
-**وضعیت:** OPEN — کاربر قبلاً تأیید کرده که Interval قابل پیکربندی است و مقدار `0` ارسال خودکار را غیرفعال می‌کند؛ ولی مقدار **پیش‌فرض** هنوز انتخاب نشده است.
+**وضعیت:** CLOSED — مالک گزینه **B** را در 2026-11-16 تأیید کرد.
 
-- گزینه A: پیش‌فرض `0` و فعال‌سازی با تنظیم مقدار مثبت (مانند رفتار پیش‌فرض C++ Pinex).
-- گزینه B: پیش‌فرض پیشنهادی `30s` و امکان خاموش کردن با `0`.
+- پیش‌فرض `EnquireLinkIdleInterval = 30s` برای Client و Server.
+- ارسال خودکار فقط بعد از ۳۰ ثانیه بی‌ترافیکی Session انجام می‌شود؛ هر Frame ارسال یا دریافت‌شده مدت Idle را از نو آغاز می‌کند.
+- این تنظیم قابل تغییر است و مقدار صریح `0` ارسال خودکار را خاموش می‌کند؛ پاسخ به Enquire Link دریافتی حتی با `0` فعال می‌ماند.
+- حداکثر یک Enquire Link محلی در انتظار پاسخ وجود دارد.
+- این تصمیم **Q-007** (مهلت انتظار پاسخ، شکست و Close) را تعیین نکرده است.
+- تطابق Wire با C++ Pinex حفظ می‌شود، اگرچه C++ در حالت پیش‌فرض Probe خودکار آغاز نمی‌کند.
 
-**مرجع:** [پیش‌نویس Public API و Config](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md).
+**مرجع:** [Public API و Config](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) و [Decision Log](DECISION_LOG.md).
 
 ### Q-007 — Deadline پاسخ Enquire Link
 
