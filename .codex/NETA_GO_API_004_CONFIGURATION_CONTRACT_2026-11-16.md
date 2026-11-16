@@ -210,7 +210,7 @@ Binding validation invariants:
 - Per-Session Application/Completion concurrency is intersected with the owner/class active-worker ceiling at dispatch; no cross-field rejection is applied solely because the Session value is larger.
 - Queue bytes/counts, retained bytes, Request credits, OnClose credits and worker permits are independent ledgers; do not double-count a payload during ownership transitions.
 - Byte conversions and counter arithmetic are overflow/underflow checked. Owner caps are per Client/Server instance, not process-wide.
-- A 10-byte retained-byte minimum admits only a header-sized frame. The provisional 1 MiB Maximum Frame Size is not frozen by WORKER-009C.
+- A 10-byte retained-byte minimum admits only a header-sized frame. The 1 MiB total-frame maximum is source-verified against pinned Pinex C++ 1.5.0 and is separate from WORKER-009C; cross-language confirmation remains pending.
 
 ### 11.3 Approved Functional-Option mapping
 

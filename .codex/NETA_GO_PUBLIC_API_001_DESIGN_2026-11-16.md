@@ -10,7 +10,7 @@
 
 ## 1. Approved constraints and source authority
 
-- Compatibility target: **Pinex C++ 1.5.0**, branch **develop**, as recorded in [PINEX_WIRE_PROTOCOL_2026-11-16.md](PINEX_WIRE_PROTOCOL_2026-11-16.md). Exact C++ HEAD and golden frames still need pinning before implementation/test.
+- Compatibility target: **Pinex C++ 1.5.0**, branch **develop**, as recorded in [PINEX_WIRE_PROTOCOL_2026-11-16.md](PINEX_WIRE_PROTOCOL_2026-11-16.md). Pinex C++ 1.5.0 source baseline was audited at `f7bd1eb779baff0d10e624f20522df345e6ee747`; the 1 MiB total-frame maximum including Header is source-verified. Re-pin before future implementation/tests; golden frames and socket-level Go↔C++ confirmation remain pending.
 - Protocol has a 10-byte Big Endian length/ID/status/sequence header; Bind (`0x01/0x81`), Stream (`0x02/0x82`), Unbind (`0x03/0x83`) and Enquire Link (`0x04/0x84`). Responses reuse request sequence; payload remains opaque bytes. Do not change wire layout.
 - **Q-001/Q-005:** server Bind Validator is optional; absent means otherwise valid unique Bind accepted; duplicate System IDs rejected without evicting earlier active session. Validator may inspect actual remote TCP address; does not add password/token to wire.
 - **Q-002/Q-006/Q-007:** idle-only automatic Enquire Link default 30s, configurable, explicitly 0 disables outbound probes; incoming requests always answered. Response timeout default configurable 10s; only matching sequence satisfies it; session closes on timeout; client reconnect only when explicitly enabled.
@@ -378,10 +378,10 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the source-verified 1 MiB total-frame maximum, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
-The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including the 10-byte header. Cross-language confirmation remains pending; WORKER-009B does not set this protocol limit.
 
 ### 4. Defaults already approved and unchanged
 

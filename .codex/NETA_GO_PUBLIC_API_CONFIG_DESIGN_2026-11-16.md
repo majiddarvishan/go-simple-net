@@ -79,7 +79,7 @@ Exact exported Go identifiers, whether to expose synchronous request/wait helper
 | Incoming callback queue byte bound | per connection | per connection | **Default 4 MiB, configurable**; Session closes on non-fitting incoming frame — Q-009 B / Q-010 A approved |
 | Server aggregate Application queued bytes | N/A | yes | **Default 256 MiB, configurable**, not process RSS; outgoing global overflow => Queue Full, incoming global overflow => close offending Session — Q-010 A approved |
 | Bounded control queue | per connection | per connection | **Default 4 KiB, configurable**; no unbounded buffering, preserve Pinex control ordering — Q-010 A approved |
-| Max protocol frame length | yes | yes | must interoperate with C++ 1 MiB receive capacity; effective bound/definition to pin |
+| Max protocol frame length | yes | yes | **1 MiB total Frame including 10-byte Header (maximum Body 1,048,566 bytes), source-verified against pinned Pinex C++ 1.5.0**; Go enforces both directions |
 | Graceful Unbind deadline | yes | yes | C++ reference 10s; Go default proposed to match |
 | Stop/shutdown deadline | yes | yes | exact API and duration OPEN |
 

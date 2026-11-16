@@ -338,7 +338,7 @@ The WORKER-006 and WORKER-007 policies are resolved by the owner-approved decisi
 
 WORKER-007 Option A is approved: per-Session incoming/outgoing Application frame-count ceilings plus one Server-aggregate queued Application frame-count ceiling across both directions. Incoming count saturation closes only the offending Session; outgoing saturation returns Queue Full and keeps it. Completion reuses PERF-003 Request credits; OnClose reuses WORKER-003 queued+running event credits.
 
-WORKER-008 Option A is approved: separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. Application covers incoming Request and outgoing private frame storage through callback return/full Writer completion. Completion covers matched Response payload through queued/running Completion return or Forced Close A cancellation. Queue-only charges are released at queue transitions; retained-byte charges follow the same buffer. Started callbacks remain charged until return, including after Done/reconnect. Completion-byte exhaustion behavior and exact frame maximum remain open; no silent Response drop is permitted.
+WORKER-008 Option A is approved: separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. Application covers incoming Request and outgoing private frame storage through callback return/full Writer completion. Completion covers matched Response payload through queued/running Completion return or Forced Close A cancellation. Queue-only charges are released at queue transitions; retained-byte charges follow the same buffer. Started callbacks remain charged until return, including after Done/reconnect. Completion-byte exhaustion behavior is closed under WORKER-008 Option A. Pinex 1.5.0's 1 MiB total-frame maximum is source-verified; golden-frame/cross-language confirmation remains open. No silent Response drop is permitted.
 
 ## WORKER-009 — Defaults, Valid Ranges and Public Configuration Limits
 
@@ -439,10 +439,10 @@ Rationale:
 
 - The 16 MiB Application Session ceiling provides headroom beyond the independent 4 MiB incoming and 4 MiB outgoing queue-byte limits for active callbacks and in-progress frames. Those queue limits remain independent admission sub-limits; they are not added to the retained-byte ledger as separate physical buffers.
 - The 512 MiB Application owner ceiling is twice the existing 256 MiB Server queued-Application-byte default, leaving bounded headroom for active/in-progress Application payloads. It is not an RSS limit.
-- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the still-provisional 1 MiB maximum-frame reference, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
+- The earlier 4 MiB Completion-per-Session draft is superseded by this 16 MiB recommendation. Against the source-verified 1 MiB total-frame maximum, 4 MiB would permit only four maximum-size Response payloads for one Session. 16 MiB is a less restrictive bounded burst allowance; the 256 MiB owner ceiling still caps aggregate Completion payload retention.
 - These values are admission ceilings, not preallocations. User-retained inbound payload after callback return remains outside the library-owned retained-byte ledger.
 
-The Pinex reference's 1 MiB maximum frame remains provisional until the exact C++ Pinex 1.5.0 baseline and cross-language behavior are confirmed. WORKER-009B does not freeze that frame maximum.
+The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including the 10-byte header. Cross-language confirmation remains pending; WORKER-009B does not set this protocol limit.
 
 ### 4. Defaults already approved and unchanged
 
