@@ -1,4 +1,4 @@
-# Decision Log — Go Simple Net / Pinex Compatibility
+# Decision Log — neta-go / Pinex Compatibility
 
 ## Q-001 — Bind validation compatible with Pinex (2026-11-16)
 
@@ -135,16 +135,16 @@ Q-003 is **CLOSED**.
 
 **Status:** CLOSED — APPROVED: `neta-go`  
 **Approved by:** Project owner  
-**Implementation / repository rename:** NOT AUTHORIZED
+**Implementation:** NOT AUTHORIZED; the repository was subsequently renamed by the owner
 
 ### Final owner decision
 
 - The selected name for the **native Go TCP Messaging Client/Server** is **`neta-go`** (NETA Go).
 - The name **NETA** had been proposed as a short form of *Network Easy Transport API*; the owner explicitly selected the name `neta-go` (not a separately approved expansion).
 - It must remain interoperable with the C++ Pinex 1.5.0 wire protocol. Choosing a Go library name does not rename or change C++ Pinex.
-- This settles the **library branding** only. Proposed code package name `neta` and future repository/module name `neta-go` are implementation/migration proposals, not performed operations.
-- Current GitHub repository remains `majiddarvishan/go-simple-net` and existing branch remains `main`.
-- Do not change code, module paths, imports, README branding outside documentation, repository settings, or C++ Pinex naming without a separate instruction to execute those changes.
+- NAM-001 originally settled the **library branding** only. The owner subsequently renamed the GitHub repository to `neta-go`; the proposed code package name `neta` and Go module path remain unapproved/undetermined.
+- The current, owner-renamed GitHub repository is `majiddarvishan/neta-go` on branch `main` (verified 2026-11-16); the prior repository name was `majiddarvishan/go-simple-net`.
+- The owner's GitHub repository rename does not authorize changes to code, module paths, imports, README branding outside documentation, further repository settings, or C++ Pinex naming.
 - Naming collision, module-path availability, and trademark review have not been performed; verify as needed before public release.
 
 ### Next planning work
@@ -452,3 +452,15 @@ Q-010 requires all resource ceilings, pre-bind deadline and Control reserve to b
 - **Documents:** [Public API Design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) and [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
 
 Owner approval is a **design decision only**. No source modification, benchmarks or execution is authorized.
+
+---
+
+## NAM-002 — Owner-renamed GitHub repository (2026-11-16)
+
+**Status:** RECORDED / VERIFIED — repository path changed by owner, not by this assistant  
+**Previous repository:** `majiddarvishan/go-simple-net`  
+**Current canonical repository:** `majiddarvishan/neta-go`  
+**SSH URL:** `git@github.com:majiddarvishan/neta-go.git`  
+**Current branch:** `main`
+
+GitHub connector reads confirm existing `.codex` files are present under the new repository path. The owner changed the GitHub repository name; the assistant only updated `.codex` references. At the root of `main`, neither `go.mod` nor `README.md` was found through the file lookup; this is **not** evidence of a Go module rename. **API-003 remains OPEN** for package and module-path decisions. Pinex C++ and source code remain outside the scope of this documentation update; no tests or builds have been run.
