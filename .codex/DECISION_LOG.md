@@ -430,6 +430,25 @@ Q-010 requires all resource ceilings, pre-bind deadline and Control reserve to b
 
 - Approved API-004 functional options shape is carried into the Client/Server construction and configuration plan.
 - Proposed public concepts: Client, Server, Session, Session-bound incoming Request and explicit Response with original Sequence and header Status, per-Session ordered callbacks, and predictable Close/Done behavior under Q-003/Q-008/Q-009.
-- The most immediate **unapproved** choice is **API-001a**: Option A nonblocking request submission with callback completion, versus Option B synchronous Context-first Request as the primary interface. Both retain raw binary payload and Pinex 1.5.0 wire compatibility.
+- **API-001a CLOSED / owner approved A (2026-11-16):** nonblocking request submission with callback completion is V1's primary interface; synchronous Context-first Request (B) was not selected. Pinex 1.5.0 wire compatibility and raw binary payload remain mandatory.
 - Do not confuse successful enqueue with network delivery or remote application processing. Completion and transport shutdown guarantees need separate, testable contracts, particularly when arbitrary user callbacks never return.
-- Exact method/handler names, Go package/module path, error taxonomy, byte ownership, timer/reconnect details remain OPEN. No source changes are authorized.
+- Exact method/handler names, Go package/module path, error taxonomy, byte ownership (PERF-002), callback completion bounds (PERF-003), timer/reconnect details remain OPEN. **Performance is a first-class V1 requirement**: evaluate measured allocations/op, copy counts, p95/p99 latency, throughput, GC and concurrency scaling; no numeric performance SLA has yet been approved. No source changes are authorized.
+
+---
+
+## API-001a and PERF-001 — Asynchronous Request model and performance priority (2026-11-16)
+
+**API-001a Status:** CLOSED — OWNER APPROVED OPTION A  
+**Performance priority:** OWNER REQUIREMENT — performance is **very important**, first-class V1 engineering criterion  
+**Implementation:** NOT AUTHORIZED
+
+- Go Client/Server/Session API must expose a **nonblocking/callback-first primary Request path**. Local SendRequest-style admission returns promptly, with accepted local sequence or a typed failure (such as Q-008 Queue Full); it does **not** wait for the peer's response, nor imply network delivery or application processing.
+- Every admitted pending Request completes through **one** local completion path (matching response, timeout, transport failure, shutdown), without double completion or leaked tracker; exactly how the callback is registered is still API-001b.
+- Option B (primary synchronous `Request(ctx,...)` returning the peer's response) is **not selected** for V1. Any future optional blocking helper requires separate design and must not degrade the async hot path.
+- Performance affects **V1 readiness**: benchmark throughput, response latency percentiles, per-frame allocations/copies, GC pressure, memory and contended multi-Session scaling; protect existing wire and correctness contracts. Numerical pass/fail gates must be defined from reproducible measurement, and **no numeric target is approved**.
+- Avoid unbounded goroutines, queues or per-Request completion registrations. Keep Q-003 callback ordering, Q-008/009/010 bounded admission, and Pinex wire semantics.
+- **PERF-002 remains OPEN:** decide public `[]byte` ownership/lifetime, choosing between safe copying and explicitly bounded borrowed views (or a measured hybrid). Do not claim zero-copy from the async choice alone.
+- **PERF-003 remains OPEN:** bounded outstanding Request/completion admission, dispatch and shutdown semantics under slow user callbacks.
+- **Documents:** [Public API Design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) and [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
+
+Owner approval is a **design decision only**. No source modification, benchmarks or execution is authorized.
