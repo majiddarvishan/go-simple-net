@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast) و Q-009 (بستن Session هنگام سرریز صف ورودی) بسته شدند**؛ Q-010 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast)، Q-009 (بستن Session هنگام سرریز صف ورودی) و Q-010 (سقف‌های قابل تنظیم) بسته شدند**؛ قرارداد دقیق API هنوز باز است؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -530,17 +530,28 @@ Baseline فعلی Pinex:
 
 ### Q-010 — اعداد سقف منابع سراسری و صف ورودی
 
-**وضعیت:** OPEN — دو مسیر پیشنهادی برای تصمیم مالک؛ **هیچ عدد یا سیاست Global Overflow در Q-010 هنوز تصویب نشده است**.
+**وضعیت:** CLOSED — گزینه A با شرط **قابل پیکربندی بودن همه مقادیر** در 2026-11-16 به تأیید مالک رسید.
 
-**گزینه A (پیشنهاد برای نسخه اول):** صف Callback ورودی هر Session **4 MiB**، سقف مجموع صف‌های Application یک Server **256 MiB**، حداکثر **1024** Session Bindشده، حداکثر **128** اتصال Pre-Bind با Deadline مطلق **30s**، و ظرفیت Control PDU مجزای **4 KiB** برای هر Session؛ همه قابل تنظیم. `256 MiB` فقط سهمیه Frameهای Queued است، نه سقف RSS کل Process.
+| تنظیم | پیش‌فرض تأییدشده | Scope |
+|---|---:|---|
+| `MaxQueuedIncomingBytes` | **4 MiB** | هر Session، صف Callback ورودی |
+| `MaxAggregateQueuedFrameBytes` | **256 MiB** | جمع صف‌های Application سرور |
+| `MaxBoundSessions` | **1024** | Sessionهای Bindشده سرور |
+| `MaxPendingPreBindSessions` | **128** | اتصال‌های Pre-Bind هر Listener |
+| `PreBindHandshakeTimeout` | **30s** | Timeout مطلق از پذیرش اتصال |
+| `MaxQueuedControlBytes` | **4 KiB** | ظرفیت Control PDU هر Session |
 
-**سیاست پیشنهادی Global Overload:** ارسال خروجی جدید در صورت عبور از ظرفیت Global با Queue Full رد شود **بدون بستن Session**؛ Frame ورودی جدیدی که سهمیه Global نداشته باشد باعث بستن **همان Session ارسال‌کننده** شود؛ Sessionهای قدیمی evict نشوند؛ Bind جدید در سقف Bound Session با پاسخ سازگار Pinex رد شود. این واکنش Global هنوز تصویب نشده است و با تصمیم Q-009 (سرریز صف ورودی محلی) یکی نیست.
+- **تمام تنظیمات فوق قابل تغییرند** و پیش‌فرض‌ها نباید به مقادیر غیرقابل تغییر در کد تبدیل شوند. همچنین سقف خروجی هر Session از Q-008 برابر 4 MiB و آن هم قابل پیکربندی است.
+- در صورت رد ارسال خروجی به علت پر شدن سهمیه Session یا Global، **Queue Full و باز ماندن Session**؛ هیچ Frame ناقص یا Pending بی‌صاحب تولید نشود.
+- اگر Frame ورودی به علت ظرفیت Callback همان Session یا ظرفیت Global قابل پذیرش نباشد، **فقط همان Session** بسته شود.
+- در سقف تعداد Sessionهای Bindشده، Bind جدید با وضعیت سازگار Pinex رد شود و اتصال‌های قبلی حذف نشوند.
+- در سقف Pre-Bind، اتصال‌های اضافه قبل از تخصیص Session بسته شوند؛ Deadline مطلق 30s باشد.
+- ظرفیت Control محدود و جداگانه است؛ در اشباع غیرقابل‌حل، همان Session طبق قواعد Close بسته شود، بدون نقض ترتیب Frameها یا Unbind Deadline.
+- تخصیص حافظه نباید به‌اندازه تمام سقف‌ها برای هر Session از ابتدا صورت گیرد. 256 MiB بودجه صف‌های Application است، نه سقف RSS کل Process.
 
-**گزینه B:** اعداد پیشنهادی و در صورت لزوم واکنش Global پس از برآورد حجم و الگوی بار عملیاتی تنظیم شوند؛ محدودیت منابع و رفتار Q-008/Q-009 همچنان اجباری است.
+**باقی‌مانده طراحی API:** نحوه بیان مقدار تنظیم‌نشده/صفر، Validation تنظیمات، ترتیب Callback هنگام Close و Accounting فریم در حال پردازش. [Decision Log](DECISION_LOG.md) و [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 
-**نکته طراحی:** تخصیص واقعی حافظه باید تنبل/محدود باشد، نه Preallocate به اندازه تمام ظرفیت برای هر Session. مقادیر فوق معیار اولیه طراحی‌اند و پیش از استفاده عملیاتی نیاز به اندازه‌گیری دارند.
-
-**مرجع:** [Q-010 Capacity & Global Overload Proposal](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
+**کدنویسی همچنان مجاز نیست.
 
 ### API-004 — تفکیک پیش‌فرض و صفر در تنظیمات Go
 
