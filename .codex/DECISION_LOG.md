@@ -728,7 +728,7 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 Instance-scoped capacity preserves isolation between unrelated Client/Server instances, avoids hidden cross-instance contention and keeps the hot path free from a mandatory process-global worker admission point. Retired callbacks remain charged to the same owner, so reconnect churn cannot manufacture additional capacity.
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).  
-**Next:** WORKER-002 — decide whether each callback class needs its own explicit owner-wide active-worker ceiling or whether aggregate ceilings are derived from existing Session limits. No numeric defaults are implied.
+**Next at the time (resolved by the following WORKER-002 entry):** explicit owner-wide active-worker ceilings were subsequently approved. No numeric defaults were implied.
 
 ---
 
@@ -761,3 +761,26 @@ Explicit class ceilings make the upper bound independent of current Session coun
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§3–8.  
 **Next:** WORKER-003 — OnClose event-budget saturation and whether a close notification is skipped or protected by admission-time reservation. No numeric defaults are implied.
+
+---
+
+## WORKER-003 — OnClose Event-Budget Saturation (OPEN; RECOMMENDATION ONLY)
+
+**Status: OPEN — no owner selection yet.**  
+**Implementation:** NOT AUTHORIZED.
+
+WORKER-002 bounds physically active OnClose callbacks but does not bound queued events waiting behind blocked workers. A separate owner-scoped event budget is required. It should count queued + running OnClose events, with at most one event per Session. Events from old Client reconnect generations remain charged to the same Client owner until callback return.
+
+### Option A — skip the new event when the event budget is full (RECOMMENDED)
+
+After Session `Done` closes, attempt a nonblocking reservation from the owning Client/Server OnClose event budget. If it succeeds, enqueue the event; it may start only after Done and when an OnClose active-worker permit is available. If the event budget is full, permanently skip this invocation: no retry, no overflow goroutine and no delay to Done/internal cleanup. Started callbacks hold both active-worker and event credits until return. This is consistent with the approved best-effort/at-most-once OnClose contract.
+
+### Option B — reserve one event credit before admitting each Session
+
+Reserve a future OnClose event credit when admitting a Session. Convert it to a queued/running event when the Session closes and release it after callback return. If no reservation is available, reject/defer new Server Session admission or Client reconnect. This gives admitted Sessions a stronger OnClose delivery guarantee but couples connection availability to OnClose callback progress; permanently blocked callbacks can exhaust reservations and stop future admission. Pre-bind, rejected Bind, reconnect and sessions without an OnClose handler need additional rules.
+
+### Recommendation and owner decision
+
+Recommend **Option A**: a nonblocking skip on saturation. N-ORD2 and DONE-A already make OnClose independent and best-effort; transport admission should not depend on arbitrary user callback progress.
+
+**Owner decision requested:** choose Option A (skip OnClose on event-budget saturation) or Option B (reserve at Session admission and backpressure new Sessions/reconnects). No numeric event-budget default is part of this decision.
