@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 با انتخاب B بسته شد (پیش‌فرض 30s) و Q-007 نیز بسته شد (پیش‌فرض Timeout پاسخ 10s)**؛ Q-008 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s) و Q-008 (صف 4 MiB + Fail-Fast) بسته شدند**؛ Q-009 و امضای دقیق API هنوز بازند؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -500,16 +500,26 @@ Baseline فعلی Pinex:
 
 **جزئیات در [Decision Log](DECISION_LOG.md). هنوز مجوز کدنویسی صادر نشده است.
 
-### Q-008 — سیاست Backpressure و Default ظرفیت
+### Q-008 — سیاست Backpressure و Default ظرفیت خروجی
 
-**وضعیت:** OPEN — دو گزینه طراحی ثبت شده‌اند؛ **هیچ‌کدام توسط مالک تأیید نشده‌اند**.
+**وضعیت:** CLOSED — مالک در 2026-11-16 گزینه **A** را صریحاً تأیید کرد.
 
-- **گزینه A (پیشنهاد):** صف FIFO محدود به‌ازای هر Session با ظرفیت پیش‌فرض پیشنهادی **4 MiB** برای Frameهای Application (شامل Header) و قابلیت تنظیم؛ هنگام پر شدن، Send به‌سرعت با خطای Queue Full رد شود، بدون Drop پنهانی، بدون Partial Enqueue و بدون ایجاد Pending Request بی‌صاحب. برای Control PDUها ظرفیت/مسیر محدود ولی مستقل فراهم باشد تا Enquire Link و Unbind زیر فشار متوقف نشوند.
-- **گزینه B:** همان صف محدود، اما Send تا آزاد شدن ظرفیت با `context` قابل لغو منتظر بماند؛ پیچیدگی بیشتر و نیاز به تعریف رفتار Callbackهای Blockشده.
-- در هر دو گزینه، Backlog Callbackهای ورودی نیز باید محدود و سیاست Admission کل سرور/حداکثر Sessionها مشخص شود؛ اعداد مربوط به این دو بخش هنوز بررسی‌نشده‌اند.
-- Control PDU نباید Byteهای Frameها را Interleave یا ترتیب الزامی Pinex برای Unbind را نقض کند.
+- صف خروجی **FIFO محدود به‌ازای هر Session** و پیش‌فرض **4 MiB = 4,194,304 بایت** است؛ قابل پیکربندی.
+- فقط Frameهای **Application Stream** با اندازه کامل Serializeشده شامل Header ده‌بایتی Pinex در این سهمیه حساب شوند. این عدد Max Frame Size یا بودجه حافظه کل سرور نیست.
+- هنگام پر بودن صف، Send فوراً با خطای اختصاصی **Queue Full** شکست می‌خورد؛ نه انتظار نامحدود، نه Drop پنهانی، نه Partial Enqueue.
+- Request ردشده نباید Pending Response Timer یا Sequence ثبت‌شده و ارسال‌نشده باقی بگذارد.
+- مسیر/سهمیه Control PDUها مستقل و **محدود** بماند تا Enquire Link و Unbind از صف Application اشباع‌شده متوقف نشوند؛ بدون Interleave فریم و بدون نقض ترتیب الزامی Unbind، همراه با Deadline ده‌ثانیه‌ای آن.
+- Race Test، تست FIFO و Accounting با چند Goroutine، خطای Queue Full، آزادسازی ظرفیت، Peer کند، Control under pressure و تست Cross-Language الزامی‌اند.
 
-**وضعیت تصمیم:** در انتظار انتخاب مالک A/B. **۴ MiB صرفاً یک مقدار پیشنهادی است، نه تنظیم تأییدشده.** جزئیات در [پیش‌نویس طراحی API](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md).
+**مرز تصمیم:** عدد صف Callback ورودی، مقدار سهمیه Control PDU، بودجه کل سرور و تعداد Sessionهای مجاز هنوز تصویب نشده‌اند و تحت **Q-009** بررسی خواهند شد.
+
+**مرجع:** [Decision Log](DECISION_LOG.md) و [Public API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). هیچ کدنویسی مجاز نیست.
+
+### Q-009 — Incoming Backpressure و Global Admission
+
+**وضعیت:** OPEN — طراحی تکمیلی برای محدود کردن صف Callbackهای ورودی و مصرف حافظه کل سرور، جدا از Q-008. اعداد و سیاست دقیق هنگام اشباع ورودی/سراسری هنوز تأیید نشده‌اند و نباید از 4 MiB خروجی استنتاج شوند.
+
+**مرجع:** [طراحی منابع و Backpressure](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 
 ---
 
