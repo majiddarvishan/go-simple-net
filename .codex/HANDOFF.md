@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 and WORKER-002 Option A are owner approved:** each Client/Server instance owns three independent owner-wide active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with the corresponding class ceiling; classes cannot borrow permits; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 OnClose event-budget saturation remains open; numeric capacities, payload/event bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 and WORKER-002 Option A are owner approved:** each Client/Server instance owns three independent owner-wide active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with the corresponding class ceiling; classes cannot borrow permits; retired-generation callbacks remain charged. No process-global ceiling. **WORKER-003 Option A is owner approved:** OnClose uses a bounded owner-scoped queued+running event budget; after Done closes, one nonblocking reservation is attempted and saturation permanently skips the callback, without retry or teardown wait. WORKER-004 pool topology is next; numeric capacities, payload/event bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 and WORKER-002 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. Next: WORKER-003, OnClose event-budget saturation. Numeric worker/event defaults, payload-byte bounds, physical pool layout, terminal-cause/Close-return details, API-002 and API-003 remain open.
+**Current work:** WORKER-001 and WORKER-002 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. Next: WORKER-004, choose three class-isolated worker pools versus one shared owner pool with strict per-class reservations. Numeric worker/event defaults, payload-byte bounds, idle-worker lifecycle, terminal-cause/Close-return details, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
@@ -373,3 +373,22 @@ WORKER-001 owner scope remains binding across all Sessions and Client reconnect 
 Choose the OnClose saturation policy: skip a new OnClose callback when the owner's bounded active+queued event budget is full (recommended, consistent with best-effort delivery), or reserve an event slot at Session admission and apply backpressure to new Session/reconnect admission when no reservation is available.
 
 Numeric defaults and public option names remain open. No implementation, tests, benchmarks, builds or operational changes.
+
+## 30. WORKER-003 — OnClose event-budget saturation (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner selected Option A: when the owner's bounded OnClose event budget is full, skip the new OnClose invocation permanently.
+
+### Binding behavior
+
+- The owner-scoped event budget counts queued + running OnClose events; at most one event per Session.
+- After Session Done closes, the engine makes one nonblocking reservation attempt.
+- If full, skip OnClose with no retry, overflow goroutine, hidden queue or wait.
+- An admitted event holds its event credit until callback return.
+- Done, terminal cause, transport cleanup and reconnect are unaffected.
+- Client reconnect generations share the same OnClose event budget.
+
+### Next decision — WORKER-004
+
+Choose three class-isolated worker pools (recommended for blocked-callback isolation and reduced cross-class contention) versus one shared owner pool with strict per-class active reservations (which can reuse idle workers but needs a more complex shared scheduler). See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
+
+No numeric event capacity or implementation authorized. No code, tests, benchmarks, builds or operational changes.
