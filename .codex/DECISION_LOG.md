@@ -206,7 +206,7 @@ The approval does **not** authorize code implementation, module/repository renam
 
 The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). It distinguishes approved owner contracts from suggested (unapproved) exported API structure, numerical defaults, queue capacity and missing Enquire Link response behavior.
 
-**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved) and Q-007 response timeout **10s**, close on missing matching reply, reconnect only when enabled (approved). **Still open:** Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
+**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved) and Q-007 response timeout **10s**, close on missing matching reply, reconnect only when enabled (approved). **Resolved:** Q-008 Option A (4 MiB per-session outgoing FIFO and fail-fast) is now approved. **Still open:** Q-009 (incoming callback backlog and aggregate admission defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
 
 ---
 
@@ -270,5 +270,40 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 
 ### Still open
 
-- Q-008: capacity and queue-full behavior.
+- Q-008 (subsequently CLOSED / Option A): 4 MiB outgoing queue per Session, fail-fast on saturation. Remaining inbound/global admission details are tracked separately in Q-009.
 - Detailed numerical/default/retry settings beyond Q-007, public API signatures and close/pending error taxonomy remain part of GO-PINEX-002/011 design. This decision did **not** authorize any code, tests or operational changes.
+
+---
+
+## Q-008 — Bounded outgoing queue and Fail-Fast (2026-11-16)
+
+**Status:** CLOSED — APPROVED OPTION A  
+**Approved by:** Project owner  
+**Applies to:** GO-PINEX-002, GO-PINEX-004, GO-PINEX-007, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-012, GO-PINEX-013  
+**Implementation:** NOT AUTHORIZED
+
+### Approved requirements
+
+1. `MaxQueuedOutgoingBytes`: **4 MiB (4 * 1024 * 1024 bytes)** by default, separately configurable **per Session**.
+2. This queue is bounded FIFO for **Application Stream PDUs**, counted by their full serialized frame length, **including the 10-byte Pinex header**. It is an outgoing queue limit, **not** the server's total memory budget and **not** an increased maximum wire frame size.
+3. On an application frame not fitting the remaining capacity, `SendRequest` or `SendResponse` must **fail immediately** with a distinct **Queue Full** error. No indefinite waiting for capacity, silent dropping, partial admission, or unexpected deferred sends.
+4. A request rejected at admission must have **no orphaned pending sequence/response timer**, and no corresponding application PDU may be transmitted. Concurrent goroutines' admission/accounting must remain race-free under Q-003.
+5. Preserve a **bounded, separately admissible control-PDU path/headroom** for Bind/Unbind and Enquire Link responses/requests as appropriate to the lifecycle, so a full Application FIFO does not silently starve protocol control. This does **not** permit unlimited control buffering, interleaved bytes, or reordering of already queued Application Stream PDUs.
+6. Specifically retain Pinex-compatible Unbind ordering: a queued `unbind_resp` must be sent after earlier writes are drained when possible, with the established **10-second Unbind protocol deadline** protecting an undrainable connection.
+7. No generic Circuit Breaker, application Rate Limiter, message Deduplicator or priority queue is introduced by Q-008.
+
+### Explicit non-decisions
+
+- The numeric **incoming callback queue** limit, incoming pause/overflow behavior, control headroom in bytes/count, global/server queued-memory budget, and bound-session capacity are **not** covered by the 4 MiB approval.
+- Those belong to **Q-009** and must remain visibly open until specified/reviewed.
+- Public API method signatures and whether additional send modes are supported remain under API-001.
+
+### Planned acceptance tests (not run)
+
+- Concurrent sends never exceed 4 MiB of admitted queued Application frame bytes per Session; byte accounting includes each full header.
+- An over-capacity send returns Queue Full promptly, neither transmits nor leaves an outstanding Sequence entry, and a later send succeeds after capacity drains.
+- Incoming Enquire Link/Unbind works while Application queue is full; control buffering stays bounded.
+- The single-writer framing invariant and Pinex Unbind's required ordering/deadline hold even during backpressure and TCP stalls.
+- A large number of sessions cannot grow unchecked because Q-009 must additionally define aggregate admission.
+
+**Q-008 is CLOSED; implementation is still not authorized.**
