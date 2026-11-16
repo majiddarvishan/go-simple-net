@@ -279,3 +279,21 @@ This decision defines only the **owner boundary**. It does not approve physical 
 **Next owner decision:** WORKER-002 — explicit independent owner-wide active-worker ceilings per callback class versus aggregate ceilings derived from Session limits. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §9.
 
 No code, tests, benchmarks, builds, dependencies or operational changes.
+
+## 13. WORKER-002 — Independent owner-wide active-worker ceilings (OWNER APPROVED, 2026-11-16)
+
+The owner selected **Option A**.
+
+Each Client and Server instance has three independently configurable aggregate active-worker ceilings:
+
+- Application active callbacks.
+- Completion active callbacks.
+- OnClose active callbacks.
+
+A Session's configured per-Session concurrency is intersected with the remaining capacity of its corresponding owner/class ceiling. The three classes cannot borrow or consume one another's active-worker permits. Queued/event populations are bounded separately and are not counted as physically active workers.
+
+WORKER-001 ownership applies: Server Sessions share their Server's three ceilings; all Client reconnect generations share the Client's ceilings; started callbacks from retired generations remain charged until return. Independent instances do not share a process-global ceiling.
+
+No numeric defaults, public option names, physical worker-pool layout or event capacities are selected. The next open decision is **WORKER-003**, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§9–11.
+
+No code, tests, benchmarks, builds, dependencies or operational changes.
