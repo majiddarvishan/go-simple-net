@@ -704,3 +704,28 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 **Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
 
+
+---
+
+## WORKER-001 — Owner-Scoped Worker Capacity (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Owner selection:** “برای WORKER-001 گزینه A را تأیید می‌کنم.”  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+1. Every Client instance owns an independent callback-resource/worker-capacity domain.
+2. Every Server instance owns an independent callback-resource/worker-capacity domain.
+3. All Sessions owned by one Server share that Server instance's aggregate callback-worker budgets.
+4. All reconnect generations of one Client share that Client instance's aggregate callback-worker budgets.
+5. A callback already started in a retired Session generation remains charged to its owning Client/Server active-worker capacity until the callback returns. Reconnect must not reset or bypass that charge.
+6. Independent Client and Server instances do not consume each other's worker permits. V1 does not require a hidden process-global callback pool or process-global active-worker ceiling.
+7. This decision fixes the **ownership scope only**. It does not select physical worker-pool layout, per-class aggregate-cap policy, numeric worker counts/defaults, queue/event limits, payload-byte bounds, public option names or OnClose saturation behavior.
+
+### Rationale
+
+Instance-scoped capacity preserves isolation between unrelated Client/Server instances, avoids hidden cross-instance contention and keeps the hot path free from a mandatory process-global worker admission point. Retired callbacks remain charged to the same owner, so reconnect churn cannot manufacture additional capacity.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).  
+**Next:** WORKER-002 — decide whether each callback class needs its own explicit owner-wide active-worker ceiling or whether aggregate ceilings are derived from existing Session limits. No numeric defaults are implied.
