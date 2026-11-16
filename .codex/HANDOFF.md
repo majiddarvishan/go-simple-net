@@ -82,9 +82,9 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002 and Q-003 are closed. Next: discuss NAM-001 (library naming; no name approved yet), Q-004 (optional features), and the numeric idle interval / unanswered-probe policy under GO-PINEX-002/011. Finalize public Go API and compatibility baseline before requesting explicit authorization to implement. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003 and NAM-001 are closed. Next: resolve Q-004 (optional features), and the numeric idle interval / unanswered-probe policy under GO-PINEX-002/011. Finalize public Go API and compatibility baseline before requesting explicit authorization to implement. No code, module or repository rename is authorized.
 
 
-## 9. Naming discussion
+## 9. Approved Go library name
 
-NAM-001 is OPEN. Owner has previously preferred NEMA ("Network Easy Messaging API") as a future C++ Pinex name, but the C++ project has not been renamed. Suggested family naming is "NEMA Go" for the native Go implementation; alternatives: NEMGO, PIMA, NETA. No naming decision or repository/module change has been approved. See DECISION_LOG.md.
+**NAM-001 CLOSED (2026-11-16):** The owner selected `neta-go` as the name of the native Go TCP Messaging library. NETA was originally proposed as "Network Easy Transport API" but the selected name itself, rather than the expansion, is the approved decision. Current GitHub repository is still `majiddarvishan/go-simple-net`; no repository/module/package renames have been authorized or performed. Pinex C++ stays named Pinex. No code has been written. See DECISION_LOG.md.
