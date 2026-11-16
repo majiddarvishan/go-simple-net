@@ -4,7 +4,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** PERF-002 A owner-approved; design-only PERF-003 pending/completion bounds and API-001b callback-close decision still OPEN
+**Current work:** PERF-002 A closed; PERF-003 A count-admission model approved (numeric details open); API-001b forced-close/callback semantics OPEN
 
 ## 1. Repository state
 
@@ -159,11 +159,11 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 **New design draft:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). This contains **proposals, not new owner approvals**:
 
 - **PERF-002 CLOSED / OWNER APPROVED A:** outbound independent snapshot before accepted async send returns, receiving directly into owned user-retainable payload with no extra receive copy. Borrowed callback-lifetime B and transfer C were not selected. Pooling only for proven-safe private internal buffers after evidence; no end-to-end zero-copy claim.
-- **PERF-003 OPEN:** bounded per-Session completion credits for pending + queued + active completion, with a Server aggregate ceiling; separate count cap for zero-length incoming callback events; no goroutine per Request. Suggested `1024` and `65536` are illustrative **unapproved** counts, not defaults. Queue byte budgets and overload outcomes approved under Q-008/009/010 stay unchanged.
+- **PERF-003 OWNER APPROVED A MODEL:** independently configurable per-Session and Server aggregate count ceiling for pending + queued + active request completions; new Request immediately rejected on exhaustion without closing Session. Independent incoming event-count cap remains an unapproved proposal. Suggested `1024` / `65536` are illustrative **unapproved** counts, not defaults. Existing Q-008/009/010 byte ceilings stay unchanged.
 - **API-001b OPEN:** blocked callback makes prompt `OnClose` and strict per-Session callback serialization mutually incompatible. Proposed `Done()` reflects transport/accounting termination independent of arbitrary callback return; `OnClose` at-most-once on serial dispatcher. Forced-close Option A cancels unstarted callbacks promptly but creates an explicit exception to user-visible completion delivery; Option B retains bounded deferred completions but may retain closed workers indefinitely. **Owner must choose**; do not silently claim callback-delivery exactly once in all failure modes.
 - **API-002 / API-003 OPEN:** timeouts/reconnect/Stop defaults and module path `github.com/majiddarvishan/neta-go` / package `neta` proposed only; no `go.mod` added.
 
-**Next owner decision:** PERF-003 count-based pending/completion admission model (including configuration and global limit), then API-001b forced-close tradeoff. PERF-002 A is CLOSED. Existing owner decisions Q-001..Q-010, NAM-001, API-004 A and API-001a A remain unchanged. No Go/C++ source, test, benchmark, build, CI, deployment or operational change performed. Main has documentation commits only for this review.
+**Next owner decision:** API-001b forced-close callback-delivery policy A vs B; then PERF-003 numeric caps and potential inbound event-count cap. PERF-002 A is CLOSED; PERF-003 A count-admission model is APPROVED. Existing owner decisions Q-001..Q-010, NAM-001, API-004 A and API-001a A remain unchanged. No Go/C++ source, test, benchmark, build, CI, deployment or operational change performed. Main has documentation commits only for this review.
 
 
 ## 19. PERF-002 owner approval and remaining work (2026-11-16)
@@ -180,3 +180,23 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 4. **API-003:** Go module path still undecided; no `go.mod` creation. C++ develop HEAD and golden-wire vectors must be pinned before authorized implementation/testing.
 
 **Current guardrail:** docs only. No Go/C++ code, tests, benchmarks, builds, live operations or module changes performed. Latest source HEAD before this documentation sequence was `08fb5df8f582d7d91c53308988f31906a68ac557`.
+
+
+## 20. PERF-003 A owner-approved model and API-001b follow-up (2026-11-16)
+
+**Baseline verified before these documentation edits:** `main@52a126617fbe194c171926cf21fe2fb13893238b`. The owner chose **PERF-003 Option A** in the subsequent conversation. **Authoritative approved policy:** [DECISION_LOG.md](DECISION_LOG.md) section PERF-003. Previous historical notes describing the entire PERF-003 model as OPEN are superseded.
+
+### Current contract truth
+
+- **PERF-002:** CLOSED, owner-approved A: snapshot outgoing before successful async Send return; direct owned/retainable incoming payload, no reuse after callback handoff.
+- **PERF-003:** **Option A MODEL APPROVED**. Bound by count: active outstanding Request waiting for response, queued completion callback, running completion callback; independently configurable per Session and Server aggregate with API-004 Functional Options. New request exceeding either limit rejected promptly, without sending, orphan pending state or disconnect. No per-Request goroutine or unbounded Completion queue. The existing Q-008 outgoing byte Queue Full and Q-009/Q-010 incoming/global queue and overload policy remain binding.
+- **PERF-003 details still OPEN:** final numeric defaults (the sample 1024 Session / 65536 Server are NOT approved), optional separate **incoming callback event-count cap** and precise error identifiers, memory ownership of active/partial frames, forced-close credit release and timing. Pooling/benchmarks not authorized.
+- **API-001b still OPEN:** the same-Session serialization rule makes unconditional immediate `OnClose` impossible behind an indefinitely blocked user callback. A proposed `Done` signal indicates prompt internal transport/resource closure independently of callback progress, **not owner approved**. **Choice A:** cancel not-yet-running callback work at forced Close and best-effort `OnClose`, favoring bounded teardown but allowing a request completion not to invoke the user callback. **Choice B:** defer a bounded set of terminal callbacks, improving delivery if callback progresses but permitting closed worker/queue retention indefinitely when blocked. Neither approved. Settle outcome internally once, regardless of callback delivery. Avoid conflating API-001b forced-close A/B with PERF-003 A (already approved).
+- **API-002:** request deadline start (admission vs full Write), Connect/Bind/Reconnect/Stop defaults OPEN. **API-003:** module/package path OPEN. Go/C++ source untouched.
+
+### Design records synchronized
+
+- [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) §10 includes quota reservation, release, race handling, and API-001b alternatives.
+- [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md), [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), and [PINEX_GO_PORT_TASKS_2026-11-16.md](PINEX_GO_PORT_TASKS_2026-11-16.md) reflect approval.
+
+**Next owner decision:** choose **API-001b forced-close Option A vs Option B** after explicit tradeoff explanation. Do not finalize without approval. Afterward review PERF-003 numerical count defaults and inbound event-count cap. No code, go.mod, tests, benchmarks, builds or operational changes. Branch `main` docs only.
