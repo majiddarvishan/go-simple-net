@@ -1,5 +1,8 @@
 # برنامه تسک‌های پیاده‌سازی Go Client/Server سازگار با Pinex
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 approves bounded, configurable *parallel Application callbacks* per Session; concurrency=1 serial. Old unconditional serial-callback references below are superseded. Internal TCP/Protocol/Timeout/Close engine does not wait on user handlers. See [Decision Log](DECISION_LOG.md).
+
+
 **تاریخ:** 2026-11-16  
 **وضعیت:** ANALYSIS RECORDED — IMPLEMENTATION NOT AUTHORIZED  
 **مخزن مقصد:** majiddarvishan/neta-go  
@@ -637,3 +640,12 @@ Baseline فعلی Pinex:
 **PERF-003 Option A MODEL APPROVED:** per-Session and aggregate Server count-based completion/pending limits, configurable Functional Options, reject new Requests promptly when count exhausted while keeping Session alive. Counts are in addition to Q-008/010 byte queue limits. See [Decision Log](DECISION_LOG.md).
 
 **OPEN:** numeric completion limits; whether to add a separate inbound callback event-count cap; terminal callbacks / credit release on forced Close (**API-001b**); timeout start (**API-002**). Illustrative 1024/65536 **NOT APPROVED**. No code, benchmark, tests or operational changes.
+
+
+### Q-003-R1 — Owner-approved callback concurrency revision (2026-11-16)
+
+**CLOSED AS REVISED:** Same-Session Application callback dispatch supports a configurable positive `MaxConcurrentApplicationCallbacks` semantic; `1` executes one handler at a time, >1 enables bounded concurrent handlers. FIFO queue/dequeue order remains, but callback completion and response-time order may change under concurrency. Exact public option identifier and default remain OPEN. No unbounded goroutines.
+
+**Required design work (not implementation):** decouple internal Protocol/Writer/Timeout/Pending/Close engine from any user callback; protect waiting queue Q-009/Q-010 bounds; independently budget N active callback payloads and prevent infinite zombie callback accumulation across forced close/reconnect; consider proposed global active callback cap. The per-request completion/OnClose *user callback* lane is still API-001b OPEN and must not be silently finalized by choosing parallel application callbacks.
+
+**Existing closed contracts unchanged:** PERF-002 A owned payload; PERF-003 A bounded pending/completion count model, numeric defaults OPEN; API-001a A nonblocking SendRequest; API-004 A Functional Options; Q-008/009/010 byte and session limits. No source, tests or benchmarks authorized.
