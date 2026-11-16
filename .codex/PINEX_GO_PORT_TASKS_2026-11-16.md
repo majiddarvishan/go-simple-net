@@ -124,7 +124,7 @@ Client و Server باید از یک لایه مشترک استفاده کنند:
 
 ### GO-PINEX-002 — طراحی Public API
 
-**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast)، Q-009 (بستن Session هنگام سرریز صف ورودی) و Q-010 (سقف‌های قابل تنظیم) بسته شدند**؛ قرارداد دقیق API هنوز باز است؛ این سند به معنی آغاز کدنویسی نیست.
+**آخرین وضعیت طراحی:** پیش‌نویس API، Config، Callback، Lifecycle و Timeoutها در [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md) ثبت شد. جزئیات انتخاب مدل Config، Override و Validation در [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) (هنوز OPEN) مستند شد. **Q-006 (30s)، Q-007 (10s)، Q-008 (صف خروجی 4 MiB + Fail-Fast)، Q-009 (بستن Session هنگام سرریز صف ورودی) و Q-010 (سقف‌های قابل تنظیم) بسته شدند**؛ قرارداد دقیق API هنوز باز است؛ این سند به معنی آغاز کدنویسی نیست.
 
 موارد لازم:
 - تعریف Configهای Client و Server
@@ -551,11 +551,19 @@ Baseline فعلی Pinex:
 
 **باقی‌مانده طراحی API:** نحوه بیان مقدار تنظیم‌نشده/صفر، Validation تنظیمات، ترتیب Callback هنگام Close و Accounting فریم در حال پردازش. [Decision Log](DECISION_LOG.md) و [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 
-**کدنویسی همچنان مجاز نیست.
+**کدنویسی همچنان مجاز نیست.**
 
 ### API-004 — تفکیک پیش‌فرض و صفر در تنظیمات Go
 
-**وضعیت:** OPEN — باید بین Config ارائه‌نشده (Idle Interval پیش‌فرض 30s) و `EnquireLinkIdleInterval=0` صریح (بدون ارسال خودکار) تفاوت قابل پیاده‌سازی وجود داشته باشد. `time.Duration` با Zero Value به‌تنهایی این دو حالت را از هم جدا نمی‌کند؛ Options یا Optional Pointer پیشنهاد می‌شود.
+**وضعیت:** OPEN — پیش‌نویس کامل قرارداد Config و Validation ثبت شد؛ هنوز تصمیم مالک درباره شکل API لازم است.
+
+**گزینه A (پیشنهاد من):** Functional Options با پیش‌فرض‌های کامل داخلی؛ هر تنظیمِ ارائه‌نشده مقدار تأییدشده را بگیرد و Override صریح مستقل اعمال شود. بنابراین نبود Idle Interval یعنی `30s` و تنظیم صریح `0` یعنی غیرفعال شدن Probe خروجی. Instance یک Effective Config اعتبارسنجی‌شده و Immutable نگه دارد.
+
+**گزینه B:** Config Struct با Optional/Pointer Fields؛ Presence جدا از مقدار باشد تا صفر صریح با Unset اشتباه نشود.
+
+**مشترک:** پیش‌فرض‌های Q-008 و Q-010 قابل Override مستقل‌اند؛ صفر/منفی برای سقف منابع الزامی معتبر تلقی نشود و بی‌صدا به Unbounded یا Default تبدیل نگردد؛ خطا قبل از Dial/Listen برگردد؛ تغییر Data منبع پس از ساخت، Instance موجود را تغییر ندهد. Hot Reload هنوز تصویب نشده است.
+
+**مرجع:** [API-004 Configuration Contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). امضای نهایی متدها و تمام APIها همچنان باز هستند و کدنویسی مجاز نیست.
 
 ---
 
