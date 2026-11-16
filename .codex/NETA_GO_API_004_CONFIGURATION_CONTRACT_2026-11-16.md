@@ -1,7 +1,7 @@
 # neta-go — API-004: Go Configuration Contract (Design Only)
 
 **Date:** 2026-11-16  
-**Status:** DRAFT / OWNER CHOICE OPEN — API-004 is **not yet approved**  
+**Status:** CLOSED — APPROVED OPTION A (Functional Options), 2026-11-16; precise exported names still under API-001  
 **Repository:** `majiddarvishan/go-simple-net` / `main`  
 **Implementation:** **NOT AUTHORIZED** (no application source, Go module, examples, test runs, build or repository rename).
 
@@ -32,9 +32,9 @@ A basic Go struct with a `time.Duration` field has a zero value of `0`. It canno
 
 Similarly, an **omitted** resource cap means its positive, approved default; an **explicit zero** for a required bounded cap should be **invalid**, not silently treated as "unlimited" or the default. An `EnquireLinkResponseTimeout` of zero/negative should also be rejected unless a later explicit policy defines another meaning.
 
-## 3. Proposed public API options — choose ONE
+## 3. Public API configuration strategy — APPROVED OPTION A
 
-### Option A — Functional Options, with internally applied defaults (**recommended**)
+### Option A — Functional Options, with internally applied defaults (**OWNER APPROVED**)
 
 - Client and Server constructors each begin with their own **complete internal default set**.
 - Every override is an **explicit typed option** applied after defaults, e.g. conceptual `WithEnquireLinkIdleInterval(0)`, `WithMaxQueuedOutgoingBytes(custom)` and server-only `WithMaxBoundSessions(custom)`. These are **proposed names**, not released code.
@@ -47,7 +47,7 @@ Similarly, an **omitted** resource cap means its positive, approved default; an 
 **Pros:** explicit intent, clean zero semantics, no proliferation of public pointer fields; good Go user experience.  
 **Tradeoff:** more constructor options; can group options by Config domain without adding runtime mutation.
 
-### Option B — Explicit optional/pointer Config fields
+### Option B — Explicit optional/pointer Config fields (**NOT SELECTED**)
 
 - Public `ClientConfig`/`ServerConfig` stores presence (e.g. optional/pointer duration for `EnquireLinkIdleInterval` and optional numeric fields where omission matters).
 - `nil`/not-present means default; explicitly present `0` on idle interval disables sending; explicitly present zero for required capacities is invalid.
@@ -57,7 +57,7 @@ Similarly, an **omitted** resource cap means its positive, approved default; an 
 **Pros:** easy declarative config and mapping from configuration files.  
 **Tradeoff:** pointer/presence overhead and more verbose initialization; a plain `time.Duration` without presence is still incorrect.
 
-**Status:** owner has not chosen Option A or B. No implementation or public exported names are approved here.
+**Decision:** owner approved **Option A** on 2026-11-16. The typed Functional Options strategy is binding; detailed exported identifier spelling and constructor signatures remain design proposals. Option B is not selected. No implementation has been authorized.
 
 ## 4. Config keys and validation proposal
 
@@ -88,7 +88,7 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 - The 4 KiB Control allowance must remain separate/bounded and preserve single-writer semantics and Pinex Unbind ordering/10s deadline. Do not interpret its presence as a priority queue or permission to overtake application frames.
 - Include a clear field-specific error category (e.g. `invalid_config`) for invalid overrides. Exact exported error names are not decided.
 
-## 5. Resolution, ownership and lifetime — proposed
+## 5. Resolution, ownership and lifetime — approved principles, draft API detail
 
 1. **Defaults:** build complete defaults when constructing the Client or Server.
 2. **Overrides:** apply only explicitly provided options/fields. Each of the approved Q-008/Q-010 resource limits can be overridden individually.
@@ -122,10 +122,16 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 
 | ID | Item | Recommendation | Status |
 |---|---|---|---|
-| API-004 | Public Config representation | **Option A: Functional Options with defaults and immutable resolved snapshot**, or B: optional/pointer Config | **OPEN — owner choice** |
+| API-004 | Public Config representation | **Option A: typed Functional Options, independently applied over complete defaults, validated before network start and frozen as an effective per-instance snapshot** | **CLOSED — owner approved 2026-11-16** |
 | API-001 | Exact Client/Server/Session interface; callbacks, response ownership, Send signatures | Minimal Go-native API, no app-level framework | OPEN |
 | API-002 | Remaining timeout/reconnect/Stop defaults, callback termination contract | Stay aligned with Pinex wire and explicitly approve Go defaults | OPEN |
 | API-003 | Go package/module path after brand selection | `neta-go` brand approved; actual repo/module rename NOT authorized | OPEN |
 | GO-PINEX-001 | Exact C++ Pinex develop HEAD & golden frames | Pin baseline before coding/interoperability tests | OPEN |
 
-**Important:** this is a design-only proposal, **not** approval of Functional Options or a commitment to any final exported identifiers. Neither implementation nor tests nor repository/module rename is permitted until the owner explicitly authorizes them.
+**Important:** Functional Options is an **approved design decision** (API-004 closed); it is **not permission to implement**, and it does not freeze the final exported identifier names or signatures. No code/tests/repository or module rename until explicit authorization.
+
+## 9. Owner's final API-004 decision (2026-11-16)
+
+**APPROVED OPTION A.** Client and Server configuration uses **Go typed Functional Options**. Constructors build approved defaults first, apply only explicit options, validate the resulting effective configuration **before Dial/Listen**, and retain a private immutable snapshot for the instance and inherited Session settings. Options independently override every approved numeric cap/deadline; an omitted idle interval remains **30s**, while explicit `WithEnquireLinkIdleInterval(0)` (illustrative name only) **disables only automatic Enquire Link**. Explicit invalid zero/negative resource limits or mandatory positive timeouts fail validation; none silently become unlimited. Client-only and Server-only option domains should be separated. No hot reload is implied.
+
+**Deferred to API-001/API-002:** precise constructor signatures, option identifier spelling, treatment of bind/readyness and reconnection, and callback completion/teardown semantics. **No implementation or tests authorized.**
