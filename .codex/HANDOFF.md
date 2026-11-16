@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. Historical sections below discussing strict serial user Callback scheduling are not the current contract; see [DECISION_LOG.md](DECISION_LOG.md) §Q-003-R1. API-001b external notification behavior still OPEN.
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1 has superseded the original unconditional serial same-Session Application callback rule. Configurable parallel Application handlers are **owner approved** (concurrency=1 serial). Internal protocol/timeout/Close machinery is independent of user Callback return. API-001b-FC-A (Forced Close A) and N-ORD2 (independent Completion/OnClose sublanes; OnClose may overlap active Completion) are **owner approved**. Remaining API-001b work is within-lane Completion ordering, worker/event bounds and Done semantics; see [DECISION_LOG.md](DECISION_LOG.md) §API-001b-NORD2.
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** API-001b-FC-A (Forced Close Option A) OWNER APPROVED alongside API-001b-N1 bounded independent Notification lane; Application callback parallelism Q-003-R1, PERF-002 A, PERF-003 A model remain approved. Notification ordering/Done, worker/event budgets and numerical defaults remain OPEN. See §24; older A/B-open material is historical.
+**Current work:** API-001b-FC-A and API-001b-NORD2 OWNER APPROVED; Q-003-R1, PERF-002 A and PERF-003 A model remain approved. Completion/OnClose are independent bounded sublanes and OnClose may overlap a running Completion. Remaining: within-Completion ordering/concurrency, Worker/event capacities, Done semantics and numerical defaults. See §25; older A/B and N-ORD1 comparisons are historical.
 
 ## 1. Repository state
 
@@ -265,14 +265,26 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Guardrail unchanged:** no code/go.mod, tests, benchmarks, CI, builds, deployments, operational actions or new owner decision inferred from this document.
 
-## 24. API-001b-FC-A approval and Notification ordering/worker-capacity handoff (2026-11-16)
+## 24. Historical API-001b-FC-A approval and N-ORD1/N-ORD2 comparison (superseded by §25)
 
 **Verified baseline before documentation commit:** `main@4183d182264d768f8c2856d8cead22b37f758c63`. Owner **APPROVED API-001b Forced Close Option A**; previous `API-001b-R2` comparison was historical and A/B selection is no longer open. Binding authority: [Decision Log](DECISION_LOG.md) § `API-001b-FC-A`.
 
 **On Forced Close:** internal Request result settles exactly once; not-yet-started queued `OnRequest` and per-Request Completion callbacks are cancelled, with queued library-owned payload/metadata/credits released. A Completion already queued after a successful response can still be cancelled if its invocation has not started. Already-running user callbacks cannot be interrupted and may outlive Session closure. Transport/pending/timer/registry cleanup must not wait. Completion user callback execution is at-most-once, **not** unconditionally guaranteed for every admitted Request. `OnClose` is best effort/at-most-once. Exact `Done`/OnClose ordering and callback overlap are still **OPEN**.
 
-**Additional engineering design, all unapproved:** [Detailed review §11](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) compares `N-ORD-1` same-Session serial Completion+OnClose notification against `N-ORD-2` separate bounded Completion and OnClose sublanes. `N-ORD-2` is recommended for prompt OnClose under blocked completion handlers, at the cost of possible OnClose overlap with an already-running Completion callback. Both require `Done` and terminal-cause semantics, per-Session/global active-worker limits persisting across retired Sessions, bounded `OnClose` events and Request completion credits. All defaults, queue-event capacities, fairness, terminal event metadata and Notification concurrency remain OPEN.
-
-**Next single essential owner decision:** choose `N-ORD-1` serial Notification events or `N-ORD-2` isolated OnClose/Completion sublanes (recommend `N-ORD-2`, with OnClose eligible after internal cleanup/Done and allowed to overlap active Completion). After approval, design `Done` behavior and choose worker/global count ceilings, PERF-003 numeric defaults and optional incoming event-count cap; then API-002 request deadline origin, graceful Stop/reconnect, API-003 path. **Do not infer approval of any open design item.**
+**Historical note:** this section was written before the owner selected N-ORD2. The A/B Forced Close policy remains binding, but its N-ORD1/N-ORD2 comparison and next-decision prompt are superseded by [§25](#25-api-001b-nord2-approval-and-worker-done-design-handoff-2026-11-16).
 
 **Implementation guardrail:** documentation only; no Go/C++ code, go.mod, test, build, benchmark, CI, or operations. Continue from actual GitHub main HEAD, not historical handoff SHAs.
+
+## 25. API-001b-NORD2 approval and Worker / Done design handoff (2026-11-16)
+
+**Verified baseline before documentation commit:** main@45485f7c23390c2689469c959a24ee4588b4a800. Owner explicitly **APPROVED N-ORD2**. Binding authority: [Decision Log](DECISION_LOG.md) § API-001b-NORD2.
+
+**Approved Notification contract:** Completion and OnClose execute in distinct, independently bounded sublanes. OnClose may execute concurrently with an already-running Completion callback for the same Session; it does not wait for Completion return. A single unpartitioned Notification worker pool with no reserved OnClose capacity would violate this decision. OnClose remains best-effort/at-most-once. Forced Close A still cancels not-yet-started Completion events and does not terminate already-running callbacks.
+
+**Worker design (proposal only):** separate bounded Completion and OnClose worker capacity per owning Server/Client instance; Completion event queue uses the already-reserved PERF-003 per-Session + aggregate Request completion credits; OnClose has its own at-most-one-per-Session event and independent global active+queued event budget. Retain active-worker charges for callbacks surviving Session closure/reconnect. Prefer bounded lazy worker pools and fair ready-Session scheduling; never one goroutine per event. Candidate: at most one active Completion callback per Session, FIFO by terminal-settlement enqueue order, parallel across Sessions; same-Session Completion concurrency remains **OPEN**. Numeric worker counts, event caps, fairness and per-Server vs process-wide aggregate are **OPEN**.
+
+**Done design (proposal only):** expose a read-only Session completion signal, e.g. Done() <-chan struct{}, closed exactly once after internal transport lifecycle teardown: admissions stop, pending Request outcomes settle, unstarted work is cancelled, socket and internal Reader/Writer loops stop, timers/registry/internal queue accounting are released and terminal cause becomes immutable. Proposed order is Done closes **before OnClose is allowed to start**. Done does **not** wait for Application, Completion or OnClose user functions and does not imply any callback was invoked or returned. A Completion already running retains its worker and PERF-003 active credit until return; OnClose may overlap it. Exact public method/cause API, Close return semantics, and approval of this Done contract are **OPEN**.
+
+**Next essential owner choice:** approve or revise the proposed Done semantics (internal teardown complete; close Done before OnClose start; never join user callbacks). Then decide within-Completion per-Session ordering/concurrency and numerical worker/event budgets. PERF-003 numeric credits and optional incoming event-count cap, API-002 timeout/Stop/reconnect and API-003 package/module remain open.
+
+**Guardrail:** no Go/C++ code, go.mod, tests, builds, benchmarks, CI or operations. All worker values remain proposals; no numeric defaults were invented.

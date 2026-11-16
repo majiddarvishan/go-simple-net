@@ -619,3 +619,35 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 **Not decided by this approval:** graceful Stop/drain contract, taxonomy of conditions classified as Forced Close under API-002, `Done` publication, `OnClose` versus Completion execution ordering, single versus partitioned Notification worker domains, Application/Notification worker counts and aggregate budgets, OnClose event capacity, callback concurrency default, PERF-003 numeric credits/event count, API-002 request deadlines and reconnect, API-003 module/package path.
 
 **Follow-on proposals (not approved):** [Forced-close review and Notification ordering/capacity analysis](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11; [Handoff](HANDOFF.md) §24. **Documentation only; no code, tests, benchmarks, module or operational change.**
+
+## API-001b-NORD2 — Independent Completion / OnClose Notification Sublanes (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — Notification class separation and cross-class overlap policy.** Parent **API-001b remains PARTIALLY OPEN** for within-class Completion ordering/concurrency, Done, worker/event capacities and defaults.
+
+**Owner's explicit selection:** N-ORD2 — Completion and OnClose execute in distinct, independently bounded Notification sublanes; OnClose may run concurrently with an already-running Completion callback from the same Session. N-ORD1 same-Session serialization across Completion and OnClose is **NOT SELECTED**.
+
+### Binding V1 rules
+
+1. Keep two distinct user Notification work classes:
+   - **Completion sublane:** per-Request terminal result callbacks.
+   - **OnClose sublane:** Session lifecycle close callback.
+   Both remain separate from the bounded Application OnRequest dispatcher and from the internal protocol/lifecycle engine.
+2. Completion and OnClose have **independent bounded execution capacity**. Completion callbacks cannot consume the OnClose lane's reserved active-worker capacity or block its dispatch. Separate queues and worker pools are the recommended realization; a common scheduler is acceptable only if it enforces independent per-class queue/event admission and reserved active-worker capacity. A single unpartitioned pool is not N-ORD2.
+3. OnClose **may overlap** a Completion callback that already started for that same Session. No cross-class callback start/return ordering is promised. OnClose does not wait for Completion callbacks to return.
+4. OnClose remains **best-effort and at-most-once**, not an unconditional delivery guarantee. It is bounded independently of Request completion credits. Forced Close A continues to cancel not-yet-started per-Request Completion callbacks; it does not kill already-running Completion or OnClose code.
+5. Internal Request settlement, transport teardown, timers, registry cleanup and resource release remain independent of all three user-code classes. No goroutine-per-event, unbounded queue or waiting for arbitrary user callback return is permitted.
+6. Preserve API-001b-FC-A, API-001b-N1, Q-003-R1, PERF-003 A count-admission model, PERF-002 A payload ownership, Q-008/Q-009/Q-010 outcomes and API-004 A.
+
+### Explicitly OPEN — not approved by N-ORD2
+
+- Whether Completion callbacks are serialized per Session (recommended initial V1 policy: one running Completion per Session, FIFO by terminal-settlement enqueue order) or have configurable same-Session concurrency. Request admission order is not inherently Completion order.
+- Exact Completion and OnClose worker counts, defaults, maxima, per-Session and aggregate quotas, queue/event capacities, fairness policy and validation.
+- Whether OnClose is eligible only **after** a proposed Done signal closes; exact Done semantics, visibility, terminal-cause accessor and Close return behavior.
+- OnClose event-budget saturation policy (recommended: skip the event rather than block cleanup or allocate unbounded work).
+- Completion payload-byte accounting in addition to PERF-003 count credits; active callback and user-retained payload memory are not covered by Q-010 waiting-queue byte caps.
+- Per-Server / per-Client versus process-wide aggregate active-worker ceiling; graceful Stop/drain and the API-002 definition of Forced Close remain open.
+- Numeric PERF-003 per-Session/Server count defaults, incoming callback event-count cap, Q-003-R1 concurrency default, API-002 timeout/reconnect/Stop and API-003 module/package.
+
+**Follow-on design proposal (not approved):** [Forced Close / Notification / Done / Worker Capacity review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11.7. The proposed Done signal closes after internal Session teardown and before OnClose callback start, but does not join or imply completion of any user callback. **This Done proposal is not yet owner-approved.**
+
+**Implementation:** NOT AUTHORIZED. Documentation only; no Go/C++ code, go.mod, tests, benchmarks, builds, CI or operational changes.
