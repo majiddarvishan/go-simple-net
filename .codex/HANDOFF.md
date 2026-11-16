@@ -37,7 +37,8 @@
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
 - NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 through Q-010 policy approvals are reflected.
 - NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md — APPROVED API-004 A: Functional Options, complete internal defaults, independent explicit overrides including idle 0, validated immutable per-instance config.
-- NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md — draft Public Client/Server/Session API, Request/Response style and callback/close lifecycle; API-001a choice is OPEN.
+- NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md — draft Client/Server/Session Public API; API-001a owner approved A (nonblocking/callback-first). API-001b, ownership and callback termination semantics remain OPEN.
+- NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md — owner explicitly requires performance as first-class V1 concern; measurement matrix, copy/allocation and bounded completion design work (PERF-001..003), no numeric targets approved.
 - NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 outgoing 4 MiB/Fail-Fast, Q-009 B incoming overflow close, and Q-010 A configurable inbound/global/session/pre-bind/control defaults are approved. API-004 design remains open.
 - DECISION_LOG.md — authoritative approved decisions Q-001 through Q-010 (as applicable), plus NAM-001; distinguishes remaining open API details.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
@@ -88,7 +89,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next design-only work:** API-004 Option A is CLOSED. Review API-001a choice (A asynchronous callback-first or B synchronous Context-first primary Request API), then finalize API-001b/002 response ownership, callbacks/close, timer and reconnect policies, and API-003 package/module path. Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
+**Next design-only work:** API-004 A and API-001a A are CLOSED. Performance is an owner-declared first-class V1 priority. Next: design PERF-002 / API-001b payload ownership/copy lifetime and PERF-003 bounded pending/completion; then API-002 timeouts/reconnect/close and API-003 module/package path. Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
 
 ## 9. Approved Go library name
 
@@ -130,4 +131,12 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 
 **API-004 CLOSED / OWNER APPROVED OPTION A (2026-11-16):** Go-native typed Functional Options, complete defaults, independent explicit overrides including idle=0, pre-network validation, immutable effective configuration. [Approved configuration contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md).
 
-**API-001 OPEN:** [Public API draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) presents callback-first asynchronous A versus blocking Context-first B; no preference approved for this separate question. Other open design details: callback/terminal close/Done behavior, outgoing/incoming payload lifetime, error categories, startup/Stop and reconnect defaults, exact package/module path. Preserve approved Q-003 per-session callback serialization, do not promise forced termination of indefinitely blocked user callbacks. **No source code, module changes, tests or execution.**
+**API-001a CLOSED / OWNER APPROVED A:** [Public API draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) defines callback-first asynchronous request submission, with prompt local admission feedback and later one-shot completion via callback. Option B synchronous Context-first as primary API not selected. Other open design details: callback/terminal close/Done behavior, outgoing/incoming payload lifetime, error categories, startup/Stop and reconnect defaults, exact package/module path. Preserve approved Q-003 per-session callback serialization, do not promise forced termination of indefinitely blocked user callbacks. **No source code, module changes, tests or execution.**
+
+## 16. API-001a closure and performance-first V1 constraint
+
+**API-001a CLOSED / OPTION A APPROVED (2026-11-16).** Nonblocking/callback-first SendRequest-style API is primary. Successful queue admission does not guarantee remote delivery or processing. Matching response, timeout and close all compete for one terminal callback completion; API-001b must define precise delivery and Stop/Done guarantees.
+
+**PERFORMANCE OWNER PRIORITY:** high throughput/low tail latency/low allocation overhead and scalability are important for V1. Propose reproducible measurements of msgs/s, p50/p95/p99 latency, allocation and copy counts, GC/RSS, contention and multi-Session load without precommitting unsupported numeric SLAs. See [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
+
+**Next open decisions:** PERF-002 payload `[]byte` lifetime (safe-copy vs borrowed), PERF-003 pending/completion bounds and API-001b callback/Close/Done semantics. No coding or tests permitted.
