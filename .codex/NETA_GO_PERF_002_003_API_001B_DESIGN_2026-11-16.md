@@ -3,7 +3,7 @@
 **Date:** 2026-11-16
 **Repository:** `majiddarvishan/neta-go`, branch `main`
 **Baseline HEAD reviewed:** `0fe42d3f0ac634a5a1c9617d1e800b68a00fdf9f`
-**Status:** PERF-002 **CLOSED / OWNER-APPROVED OPTION A**; PERF-003 and API-001b remain **OPEN / NOT OWNER-APPROVED**
+**Status:** PERF-002 **CLOSED / OWNER-APPROVED A**; PERF-003 **COUNT-BOUND ADMISSION APPROVED A (NUMBERS/DETAILS OPEN)**; API-001b **OPEN / NOT APPROVED**
 **Implementation:** NOT AUTHORIZED. No Go source, module, tests, benchmarks, builds, network operations or deployments.
 
 ## 1. Authority and unchanged prior approvals
@@ -55,11 +55,11 @@ Any direct receive ownership granted to user code must not simultaneously be rec
 
 **External technical references:** Go memory model https://go.dev/ref/mem and `sync.Pool` https://pkg.go.dev/sync#Pool .
 
-## 3. PERF-003 — bounded pending and completion delivery (OPEN)
+## 3. PERF-003 — bounded pending and completion delivery (OWNER APPROVED OPTION A MODEL; DETAILS OPEN)
 
 The outgoing FIFO byte limit does **not** cap outstanding requests: a sent frame may leave the FIFO while waiting for a response. A stalled callback may also accumulate tiny/empty completion events without consuming material payload bytes. The design therefore requires **count-based** limits in addition to Q-008/009/010 byte caps.
 
-### 3.1 Recommended bounded model — details subject to owner approval
+### 3.1 Owner-approved bounded model — exact capacities and lifecycle details still open
 
 - Use **one shared completion-credit limit per Session**, covering all accepted requests whose callback has not completed (waiting response, terminal result queued, or currently executing). Reserve one credit **before** accepting each callback-based SendRequest; release after the callback returns, or after explicit terminal cancellation on forced teardown. Do not create one goroutine per Request.
 - A separate **Server aggregate completion-credit ceiling** prevents multiplying the per-Session maximum by up to 1024 bound Sessions. Client standalone sessions use their local ceiling.
@@ -116,10 +116,10 @@ Approved Q-003 requires **non-overlapping callbacks within a Session**. If user 
 6. No extra public payload wrapper, mandatory Protobuf, C++-style event loop or business-layer machinery.
 7. No numeric throughput/latency target is approved; benchmark methodology remains a plan only.
 
-## 6. Recommended owner decisions, in order (PERF-002 CLOSED; others OPEN)
+## 6. Owner decision sequence (PERF-002 CLOSED; PERF-003 MODEL APPROVED, OTHER DETAILS OPEN)
 
 1. **PERF-002 — CLOSED / APPROVED A:** send snapshot once, receive directly into owned retainable buffer. Borrowed callback-lifetime B and transfer C not selected as V1 public contracts.
-2. **PERF-003:** approve the **shared per-Session completion-credit model + Server aggregate cap + incoming event-count cap**, then review separately proposed numeric defaults (1024 / 65536 are *illustrative only*) and deadline-start rule.
+2. **PERF-003 — MODEL APPROVED A:** per-Session and Server aggregate count-bounded pending/completion work, configurable, new Request rejected without Session close on saturation. **Still OPEN:** numerical defaults (1024 / 65536 illustrative only), incoming event-count cap, forced-close credit accounting and deadline origin. Incoming separate event-count cap was not explicitly in the owner's final Option A wording and remains a proposal.
 3. **API-001b:** decide **forced-close Option A** prompt cancellation/best-effort callback vs **Option B** deferred bounded callback delivery; choose exact callback registration shape.
 4. **API-002:** resolve dial/bind/reconnect/request/Stop defaults and terminal errors; do not silently promote all observed C++ timings to Go approvals.
 5. **API-003:** decide Go module path. Library `neta-go` name is already approved; proposed import path `github.com/majiddarvishan/neta-go` and Go package identifier `neta` are still **OPEN**. No `go.mod` yet.
@@ -132,7 +132,7 @@ Approved Q-003 requires **non-overlapping callbacks within a Session**. If user 
 - Go `sync.Pool` docs: https://pkg.go.dev/sync#Pool
 - Existing .codex contract references linked in section 1.
 
-**Only PERF-002 A is newly owner-approved; all PERF-003, API-001b, numeric, timer and pooling choices above remain proposals. Source code and test execution remain prohibited.**
+**PERF-002 A and PERF-003 A count-bounded admission MODEL are owner-approved; all PERF-003 numeric settings, incoming count cap, API-001b, timer and pooling choices remain OPEN. Source code and test execution remain prohibited.**
 
 
 ## 8. Owner approval: PERF-002 A (2026-11-16)
@@ -160,3 +160,41 @@ The owner explicitly selected **Option A**. This makes the fundamental **public 
 Both forced-close Option A (cancel queued user callbacks for promptly bounded teardown) and Option B (defer finite completions until earlier callbacks return) remain owner choices. Neither can guarantee that `OnClose` runs promptly behind a permanently blocked callback while preserving Q-003 non-overlap. Recommend lifecycle `Done` report transport/accounting closure independent of arbitrary user callback return, **subject to owner approval**. Response/timeout/close can settle internally once; physical user callback invocation needs explicit lifecycle guarantees. Detailed exported method names and timing remain OPEN.
 
 **No code, tests, benchmarks or operational actions were performed.**
+
+
+## 10. PERF-003 owner approval and API-001b bounded terminal sequence review (2026-11-16)
+
+**Owner confirmed:** **PERF-003 Option A**, i.e. bounded count admission for pending and completion work per Session AND across Server; all ceilings configurable; reject NEW SendRequest promptly on exhaustion without closing otherwise healthy Session. This approves the policy, **not** the previously illustrative `1024` / `65536` defaults. See [Decision Log](DECISION_LOG.md). The incoming callback **event-count** cap remains a technical proposal, not silently included in owner approval.
+
+### 10.1 Proposed reservation and failure order (not new owner choices)
+
+- Check Session State/Bind capability and frame size before expensive payload copy. Before making any request visible to Writer, reserve one Session completion credit + one Server aggregate completion credit (if Server-owned), outgoing Session byte quota + Server queued-byte quota (if applicable), and unique nonzero Sequence/Pending registry entry. Must rollback every reservation atomically/coherently on any rejection or construction failure. No user callback is invoked for an unadmitted request.
+- After successful admission, reserve credit **through response wait, internal settlement, queued terminal callback and executing completion callback**; in ordinary operation, release only after completion callback returns. The terminal Response reuses the Request's completion credit: do not require a *second* completion reservation on reply, which could deadlock a full Session.
+- Response vs timeout vs close selects a single logical terminal outcome. Internal settlement may occur while another user callback is running; dispatch still uses Q-003 per-Session serialized order. A late response cannot create a second completion. No global Server mutex may be held while invoking user code.
+- On count quota exhaustion, reject promptly, keep Session alive, no write/sequence leak; return a **distinct typed capacity cause** (exported name OPEN). On byte quota exhaustion, preserve approved Q-008 `Queue Full` policy. Application `SendResponse` and no-wait sends consume outgoing byte quota but **do not** consume Request/Response Completion credits.
+- All quota ceilings remain lazy, finite and separately configured through API-004 Functional Options; no eager per-Session table/queue allocation proportional to max capacity. Performance evaluation (when authorized) must cover contention and memory for high Session counts.
+
+### 10.2 Unresolved after model approval
+
+- **Capacity numbers:** 1024 Session / 65536 Server are unapproved examples only. No numeric default approved, no benchmark data.
+- **Inbound event-count cap:** add independent count limit for tiny/empty inbound application events? Suggested yes, but not approved; must not confuse this with owner-approved outbound pending/completion cap. Existing inbound byte overflow => Session close remains binding.
+- **API-001b forced-close:** a terminal result can be settled internally even when its Callback cannot execute behind a permanently blocked user callback. Decide cancellation vs deferred delivery; this also determines release timing for remaining completion credits and terminal event metadata. Never claim user callback exactly-once if it can be deliberately dropped after forced Close.
+- **API-002 timer:** request deadline starts on local successful admission (recommended, includes outgoing queue time) vs full TCP Write (alternate). Exact deadlines and Stop grace remain OPEN.
+
+### 10.3 API-001b follow-up recommendation: separate lifecycle plane from callbacks (not approved)
+
+Use an internally once-only terminal state and a `Done`-like transport closure notification that does **not** require user callbacks to complete. Maintain Q-003 strict non-overlap within one Session's user callbacks. A real application callback cannot be cancelled forcibly. Two alternatives still require owner choice:
+
+| Item | API-001b A: Cancel unstarted callbacks at forced Close (recommended for bounded resources) | API-001b B: Defer bounded terminal callbacks after transport close |
+|---|---|---|
+| Socket/registry/pending cleanup | Prompt, independent of user callback | Prompt, independent of user callback |
+| Running callback | Cannot be forcibly stopped | Cannot be forcibly stopped |
+| Queued callbacks | Cancel without invoking, release queued library-owned memory/credits | Keep finite queue until prior callback returns, release after dispatch |
+| `Done` | Prompt; means transport/internal work closed, NOT callback completion | Same |
+| `OnClose` | At most once/best effort on serialized lane; may never run if blocked | At most once, can run after existing callback returns; never guaranteed if stuck forever |
+| Normal reply/timeout before forced Close | Dispatch terminal completion once if dispatcher progresses | Same |
+| Resource risk | Bounded teardown, callback not guaranteed after forced close | Closed worker/queued data may live indefinitely while user callback blocks |
+
+**Suggested API clarity:** If Option A wins, explicitly document that success means Request **admitted**, not that its completion callback is guaranteed to run after forced transport Close. `Done` and a terminal cause/state accessor expose the transport outcome independently from notification callbacks. If the application requires guaranteed results, it must use its own durable state/reconciliation layer; TCP library does not provide delivery guarantees. If B wins, promises are still conditional on callbacks returning.
+
+No code/test/benchmark run. `API-001b` and these detailed callback semantics remain OPEN.
