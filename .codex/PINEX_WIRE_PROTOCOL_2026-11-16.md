@@ -169,10 +169,14 @@ Correlation:
 
 - Enquire Link Request و Response فقط Header ده‌بایتی دارند.
 - Enquire Link Response باید همان Sequence Number درخواست را برگرداند.
-- Pinex فعلی به Enquire Link دریافتی پاسخ می‌دهد.
-- Pinex فعلی از TCP Keepalive سیستم‌عامل استفاده می‌کند و Enquire Link دوره‌ای را به‌صورت پیش‌فرض ارسال نمی‌کند.
-- Go باید پاسخ به Enquire Link را همیشه پشتیبانی کند.
-- ارسال دوره‌ای Enquire Link در Go باید Option جداگانه و در حالت پیش‌فرض خاموش باشد تا رفتار پیش‌فرض با Pinex یکسان بماند.
+- Pinex C++ فعلی به Enquire Link دریافتی پاسخ می‌دهد، از TCP Keepalive سیستم‌عامل استفاده می‌کند و Enquire Link دوره‌ای را به‌صورت پیش‌فرض ارسال نمی‌کند.
+- **تصمیم قطعی Q-002 مالک (2026-11-16):** Go باید Enquire Link خودکار را فقط هنگام **Idle** بودن Session ارسال کند؛ نه با دوره ثابت، هنگام عبور ترافیک عادی.
+- در Client و Server یک Idle Interval قابل پیکربندی تعریف می‌شود. مقدار مثبت => پس از عدم ارسال **و** دریافت Frame در مدت تنظیم‌شده Enquire Link Request ارسال شود. مقدار **0 => ارسال خودکار غیرفعال**.
+- زمان آخرین Activity با ارسال/دریافت واقعی Frame به‌روز می‌شود و محاسبه پس از Bind موفق آغاز می‌شود؛ ارسال صرفاً در صفِ Writer به‌تنهایی Activity محسوب نمی‌شود.
+- پاسخ‌گویی به Enquire Link دریافتی حتی با Interval صفر همیشه برقرار است.
+- بیش از یک Enquire Link محلیِ در انتظار پاسخ در یک Session ارسال نشود.
+- این تنظیم فقط منطق زمان‌بندی Go است و هیچ Command ID، Byte Layout یا Sequence Rule پروتکل Pinex را تغییر نمی‌دهد.
+- مقدار پیش‌فرض عددی Interval و Deadline پاسخ Probe در این تصمیم تعیین نشده‌اند؛ باید در طراحی Public Config/Failure Policy مستقل تعیین شوند.
 
 ---
 
@@ -294,7 +298,7 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 
 1. **Q-001 — CLOSED / APPROVED OPTION A:** مالک Bind Validator Callback بر اساس System ID و Remote Address را بدون هیچ تغییر در Wire Protocol Pinex 1.5.0 تأیید کرد (2026-11-16). رمز عبور یا Token جدید روی Wire تعریف نمی‌شود. این روش معادل احراز هویت رمزنگاری‌شده نیست.
 2. **Q-005 — CLOSED / APPROVED OPTION B (2026-11-16):** اگر Validator تعریف نشده باشد، Go Server یک Bind معتبر با `system_id` یکتا را مانند Pinex C++ می‌پذیرد. با وجود Validator، تصمیم Allow/Reject آن اعمال می‌شود. بررسی فرمت پروتکل، وضعیت Session، محدودیت منابع و Duplicate System ID در هر دو حالت پابرجاست. این Default معادل احراز هویت نیست.
-3. **Q-002 — OPEN:** Enquire Link دوره‌ای؛ پیشنهاد، اختیاری و پیش‌فرض خاموش.
+3. **Q-002 — CLOSED / APPROVED (2026-11-16):** ارسال خودکار Enquire Link فقط پس از بی‌ترافیکی واقعی Session به مدت Idle Interval قابل پیکربندی انجام می‌شود؛ `0` ارسال خودکار را غیرفعال می‌کند. پاسخ به درخواست ورودی همواره برقرار است. Default عددی و Response Timeout هنوز تعیین نشده‌اند.
 4. **Q-003 — OPEN:** Thread Safety API Go؛ پیشنهاد، API امن برای فراخوانی هم‌زمان و Callback ترتیبی در هر Session.
 5. **Q-004 — OPEN:** قابلیت‌های جانبی نمونه Go؛ پیشنهاد، خارج از Core نسخه اول.
 
