@@ -159,7 +159,7 @@ The owner explicitly selected **N-ORD2**. N-ORD1 (one serialized same-Session Co
 1. Close admission gate, settle pending Request outcomes, cancel unstarted Application/Completion callbacks under approved A.
 2. Close transport, detach registry and timers, discharge queued metadata/byte reservations and all non-active completion credits; retain credits/worker slots for any running user callback.
 3. Publish immutable close reason and close a potential `Done()` signal to indicate **internal Session/transport termination only**, NOT that any user callback has finished.
-4. Best-effort enqueue a single `OnClose` event using a separately bounded OnClose-event budget, independent of Request completion-credit exhaustion. If budget admission fails, do not block the engine or grow a queue indefinitely. If N-ORD-2 selected, OnClose may start before a previously running Completion returns.
+4. Reserve at most one `OnClose` event credit if the independent OnClose budget admits it; this reservation does not consume Request completion credits. If budget admission fails, do not block the engine or grow a queue indefinitely. After Done closes, make the reserved event eligible to start. Under owner-approved N-ORD2, OnClose may start while a previously running Completion callback has not returned.
 
 The core Engine must remain nonblocking with respect to both callback pools. A best-effort `OnClose` cannot be used as a resource-cleanup barrier. A late Callback calling `SendResponse` must receive a closed-session error; it cannot resurrect the transport. **Order `Done` before `OnClose`, event drop/admission policy and exported method names are not approved.**
 
@@ -184,7 +184,7 @@ These are **semantic dimension names only, not exported API names or approved kn
 
 ### 11.5 Resource and liveness failure cases (design-only review; no tests executed)
 
-1. **All Completion workers permanently blocked:** internal response settlement, TCP control handling and Forced Close still progress. Completion events remain counted until cancelled/returned; new Request admission rejects at respective approved caps. If N-ORD-2 is chosen, available OnClose workers may continue independently.
+1. **All Completion workers permanently blocked:** internal response settlement, TCP control handling and Forced Close still progress. Completion events remain counted until cancelled/returned; new Request admission rejects at respective approved caps. Under owner-approved N-ORD2, available OnClose workers may continue independently.
 2. **All OnClose workers blocked:** subsequent OnClose callbacks are best-effort within finite OnClose event credits; do not create unlimited goroutines or delay `Done`. No unconditional delivery guarantee.
 3. **Repeated reconnect with stalled Application callbacks:** old callbacks still occupy the global active Application ceiling; new Session cannot reset those charges. Global saturation may reduce other Sessions' callback throughput, but must not make internal state machine block on user code.
 4. **Completion vs Forced Close:** outcome settlement has a unique winner; callback-start vs cancellation has a unique winner. Cancelled callbacks never later start, and each credit releases once.

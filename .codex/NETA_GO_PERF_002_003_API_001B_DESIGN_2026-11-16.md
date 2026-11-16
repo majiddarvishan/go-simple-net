@@ -231,9 +231,9 @@ No code/test/benchmark run. `API-001b` and these detailed callback semantics rem
 
 **Authoritative source:** [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1. No implementation, tests or benchmarks authorized.
 
-## 13. API-001b forced-close, ordering and worker bounds — design follow-up (2026-11-16)
+## 13. Historical API-001b forced-close, ordering and worker bounds review (superseded by §§14–15)
 
-A separate **nonbinding** owner-choice review now covers forced-close A vs B, delivery and `OnClose`/`Done` ordering proposals, active-worker caps across closed Session generations, the need for a separate bounded `OnClose` event budget, PERF-003 numeric/event-count choices, API-002 deadlines and API-003 module name: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). **No new decision is approved.** In particular API-001b forced-close A is recommended but remains **OPEN**.
+A separate **historical nonbinding** owner-choice review covered forced-close A vs B, delivery and `OnClose`/`Done` ordering proposals, active-worker caps across closed Session generations, the need for a separate bounded `OnClose` event budget, PERF-003 numeric/event-count choices, API-002 deadlines and API-003 module name: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). **Historical status only:** Forced Close A and N-ORD2 were subsequently owner-approved in §§14–15. Remaining capacities and Done semantics remain open.
 
 ## 14. API-001b Forced Close Option A — OWNER APPROVED (2026-11-16)
 

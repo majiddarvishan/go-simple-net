@@ -253,15 +253,15 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 
 **Strict guardrail:** Design and documents only; no source code, Go module, tests, benchmarks, builds, deployment or operational changes. Never silently finalize the remaining API-001b options; ask owner only for essential material choice.
 
-## 23. API-001b forced-close / Notification capacity review — proposal only (2026-11-16)
+## 23. Historical API-001b-R2 forced-close / Notification capacity review (superseded by §§24–25)
 
-**GitHub baseline verified:** `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811` before this documentation-only update. Full engineering matrix and race/credit/worker discussion: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). Decision-log trace: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-R2.
+**Historical status at the time:** the GitHub baseline was `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811`. The comparison below predates the subsequent owner approvals of Forced Close A and N-ORD2 recorded in §§24–25. Full engineering matrix and race/credit/worker discussion: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). Decision-log trace: [DECISION_LOG.md](DECISION_LOG.md) § API-001b-R2.
 
-**No new choice approved.** Owner-approved Q-003-R1 parallel bounded Application callbacks, API-001b-N1 independent bounded Notification lane, PERF-002 A payload ownership, PERF-003 A Request completion count-admission model, API-001a A callback-first admission, and API-004 A Functional Options remain authoritative.
+**Historical note:** this statement described the state before the owner later approved API-001b-FC-A and API-001b-NORD2. The other owner-approved contracts listed here remain authoritative.
 
-**Recommendation awaiting owner:** API-001b forced-close **A** — cancel queued/unstarted Notification completions and Application callbacks on forced shutdown, free library-owned queued metadata and request credits, do not interrupt running user code. Maintain process/Server-wide active-callback worker count across retired Sessions and finite `OnClose` event capacity. **B** — retain bounded deferred completions — can strand closed Session state indefinitely unless bounded across *all retired Sessions*. Under both, internal Request settlement once-only is distinct from callback invocation. Proposed `Done` tracks internal transport cleanup (not callback join), and `OnClose` is best-effort; exact ordering and exported names are **not yet owner approved**.
+**Historical recommendation:** Forced Close A was recommended here and was subsequently approved in §24. The B comparison is no longer an open choice. N-ORD2 was subsequently approved in §25; Done and numerical capacities remain open.
 
-**Next decision gate (one at a time):** owner selects **API-001b A or B**. Then finalize Notification ordering/`Done`, Worker/OnClose count caps and callback concurrency defaults, PERF-003 count defaults and incoming event cap, API-002 admission-origin timeout/reconnect/Stop, API-003 module/package. Previous examples 1024 completion slots/Session and 65536/Server remain **unapproved**; proposed `github.com/majiddarvishan/neta-go` / package `neta` also **unapproved**.
+**Historical next-decision prompt:** A/B and N-ORD1/N-ORD2 have since been resolved by owner approval. The remaining sequence is recorded in §25: Done contract, within-Completion ordering/concurrency, worker/event caps, PERF-003 values, API-002 and API-003.
 
 **Guardrail unchanged:** no code/go.mod, tests, benchmarks, CI, builds, deployments, operational actions or new owner decision inferred from this document.
 
