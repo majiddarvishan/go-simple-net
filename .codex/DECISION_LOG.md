@@ -588,3 +588,13 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 **Next:** finish API-001b forced-close notification guarantees and numeric bounds, not implementation. No code, tests, benchmarks, builds, dependency/module changes or operational operations.
 
 **References:** [API/performance detailed draft](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Public API](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Handoff](HANDOFF.md).
+
+## API-001b-R2 — Forced Close / Notification Capacity Review (2026-11-16)
+
+**Status:** **DESIGN ANALYSIS ONLY; NO NEW OWNER DECISION.** Owner-approved API-001b-N1 (independent bounded Notification lane), Q-003-R1 (configurable parallel Application handlers), PERF-003 A count-admission *model*, PERF-002 A, API-001a A and API-004 A remain unchanged. Verified \`main@893b96629b69b0c67b5aaf456b3e0f178e9fc811\` before this documentation-only review.
+
+**Engineering recommendation, not approval:** prefer **API-001b forced-close Option A** (cancel not-yet-started Completion user notifications and Application work) for bounded teardown; running user callbacks cannot be stopped. Use separate per-Session Request completion credits and globally capped active workers/close-event notification capacity so reconnect churn cannot multiply unaccounted blocked goroutines. Consider a \`Done\`-like signal for internal transport settlement with best-effort \`OnClose\` after it; this ordering and all callback delivery guarantees remain **OPEN**.
+
+**Important:** forced-close A has **NOT** been selected by the owner. Previously proposed completion limits 1024/Session and 65536/Server are **NOT approved defaults**. Notification worker counts, close-event budgets, Q-003-R1 callback concurrency default, incoming event-count cap, API-002 deadlines/Stop/reconnect and API-003 module/package path are **OPEN**.
+
+**Design details and explicit question:** [API-001b Forced Close / Notification Review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). No Go/C++ code, module changes, tests, benchmarks or operations performed.
