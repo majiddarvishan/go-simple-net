@@ -36,7 +36,8 @@
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
 - NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 through Q-010 policy approvals are reflected.
-- NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md — detailed API-004 draft: Functional Options vs optional/pointer Config, explicit-zero keepalive, independent overrides, validation, immutable per-instance snapshot. Owner choice still OPEN.
+- NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md — APPROVED API-004 A: Functional Options, complete internal defaults, independent explicit overrides including idle 0, validated immutable per-instance config.
+- NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md — draft Public Client/Server/Session API, Request/Response style and callback/close lifecycle; API-001a choice is OPEN.
 - NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 outgoing 4 MiB/Fail-Fast, Q-009 B incoming overflow close, and Q-010 A configurable inbound/global/session/pre-bind/control defaults are approved. API-004 design remains open.
 - DECISION_LOG.md — authoritative approved decisions Q-001 through Q-010 (as applicable), plus NAM-001; distinguishes remaining open API details.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
@@ -87,7 +88,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next design-only work:** obtain owner choice for **API-004**: Option A (recommended typed Functional Options with internal complete defaults and immutable validated config) or B (optional/pointer Config fields), then finalize API-001/002 (Go public types, callbacks, queue accounting, close lifecycle) and API-003 (package/module path). Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
+**Next design-only work:** API-004 Option A is CLOSED. Review API-001a choice (A asynchronous callback-first or B synchronous Context-first primary Request API), then finalize API-001b/002 response ownership, callbacks/close, timer and reconnect policies, and API-003 package/module path. Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
 
 ## 9. Approved Go library name
 
@@ -112,7 +113,7 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 
 **Q-010 CLOSED / APPROVED A (2026-11-16):** ALL defaults are configurable: incoming 4 MiB/Session, aggregate queued Application 256 MiB/Server (NOT process RSS), 1024 bound Sessions, 128 pre-bind, absolute 30s pre-bind deadline, and 4 KiB Control reserve/Session. Outgoing failed local/global admission => Queue Full, keep Session. Incoming failed local/global admission => close only offender. At bound limit reject new Bind without eviction; at pre-bind capacity refuse socket. Outgoing 4 MiB/Session from Q-008 also remains configurable. See resource design.
 
-**API-004 OPEN:** Go Config must distinguish omitted `EnquireLinkIdleInterval` (approved default 30s) from explicit `0` (disable outgoing probes) and allow independent Q-008/Q-010 resource overrides. Suggested pattern: default config builder/factory with explicit overrides; alternative optional/pointer fields. Hot reload not approved.
+**API-004 CLOSED / OWNER APPROVED A:** typed Functional Options over complete internal defaults, independently applied explicit overrides including idle 0, validation before Dial/Listen, immutable effective per-instance snapshots. No hot reload approved.
 
 
 ## 13. Incoming overload decision
@@ -121,6 +122,12 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 
 ## 14. Q-010 final owner decision and configurability handoff
 
-**Q-010 CLOSED — OPTION A WITH ALL SETTINGS CONFIGURABLE (2026-11-16).** Approved defaults and outcomes are defined in [Decision Log](DECISION_LOG.md), [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). An omitted setting selects the approved default; an explicit valid override is honored. Exact Go representation/validation remains API-004 OPEN, particularly `EnquireLinkIdleInterval=0` vs omission.
+**Q-010 CLOSED — OPTION A WITH ALL SETTINGS CONFIGURABLE (2026-11-16).** Approved defaults and outcomes are defined in [Decision Log](DECISION_LOG.md), [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). An omitted setting selects the approved default; an explicit valid override is honored. API-004 A specifies Functional Options, internal defaults, and immutable validated per-instance config. Explicit `EnquireLinkIdleInterval=0` disables automatic probes.
 
-**No implementation is authorized.** The detailed API-004 configuration model is documented, but its Option A/B choice remains OPEN.
+**No implementation is authorized.** API-004 A is owner-approved; public method names, callback termination policy and request completion style are not yet approved.
+
+## 15. API-004 closure and API-001 follow-up
+
+**API-004 CLOSED / OWNER APPROVED OPTION A (2026-11-16):** Go-native typed Functional Options, complete defaults, independent explicit overrides including idle=0, pre-network validation, immutable effective configuration. [Approved configuration contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md).
+
+**API-001 OPEN:** [Public API draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) presents callback-first asynchronous A versus blocking Context-first B; no preference approved for this separate question. Other open design details: callback/terminal close/Done behavior, outgoing/incoming payload lifetime, error categories, startup/Stop and reconnect defaults, exact package/module path. Preserve approved Q-003 per-session callback serialization, do not promise forced termination of indefinitely blocked user callbacks. **No source code, module changes, tests or execution.**
