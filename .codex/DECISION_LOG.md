@@ -1176,7 +1176,7 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 
 ## API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 must preserve Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. The first outstanding owner choice is **API-002-01 — Request deadline origin/default**: A starts at successful local admission with a proposed 30s default; B starts after full TCP Write with a proposed 30s default; C requires a positive per-call timeout and has no owner default. Recommendation: A, because queue/Writer delay must not retain bounded Request credits indefinitely. No implementation or tests authorized.
+Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 preserves Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. **API-002-01 is CLOSED / OWNER APPROVED / OPTION A:** Request timeout defaults to 30s, starts immediately after successful local admission and includes Queue/Writer/peer-response time; it is independently configurable per Client/Server owner, positive-only, and timeout alone does not close Session. The next owner choice is API-002-02 Frame Assembly Timeout. No implementation or tests authorized.
 
 
 ## API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
