@@ -163,13 +163,13 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 **Decisions recorded:** Q-008 A approves outgoing 4 MiB FIFO + Fail-Fast; Q-009 B approves inbound overflow Session close; Q-010 A approves all configurable inbound/global/bound/pre-bind/control defaults and global overflow outcomes. No implementation has begun.
 
-## 6a. API-004 — Go configuration representation and validation (DRAFT / OPEN)
+## 6a. API-004 — Go configuration representation and validation (CLOSED / APPROVED A)
 
 **Purpose:** Every Q-010 resource default, the Q-008 outgoing limit, and the Q-002/Q-006/Q-007 timers must be user-configurable without ambiguously interpreting a missing field or silently opening an unlimited quota.
 
-### Recommended public model (not approved as a code API)
+### Owner-approved strategy (exported names remain proposed)
 
-**Option A — default-config factory with explicit overrides (recommended):**
+**Option A — typed Functional Options with complete defaults (APPROVED):**
 - Provide a standard fully initialized Client/Server configuration through a documented default constructor/factory or functional options builder.
 - The caller may override each setting **independently**, including `EnquireLinkIdleInterval=0` to disable automatic outgoing probes.
 - The library must know whether a setting was explicitly provided versus omitted: omitted idle interval uses the owner-approved **30s**; explicit zero disables. For positive capacities and deadlines, omitted means the approved default; explicit invalid zero/negative is rejected through validation rather than interpreted as "unlimited."
@@ -177,7 +177,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - Report config validation errors before starting new listeners/connections. Control PDU reserve and per-Session budgets remain bounded even if users lower values.
 - Keep the exact package/type/option names and representation subject to API-001/API-003 review.
 
-**Option B — optional/pointer configuration fields:**
+**Option B — optional/pointer configuration fields (NOT SELECTED):**
 - Represent every setting with an explicit set/unset marker, pointer or optional field. This also distinguishes omitted from explicit zero, but increases configuration verbosity.
 - Under either option, all approved defaults are adjustable; value choices may not be hardcoded.
 
@@ -185,7 +185,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 **Tests to write only after implementation authorization:** unset versus explicitly configured zero for Enquire Link, nonzero overrides of each Q-010 limit, invalid zero/negative input, unit conversion and limits in bytes vs MiB, parallel configuration use, no preallocation of full quotas.
 
-**API-004 STATUS:** OPEN — implementation approach proposed, not yet selected. **Detailed contracts, validation matrix, examples of intents, and owner-choice comparison:** [NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). No exported names or Config implementation have been approved.
+**API-004 STATUS:** CLOSED — owner approved Functional Options, complete defaults, independent explicit overrides and validated immutable effective per-instance settings on 2026-11-16. **Full contract:** [NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). No exported names or Config implementation have been approved.
 
 ## 7. Open decisions and next steps
 
@@ -196,7 +196,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-008 | Capacity defaults and behavior at queue saturation | **Option A: 4 MiB per-session outgoing Application FIFO, immediate Queue Full, bounded control path** | CLOSED — approved 2026-11-16 |
 | Q-009 | Incoming callback overload policy | **Option B:** close the Session promptly if a new Application frame cannot fit its bounded callback backlog; do not affect other Sessions | CLOSED — approved 2026-11-16 |
 | Q-010 | Configurable resource limits and global overload | **Approved A:** inbound 4 MiB per Session, aggregate 256 MiB per Server, 1024 bound, 128 pre-bind/30s, Control reserve 4 KiB per Session; outgoing overflow => Queue Full, incoming => close offender | CLOSED — owner approved 2026-11-16; ALL CONFIGURABLE |
-| API-004 | Default/explicit override and validation | **Option A recommended:** typed Functional Options + internal defaults + immutable resolved config. Option B: optional/pointer fields. [Detailed contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) | OPEN — owner choice |
+| API-004 | Default/explicit override and validation | **APPROVED A:** typed Functional Options over complete defaults, independent explicit overrides, validated immutable effective config. [Contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) | CLOSED — owner approved 2026-11-16 |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
 | API-003 | Package/module path | Library brand `neta-go` approved; package `neta` proposed; no rename | OPEN |
@@ -205,8 +205,12 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 1. Q-006 approved: default idle interval **30s**, explicit **0** disables autonomous sending.
 2. Q-007 approved: configurable **10s** default response deadline, close on missing matching response; Client reconnect only when enabled.
-3. Q-008, Q-009 B and Q-010 A approved: outgoing Fail-Fast 4 MiB; incoming Session close on overflow; configurable inbound/global/bound/pre-bind/control ceilings. Next finalize API-004 and public API signatures.
+3. Q-008, Q-009 B, Q-010 A and API-004 A approved; next resolve API-001a request completion style, callback ownership and exact public method signatures. [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md).
 4. Pin exact C++ develop HEAD and golden-wire test vectors in GO-PINEX-001.
 5. Obtain explicit owner approval **before any** coding, go.mod/module/repository changes, tests or deployment.
 
 **No implementation is authorized or started.**
+
+## 8. Next Public API design (API-001)
+
+The design-only [Public API / Request Completion draft](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) specifies minimal Client, Server, Session, Request/Response and callback concepts. **API-001a is OPEN:** asynchronous callback-first request completion (proposed A) versus synchronous Context-first primary Request API (B). API-004 Functional Options is APPROVED but does not approve names/signatures. No code/test work authorized.
