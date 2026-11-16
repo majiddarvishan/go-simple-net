@@ -138,13 +138,35 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - Protocol control work (Enquire Link, Unbind) must be able to progress under application queue congestion. Preserve order where the C++ protocol requires it; do not reorder ordinary application messages.
 - Unbind protocol deadline must still protect sessions that cannot drain application backlog.
 
+
+### Q-008 — Queue capacity and overload behavior: design proposal (not approved)
+
+**Goal:** Protect per-session and aggregate memory usage while avoiding a complex rate-control framework in the approved lean Core.
+
+**Option A (recommended for V1):**
+- `MaxQueuedOutgoingBytes` per session: **4 MiB suggested default** (count the complete serialized application Frames, including headers). The limit is configurable; this number is a *proposal*, not an approved default.
+- Outgoing application Stream frames are admitted into a bounded FIFO. If a new frame would exceed capacity, `SendRequest`/`SendResponse` fail promptly with a dedicated **queue-full** error: do not block indefinitely and do not silently drop or partially enqueue the frame.
+- Request pending/sequence tracking must be rolled back or left unadmitted when enqueue fails; a rejected frame must not later time out as if it was sent.
+- Keep control frames (`enquire_link_req/resp`, `unbind_req/resp`) operable even when the application FIFO is full via separate **bounded** control capacity/coordination; never interleave bytes, bypass invalid protocol states or reorder application messages. On incoming Unbind, honor the existing Pinex-compatible queued-write drain plus 10s deadline contract.
+- Bound incoming callback backlog as well. Its byte/count limit and pause/resume behavior need a separate technical contract; do not let slow callbacks grow memory without bound.
+- A per-session cap alone is insufficient if unlimited sessions can be accepted. A global/server memory budget or maximum bound-session admission must also be specified; no specific numerical global value is currently approved.
+- No additional business Rate Limiter, Circuit Breaker, Priority Queue, or automatic Deduplicator is added.
+
+**Option B (more involved):**
+- A bounded FIFO with context-aware waiting for capacity instead of immediate rejection (cancellation and wait fairness must be defined), while retaining all resource/control safety requirements.
+- This adds API complexity and risk of blocking inside application callbacks. Not recommended for initial lean Core.
+
+**Future acceptance tests (not run):** concurrent producers cannot exceed byte accounting; full queue returns bounded error (A) without missing sequence cleanup; small Frame admission after drain works; incoming Enquire Link and Unbind progress under saturation; closed session releases all held buffers; many sessions remain within the configured aggregate budget.
+
+**Decision required:** owner selects **A (fail-fast with proposed 4 MiB per-session application queue)** or **B (context-aware wait with bounded capacity)**. Choosing an option alone should not be mistaken for approval of an unspecified server-wide memory budget or incoming callback capacity.
+
 ## 7. Open decisions and next steps
 
 | ID | Decision | Recommendation | Status |
 |---|---|---|---|
 | Q-006 | Numeric default for Enquire Link idle interval | **30s by default (Option B); 0 disables automatic sending** | CLOSED — owner approved 2026-11-16 |
 | Q-007 | Enquire Link response timeout and action | **Default 10s, configurable; close Session on missing matching reply, Client reconnect iff enabled** | CLOSED — owner approved 2026-11-16 |
-| Q-008 | Capacity defaults and behavior at queue saturation | Bounded per-connection byte queue, fail-fast outcome; control PDUs retain progress | OPEN — further design |
+| Q-008 | Capacity defaults and behavior at queue saturation | **Proposal A:** 4 MiB per-session outgoing FIFO, fail-fast when full, separate bounded control headroom; vs B: context-aware wait | OPEN — owner choice; numeric limits are NOT approved |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
 | API-003 | Package/module path | Library brand `neta-go` approved; package `neta` proposed; no rename | OPEN |
