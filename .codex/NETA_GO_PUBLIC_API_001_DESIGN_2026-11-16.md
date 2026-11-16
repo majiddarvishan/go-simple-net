@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — API-001a APPROVED OPTION A (async callback-first), API-001b OPEN / API-004 APPROVED OPTION A  
-**Repository:** `majiddarvishan/go-simple-net`, branch `main`  
+**Repository:** `majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. This is architecture/documentation; no Go source, go.mod, test, build, or repository rename.
 
 ## 1. Approved constraints and source authority
