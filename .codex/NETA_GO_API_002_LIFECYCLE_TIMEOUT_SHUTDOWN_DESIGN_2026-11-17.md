@@ -1,7 +1,7 @@
 # neta-go V1 — API-002 Timeout, Reconnect and Lifecycle/Shutdown Design
 
 **Date:** 2026-11-17  
-**Status:** DESIGN IN PROGRESS — API-002-01 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
+**Status:** DESIGN IN PROGRESS — API-002-01 and API-002-02 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited `develop` HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`  
 **Authority:** [DECISION_LOG.md](DECISION_LOG.md), [API-001](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md), [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md), [Protocol Compatibility](PINEX_WIRE_PROTOCOL_2026-11-16.md).
@@ -67,10 +67,10 @@ C++ uses a single-threaded `io_context` convention. That is not copied into Go: 
 | Enquire Link response | 10s approved | Keep 10s; timeout closes Session |
 | Graceful Unbind | Not yet approved for Go | 10s, matching Pinex protocol deadline; configurable |
 | Reconnect delay | Not yet approved for Go | 5s observed C++ baseline; strategy still open |
-| Partial-frame assembly | No Go rule | Open technical review; C++ source has no separate bound-session frame-assembly deadline |
+| Partial-frame assembly | **30s approved** | Absolute per-Frame deadline from first Header byte on Bound Sessions; no reset on progress; timeout closes only the affected Session |
 | Generic socket write | No Go rule | Open technical review; do not silently add a deadline without considering slow peers and queue semantics |
 
-Timeouts are independent. Request timeout is not Enquire Link timeout; Connect/Bind/Pre-Bind deadlines do not share a single mutable timer. All timers must be cancelled or made generation-safe during close/reconnect so stale callbacks cannot mutate a newer Session.
+Timeouts are independent. Request timeout is not Enquire Link timeout; Connect/Bind/Pre-Bind and Frame Assembly deadlines do not share a single mutable timer. Frame Assembly Timeout applies to every inbound Frame on a Bound Session, including partial Header and Body assembly. The already-approved Pre-Bind handshake deadline remains absolute from TCP accept and is not reset or extended by Frame progress. All timers must be cancelled or made generation-safe during close/reconnect so stale callbacks cannot mutate a newer Session.
 
 ## 5. API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
 
@@ -100,6 +100,28 @@ The Request timeout must bound the full lifetime of an accepted callback-first R
 - This adds a per-call parameter or request-options object to the hot-path API and makes omission impossible only if the language/API enforces it.
 
 **Owner decision:** Option A approved on 2026-11-17. Options B and C were not selected. The 30s Go default is independently configurable on Client and Server through typed Functional Options; no per-call timeout override is part of V1. This is a Go API policy, not a claim that C++ Pinex defines the same default. Request timeout must be positive; zero does not disable it. No additional upper hard maximum has been approved.
+
+
+
+### API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+**Approved policy:** an absolute **30-second** deadline for assembling each inbound Frame on a Bound Session.
+
+- Start the monotonic deadline when the Reader first observes the first byte of the current Frame Header. The deadline covers the remaining Header and the complete declared Body; it is not a separate 30s allowance for Header plus another 30s for Body.
+- Any additional bytes/progress do **not** reset or extend the deadline. This is deliberately not an idle-progress timeout.
+- Cancel the timer only after the complete Frame has been read and validated, or when the Session enters terminal close. The Reader processes the ordered byte stream; only the currently incomplete Frame owns an assembly deadline.
+- If the deadline expires before the Frame is complete, close only that Session's transport and enter the existing terminal/Forced Close path. Do not skip the incomplete bytes, attempt stream resynchronization, or affect other Sessions. A Client may reconnect only according to the separately approved reconnect policy; this decision does not enable or define reconnect.
+- **Partial-header case:** until a complete valid Header is available, retain only bounded parser/Header storage; do not allocate Body storage from an incomplete or unvalidated length. On timeout, release that partial parser state exactly once.
+- **Partial-body case:** after validating the Header and declared total Frame length, reserve the full declared-frame retained-byte budget and applicable queue/count admission before Body allocation/read, as required by WORKER-008. If assembly times out, release the declared-frame reservation, partial Body storage, and applicable queue/count reservations exactly once.
+- If a matching Response cannot reserve Completion retained bytes and follows the already-approved bounded scratch-buffer Body-drain path, that drain remains under the **same original Frame Assembly deadline**. If the deadline expires before the declared Body is fully drained, close the Session and do not emit a second Resource Capacity Completion; the existing terminal-settlement winner rule remains binding.
+- The timer covers Application and protocol/control Frames received on a Bound Session; a partial control Frame is not exempt. No user callback is dispatched for an incomplete Frame.
+- Default 30s is independently configurable on Client and Server via typed Functional Options; accepted Server Sessions inherit the Server setting. The setting is positive-only; explicit zero is invalid and does not disable the deadline. No additional upper hard maximum is approved by this decision.
+- This is a Go lifecycle/resource-protection policy, not a Pinex wire change. Pinex C++ 1.5.0 has no separate bound-session Frame Assembly deadline.
+- **Pre-Bind:** the existing absolute 30s Pre-Bind handshake deadline from TCP acceptance remains authoritative and unchanged. Frame Assembly Timeout does not extend it and is not an additional pre-Bind grace period.
+
+**Future acceptance criteria (not run):** fragmented Header and Body; slow-trickle Body that never resets the deadline; completion just before deadline; simultaneous timeout/full-read race; partial-header and partial-body reservation release exactly once; Completion-budget drain expiry; isolation across Sessions; no callback or pending Request resurrection after close.
+
+**Owner decision:** Option A approved. No implementation or tests authorized.
 
 ## 6. Proposed graceful shutdown and forced-close contract (design proposal; no new owner decision yet)
 
@@ -156,13 +178,12 @@ Proposed semantics:
 
 ## 8. Remaining API-002 decisions and technical review
 
-1. **API-002-02 — Frame Assembly Timeout (next owner decision):** whether a bound Session must be closed when a peer begins a Frame but does not complete its Header/Body within a finite absolute deadline. Proposed Option A: 30s absolute deadline from the first byte of the Frame Header; progress/trickled bytes do not reset it; timeout closes only the offending Session and releases partial-frame reservations. The already-approved 30s absolute Pre-Bind handshake deadline remains unchanged.
-2. **Connect timeout:** proposed 30s default, independently configurable; not yet owner-approved.
-3. **Bind response timeout:** proposed 30s default, independently configurable; not yet owner-approved.
-4. **Graceful Unbind timeout:** proposed 10s default, independently configurable; not yet owner-approved.
-5. **Write stall deadline:** decide whether a stalled TCP Writer should close a Session after a configurable deadline, beyond Request timeout and Unbind deadline.
-6. **Reconnect policy:** fixed 5s compatibility delay versus bounded exponential backoff with jitter; AutoReconnect default false remains a proposal, not yet owner-approved.
-7. **Stop API signatures and terminal cause accessor:** exact exported method/error names remain API-001 surface work; lifecycle semantics should be frozen before implementation.
+1. **API-002-03 — TCP Connect Timeout (next owner decision):** proposed 30s absolute deadline for one Dial attempt; not yet owner-approved.
+2. **Bind response timeout:** proposed 30s absolute deadline, independently configurable; not yet owner-approved.
+3. **Graceful Unbind timeout:** proposed 10s absolute deadline, independently configurable; not yet owner-approved.
+4. **Write stall deadline:** decide whether a stalled TCP Writer should close a Session after a configurable deadline, beyond Request timeout and Unbind deadline.
+5. **Reconnect policy:** fixed 5s compatibility delay versus bounded exponential backoff with jitter; AutoReconnect default false remains a proposal, not yet owner-approved.
+6. **Stop API signatures and terminal cause accessor:** exact exported method/error names remain API-001 surface work; lifecycle semantics should be frozen before implementation.
 
 ## 9. Non-goals
 

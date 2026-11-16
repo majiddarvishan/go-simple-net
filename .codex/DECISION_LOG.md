@@ -1176,7 +1176,7 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 
 ## API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 preserves Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. **API-002-01 is CLOSED / OWNER APPROVED / OPTION A:** Request timeout defaults to 30s, starts immediately after successful local admission and includes Queue/Writer/peer-response time; it is independently configurable per Client/Server owner, positive-only, and timeout alone does not close Session. The next owner choice is API-002-02 Frame Assembly Timeout. No implementation or tests authorized.
+Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md). API-002 preserves Q-006/Q-007, Q-010, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-009A..C. **API-002-01 and API-002-02 are CLOSED / OWNER APPROVED / OPTION A:** Request timeout is 30s from successful local admission; Frame Assembly Timeout is 30s absolute from the first byte of each Frame Header on a Bound Session, not reset by progress, and closes only the affected Session. Both are positive-only independently configurable owner settings. Pre-Bind handshake remains 30s absolute from TCP accept. The next owner choice is API-002-03 TCP Connect Timeout. No implementation or tests authorized.
 
 
 ## API-002-01 — Request deadline origin and default (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -1190,3 +1190,18 @@ Detailed draft: [NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 **References:** [API-002 lifecycle design](NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md) §5; API-004 configuration contract §11.4.
 
 **Next:** API-002-02 — Frame Assembly Timeout. Proposed finite absolute deadline: 30s from first byte of a Frame Header; do not reset on incremental progress. This is a separate owner decision. Implementation remains NOT AUTHORIZED.
+
+
+## API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+**Decision:** Option A — **30-second absolute deadline** for every inbound Frame on a Bound Session, starting when the Reader first observes the first byte of that Frame's Header. The deadline covers the remaining Header and the complete declared Body; progress does not reset it. On expiry, close only the affected Session under the existing terminal/Forced Close path; never skip bytes or attempt stream resynchronization. Other Sessions remain unaffected.
+
+**Configuration:** independently configurable on Client and Server via typed Functional Options; accepted Server Sessions inherit the Server value. The setting is positive-only; explicit zero is invalid. No additional upper hard maximum was approved. This Go policy does not change Pinex wire compatibility; Pinex C++ 1.5.0 has no equivalent bound-session frame-assembly deadline.
+
+**Resource behavior:** do not allocate Body storage before complete Header validation and admission. WORKER-008's declared full-frame reservation remains held during partial Body assembly and is released exactly once on timeout; partial Header state releases only its bounded parser storage. A Completion-budget-failure Body drain uses the same original Frame Assembly deadline; if it expires, close the Session and do not emit a Resource Capacity Completion. No callback is invoked for an incomplete Frame. The independent absolute Pre-Bind handshake deadline remains 30s from TCP acceptance and is not extended by Frame progress.
+
+**Future acceptance criteria (not run):** fragmented/slow-trickle Header and Body; no deadline reset on progress; exact-boundary completion race; partial reservation release exactly once; Completion scratch-drain expiry; Session isolation; no callback/Request resurrection.
+
+**References:** API-002 lifecycle design §5.5; API-004 configuration contract §11.5; WORKER-008; Resource Admission Design §10.
+
+**Next:** API-002-03 — TCP Connect Timeout. Proposal: 30s absolute deadline per Dial attempt. Implementation remains NOT AUTHORIZED.

@@ -611,7 +611,7 @@ Pinned source snapshot: `majiddarvishan/pinex` branch `develop`, HEAD `f7bd1eb77
 
 ## 43. API-002 — Lifecycle, Timeout, Reconnect and Shutdown (DESIGN IN PROGRESS, 2026-11-17)
 
-Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It records the observed Pinex 1.5.0 timing reference (Connect 30s, Bind 30s, Pre-Bind 30s, Unbind 10s, reconnect 5s; Request timeout is a required C++ constructor argument, not a C++ default), preserves all already-approved Done/Forced Close/Notification/Worker contracts, and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. API-002-01 is now CLOSED / OWNER APPROVED / OPTION A: Request timeout is 30s by default, starts immediately after successful local admission and includes Queue/Writer/peer time; it is independently configurable per Client/Server owner, never disabled by zero, and timeout alone does not close Session. The next owner decision is API-002-02 Frame Assembly Timeout; proposed 30s absolute from the first byte of a Frame Header, not reset by trickle progress. Connect/Bind/Unbind defaults, write-stall handling and reconnect policy remain open. No implementation or tests authorized.
+Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md`. It records Pinex 1.5.0 timing evidence, preserves all approved Done/Forced Close/Notification/Worker contracts, and proposes context-aware terminal Client/Server Stop that waits for internal Done but never joins arbitrary callbacks. **API-002-01 CLOSED / OWNER APPROVED / OPTION A:** Request timeout is 30s from successful local admission and includes Queue/Writer/peer time; independently configurable per Client/Server owner, positive-only; timeout alone does not close Session. **API-002-02 CLOSED / OWNER APPROVED / OPTION A:** Frame Assembly Timeout is 30s absolute from first byte of each Frame Header on a Bound Session; progress does not reset it; expiry closes only that Session and releases partial-frame reservations exactly once. The 30s absolute Pre-Bind handshake deadline from TCP accept remains unchanged. Next owner decision: API-002-03 TCP Connect Timeout (proposed 30s per Dial attempt). Bind, Unbind, write-stall, reconnect and final Stop/API signatures remain open. No implementation or tests authorized.
 
 
 ## 44. API-002-01 — Request Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
@@ -623,4 +623,19 @@ Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 - Timeout alone does not close Session; timeout/Response/Close race has one terminal settlement winner.
 - Rejected: start-after-full-Write and per-call-required timeout.
 
-**Next owner decision:** API-002-02 Frame Assembly Timeout. Proposal: 30s absolute from first byte of Frame Header, no reset on incremental progress; expiry closes only the affected bound Session and releases partial-frame reservations. No implementation/tests authorized.
+**Next owner decision:** API-002-03 TCP Connect Timeout. Proposal: 30s absolute deadline per Dial attempt, with an earlier caller Context deadline taking precedence. No implementation/tests authorized.
+
+
+## 45. API-002-02 — Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- **Default:** 30s absolute deadline per inbound Frame on a Bound Session.
+- **Start:** first byte of that Frame's Header observed by Reader; one deadline covers remaining Header and full declared Body. Incremental progress never resets it.
+- **Expiry:** close only the affected Session via existing terminal/Forced Close path. No byte skipping or stream resynchronization; other Sessions remain unaffected.
+- **Partial Header:** retain only bounded parser/header storage until a complete valid Header exists; no Body allocation from incomplete/unvalidated length. Release partial parser state once on timeout.
+- **Partial Body:** after Header validation, WORKER-008 full declared-frame retained-byte and applicable queue/count reservations remain held until full read or terminal cleanup. On timeout, release reservation and partial storage exactly once.
+- Completion retained-byte failure's bounded scratch-buffer Body drain remains under the same original Frame Assembly deadline. If it expires, close Session and do not emit Resource Capacity Completion.
+- Applies to Application and protocol/control Frames on Bound Sessions. No callback for an incomplete Frame.
+- Independently configurable per Client/Server owner via typed Functional Options; positive-only, explicit zero invalid; accepted Server Sessions inherit the Server value. No additional hard maximum approved.
+- The absolute 30s Pre-Bind handshake deadline from TCP accept remains unchanged and is not extended by Frame progress. Pinex C++ 1.5.0 has no separate equivalent deadline; no wire change.
+
+**Next:** API-002-03 TCP Connect Timeout. Proposal: 30s absolute per Dial attempt; a shorter caller Context deadline wins. No implementation/tests authorized.

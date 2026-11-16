@@ -116,6 +116,8 @@ The owner chose Option A defaults, **not** a workload-specific replacement defau
 6. Dropped/late/unexpected response PDUs must not accidentally complete pending request state more than once.
 7. A rejected/closed Session releases all queue reservations and timers, cannot continue writing old frames, and generates no duplicate terminal notifications.
 8. Backpressure is not a security or authentication replacement. Bind validation and duplicate-ID policy remain unchanged.
+9. A Bound Session's inbound Frame assembly has an absolute 30s deadline from the first byte of each Frame Header; partial progress never resets it. Expiry closes only that Session, releases partial Header/Body storage and all declared-frame/queue reservations exactly once, and never attempts stream resynchronization. The absolute Pre-Bind handshake deadline remains 30s from TCP accept and is not extended by Frame progress.
+10. A Response Body drained through the fixed scratch buffer after Completion retained-byte admission failure remains under the same original Frame Assembly deadline. Drain expiry closes the Session and must not produce a Resource Capacity Completion.
 
 ## 6. Tests to plan (NOT executed)
 
@@ -124,6 +126,8 @@ The owner chose Option A defaults, **not** a workload-specific replacement defau
 - Callback slowed indefinitely: bounded incoming bytes, **only the overflowing Session closes**, unaffected other Sessions, no double-close. A stuck user callback cannot be forcibly terminated; do not promise indefinite Stop waits.
 - Global pressure across many Sessions: aggregate queue ceiling respected and admission effects isolated.
 - TCP fragmentation and partial frame reads: no blind skip of application data; control PDU order preserved.
+- Frame Assembly Timeout: fragmented Header/Body and slow-trickle input cannot extend the absolute 30s deadline; timeout closes only the offender and releases partial reservations exactly once.
+- Completion-capacity scratch-buffer Body drain shares the original Frame Assembly deadline; timeout during drain closes the Session without a Resource Capacity Completion.
 - Incoming Enquire Link/Unbind already decoded before overflow follow normal state rules; after overflow closes Session, do not skip incomplete frames or promise control processing through a closed transport.
 - Session teardown while a writer is stalled: all reserved bytes and pending sequences released exactly once.
 - Race detector and bounded-churn/soak suite for Go Session state and callbacks.
@@ -385,3 +389,12 @@ Typed Functional Options are independent per semantic setting and follow resourc
 
 ---
 
+
+
+## 10. API-002-02 — Absolute Frame Assembly Timeout (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+A Bound Session has a 30s absolute deadline for each inbound Frame, measured from the first byte of its Header as observed by Reader. It covers Header and Body assembly; incoming progress never resets it. On expiry, only that Session is closed. Partial Header storage and, after Header validation, the declared full-frame retained-byte plus applicable queue/count reservations are released exactly once. No Body allocation is permitted before Header validation/admission; no stream resynchronization is attempted.
+
+The approved Completion retained-byte failure drain uses the same original Frame Assembly deadline. If the deadline expires before the Body drain completes, close the Session and do not emit Resource Capacity Completion. The absolute Pre-Bind handshake deadline remains 30s from TCP acceptance, unchanged and independent.
+
+Implementation and tests remain NOT AUTHORIZED.

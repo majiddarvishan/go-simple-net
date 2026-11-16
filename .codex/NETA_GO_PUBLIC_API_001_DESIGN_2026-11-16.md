@@ -128,7 +128,7 @@ The exact method names, callback registration style, `Done` signaling, timer def
 | PERF-002 | Payload ownership | Outgoing snapshot before successful admission return; inbound directly received buffer retainable beyond callback | **CLOSED — OWNER APPROVED A** |
 | API-001b | Callback/Close/Done | Callback lanes, Forced Close cancellation and Done semantics | **Policy CLOSED; exact exported names/signatures remain API-001 work** |
 | PERF-003 | Outstanding Request/Completion count ceiling | Configurable Session and owner aggregate credits, held through Completion settlement | **CLOSED — model and numeric defaults approved** |
-| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | API-002-01 approved: Request timeout 30s from successful local admission; API-002-02 Frame Assembly Timeout is next | IN PROGRESS |
+| API-002 | Dial/Bind/Request deadlines, reconnect, graceful Stop and callback/resource shutdown behavior | API-002-01 Request timeout and API-002-02 Frame Assembly Timeout are approved; API-002-03 TCP Connect Timeout is next | IN PROGRESS |
 | API-003 | Go package/module path | Library name `neta-go` approved; no repo/module rename authorized | OPEN |
 | GO-PINEX-001 | Pin exact C++ develop HEAD/golden frames | Ensure current baseline before implementation/tests | OPEN |
 

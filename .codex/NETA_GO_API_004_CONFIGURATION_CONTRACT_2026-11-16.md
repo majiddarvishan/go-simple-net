@@ -75,8 +75,9 @@ The keys below describe semantic configuration, not final exported Go API identi
 | MaxPendingPreBindSessions | **128** | Server/listener | positive integer |
 | PreBindHandshakeTimeout | **30s** | Server/listener | positive finite duration, absolute from accept |
 | RequestTimeout | **30s (API-002-01 approved)** | Client + Server owner; inherited by Sessions | positive finite duration; starts after successful local admission; zero invalid |
+| FrameAssemblyTimeout | **30s (API-002-02 approved)** | Client + Server owner; inherited by Sessions | positive finite duration; absolute from first Frame Header byte on Bound Session; zero invalid |
 
-Additional C++-observed reference values (client Connect/Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. RequestTimeout=30s is a separately owner-approved Go default under API-002-01; C++ Pinex does not define a default. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
+Additional C++-observed reference values (client Connect/Bind 30s, reconnect delay 5s, Unbind 10s) are documented elsewhere; **they are not promoted here to approved Go defaults**. RequestTimeout=30s and FrameAssemblyTimeout=30s are separately owner-approved Go defaults under API-002-01/02; C++ Pinex does not define a RequestTimeout default and has no equivalent bound-session Frame Assembly deadline. The max protocol PDU length remains separate from all queue byte limits and must retain Pinex C++ 1.5.0 wire compatibility.
 
 ### Cross-field validation — draft
 
@@ -231,3 +232,16 @@ Use one typed, independent Functional Option per semantic setting. Omitted optio
 - Timeout alone does not close Session. Timeout/Response/Close race has one terminal settlement winner. B (start after full Write) and C (mandatory per-call timeout) were not selected.
 
 API-002-02 Frame Assembly Timeout remains open; see the API-002 lifecycle design. No implementation or tests are authorized.
+
+
+### 11.5 API-002-02 — approved FrameAssemblyTimeout configuration (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- **Default:** 30 seconds absolute per inbound Frame on a Bound Session.
+- **Scope:** independently configured on Client and Server owners using typed Functional Options; accepted Server Sessions inherit the immutable Server effective value.
+- **Start/semantics:** starts when Reader first observes the first byte of the current Frame Header; covers remaining Header and full declared Body. Incremental progress does not reset or extend the deadline. Cancel only when the Frame is fully assembled/validated or Session enters terminal close.
+- **Expiry:** close only the affected Session under existing terminal/Forced Close policy. No byte skipping, stream resynchronization, or impact on other Sessions.
+- **Validation:** positive finite duration; explicit zero invalid. No additional upper hard maximum approved.
+- **Resource interaction:** partial Header holds only bounded parser storage. After Header validation, reserve full declared-frame retained bytes and applicable queue/count capacity before Body allocation. Expiry releases partial storage and all applicable reservations exactly once. Completion-capacity scratch-buffer Body drain is subject to the same original deadline; drain expiry closes Session without a Resource Capacity Completion.
+- **Pre-Bind:** the approved 30s absolute handshake deadline from TCP acceptance remains independent and unchanged; FrameAssemblyTimeout does not extend it.
+
+No wire change is introduced. Pinex C++ 1.5.0 has no separate equivalent bound-session assembly deadline. API-002-03 TCP Connect Timeout is next. No implementation or tests are authorized.
