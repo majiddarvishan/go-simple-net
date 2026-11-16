@@ -199,3 +199,11 @@ The uploaded Go sample includes several application-oriented features that are n
 The owner explicitly selected **Option A** on 2026-11-16. The lean V1 scope above is **approved** and Q-004 is **CLOSED**.
 
 The approval does **not** authorize code implementation, module/repository renaming, tests, deployments, or changes in the C++ Pinex repository. Detailed API signatures and numerical limits remain open for design.
+
+---
+
+## Design handoff after Q-004 approval (2026-11-16)
+
+The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). It distinguishes approved owner contracts from suggested (unapproved) exported API structure, numerical defaults, queue capacity and missing Enquire Link response behavior.
+
+**Open:** Q-006 (numeric idle interval default, 0 vs proposed 30s), Q-007 (Probe response deadline/action), Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). These are **not approved** and no code work is authorized.
