@@ -729,3 +729,35 @@ Instance-scoped capacity preserves isolation between unrelated Client/Server ins
 
 **Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).  
 **Next:** WORKER-002 — decide whether each callback class needs its own explicit owner-wide active-worker ceiling or whether aggregate ceilings are derived from existing Session limits. No numeric defaults are implied.
+
+---
+
+## WORKER-002 — Independent Owner-Wide Active Worker Ceilings (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Owner selection:** “برای WORKER-002 گزینه A را تأیید می‌کنم.”  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+Each Client instance and each Server instance MUST have three independently configurable aggregate active-worker ceilings, one per user callback class:
+
+1. **Application:** active `OnRequest` callbacks.
+2. **Completion:** active per-Request Completion callbacks.
+3. **OnClose:** active Session `OnClose` callbacks.
+
+Rules:
+
+- A Session's configured concurrency is intersected with the remaining active capacity of its corresponding owner/class ceiling. Neither setting can be bypassed by the other.
+- Capacity is class-isolated: Application, Completion and OnClose cannot borrow, consume or steal one another's active-worker permits.
+- The ceiling counts callbacks physically executing, not queued events. Each class's waiting/event population remains bounded separately under its own admission contract.
+- Owner scope follows WORKER-001: all Sessions of one Server share its class ceilings; all reconnect generations of one Client share its class ceilings. Started callbacks from retired Session generations continue consuming the corresponding owner/class active permit until return.
+- Independent Client/Server instances remain independent. No process-global active-worker ceiling is introduced by this decision.
+- Physical pool layout, lazy worker lifecycle, public option names, numeric defaults/minimums/maximums and queue/event limits are not selected here.
+
+### Rationale
+
+Explicit class ceilings make the upper bound independent of current Session count, prevent one callback class from consuming another class's execution reserve, and keep reconnect churn from multiplying active work. They also make resource sizing and overload analysis explicit. The cost is three additional configuration dimensions per Client/Server; this does not require eagerly creating all worker goroutines.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§3–8.  
+**Next:** WORKER-003 — OnClose event-budget saturation and whether a close notification is skipped or protected by admission-time reservation. No numeric defaults are implied.
