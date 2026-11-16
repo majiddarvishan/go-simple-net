@@ -219,3 +219,14 @@ No code/test/benchmark run. `API-001b` and these detailed callback semantics rem
 **PERF-003 unchanged:** Request completion slot counts already owner-approved at model level, numeric defaults remain unapproved. Completion callback stuck in the user notification lane must not prevent *internal* response settlement or transport close. The Request credit lifetime on forced close depends on A/B and remains OPEN.
 
 **Further design question:** should OnClose/user-completion callback execution use a bounded independent lane, and what ordering/at-most-once guarantee is desired on forced Close? Recommend separate control-plane settlement and bounded user notification dispatcher, but do not silently implement it.
+
+
+## 12. API-001b-N1 owner approval — separate bounded notification lane (2026-11-16)
+
+**APPROVED STRUCTURE:** `OnClose` and per-Request Completion user callbacks execute on a **bounded notification lane independent of the bounded parallel Application `OnRequest` dispatcher**. Neither user callback domain may block internal TCP Protocol/Control/Pending/Timeout/Close machinery. A slow application handler must not occupy the notification workers. Internal request result settlement remains once-only and proceeds irrespective of user callback execution.
+
+**Important limit:** This is separation between the **Application** and **Notification** user callback classes, not approval of one goroutine per notification, an unlimited queue, or one guaranteed worker per event. A blocked notification callback can still stall its own notification worker, even though it cannot stall the internal engine. Use PERF-003's bounded completion-credit accounting and finite scheduling/memory budgets.
+
+**Still OPEN:** notification lane worker count, defaults, exact queue/memory limits and shared-vs-sub-lane organization; `OnClose`/completion relative order and fairness across Sessions; forced-close Option A cancel-unstarted vs B bounded deferred callbacks; release of credits on forced close when user code remains blocked; `Done` public semantics. The owner approved **lane separation only**, not either forced-close option.
+
+**Authoritative source:** [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1. No implementation, tests or benchmarks authorized.
