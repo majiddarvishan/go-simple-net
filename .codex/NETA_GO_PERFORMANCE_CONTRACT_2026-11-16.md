@@ -81,7 +81,7 @@
 |---|---|---|---|
 | PERF-001 | Performance measurement policy | V1 benchmarks and allocation/latency/soak gates required; numeric pass/fail targets after measurement | DRAFT follow-up |
 | PERF-002 | `[]byte` lifetime and ownership | A: one outbound snapshot and owned, directly received retainable inbound buffer; no borrowed default | **CLOSED — APPROVED A (2026-11-16)** |
-| PERF-003 | Pending completion cap and callback dispatch overhead | bounded outstanding operations, callback queue count/bytes, failure when full; no unbounded goroutine per request | OPEN — detailed contract |
+| PERF-003 | Pending/completion count admission | **OWNER-APPROVED Option A model**: configurable per-Session + Server aggregate completion credits, fail-fast reject new Request without Session close; numerical defaults and forced-close details OPEN | **MODEL APPROVED A; DETAILS OPEN** |
 | PERF-004 | Allocation/pooling policies | choose after benchmark; pools must never leak borrowed buffer data after recycle | OPEN — engineering validation |
 | API-001b | Callback execution + Close/Done semantics | must reconcile per-Session callback ordering and blocked user callback on shutdown | OPEN |
 | API-002 | Timeout/reconnect defaults | compatibility and production performance impacts | OPEN |
@@ -103,3 +103,10 @@ A detailed copy/ownership/retention matrix, bounded pending/completion-credit pr
 **PERF-002 CLOSED / Option A approved**: outgoing asynchronous sends snapshot the caller's payload before successful return, once in the intended hot path; receiving reads directly into a new owned user-retainable buffer where possible, without a redundant second payload copy. The library never pools an incoming buffer after handing its ownership to user code. The caller cannot concurrently write to its source during the copy; after a successful Send return it may reuse the source. This is not an end-to-end zero-copy guarantee.
 
 Earlier sections describing PERF-002 as OPEN are historical and superseded by [the approved Decision Log](DECISION_LOG.md) and [updated design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). **PERF-003**, **API-001b**, numerical targets, optional buffer pooling and all performance validation remain OPEN. No benchmark, test or implementation authorized.
+
+
+## 9. PERF-003 approval notice (2026-11-16)
+
+**Owner approved PERF-003 Option A at the model level**: count-bounded outstanding Request + queued/running completion per Session and Server aggregate; independently configurable with API-004 Functional Options; promptly reject new Request on exhausted count while keeping Session connected and without publishing a frame or leaking pending state. No goroutine-per-Request or unbounded completion queue. This is in addition to Q-008/Q-010 queued byte caps, not a replacement.
+
+**Not approved:** 1024 per Session/65536 Server are merely illustrative numbers, separate incoming event-count cap is still only a proposal, and API-001b forced-close callback behavior and credit release semantics need owner choice. Earlier PERF-003 OPEN statements in this document refer to historic *preapproval* status; refer to [Decision Log](DECISION_LOG.md) and [current design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) for the latest authoritative split. No implementation/test/benchmark authorization.
