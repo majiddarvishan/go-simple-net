@@ -470,7 +470,7 @@ The Pinex reference's 1 MiB maximum frame remains provisional until the exact C+
 - Every count/byte limit is lazy admission capacity, not eager allocation.
 - Queue bytes/counts, active-worker permits, Request credits, OnClose event credits and retained-payload bytes remain distinct ledgers. Do not sum them as if they were separate physical buffers.
 - Client reconnect generations share the same Client owner budgets. Independent Client/Server instances remain isolated; no process-global cap is introduced.
-- Completion-byte exhaustion must never silently discard a matching Response. Its exact terminal policy remains open and must be decided before Architecture Freeze.
+- Completion-byte exhaustion must never silently discard a matching Response. The owner-approved policy is bounded Body drain with a fixed scratch buffer, followed by one terminal Resource Capacity Completion callback without Response payload; the Session stays open. A drain/transport failure closes the Session under the transport-error policy. See WORKER-008 above.
 
 ### 6. Owner decision sequence
 
