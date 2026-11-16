@@ -389,16 +389,16 @@ The owner selected Option A: when the owner's bounded OnClose event budget is fu
 - Done, terminal cause, transport cleanup and reconnect are unaffected.
 - Client reconnect generations share the same OnClose event budget.
 
-### Next decision — WORKER-004
+### Next decision at that time — WORKER-004 (RESOLVED BY §31)
 
-Choose three class-isolated worker pools (recommended for blocked-callback isolation and reduced cross-class contention) versus one shared owner pool with strict per-class active reservations (which can reuse idle workers but needs a more complex shared scheduler). See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
+This was the pending choice when WORKER-003 was first recorded. The owner subsequently approved Option A; the binding result is recorded in §31 and DECISION_LOG.md.
 
 No numeric event capacity or implementation authorized. No code, tests, benchmarks, builds or operational changes.
 
 
 ## 31. WORKER-004 — Three class-isolated worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
 
-The owner-approved WORKER-004 Option A is now registered in the Decision Log and synchronized design records.
+The owner-approved WORKER-004 Option A is now registered in the Decision Log and synchronized design records. Initial registration commit: `fd3b4bdbe9ab424a444c237dd6017b99b60c3193`.
 
 ### Binding contract
 

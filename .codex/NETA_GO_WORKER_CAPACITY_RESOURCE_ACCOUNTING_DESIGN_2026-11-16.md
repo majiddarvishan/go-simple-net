@@ -86,7 +86,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 - Never hold registry/global hot-path locks while invoking user code.
 - Never create an unbounded goroutine per Request, frame or callback event.
 - Lazy allocation is preferred; do not eagerly allocate each Session's maximum queue or payload capacity.
-- Physical worker-pool layout (three dedicated pools versus a shared scheduler with hard class reservations) is not yet an owner-approved implementation choice. It must preserve Application/Notification isolation and N-ORD2's Completion/OnClose independent active capacity.
+- WORKER-004 has now selected three independent physical class pools. WORKER-006 will define the fair ready-Session scheduling policy within each pool; N-ORD2's Completion/OnClose isolation remains binding.
 
 ## 6. Saturation and liveness invariants
 
@@ -114,7 +114,7 @@ No library can terminate arbitrary user code. Finite active capacity therefore i
 
 - Owner-scoped budgets avoid a mandatory process-global synchronization point on every callback admission.
 - Per-Session queues and ready-session rotation localize contention; global/owner counters still need race-free reservation but must not be held while calling user code.
-- Bounded worker loops avoid per-event goroutine creation and reduce allocation/scheduler churn. The precise physical scheduler remains open.
+- Bounded class-isolated worker loops avoid per-event goroutine creation and reduce allocation/scheduler churn. WORKER-004 fixes the pool topology; WORKER-006 will refine fair ready-Session selection.
 - Independent class budgets prevent blocked Application callbacks from consuming Completion/OnClose capacity and prevent Completion saturation from consuming OnClose's reserved capacity.
 - Fair scheduling improves tail latency and prevents a high-volume Session from monopolizing available workers, but fairness cannot overcome a class whose workers are all permanently blocked.
 - No throughput/latency SLA or numeric default is inferred. Measurement and benchmarks remain unauthorized.
@@ -138,7 +138,7 @@ Rules:
 - These ceilings count callbacks physically executing, not queued events. Each class's waiting/event population remains bounded separately.
 - WORKER-001 scope applies: all Sessions of one Server share its three ceilings; all reconnect generations of one Client share its three ceilings. Started callbacks from retired Session generations remain charged until return.
 - Independent Client/Server instances remain independent; no process-global active-worker ceiling is introduced.
-- No numeric defaults, public option names, physical pool layout or event capacities are selected.
+- No numeric defaults, public option names, idle-worker lifecycle or event capacities are selected.
 
 ### Rationale
 
@@ -165,7 +165,7 @@ The owner approved **Option A: skip the new OnClose event when the event budget 
 This preserves transport and internal-engine liveness even if OnClose callbacks block forever. It follows N-ORD2/DONE-A's independent, best-effort/at-most-once contract and avoids coupling connection admission/reconnect to arbitrary user callback progress. Counting queued + running events also bounds retained Session references and event metadata.
 
 
-## WORKER-004 — Three Class-Isolated Worker Pools (2026-11-16)
+## 11. WORKER-004 — Three Class-Isolated Worker Pools (2026-11-16)
 
 **Status: CLOSED / OWNER APPROVED — OPTION A.**  
 **Implementation:** NOT AUTHORIZED.
@@ -197,7 +197,7 @@ Option B — one shared owner worker pool with strict per-class active reservati
 **Next:** WORKER-005 — Worker Lifecycle and Idle Worker Retirement. Numeric worker ceilings, idle timeout defaults, queue/event limits and payload-byte limits remain open.
 
 
-## WORKER-005 — Worker Lifecycle and Idle Worker Retirement (OPEN; RECOMMENDATION ONLY)
+## 12. WORKER-005 — Worker Lifecycle and Idle Worker Retirement (OPEN; RECOMMENDATION ONLY)
 
 **Status: OPEN — no owner selection yet.**  
 **Implementation:** NOT AUTHORIZED.
