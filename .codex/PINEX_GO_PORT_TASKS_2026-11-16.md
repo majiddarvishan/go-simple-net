@@ -649,3 +649,10 @@ Baseline فعلی Pinex:
 **Required design work (not implementation):** decouple internal Protocol/Writer/Timeout/Pending/Close engine from any user callback; protect waiting queue Q-009/Q-010 bounds; independently budget N active callback payloads and prevent infinite zombie callback accumulation across forced close/reconnect; consider proposed global active callback cap. The per-request completion/OnClose *user callback* lane is still API-001b OPEN and must not be silently finalized by choosing parallel application callbacks.
 
 **Existing closed contracts unchanged:** PERF-002 A owned payload; PERF-003 A bounded pending/completion count model, numeric defaults OPEN; API-001a A nonblocking SendRequest; API-004 A Functional Options; Q-008/009/010 byte and session limits. No source, tests or benchmarks authorized.
+
+
+### API-001b-N1 — independent user notification lane (2026-11-16)
+
+**OWNER APPROVED STRUCTURE:** `OnClose` and per-Request Completion user callbacks must run in a bounded Notification dispatch path **independent** of Application `OnRequest` workers and internal Protocol/Timeout/Pending/Close work. Q-003-R1 keeps Application handler concurrency configurable (1 = serial). Neither Callback domain may block internal close and settlement. Preserve bounded PERF-003 completion admission; no goroutine per event.
+
+**OPEN:** Notification worker count/default, sublane/sharing and ordering policy, forced-close cancellation vs deferred delivery, `Done` and terminal credit release; exact count defaults and API identifiers. No code, test, benchmark, or operational changes. See [DECISION_LOG.md](DECISION_LOG.md) § API-001b-N1.
