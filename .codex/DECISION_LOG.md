@@ -404,3 +404,19 @@ Q-009 is **CLOSED**, and no code, tests, deployments or module/repository rename
 - No eager full-capacity allocations, no duplicate Close event, and no unbounded goroutine/buffer retention.
 
 **Q-010 is CLOSED. No code, tests, deployment or repository/module rename is authorized.**
+
+---
+
+## API-004 — Go configuration representation (2026-11-16)
+
+**Status:** OPEN — DESIGN PROPOSAL ONLY; the user has not approved an API shape  
+**Detailed draft:** [NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md)  
+**Implementation:** NOT AUTHORIZED
+
+Q-010 requires all resource ceilings, pre-bind deadline and Control reserve to be independently configurable, and Q-002/Q-006 require omitted `EnquireLinkIdleInterval` to use 30s while an **explicit** `0` disables outgoing Enquire Link.
+
+- **Proposed Option A (recommended):** Go-native typed Functional Options applied over complete defaults, validated as a whole into immutable effective per-instance config. Omitted means default; explicit override (including idle interval zero) remains distinguishable. Invalid resource zero/negative is rejected, not interpreted as unbounded.
+- **Alternative B:** public Config structs using optional/pointer fields for explicit presence and default resolution, with the same validation/snapshot/behavior.
+- No live hot-reload semantics are approved; no released exported identifier, package/module path or source changes have been chosen.
+
+**Owner decision pending:** select A or B to close API-004. API-001, API-002 and API-003 also remain open. No code or tests authorized.
