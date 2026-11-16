@@ -395,9 +395,18 @@ Baseline فعلی Pinex:
 
 ### Q-005 — رفتار پیش‌فرض نبود Bind Validator
 
-در صورتی که Go Server بدون Callback معتبر ساخته شود، آیا باید تمام Bindها رد شوند (Fail Closed) یا مانند Pinex C++، بدون Validator سفارشی Bindها پذیرفته شوند؟
+**تصمیم قطعی مالک در 2026-11-16: گزینه B (APPROVED).**
 
-**وضعیت:** OPEN — نیازمند تصمیم مالک؛ مقدار پیش‌فرض نباید بدون تأیید انتخاب شود.
+- اگر Go Server هیچ Bind Validator Callbackای دریافت نکرده باشد، درخواست Bind معتبر و دارای `system_id` غیرتکراری را به‌صورت پیش‌فرض می‌پذیرد؛ مطابق رفتار Pinex C++.
+- نبود Validator مجوز عبور از اعتبارسنجی پروتکل، State Machine، محدودیت منابع یا بررسی Duplicate System ID نیست.
+- اگر Validator تعریف شده باشد، تصمیم Allow/Reject آن اعمال می‌شود.
+- Duplicate System ID همواره رد می‌شود و Session قبلی باید حفظ شود.
+- رد و پذیرش از همان `bind_resp` و Status استاندارد Pinex استفاده می‌کند؛ هیچ تغییری در Wire Protocol مجاز نیست.
+- این Default احراز هویت امنیتی نیست و در شبکه‌های نامطمئن باید Validator و سیاست امنیت شبکه اضافه شود.
+
+**وضعیت:** CLOSED — Option B approved؛ پیاده‌سازی هنوز مجاز نیست. جزئیات در [DECISION_LOG.md](DECISION_LOG.md).
+
+**تست پذیرش آینده:** بدون Validator و ID یکتا => Bind موفق؛ بدون Validator و ID تکراری => Bind ردشده؛ با Validator => تابع تصمیم‌گیر؛ Bind نامعتبر => همچنان ردشده.
 
 ### Q-002 — Enquire Link دوره‌ای
 
@@ -423,7 +432,7 @@ Baseline فعلی Pinex:
 
 ترتیب وابستگی پیشنهادی:
 
-1. GO-PINEX-001 و بستن Q-001
+1. GO-PINEX-001 و ثبت تصمیم‌های بسته‌شده Q-001 و Q-005
 2. GO-PINEX-002
 3. GO-PINEX-003
 4. GO-PINEX-004 و GO-PINEX-005
