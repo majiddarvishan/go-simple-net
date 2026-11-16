@@ -206,7 +206,7 @@ The approval does **not** authorize code implementation, module/repository renam
 
 The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). It distinguishes approved owner contracts from suggested (unapproved) exported API structure, numerical defaults, queue capacity and missing Enquire Link response behavior.
 
-**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved). **Still open:** Q-007 (Probe response deadline/action), Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
+**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved) and Q-007 response timeout **10s**, close on missing matching reply, reconnect only when enabled (approved). **Still open:** Q-008 (bounded queue defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
 
 ---
 
@@ -238,3 +238,37 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 - One pending local probe does not generate another, and Go↔C++ Pinex control frames interoperate.
 
 **No code, tests, module changes or repository renames are authorized by this decision.**
+
+---
+
+## Q-007 — Enquire Link response timeout and session failure policy (2026-11-16)
+
+**Status:** CLOSED — APPROVED (10s configurable default; close on unanswered probe)  
+**Approved by:** Project owner  
+**Applies to:** GO-PINEX-002, GO-PINEX-006, GO-PINEX-007, GO-PINEX-009, GO-PINEX-011, GO-PINEX-012, GO-PINEX-013  
+**Implementation:** NOT AUTHORIZED
+
+### Decision
+
+1. For neta-go Client and Server, the Enquire Link **response timeout** is independently configurable, with **10 seconds as the default**.
+2. The deadline starts **after the complete Enquire Link Request has actually been written** to TCP, not when the frame is merely queued.
+3. A valid reply must be an `enquire_link_resp` with the **exact sequence number** of the outstanding local Enquire Link Request. Other traffic, including normal `stream_req` and `stream_resp`, must **not** substitute for or clear this pending probe.
+4. When the configured response deadline expires without a matching response, consider the Session unhealthy and **close it**. The terminal close notification must happen only once, and pending application operations must be completed/failed according to the Session close contract.
+5. **Client reconnect** after this close is permitted **only if Auto Reconnect is configured/enabled**. Server does not initiate client-style reconnect.
+6. Preserve the existing policy of **no more than one outstanding locally initiated Enquire Link per Session**.
+7. An incoming peer-originated Enquire Link must still be answered, including with automatic Enquire Link disabled (`EnquireLinkIdleInterval=0`). A zero idle interval prevents initiating probes and thus there is no local probe to time out.
+8. No new status, header field, opcode, token, or other wire change is authorized; the design remains compatible with C++ Pinex 1.5.0.
+
+### Race and failure cases to test later
+
+- Response arrives before deadline: clear only the matching probe; no close caused by that deadline.
+- Only unrelated traffic arrives while probe is pending: probe still times out and session closes.
+- Matching response arrives simultaneously with timeout: use a single atomic/serialized completion winner; no double close or double event.
+- TCP write fails or socket closes before the full probe is written: transport close/error handling applies; do not start a phantom response deadline.
+- Reconnect disabled: close terminally; reconnect enabled: obey the separately configured retry policy.
+- Peer sends a request while waiting: always send compatible Enquire Link response regardless of local outbound probe state, subject to the bounded transport/close rules.
+
+### Still open
+
+- Q-008: capacity and queue-full behavior.
+- Detailed numerical/default/retry settings beyond Q-007, public API signatures and close/pending error taxonomy remain part of GO-PINEX-002/011 design. This decision did **not** authorize any code, tests or operational changes.
