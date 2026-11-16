@@ -35,7 +35,8 @@
 
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
-- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 and Q-007 approved; Q-008 pending.
+- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006, Q-007 and Q-008 approved.
+- NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 confirmed 4 MiB outgoing fail-fast; Q-009 ingress/global admission choices and Q-010 numerical sizing draft; API-004 unset-vs-zero config caveat.
 - DECISION_LOG.md — approved Q-001 Option A and Q-005 Option B.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
@@ -83,7 +84,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B and Q-007 are CLOSED (idle interval default 30s; Enquire Link response timeout default 10s, close Session on missing matching response, reconnect Client only if configured). Next: resolve Q-008 (owner choice: proposal A = 4 MiB outgoing per-session FIFO + fail-fast, proposal B = context-aware wait; control PDU headroom and separate aggregate/inbound bounds required), then complete exported API decisions. This is a proposal, not an approved default. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B, Q-007, and Q-008 Option A are CLOSED. Q-008 specifies 4 MiB default per-session outgoing Application FIFO, immediate Queue Full on saturation, bounded control headroom, no orphan pending request, and Pinex-compatible Unbind ordering. Next: review Q-009 incoming overload Option A (pause/resume) or B (close on saturation); separately design Q-010 ingress/global/session numbers, then exported API decisions. API-004 must distinguish unset keepalive interval (default 30s) from explicit zero (disable). Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
 
 
 ## 9. Approved Go library name
@@ -99,3 +100,14 @@ Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Life
 ## 11. Enquire Link response timeout decision
 
 **Q-007 CLOSED (2026-11-16):** Enquire Link response timeout is separately configurable, **10 seconds by default** on Go Client and Server. It begins after the full Request is written. Only matching `enquire_link_resp` (same Sequence) satisfies it; unrelated traffic cannot satisfy it. On expiry, Session closes once and pending operations terminate; Client retries only if Auto Reconnect was enabled. No Pinex wire changes or implementation were authorized.
+
+
+## 12. Outgoing resource decision and ingress design
+
+**Q-008 CLOSED / approved Option A (2026-11-16):** configurable 4 MiB outgoing Application Stream FIFO per Session, including serialized Frame headers, immediate Queue Full when full; no partial enqueue, silent drops, or orphan request trackers. Control path capacity must be separate and bounded, without violating single-writer framing or Pinex Unbind ordering/deadline.
+
+**Q-009 OPEN:** incoming callback backlog overload policy. Proposal A: bounded per-Session pause/resume application dispatch with bounded TCP/read behavior. Proposal B: close saturated Session. **Neither approved.**
+
+**Q-010 OPEN:** inbound queue default, global queued-frame budget and max bound sessions; example sizes in NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md are only proposals.
+
+**API-004 OPEN:** exact Go API must make configured `EnquireLinkIdleInterval=0` observably different from an omitted config (approved 30s default).
