@@ -1,5 +1,8 @@
 # neta-go — API-001 Public Client/Server/Session and Callback Design
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 supersedes the older unconditional serial same-Session callback requirement below. Application `OnRequest` callbacks now use **bounded, configurable same-Session parallelism**; concurrency=1 restores serial application processing. This document retains earlier proposals for historical context. For the binding contract, see [Q-003-R1 in Decision Log](DECISION_LOG.md). API-001b lifecycle/notification dispatch remains **OPEN**.
+
+
 **Date:** 2026-11-16  
 **Status:** DESIGN DRAFT — API-001a APPROVED OPTION A (async callback-first), API-001b OPEN / API-004 APPROVED OPTION A  
 **Repository:** `majiddarvishan/neta-go`, branch `main`  
@@ -165,3 +168,14 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 **OWNER APPROVED:** bounded, configurable *count* of outstanding callback-first requests, including pending response and queued/running terminal completion, per Session plus Server aggregate. New SendRequest failing completion-credit admission is rejected promptly **without** closing the Session and without a queued frame or dangling Pending entry. This is separate from existing byte-based outgoing Queue Full. Numeric ceilings, exported option/error names, inbound event-count cap and request timer origin remain OPEN.
 
 **Do not assume** Option A here also approves callback cancellation on forced Close. API-001b must explicitly resolve the contradiction between permanently blocked callback and immediate serialized `OnClose`/unconditional completion delivery; the recommended model is prompt transport `Done` plus an owner-chosen forced-close policy. See [current design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) and [Decision Log](DECISION_LOG.md). No code/tests/benchmarks permitted.
+
+
+## 14. Q-003-R1 — Parallel application callbacks and independent internal engine (owner-approved policy)
+
+**Owner-approved revision:** `OnRequest`-style Application callbacks are dispatched from bounded Session-local FIFO with configurable maximum concurrency per Session; `1` gives serial handler execution, `N>1` permits overlap. Queue-selection order follows received frame order; **callback completion order is not guaranteed** for parallel mode. Methods remain goroutine-safe and TCP writes remain serialized. This **replaces** all earlier statements in this document requiring unconditional same-Session application callback serialization. The exact option identifier and **default** are still OPEN.
+
+**Internal events independent of user callbacks:** protocol decoding, Control response, Bind/Unbind, Enquire Link, correlation, timer/deadline, socket close and once-only internal Request settlement must progress even while a user `OnRequest` handler is blocked. Reader and Writer must not execute arbitrary application handlers inline. No unbounded goroutine-per-message; each Session owns finite dispatch capacity and the existing Q-009/Q-010 incoming waiting queue overflow policy still closes only the offending Session. `N` active callback payloads consume additional bounded memory outside the **waiting** queue budget.
+
+**User-visible lifecycle callbacks are a distinct open question:** `OnClose`, per-Request completion functions and error callbacks remain user code even when triggered by the internal engine. A dedicated bounded notification dispatcher can isolate them from blocked `OnRequest`, but their own non-returning functions remain unkillable. Decide their worker count, ordering, independent lane and forced-close cancellation/defer semantics in API-001b. A `Done`-like closed transport signal is recommended independently; not approved yet.
+
+**Open constraints to review:** default maximum concurrent Application handlers per Session; optional Server-wide active Application callback limit; whether a listener's max bound Sessions multiplied by configured concurrency needs aggregate active-count protection; what constitutes an active callback's payload memory ceiling; application handler output order vs immutable TCP receipt order. No code or tests.
