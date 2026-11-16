@@ -178,3 +178,9 @@ The owner approved three independent lazy worker pools per Client/Server owner: 
 This worker topology does not change Q-008/Q-009/Q-010 byte admission, queue ownership transfer or overload outcomes. Waiting Application frame bytes, PERF-003 Request credits, OnClose queued+running event credits and WORKER-002 active-worker permits remain distinct ledgers. Idle worker goroutines do not hold active-callback permits but still consume goroutine/stack resources. The internal engine remains independent of user callback pools.
 
 WORKER-005 separately decides idle-worker retirement. Numeric worker/event capacities and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation, tests or benchmarks authorized.
+
+## 13. WORKER-005 — finite idle worker retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+Worker retirement is a lifecycle policy, not a queue-admission policy. Each class-isolated pool retires an idle worker after a finite configurable grace period, with zero warm-idle workers by default. The timer starts only after callback return and no dispatchable work. Work arriving before expiry reuses the worker; retirement after expiry must atomically update the worker count and preserve queued work plus all byte/Request/event credits. Running or blocked callbacks are never interrupted and retain active permits until return. Numeric timeout defaults/ranges remain for WORKER-009; owner shutdown/drain remains API-002.
+
+WORKER-006 defines fair ready-Session scheduling within each independent class pool. Queue-byte admission, PERF-003 Request credits, OnClose event credits and WORKER-002 active permits remain distinct. No implementation, tests or benchmarks authorized.

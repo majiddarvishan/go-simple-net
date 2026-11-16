@@ -161,3 +161,9 @@ No numeric event limit or public option name is approved. Next: WORKER-004, logi
 A permanently blocked callback can consume only its own class's worker capacity. It cannot occupy another class's workers or dispatch path, and the internal protocol/transport engine remains independent. Worker goroutine count per class is bounded by its WORKER-002 ceiling. Idle workers retain goroutine/stack memory but do not hold active-callback permits. Shared worker-loop code is allowed; shared pool resources are not.
 
 This supersedes earlier references to WORKER-004 as an open topology choice. WORKER-005 covers idle-worker retirement. Numeric limits and performance validation remain open; no benchmark, test or implementation was authorized.
+
+## 16. WORKER-005 owner approval — finite idle worker retirement (2026-11-16)
+
+**APPROVED Option B:** workers that return from callbacks and find no dispatchable work enter Idle for a finite, independently configurable class-specific grace period, then atomically retire if still idle. The default warm-idle floor is zero. Work arriving before expiry reuses the worker. Running or permanently blocked callbacks are never interrupted and retain active permits until return. Retirement preserves queued work and all independent queue/Request/event credits. Enqueue/retirement races must not lose wakeups or strand work. No goroutine per timeout or process-global reaper. Numeric timeout defaults/ranges are deferred to WORKER-009; owner shutdown/drain remains API-002.
+
+**Next:** WORKER-006 fair scheduling between Sessions. No code, tests or benchmarks authorized.

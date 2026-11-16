@@ -253,3 +253,15 @@ Numeric event capacity and public option name remain open. Next: WORKER-004, wor
 - WORKER-001 owner scope, WORKER-002 class ceilings and WORKER-003 OnClose event admission remain binding.
 
 WORKER-004 Option B (one shared owner pool with per-class reservations) is not selected. WORKER-005 is next for idle-worker lifecycle and retirement. Numeric defaults, queue/event capacities and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation authorized.
+
+## 23. WORKER-005 — finite idle worker retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+- Idle workers retire after a finite, independently configurable grace period for their callback class.
+- The grace period starts only after callback return and when no dispatchable work exists.
+- A worker is reused if work arrives before expiry; otherwise it atomically leaves the pool count and exits.
+- The default warm-idle floor is zero. Running/blocked callbacks are never retired by the idle timeout and retain their active permits until return.
+- Retirement never drops queued callbacks or releases their independent queue, Request or event credits.
+- Enqueue/retirement has one linearization point; no lost wakeup or stranded ready work. No goroutine per timeout or global reaper.
+- Numeric idle-timeout defaults/ranges remain for WORKER-009; Stop/drain semantics remain API-002.
+
+WORKER-006 now defines the scheduling fairness policy. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation authorized.

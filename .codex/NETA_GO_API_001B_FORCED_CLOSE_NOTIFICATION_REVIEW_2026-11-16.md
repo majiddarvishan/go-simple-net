@@ -320,3 +320,11 @@ The number of worker goroutines in a class is bounded by that class's WORKER-002
 This supersedes the earlier open WORKER-004 references in §§11.6–11.7. Idle-worker lifecycle and retirement are separated into WORKER-005; numeric defaults remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12.
 
 No implementation, tests, benchmarks or operational changes.
+
+## 16. WORKER-005 — Finite idle worker retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+The owner approved finite idle retirement. A worker becomes eligible for retirement only after its callback returns and no dispatchable work exists in its class pool. The class-specific finite idle grace timeout begins at that point. Work arriving before expiry reuses/wakes the worker; expiry with no work atomically removes the worker from the pool count and exits it. The default warm-idle floor is zero.
+
+Application, Completion and OnClose idle timeouts are independently configurable; numeric defaults and ranges are deferred to WORKER-009. A running or permanently blocked callback is never interrupted or retired by the timeout and retains its active permit until actual return. Retirement cannot discard queued work or release Request/event/queue credits. Enqueue-versus-retirement must have one linearization point, with no lost wakeup, stranded ready Session or worker-count overshoot. No goroutine per timeout or process-global reaper. Owner shutdown/drain remains API-002.
+
+**Next:** WORKER-006 — fair scheduling between Sessions within each class-isolated pool. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation, tests or benchmarks authorized.

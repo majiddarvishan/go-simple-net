@@ -300,3 +300,9 @@ Each Client/Server owner has three independent worker pools for Application, Com
 A blocked callback class cannot consume another class's worker or scheduler resources. The internal engine remains outside all user callback pools. Shared worker-loop code is allowed, but shared pool resources across classes are not. Per-class worker goroutine count is bounded by the corresponding WORKER-002 ceiling; idle workers consume goroutine/stack memory but do not hold active-callback permits.
 
 This supersedes the earlier WORKER-004-open handoff in §§18–20. WORKER-005 separately defines idle-worker lifecycle/retirement. Numeric worker ceilings, queue/event limits and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation, tests or benchmarks authorized.
+
+## 22. WORKER-005 — finite idle worker retirement (OWNER APPROVED, OPTION B, 2026-11-16)
+
+The owner approved finite, independently configurable idle retirement for each class pool, with a zero warm-idle floor by default. An idle timeout begins only after callback return and only when the worker has no dispatchable work. Work arriving before expiry reuses the worker; expiry with no work retires it atomically from the pool count. Running or permanently blocked callbacks are never interrupted and retain active permits until return. Queued work and its Request/event/byte credits survive worker retirement. Enqueue/retire races must not lose wakeups or strand ready work. Numeric timeout defaults/ranges are deferred to WORKER-009; owner Stop/drain semantics remain API-002.
+
+**Next:** WORKER-006 fair Session scheduling. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation, tests or benchmarks authorized.
