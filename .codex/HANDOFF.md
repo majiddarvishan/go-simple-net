@@ -36,7 +36,7 @@
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
 - NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006, Q-007 and Q-008 approved.
-- NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 confirmed 4 MiB outgoing fail-fast; Q-009 confirmed close-on-incoming-overflow Option B; Q-010 numerical/global sizing draft; API-004 unset-vs-zero config caveat.
+- NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md — Q-008 outgoing 4 MiB/Fail-Fast, Q-009 B incoming overflow close, and Q-010 A configurable inbound/global/session/pre-bind/control defaults are approved. API-004 design remains open.
 - DECISION_LOG.md — approved Q-001 Option A and Q-005 Option B.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
@@ -84,8 +84,9 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B, Q-007, and Q-008 Option A are CLOSED. Q-008 specifies 4 MiB default per-session outgoing Application FIFO, immediate Queue Full on saturation, bounded control headroom, no orphan pending request, and Pinex-compatible Unbind ordering. Q-009 Option B is now CLOSED: close only the Session when its bounded incoming Callback queue cannot admit a new Application frame. Next: obtain owner decision on Q-010 ingress/global/session limits and global-overload reaction, then exported API choices. API-004 must distinguish omitted keepalive interval (default 30s) from explicit zero (disable). Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
+Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
+**Next design-only work:** finalize API-004 (unset vs explicit zero and all resource overrides), API-001/002 (exact Go public types, callbacks, queue accounting, close lifecycle) and API-003 (package/module path). Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
 
 ## 9. Approved Go library name
 
@@ -108,11 +109,17 @@ Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Life
 
 **Q-009 CLOSED / APPROVED B (2026-11-16):** if a new incoming Application Frame cannot fit the bounded Callback queue, promptly close **that Session only** with an overload cause; no silent drop or pause/resume fallback. Other Sessions continue unaffected. Go cannot forcibly terminate a blocked user callback; avoid indefinite shutdown waits and finalize terminal callback semantics in API design.
 
-**Q-010 OPEN:** numeric capacities + global-overload reaction. Proposal A: incoming 4 MiB per Session, 256 MiB aggregate queued Application frames per Server (NOT RSS), 1024 bound Sessions, 128 pre-bind, 30s pre-bind deadline, 4 KiB bounded control reserve per Session. Proposed global capacity outcomes: outgoing Send => Queue Full and keep connection; incoming non-fitting Frame => close offending Session; at bound-session cap reject new Bind, never evict existing. All Q-010 values and global reaction remain **UNAPPROVED**. Proposal B: owner-tuned alternative. See resource design.
+**Q-010 CLOSED / APPROVED A (2026-11-16):** ALL defaults are configurable: incoming 4 MiB/Session, aggregate queued Application 256 MiB/Server (NOT process RSS), 1024 bound Sessions, 128 pre-bind, absolute 30s pre-bind deadline, and 4 KiB Control reserve/Session. Outgoing failed local/global admission => Queue Full, keep Session. Incoming failed local/global admission => close only offender. At bound limit reject new Bind without eviction; at pre-bind capacity refuse socket. Outgoing 4 MiB/Session from Q-008 also remains configurable. See resource design.
 
-**API-004 OPEN:** exact Go API must make configured `EnquireLinkIdleInterval=0` observably different from an omitted config (approved 30s default).
+**API-004 OPEN:** Go Config must distinguish omitted `EnquireLinkIdleInterval` (approved default 30s) from explicit `0` (disable outgoing probes) and allow independent Q-008/Q-010 resource overrides. Suggested pattern: default config builder/factory with explicit overrides; alternative optional/pointer fields. Hot reload not approved.
 
 
 ## 13. Incoming overload decision
 
-**Q-009 CLOSED — approved Option B (2026-11-16):** A new Application Stream Frame which cannot fit the bounded Session-local incoming Callback backlog triggers a prompt **close of that Session**, not Pause/Resume. No impact on other Sessions, no silent drop, no duplicate terminal event; pending state and queue charges are released. In the presence of blocked user callback code, transport shutdown must not wait indefinitely for arbitrary user logic. Exact callback delivery/close ordering awaits API design. Q-010 numeric/global admission policies remain open. No code changes authorized.
+**Q-009 CLOSED — approved Option B (2026-11-16):** A new Application Stream Frame which cannot fit the bounded Session-local incoming Callback backlog triggers a prompt **close of that Session**, not Pause/Resume. No impact on other Sessions, no silent drop, no duplicate terminal event; pending state and queue charges are released. In the presence of blocked user callback code, transport shutdown must not wait indefinitely for arbitrary user logic. Exact callback delivery/close ordering awaits API design. Q-010 configurable default capacities and global admission rules are now APPROVED. No code changes authorized.
+
+## 14. Q-010 final owner decision and configurability handoff
+
+**Q-010 CLOSED — OPTION A WITH ALL SETTINGS CONFIGURABLE (2026-11-16).** Approved defaults and outcomes are defined in [Decision Log](DECISION_LOG.md), [Resource Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [API/Config Design](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). An omitted setting selects the approved default; an explicit valid override is honored. Exact Go representation/validation remains API-004 OPEN, particularly `EnquireLinkIdleInterval=0` vs omission.
+
+**No implementation is authorized.**
