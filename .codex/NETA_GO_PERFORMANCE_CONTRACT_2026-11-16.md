@@ -146,3 +146,9 @@ See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOU
 WORKER-001 owner scope applies to all Sessions of one Server and all reconnect generations of one Client. Started callbacks from retired Sessions remain charged until return. Independent instances have no mandatory process-global active-worker ceiling.
 
 No numeric defaults, public option names, pool layout or event-budget values are approved. Next: WORKER-003, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). No implementation or performance validation authorized.
+
+## 14. WORKER-003 owner approval — bounded best-effort OnClose events (2026-11-16)
+
+**APPROVED Option A:** after Session Done closes, make one nonblocking reservation from the owning Client/Server OnClose event budget. The budget counts queued + running events. If full, skip that OnClose invocation permanently; no retry, overflow goroutine, hidden queue or teardown wait. Admitted events hold their event credit until callback return. Done, transport cleanup and reconnect never depend on OnClose callback progress. Client reconnect generations share the same budget.
+
+No numeric event limit or public option name is approved. Next: WORKER-004, logical worker-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10.
