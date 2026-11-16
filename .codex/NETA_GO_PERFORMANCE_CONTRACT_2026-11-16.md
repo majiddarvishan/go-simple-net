@@ -138,3 +138,11 @@ PERF-003 count ceilings remain binding at the model level; exact numeric default
 This ownership boundary avoids hidden cross-instance contention and a mandatory process-global hot-path admission point. It does not itself select worker counts, physical pool layout, numeric defaults, event limits or payload-byte ceilings.
 
 See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-002 will decide explicit per-class owner-wide active ceilings versus deriving them from Session limits. No implementation, tests or benchmarks authorized.
+
+## 13. WORKER-002 owner approval — independent class active ceilings (2026-11-16)
+
+**APPROVED Option A:** each Client and Server instance owns three independently configurable aggregate active-worker ceilings: Application, Completion and OnClose. Per-Session concurrency is intersected with the remaining ceiling for its own class. Active permits cannot be borrowed across classes. These ceilings count physically executing callbacks; queued work is governed by separate event/queue budgets.
+
+WORKER-001 owner scope applies to all Sessions of one Server and all reconnect generations of one Client. Started callbacks from retired Sessions remain charged until return. Independent instances have no mandatory process-global active-worker ceiling.
+
+No numeric defaults, public option names, pool layout or event-budget values are approved. Next: WORKER-003, OnClose event-budget saturation. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). No implementation or performance validation authorized.
