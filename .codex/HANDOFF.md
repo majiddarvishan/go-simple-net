@@ -35,6 +35,7 @@
 
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
+- DECISION_LOG.md — approved Q-001 Option A and Q-005 Option B.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
 ## 4. Confirmed protocol facts
@@ -74,11 +75,11 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 ## 7. Owner decisions
 
 - **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
-- **Q-005 — OPEN:** Default if no Bind Validator callback is configured: fail closed or Pinex-compatible allow.
+- **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
 - **Q-002 — OPEN:** Whether periodic Enquire Link should be optionally enabled; default recommendation is disabled.
 - **Q-003 — OPEN:** Go API concurrency and callback ordering; recommended public API is goroutine-safe with callbacks serialized per Session.
 - **Q-004 — OPEN:** Whether to port optional sample features (Circuit Breaker, Rate Limiter, Deduplicator, Priority Queue, Prometheus metrics); recommendation is to keep them out of the first Core release.
 
 ## 8. Next action
 
-Resolve Q-005 (no-validator default), then proceed to the remaining owner choices, finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
+Q-001 and Q-005 are closed. Proceed to the remaining owner choices (Q-002 periodic Enquire Link, Q-003 callback ordering/thread-safety, Q-004 optional features), then finalize the public API and compatibility baseline. Do not create application code until the owner explicitly authorizes implementation.
