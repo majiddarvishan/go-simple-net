@@ -133,24 +133,20 @@ Q-003 is **CLOSED**.
 
 ## NAM-001 — Go library naming (2026-11-16)
 
-**Status:** UNDER DISCUSSION — no final name approved  
+**Status:** CLOSED — APPROVED: `neta-go`  
+**Approved by:** Project owner  
 **Implementation / repository rename:** NOT AUTHORIZED
 
-### Owner intent
+### Final owner decision
 
-The new library is a **native Go TCP Messaging Client/Server** compatible with the Pinex 1.5.0 C++ wire protocol, not merely a Go wrapper around C++. The name should be short, easy to pronounce, and convey messaging/network simplicity.
+- The selected name for the **native Go TCP Messaging Client/Server** is **`neta-go`** (NETA Go).
+- The name **NETA** had been proposed as a short form of *Network Easy Transport API*; the owner explicitly selected the name `neta-go` (not a separately approved expansion).
+- It must remain interoperable with the C++ Pinex 1.5.0 wire protocol. Choosing a Go library name does not rename or change C++ Pinex.
+- This settles the **library branding** only. Proposed code package name `neta` and future repository/module name `neta-go` are implementation/migration proposals, not performed operations.
+- Current GitHub repository remains `majiddarvishan/go-simple-net` and existing branch remains `main`.
+- Do not change code, module paths, imports, README branding outside documentation, repository settings, or C++ Pinex naming without a separate instruction to execute those changes.
+- Naming collision, module-path availability, and trademark review have not been performed; verify as needed before public release.
 
-The owner previously preferred **NEMA — Network Easy Messaging API** as a *future* name for the C++ Pinex library; that C++ rename has **not** been authorized. Reusing the naming family for the interoperable Go implementation could improve clarity, but is only a proposal.
+### Next planning work
 
-### Naming candidates (proposed, not approved)
-
-- **NEMA Go** — family name NEMA, native implementation for Go; potential repository name `nema-go` and package name `nema`. Preferred for C++/Go consistency.
-- **NEMGO** — Network Easy Messaging for Go; more Go-specific but less natural pronunciation.
-- **PIMA** — Pinex Interoperable Messaging API; highlights wire compatibility, but anchors brand to Pinex name.
-- **NETA** — Network Easy Transport API; emphasizes transport rather than message-level interaction.
-
-These are candidates, **not** claims of trademark, module-path, repository-handle or domain availability. Verify conflicts before any public rename. Do not rename `go-simple-net`, change imports, change `go.mod`, or rebrand Pinex until the owner chooses a name explicitly.
-
-### Open question
-
-Should Go and C++ have a common brand (e.g. NEMA C++ / NEMA Go), or should the Go implementation use an entirely independent brand?
+Continue Q-004 and the outstanding configuration/API details. No application implementation is authorized.
