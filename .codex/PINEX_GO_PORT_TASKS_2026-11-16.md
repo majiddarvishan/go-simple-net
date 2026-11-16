@@ -428,9 +428,23 @@ Baseline فعلی Pinex:
 
 ### Q-003 — Thread Safety و Callback Ordering
 
-پیشنهاد: متدهای عمومی Go برای استفاده هم‌زمان از Goroutineها امن باشند؛ Callbackهای هر Session به ترتیب دریافت اجرا شوند.
+**تصمیم قطعی مالک در 2026-11-16: APPROVED.**
 
-**وضعیت:** پیشنهاد ثبت شده؛ نیازمند تأیید.
+1. Public APIهای Client، Server و Session از چند Goroutine به‌صورت هم‌زمان قابل فراخوانی باشند.
+2. Callbackهای هر Session به ترتیب دریافت پیام و بدون هم‌پوشانی اجرا شوند.
+3. Callback کند یا مسدود در یک Session نباید Callbackها و پردازش سایر Sessionها را متوقف کند.
+4. ارسال هم‌زمان از چند Goroutine در یک Session باید بدون Interleave بایت‌ها و خرابی Frame ممکن باشد.
+5. Disconnect و Shutdown باید Callbackها و عملیات Pending را کنترل‌شده و بدون تکرار اعلان نهایی خاتمه دهند.
+
+جزئیات Signature و Capacity صف‌ها، Deadline تعطیلی و سیاست Backpressure هنوز در GO-PINEX-002/004/007/010 نیازمند طراحی هستند و خودکار تأیید نشده‌اند.
+
+**وضعیت:** CLOSED — تأیید شده، بدون مجوز کدنویسی. [جزئیات تصمیم](DECISION_LOG.md).
+
+### NAM-001 — انتخاب نام کتابخانه Go
+
+**وضعیت:** OPEN — بحث نام‌گذاری آغاز شده، هیچ نامی قطعی نشده است.
+
+گزینه‌های پیشنهادی: `NEMA Go` (پیشنهاد اصلی برای هماهنگی برند با نام آینده Pinex C++)، `NEMGO`، `PIMA` و `NETA`. تغییر نام مخزن، Go Module و نام C++ Pinex تا تصمیم صریح مالک **ممنوع** است. شرح بیشتر در [DECISION_LOG.md](DECISION_LOG.md).
 
 ### Q-004 — انتقال قابلیت‌های جانبی نمونه
 
