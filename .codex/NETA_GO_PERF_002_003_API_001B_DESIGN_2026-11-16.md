@@ -291,3 +291,12 @@ Numeric values, public option names, physical worker-pool layout and event/queue
 OnClose uses a separate owner-scoped event budget counting queued + running events. After Done closes, the engine attempts one nonblocking reservation. If full, the event is skipped permanently; no retry, overflow goroutine or teardown wait. An admitted event retains its event credit until callback return. Done, transport cleanup and reconnect are independent of OnClose delivery. The budget is shared across Client reconnect generations.
 
 Next: WORKER-004, logical execution-pool topology. Numeric event limits remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11. No implementation or benchmark authorized.
+
+
+## 21. WORKER-004 — Three class-isolated worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
+
+Each Client/Server owner has three independent worker pools for Application, Completion and OnClose. Each pool has independent scheduling, ready queues, dispatch, locks and wake-ups. Workers are created lazily, execute one callback synchronously and are reused only within the same class. No goroutine per Request/frame/callback is allowed.
+
+A blocked callback class cannot consume another class's worker or scheduler resources. The internal engine remains outside all user callback pools. Shared worker-loop code is allowed, but shared pool resources across classes are not. Per-class worker goroutine count is bounded by the corresponding WORKER-002 ceiling; idle workers consume goroutine/stack memory but do not hold active-callback permits.
+
+This supersedes the earlier WORKER-004-open handoff in §§18–20. WORKER-005 separately defines idle-worker lifecycle/retirement. Numeric worker ceilings, queue/event limits and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation, tests or benchmarks authorized.

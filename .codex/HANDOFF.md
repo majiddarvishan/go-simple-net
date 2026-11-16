@@ -1,16 +1,18 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 and WORKER-002 Option A are owner approved:** each Client/Server instance owns three independent owner-wide active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with the corresponding class ceiling; classes cannot borrow permits; retired-generation callbacks remain charged. No process-global ceiling. **WORKER-003 Option A is owner approved:** OnClose uses a bounded owner-scoped queued+running event budget; after Done closes, one nonblocking reservation is attempted and saturation permanently skips the callback, without retry or teardown wait. WORKER-004 pool topology is next; numeric capacities, payload/event bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-004 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-005 idle-worker lifecycle is next.** Numeric worker/event defaults, queue/event capacities, payload-byte bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001, WORKER-002 and WORKER-003 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three independent active-worker ceilings (Application, Completion, OnClose); per-Session concurrency is intersected with its corresponding class ceiling, and retired-generation callbacks remain charged. OnClose event saturation permanently skips the new event without retry or teardown wait. Next: WORKER-004, choose three class-isolated worker pools versus one shared owner pool with strict per-class reservations. Numeric worker/event defaults, payload-byte bounds, idle-worker lifecycle, terminal-cause/Close-return details, API-002 and API-003 remain open.
+**Current work:** WORKER-001, WORKER-002, WORKER-003 Option A and WORKER-004 Option A are CLOSED / OWNER APPROVED. Each Client/Server owns three isolated callback pools; workers are lazy, class-local and bounded by the corresponding ceiling. Next: WORKER-005, idle-worker lifecycle and retirement. Numeric ceilings/defaults, queue/event capacities, payload-byte bounds, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
 - Default branch: main
+- Current verified remote HEAD before this documentation update: `b43ad2e13d53fd26caccaf65838d09d1fe8bc45f`.
+- `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
 - No Go application source, tests, go.mod, CI, runtime configuration or dependencies were added or changed.
@@ -392,3 +394,35 @@ The owner selected Option A: when the owner's bounded OnClose event budget is fu
 Choose three class-isolated worker pools (recommended for blocked-callback isolation and reduced cross-class contention) versus one shared owner pool with strict per-class active reservations (which can reuse idle workers but needs a more complex shared scheduler). See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
 
 No numeric event capacity or implementation authorized. No code, tests, benchmarks, builds or operational changes.
+
+
+## 31. WORKER-004 — Three class-isolated worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner-approved WORKER-004 Option A is now registered in the Decision Log and synchronized design records.
+
+### Binding contract
+
+- Every Client and Server owner has three independent pools: Application, Completion and OnClose.
+- Each pool owns its own scheduler, ready-work queue, dispatch path, lock domain and wake-up mechanism.
+- Worker creation is lazy. A worker is reused only within its own class. No goroutine is created per Request, frame or callback.
+- A worker executes one callback synchronously. A blocked class cannot consume another class's workers or scheduler resources.
+- Worker goroutine count per class is bounded by the corresponding WORKER-002 ceiling. Idle workers do not hold active-callback permits, but their goroutines/stacks remain resource usage.
+- Internal protocol and transport processing remains outside all user callback pools.
+- Shared internal worker-loop code is allowed; shared pools, queues, dispatch locks and wake-up state across callback classes are not.
+- WORKER-001 owner scope, WORKER-002 independent class ceilings and WORKER-003 OnClose event saturation remain binding. No process-global pool or ceiling is introduced.
+
+### Synchronized documents
+
+- [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-004 approval.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — WORKER-004 contract and WORKER-005 proposal.
+- [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md).
+- [PERF-002/003 design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md).
+- [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
+- [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md).
+- [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
+
+### Next decision — WORKER-005
+
+Choose whether idle workers remain parked until owner shutdown or retire after a finite configurable idle grace period. The recommended policy is finite idle retirement with a zero warm-idle floor; the numeric timeout is deferred to WORKER-009.
+
+**Guardrail:** documentation/design only. No Go/C++ code, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.

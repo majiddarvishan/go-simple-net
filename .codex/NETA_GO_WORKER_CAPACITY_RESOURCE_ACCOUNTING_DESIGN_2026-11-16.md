@@ -1,7 +1,7 @@
 # neta-go V1 — Worker Capacity & Resource Accounting Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN IN PROGRESS — WORKER-001/002/003 OWNER APPROVED  
+**Status:** DESIGN IN PROGRESS — WORKER-001/002/003/004 OWNER APPROVED; WORKER-005 OPEN  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. Documentation/design only.
 
@@ -164,46 +164,96 @@ The owner approved **Option A: skip the new OnClose event when the event budget 
 
 This preserves transport and internal-engine liveness even if OnClose callbacks block forever. It follows N-ORD2/DONE-A's independent, best-effort/at-most-once contract and avoids coupling connection admission/reconnect to arbitrary user callback progress. Counting queued + running events also bounds retained Session references and event metadata.
 
-## 11. WORKER-004 — Logical execution-pool topology (OPEN; RECOMMENDATION ONLY)
 
-WORKER-001/002 establish owner scope and strict per-class active ceilings; WORKER-003 establishes bounded OnClose event admission. The remaining architecture choice is how to execute the three callback classes without unbounded goroutines or cross-class head-of-line blocking.
+## WORKER-004 — Three Class-Isolated Worker Pools (2026-11-16)
 
-### Option A — three class-isolated worker pools (RECOMMENDED)
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Implementation:** NOT AUTHORIZED.
 
-Each Client/Server owner has a logically and physically separate Application, Completion and OnClose worker pool. Each pool:
-- Has its own per-Session FIFO/ready-session scheduler and owner-scoped active limit.
-- Starts workers lazily on demand, never above its WORKER-002 class ceiling; idle workers may be reused within that class.
-- Uses no per-Request/per-frame goroutine. A worker executes one callback synchronously, then returns to that class's scheduler.
-- Has independent queue/accounting locks and wakeups; no callback-class global lock is required.
-- Retains WORKER-002 active permits and class-specific event/Request credits until the callback returns.
+### Binding V1 contract
 
-**Advantages:** strongest isolation and simplest reasoning; a blocked callback class cannot consume another class's execution goroutines; lower cross-class scheduler contention; independent queue and wake-up hot paths.
+1. Every Client instance and every Server instance owns three logically and physically isolated callback worker pools: Application, Completion and OnClose.
+2. Each class pool has its own scheduler, ready-session/work queue, dispatch path, lock domain and wake-up mechanism. A common internal worker-loop implementation may be reused, but the pools must not share execution capacity, queues, scheduler locks or wake-up state.
+3. Workers are created lazily when dispatchable work exists and no reusable idle worker in that same class is available. No worker is created per Request, frame or callback.
+4. A worker executes one callback synchronously at a time and is reusable only within its own class pool. It never executes work belonging to another callback class.
+5. The number of worker goroutines in a class is bounded by that class's configured WORKER-002 active-worker ceiling. An idle worker does not hold an active-callback permit, but its goroutine and stack remain part of the bounded worker footprint.
+6. A blocked callback occupies only a worker in its own class. Saturation or permanent blocking in Application must not occupy Completion or OnClose workers; Completion must not occupy Application or OnClose workers; OnClose must not occupy either other class.
+7. The internal protocol/transport engine remains outside all three user-callback pools and must not wait for arbitrary user callback return.
+8. WORKER-002 owner-wide active ceilings, per-Session concurrency intersections, WORKER-001 owner scope and retired-generation accounting remain binding. Client reconnect does not create a new pool or reset old callback charges.
+9. Independent Client/Server instances remain isolated. No mandatory process-global worker pool or process-global callback ceiling is introduced.
+10. Pool lifecycle, scheduling and resource accounting are independent per class even if implementation code for worker loops or small internal primitives is shared.
 
-**Costs:** idle workers cannot be reused across classes; three schedulers/worker groups per owner add implementation structure; if worker creation is eager it would waste goroutines, so lazy creation is mandatory.
+### Rationale and performance consequences
 
-### Option B — one shared owner worker pool with strict class reservations
+Three independent pools provide the strongest protection against cross-class head-of-line blocking. A permanently blocked Application handler cannot consume the goroutines or scheduler path required for Completion or OnClose. Separate queues, locks and wakeups reduce cross-class lock contention and keep the hot dispatch path easier to reason about.
 
-Each Client/Server has one shared execution pool whose maximum worker count is at least the sum of its three class ceilings. A shared scheduler dispatches from separate class queues only when that class has an available active permit. Workers may execute any class, but each callback retains only its own class permit.
+The cost is that idle workers cannot be borrowed by another class, and each owner has three pool lifecycle domains. Lazy creation is mandatory to avoid eagerly paying the sum of all configured ceilings. Idle-worker retirement is a separate WORKER-005 decision.
 
-**Advantages:** idle worker goroutines can be reused across callback classes; one worker lifecycle implementation; potentially lower idle-goroutine count when workloads are imbalanced.
+### Rejected alternative
 
-**Costs:** a shared scheduler/wakeup/dispatch path can create cross-class lock contention and tail-latency coupling; fairness must be enforced both across classes and across Sessions; sizing below the sum of ceilings would violate WORKER-002 isolation; scheduler bugs could cause head-of-line blocking.
+Option B — one shared owner worker pool with strict per-class active reservations — is not selected for V1. Although it can reuse idle goroutines across classes, it introduces a shared dispatch/wakeup/lock path and additional cross-class scheduling/fairness complexity. That trade-off is not justified when arbitrary user callbacks may block indefinitely.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.  
+**Next:** WORKER-005 — Worker Lifecycle and Idle Worker Retirement. Numeric worker ceilings, idle timeout defaults, queue/event limits and payload-byte limits remain open.
+
+
+## WORKER-005 — Worker Lifecycle and Idle Worker Retirement (OPEN; RECOMMENDATION ONLY)
+
+**Status: OPEN — no owner selection yet.**  
+**Implementation:** NOT AUTHORIZED.
+
+WORKER-004 fixes three class-isolated pools per Client/Server owner. WORKER-005 defines when those pools create workers, reuse idle workers and retire workers after bursts. It does not define Stop/Close handling of active callbacks; that remains part of API-002.
+
+### Required lifecycle invariants
+
+- A pool creates a worker only when it has dispatchable work and no reusable idle worker in that same class.
+- A worker executes callbacks synchronously, one at a time. It cannot be retired while executing user code.
+- After callback return, the worker first checks for more dispatchable work. If work exists, it continues without an idle transition.
+- An idle worker is reusable only by its own class pool. It does not hold an active-callback permit while idle, but its goroutine and stack still consume resources.
+- Total worker goroutines per class must remain bounded by that class's WORKER-002 ceiling.
+- A permanently blocked callback is not idle and cannot be retired. Its worker and active permit remain charged until the callback actually returns.
+- Worker retirement must not discard queued Application, Completion or OnClose work or release its queue/event/Request credits. Those remain governed by their separate admission contracts.
+- Enqueue versus retirement must have one linearization point. If enqueue wins, the worker is woken or another worker is created; if retirement wins, the enqueue path observes the reduced worker count and creates a replacement when required. No lost wakeup or stranded ready Session is permitted.
+- Use the worker's own reusable timer/wait mechanism; do not create a timer goroutine or a fresh goroutine per idle timeout. The idle path must avoid repeated timer allocations.
+- Fair selection among ready Sessions is WORKER-006, not decided by this lifecycle policy.
+
+### Option A — retain idle workers until owner shutdown
+
+After a worker becomes idle, keep it parked and reusable for the remaining lifetime of its Client/Server owner. No idle timeout or retirement occurs.
+
+**Advantages:** lowest cold-start latency after a burst; no worker recreation churn; simplest idle/wakeup path.
+
+**Costs:** the pool retains its historical high-water worker count, including goroutines and stacks, even if traffic becomes idle for a long period. Long-lived owners can retain resources after temporary bursts. The cost multiplies across independent owners and three callback classes.
+
+### Option B — retire idle workers after a finite idle grace period (RECOMMENDED)
+
+After a worker completes a callback and finds no dispatchable work, it waits for a finite class-pool idle timeout. If it is still idle when the timeout expires, it atomically removes itself from that pool and exits. A new burst reuses any worker that has not yet expired; otherwise the pool lazily creates workers as needed. The default warm-idle floor is zero: after sufficient inactivity, the class can return to zero worker goroutines.
+
+**Advantages:** bounds long-term idle goroutine/stack retention by recent activity rather than historical peak; preserves reuse during short gaps; requires no process-global reaper or background maintenance goroutine.
+
+**Costs:** the first callback after a sufficiently long idle period may pay worker creation and scheduler wake-up latency; timeout and enqueue races require careful per-pool synchronization.
 
 ### Recommendation
 
-Choose **Option A** for V1. User callbacks may block indefinitely, and predictable class isolation is more valuable than cross-class reuse of idle goroutines. Lazy worker creation avoids paying the maximum goroutine cost up front. A common internal implementation can still share worker-loop code without sharing runtime pools, queue locks or active capacity.
+Choose **Option B** for V1. A finite idle grace period is the better zero-configuration resource policy for a library that may be embedded in many long-lived Client/Server instances. It avoids retaining peak worker populations indefinitely while still reusing workers across short idle gaps. The timeout must be finite by default and independently configurable per class; its numeric defaults belong to WORKER-009.
 
-**Owner decision requested:** choose WORKER-004 Option A (three class-isolated pools) or Option B (one shared owner pool with strict per-class reservations). This is a logical execution architecture decision; numeric ceilings and idle-worker retirement remain separate.
+The idle-retirement timeout begins only after a callback returns and the pool has no dispatchable work. It never bounds or interrupts user callback execution. Owner shutdown and active-callback handling remain API-002.
 
-## 12. Explicitly not decided
+**Owner decision requested:** choose WORKER-005 Option A (retain idle workers until owner shutdown) or Option B (retire idle workers after a finite configurable grace period). No numeric timeout value is part of this decision.
+
+## 13. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
-- WORKER-004 physical/logical pool topology and idle-worker lifecycle.
+- WORKER-005 idle-worker retirement policy and numeric idle-timeout defaults.
 - OnClose event-budget numeric default and public option name.
 - Incoming callback event-count cap.
 - Completion payload-byte budget and final maximum frame size.
 - PERF-003 numeric Request-credit defaults.
+- WORKER-006 fair scheduling between Sessions.
+- WORKER-007 queue and event capacities.
+- WORKER-008 resource accounting and payload-memory ceilings.
+- WORKER-009 safe defaults, valid ranges and public configuration limits.
 - API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.
 
 **Guardrail:** design/documentation only. No Go/C++ source, go.mod, tests, benchmarks, builds, dependencies, CI or operational changes.

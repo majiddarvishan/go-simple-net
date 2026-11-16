@@ -169,3 +169,12 @@ No numeric worker/event limits or public option names are approved. See [Worker 
 The owner approved nonblocking skip on saturation. Each Client/Server has a separate bounded OnClose event budget counting queued + running events. After Done closes, the engine attempts one event-credit reservation. If full, it permanently skips OnClose for that Session; no retry, overflow goroutine or wait. An admitted event retains its event credit until callback return. Done, transport cleanup and reconnect are independent. Reconnect generations share the Client budget.
 
 This event-count ledger is distinct from WORKER-002 active-worker permits and PERF-003 Request credits. Numeric event limits remain open. Next: WORKER-004, worker-pool topology.
+
+
+## 12. WORKER-004 — class-isolated worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner approved three independent lazy worker pools per Client/Server owner: Application, Completion and OnClose. Each pool has its own scheduler, ready queue, dispatch path, lock domain and wake-up mechanism. Workers execute one callback synchronously and are reused only within their own class; no goroutine per Request, frame or callback.
+
+This worker topology does not change Q-008/Q-009/Q-010 byte admission, queue ownership transfer or overload outcomes. Waiting Application frame bytes, PERF-003 Request credits, OnClose queued+running event credits and WORKER-002 active-worker permits remain distinct ledgers. Idle worker goroutines do not hold active-callback permits but still consume goroutine/stack resources. The internal engine remains independent of user callback pools.
+
+WORKER-005 separately decides idle-worker retirement. Numeric worker/event capacities and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation, tests or benchmarks authorized.

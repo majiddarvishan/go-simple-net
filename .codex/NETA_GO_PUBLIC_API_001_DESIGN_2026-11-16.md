@@ -241,3 +241,15 @@ WORKER-003 was subsequently resolved: OnClose is skipped on event-budget saturat
 OnClose event admission is best-effort/at-most-once. The owner-scoped event budget counts queued + running events. After Done closes, the engine attempts one nonblocking reservation; if the budget is full, that Session's OnClose invocation is skipped permanently. No retry, overflow goroutine or teardown wait is allowed. An admitted event holds its event credit until callback return, including while queued. Done and transport cleanup are unaffected.
 
 Numeric event capacity and public option name remain open. Next: WORKER-004, worker-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
+
+
+## 22. WORKER-004 — isolated callback worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
+
+- Each Client and Server owner has three independent pools: Application, Completion and OnClose.
+- Each class pool owns separate scheduling, ready-work queue, dispatch, locks and wake-up state. Shared internal worker-loop code is permitted, but the execution pools and their scheduler resources remain isolated.
+- Workers are created lazily, run one callback synchronously and are reusable only within their own class. No goroutine per Request/frame/callback.
+- A blocked callback class cannot occupy another class's workers; the internal engine remains independent.
+- Per-class worker goroutine count is bounded by the corresponding WORKER-002 ceiling. Idle workers do not hold active-callback permits but still consume goroutine/stack resources.
+- WORKER-001 owner scope, WORKER-002 class ceilings and WORKER-003 OnClose event admission remain binding.
+
+WORKER-004 Option B (one shared owner pool with per-class reservations) is not selected. WORKER-005 is next for idle-worker lifecycle and retirement. Numeric defaults, queue/event capacities and payload-byte bounds remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12. No implementation authorized.

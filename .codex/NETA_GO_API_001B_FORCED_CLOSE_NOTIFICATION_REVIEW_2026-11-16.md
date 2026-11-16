@@ -1,7 +1,7 @@
 # neta-go V1 — API-001b Forced Close, Notification Delivery and Worker Bound Review
 
 **Date:** 2026-11-16  
-**Status:** **Forced Close A, N-ORD2, DONE-A and C-ORD-B OWNER APPROVED**; API-001b remains PARTIALLY OPEN for worker/event capacities, numeric defaults, payload-byte bounds and remaining API details. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
+**Status:** **Forced Close A, N-ORD2, DONE-A, C-ORD-B and WORKER-001 through WORKER-004 OWNER APPROVED**; API-001b remains PARTIALLY OPEN for numeric worker/event capacities, payload-byte bounds and remaining API details. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
 **Baseline:** `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811`  
 **Permission:** documentation review only. No Go/C++ code, go.mod, build, tests, benchmarks or operational changes.
 
@@ -307,3 +307,16 @@ The owner-scoped OnClose event budget counts queued plus running events. After S
 This implements the already-approved best-effort/at-most-once OnClose contract. No numeric budget, public option name or diagnostic API is selected.
 
 **Next:** WORKER-004 — logical execution-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
+
+
+## 15. WORKER-004 — Three class-isolated worker pools (OWNER APPROVED, OPTION A, 2026-11-16)
+
+WORKER-004 Option A is owner approved. Each Client and Server owns three independent callback pools: Application, Completion and OnClose. Each class has its own scheduler, ready queue, dispatch path, lock domain and wake-up mechanism. Workers are created lazily, execute one callback synchronously and are reusable only within their own class. No goroutine is created per Request, frame or callback.
+
+A blocked callback class cannot consume another class's worker capacity or dispatch resources. The internal protocol/transport engine remains outside all user callback pools. Shared worker-loop implementation code is permitted, but shared execution pools, queues, scheduler locks or wake-up state across classes are not.
+
+The number of worker goroutines in a class is bounded by that class's WORKER-002 ceiling. Idle workers do not hold active-callback permits but retain goroutine/stack resources. WORKER-001 owner scope, WORKER-002 independent active ceilings, WORKER-003 OnClose event budget and retired-generation accounting remain binding. There is no process-global pool or ceiling.
+
+This supersedes the earlier open WORKER-004 references in §§11.6–11.7. Idle-worker lifecycle and retirement are separated into WORKER-005; numeric defaults remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§11–12.
+
+No implementation, tests, benchmarks or operational changes.
