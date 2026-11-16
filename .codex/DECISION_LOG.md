@@ -206,7 +206,7 @@ The approval does **not** authorize code implementation, module/repository renam
 
 The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md). It distinguishes approved owner contracts from suggested (unapproved) exported API structure, numerical defaults, queue capacity and missing Enquire Link response behavior.
 
-**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved) and Q-007 response timeout **10s**, close on missing matching reply, reconnect only when enabled (approved). **Resolved:** Q-008 Option A (4 MiB per-session outgoing FIFO and fail-fast) is now approved. **Still open:** Q-009 (incoming callback backlog and aggregate admission defaults), API-001..003 (precise Go surface/package design). No code work is authorized.
+**Resolved after this handoff:** Q-006 default idle interval **30s** (Option B, approved) and Q-007 response timeout **10s**, close on missing matching reply, reconnect only when enabled (approved). **Resolved:** Q-008 Option A (4 MiB per-session outgoing FIFO and fail-fast) is now approved. **Resolved:** Q-009 Option B (close only the saturated Session on incoming callback queue overflow). **Still open:** Q-010 (inbound/global/session capacity defaults and control reserve), API-001..004 (exact Go API and configuration semantics). No code work is authorized.
 
 ---
 
@@ -312,11 +312,45 @@ The next **design draft** has been recorded in [NETA_GO_PUBLIC_API_CONFIG_DESIGN
 
 ## Q-009 / Q-010 — Follow-on resource design (2026-11-16)
 
-**Status:** OPEN — PROPOSALS ONLY; owner has **not** approved these.  
+**Status:** Q-009 CLOSED / APPROVED OPTION B; Q-010 OPEN — proposed defaults only.  
 **Reference:** [NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
 
-- Q-009 Option A (recommended): pause/resume per-Session incoming application callback delivery under bounded backpressure; retain control progress as far as ordered TCP framing and finite buffers permit. Option B: close saturated Session.
-- Q-010: proposed, unapproved examples: 4 MiB inbound callback queue per Session, 256 MiB global queued Application frames per Server, 1024 bound Sessions, separate finite control headroom. Numbers need sizing and approval.
-- API-004: choose a public Go config representation distinguishing **omitted** `EnquireLinkIdleInterval` (approved default 30s) from an explicitly provided `0` (approved disable). Ordinary zero-valued `time.Duration` alone cannot represent both states.
+- **Q-009 APPROVED B:** close the specific Session promptly on an incoming Application frame that cannot be admitted to its bounded callback backlog; no pause/resume recovery policy for queue overflow in V1. See the Q-009 decision below.
+- **Q-010 OPEN:** proposed, unapproved examples: 4 MiB inbound callback queue per Session, 256 MiB global queued Application frames per Server, 1024 bound Sessions, separately bounded control headroom. These must be sized and approved; avoid conflating process RSS with queued frame budgets.
+- **API-004 OPEN:** choose a Go configuration representation distinguishing **omitted** `EnquireLinkIdleInterval` (approved default 30s) from explicitly provided `0` (disable). Ordinary zero-valued `time.Duration` alone cannot represent both states.
 
-The only **approved** 4 MiB value so far is **outgoing FIFO per Session** from Q-008. No implementation is authorized.
+Only the **outgoing** 4 MiB per-Session queue has an approved numeric limit (Q-008). No implementation is authorized.
+
+---
+
+## Q-009 — Incoming callback queue overflow (2026-11-16)
+
+**Status:** CLOSED — APPROVED OPTION B (close saturated Session)  
+**Approved by:** Project owner  
+**Applies to:** GO-PINEX-002, GO-PINEX-004, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-012, GO-PINEX-013  
+**Implementation:** NOT AUTHORIZED
+
+### Approved behavior
+
+- Deliver Application Stream callbacks for each Session serially in receipt order (Q-003), using a **bounded** incoming callback backlog. The byte/count limit is separately configurable, with the numeric default pending under Q-010.
+- If a valid incoming Application frame **cannot be admitted** without exceeding its Session's callback backlog capacity, **close that Session promptly** with a distinct resource-limit/overload cause. An exactly full queue is not by itself a failure until a new frame cannot fit.
+- **Do not** silently drop or skip the overflow frame, accept it into unbounded memory, wait indefinitely for callback capacity, or switch to a pause/resume recovery mechanism under Q-009. The overflowing Session has a terminal transport close instead.
+- The triggering Session must stop accepting new application work, release owned transport/buffer/timer/queue reservations and pending requests, and emit **no duplicate terminal notification**. Do not evict other Sessions, cancel their callbacks, or hold a global registry lock while invoking any user Callback.
+- An explicitly configured Client Auto Reconnect policy may reconnect after closure, following its separate retry rules; a Server does not attempt to reconnect its accepted peers.
+- Incoming Control PDUs already decoded **before** overflow remain governed by the existing protocol/state rules. Once the Session closes due to overflow, do not assume that a later control frame can be processed through a closed TCP connection. Preserve per-frame order and Pinex Wire compatibility.
+- **Q-003 boundary:** a user callback currently blocked indefinitely cannot be forcibly killed by the Go library. Transport shutdown must not wait forever on such a callback; exact terminal-callback delivery and waiting semantics need a separate API/Lifecycle contract. Never promise guaranteed completion of arbitrary user callback code.
+
+### Separate, not approved by this decision
+
+- **Q-010:** default inbound queue capacity, global/server queue budget, max bound Sessions, pre-bind limits, accounting of active callback frames, and exact bounded control reserves.
+- Whether the *same close-on-exhaustion* policy should apply to a global queue budget (as opposed to Session-local queue exhaustion) belongs to Q-010 and is **not** silently decided here.
+- API error names, Session Close event ordering, and cancellation behavior remain under GO-PINEX-002/004 design.
+
+### Planned tests (not run)
+
+- A slow Session callback fills the incoming backlog: next non-fitting Application frame closes **only that Session**, returns/fires the specific overload cause once, and releases its buffer/timer/request registrations.
+- Two other Sessions receiving traffic concurrently remain responsive and preserve callback order, even when the overloaded Session's callback is blocked.
+- No hidden message drop, no pause/resume recovery on overflow, no double terminal callback.
+- Boundary accounting at exactly-full versus one additional non-fitting frame; fragmentation, disconnect and callback completion races; client reconnect if explicitly enabled.
+
+Q-009 is **CLOSED**, and no code, tests, deployments or module/repository renames are authorized.
