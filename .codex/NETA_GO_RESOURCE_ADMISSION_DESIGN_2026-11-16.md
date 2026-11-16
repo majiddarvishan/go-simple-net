@@ -71,6 +71,53 @@ These are sizing illustrations to guide review, not verified production requirem
 
 **Important:** The numbers 4 MiB inbound, 256 MiB global and 1024 bound Sessions are **proposals only** under Q-010. The owner approved **4 MiB outgoing per Session under Q-008** and **close-on-incoming-overflow under Q-009 B**, not these additional numerical limits. Capacity must be configurable; avoid eagerly allocating the maximum byte limit for every Session.
 
+## 4a. Q-010 — actionable capacity & global overload proposal (NOT APPROVED)
+
+**Status:** PROPOSED / OWNER REVIEW — do not treat as approved defaults.
+
+### Option A — bounded baseline (recommended)
+
+| Policy | Proposed default | Admission result |
+|---|---:|---|
+| `MaxQueuedIncomingBytes` per Session | **4 MiB** | Incoming Application Frame not fitting the bounded Callback backlog → **close that Session** (Q-009 B) |
+| `MaxAggregateQueuedFrameBytes` per Server | **256 MiB** | Global admission fails only for the *new* work; no eviction of already healthy peers |
+| `MaxBoundSessions` per Server | **1024** | Reject a new Bind at capacity; do **not** evict existing bound Sessions |
+| `MaxPendingPreBindSessions` per listener | **128** | Reject excess accepted sockets before allocating a full Session |
+| `PreBindHandshakeTimeout` | **30s** | Close a pre-bind TCP connection exceeding its absolute handshake deadline |
+| `MaxQueuedControlBytes` per Session | **4 KiB** | Bounded control admission; on unrecoverable control queue exhaustion, close the affected Session rather than buffer forever |
+| Maximum frame size | **Pinned to C++ Pinex 1.5.0 baseline, not changed by queue sizes** | Reject oversized/malformed Frame; a queue size is not a max wire PDU length |
+
+All limits are **configurable**. The suggested 128 pending sessions and 30s handshake timeout come from the reviewed C++ baseline. The other numbers are **sizing hypotheses**, not measured results. The control reserve is bounded but must not override TCP order, existing queued Application Frames or the 10-second Unbind deadline.
+
+### Proposed aggregate overload policy (separate from the approved Q-009)
+
+- Track per-Session inbound/outbound Application queue charges and Server-wide aggregate outstanding queued Application bytes with atomic admission. Include an in-progress complete outgoing Frame in queued bytes until its full write completes; include a queued incoming Frame until delivery ownership transfers or it is released. Avoid double charges.
+- An **outgoing** new Application Frame that cannot fit either the per-Session (approved Q-008) or aggregate budget **fails promptly with Queue Full**; keep Session connected, transmit nothing, leave no Pending Request.
+- An **incoming** new Application Frame that cannot fit either its per-Session incoming backlog (approved Q-009) **or the proposed aggregate budget** closes **that offending Session**, not already admitted or unrelated Sessions. **The global-budget reaction in this sentence is still unapproved Q-010.**
+- New Bind at a proposed bound-session cap is rejected with the compatible Pinex `rfail` response where protocol and resource availability allow. Excess pre-bind sockets are closed before full Session allocation. Never evict an earlier valid System ID.
+- Account for Control PDUs, pre-bind memory, in-progress user callbacks, reader buffers and goroutine/socket overhead **separately**. A 256 MiB queue budget is **not a process RSS cap**; it is only one component of resource control.
+- Do **not** eagerly allocate the per-Session configured queue capacity (otherwise 1024 Sessions × (4 MiB inbound + 4 MiB outbound) alone would imply 8 GiB reserved capacity). Dynamic but bounded allocation is required.
+
+### Option B — workload-tuned sizing
+
+Keep Q-008/Q-009 behavior and all boundedness invariants, but the owner selects different initial defaults for incoming backlog, server queue budget, bound-session cap and control reserve after workload sizing. This is not an option for unbounded queues: it changes values, not safety principles.
+
+### Tests to design (NOT run)
+
+1. Exactly-at-limit and one-byte-over admission for per-Session inbound and combined global byte quotas, with ownership transfers and release after Close.
+2. Concurrent ingress/egress admission cannot oversubscribe aggregate quota; outgoing Queue Full produces no Pending Request; incoming global failure has an explicitly chosen reaction.
+3. 1024 bound + 128 pre-bind synthetic peers: no eager 8 GiB allocation and no unexpected eviction; confirm actual memory under realistic load before release.
+4. Saturated control reserve: no infinite buffering, no frame interleaving, no violation of Unbind FIFO/10s close deadline.
+5. Bind admission and duplicate System ID reject under pressure, without removal of existing Session.
+6. A callback blocked indefinitely cannot prevent network resource release; exact callback terminal notification is constrained by user code and must be documented.
+
+### Owner choice to close Q-010
+
+- **A:** approve the proposed initial default set (**incoming 4 MiB / aggregate queue 256 MiB / 1024 bound Sessions / 128 pre-bind / 30s handshake / 4 KiB control reserve**) and the proposed per-operation *global* overflow outcomes.
+- **B:** preserve bounded rules but choose different defaults after reviewing deployment/workload requirements.
+
+Until the owner chooses, **all these numbers and global-overflow outcomes remain unapproved**. Q-009 approval alone does **not** approve them.
+
 ## 5. Resource and lifecycle invariants
 
 1. Atomic admission happens before pending request becomes visible to the writer. On Queue Full, no queued frame, leaked pending request or response timer remains.
