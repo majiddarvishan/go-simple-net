@@ -464,3 +464,29 @@ Owner approval is a **design decision only**. No source modification, benchmarks
 **Current branch:** `main`
 
 GitHub connector reads confirm existing `.codex` files are present under the new repository path. The owner changed the GitHub repository name; the assistant only updated `.codex` references. At the root of `main`, neither `go.mod` nor `README.md` was found through the file lookup; this is **not** evidence of a Go module rename. **API-003 remains OPEN** for package and module-path decisions. Pinex C++ and source code remain outside the scope of this documentation update; no tests or builds have been run.
+
+---
+
+## PERF-002 — Payload Ownership / Copy Cost (2026-11-16)
+
+**Status:** CLOSED — OWNER APPROVED OPTION A: Safe Snapshot + Owned Receive  
+**Approval:** Project owner explicitly selected Option A after comparison with borrowed buffers and ownership transfer.  
+**Implementation:** NOT AUTHORIZED
+
+### Approved public ownership contract
+
+1. **Outgoing `[]byte`:** For an accepted asynchronous `SendRequest`, `SendResponse`, or no-wait Stream send, the library captures the provided payload in **independent internal storage before successful return**. The outgoing frame carries exactly the bytes supplied during the call, independent of subsequent changes to the caller's slice. The library must not rely on the caller's backing array after returning success. The caller must not concurrently modify the source slice *while the snapshot is being made*; a Go slice cannot provide a consistent concurrent snapshot of racy writes.
+2. **Admission and copy cost:** Validate frame and quota first where possible; failed local admission retains no caller payload, writes no frame and leaves no pending tracker. The intended normal hot path is **one library-level payload copy into the private outgoing frame** (10-byte Pinex header plus payload), with no extra internal copy between FIFO and the single writer. TCP/kernel copies can still occur: this is **not** end-to-end zero-copy.
+3. **Incoming `[]byte`:** Decode into a separately owned buffer, **preferably reading the payload directly into its final owned destination** without an intermediate payload copy. Deliver that buffer to the user callback; the application **may retain it beyond callback return**. The library will not mutate, recycle or pool the user-visible backing buffer after handoff. The payload remains opaque and binary-safe; Sequence and header status are preserved for request/response handling.
+4. **Memory and concurrency:** No aliasing of mutable internal scratch with callback-visible payload. While waiting for delivery, incoming payloads remain subject to approved Q-009/Q-010 queue admission rules, with additional bounded in-progress/active accounting to be designed under PERF-003/API-001b. Memory retained by the application after handoff is outside the library's queued-frame accounting and process-RSS guarantee.
+5. **Pooling:** Optional internal-only buffer pooling is a subsequent **PERF-004 OPEN** optimization, allowed only after all library users finish with each buffer; no automatic reuse of user-visible incoming payload. No public Borrowed/Ownership Transfer API is approved for V1. No unsafe/zero-copy API is implied.
+
+### Explicitly not decided by this approval
+
+- Outstanding pending/completion count limits, Server aggregate completion slots, incoming callback event-count limit and their numeric defaults (**PERF-003 OPEN**).
+- Whether an admitted request's completion callback must run after forced close, callback dispatch and `Done`/terminal notification ordering (**API-001b OPEN**).
+- Timer policy, request timeout defaults, reconnect and public method names (**API-002/API-001 OPEN**).
+- Concrete size-class pooling, runtime benchmarks or numeric performance SLA (**PERF-004/PERF-001 OPEN**).
+
+**Detailed design:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md).  
+**Next:** PERF-003, then API-001b. No coding, tests, benchmarks or operational changes.
