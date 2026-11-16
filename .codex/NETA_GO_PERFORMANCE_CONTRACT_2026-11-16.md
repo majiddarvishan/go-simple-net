@@ -129,3 +129,12 @@ Earlier sections describing PERF-002 as OPEN are historical and superseded by [t
 **APPROVED:** separate **bounded** user Notification dispatch (`OnClose` and Request Completion) from concurrent bounded Application `OnRequest` dispatch. Both are external user code, isolated from the internal TCP/Timeout/Pending/Close engine. The latter must progress without waiting for either user callback class. This enables application stalls not to automatically occupy the notification workers; it does not guarantee completion of an arbitrarily stuck notification callback.
 
 PERF-003 count ceilings remain binding at the model level; exact numeric default, dispatcher-worker count and forced-close cancel/defer semantics are **OPEN**. Benchmark plan (not executed) should compare notification latency under blocked `OnRequest`, slow completion callbacks, many sessions, and queue saturation. See [Decision Log](DECISION_LOG.md) § API-001b-N1. No code/tests/benchmarks.
+
+
+## 12. WORKER-001 owner approval — instance-scoped callback capacity (2026-11-16)
+
+**APPROVED Option A:** each Client and Server instance owns an independent callback-worker resource domain. Sessions belonging to one Server share that Server's budgets; all reconnect generations of one Client share its budget. Started callbacks from retired Session generations remain charged until return. Independent instances do not share a hidden process-global callback pool or mandatory process-global active-worker ceiling.
+
+This ownership boundary avoids hidden cross-instance contention and a mandatory process-global hot-path admission point. It does not itself select worker counts, physical pool layout, numeric defaults, event limits or payload-byte ceilings.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-002 will decide explicit per-class owner-wide active ceilings versus deriving them from Session limits. No implementation, tests or benchmarks authorized.
