@@ -1,7 +1,7 @@
 # neta-go V1 — Resource Admission and Incoming Backpressure Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN DRAFT — Q-008 APPROVED / Q-009 OPEN  
+**Status:** DESIGN DRAFT — Q-008 APPROVED / Q-009 OPTION B APPROVED / Q-010 OPEN  
 **Branch:** `majiddarvishan/go-simple-net` / `main`  
 **Implementation:** NOT AUTHORIZED; this file contains no runnable application code.
 
@@ -37,25 +37,25 @@ This document follows approved decision Q-008 **Option A**. The compatibility ta
 
 **Control frames:** avoid starvation under saturated outgoing Application queue, yet all memory remains bounded. For `unbind_resp` preserve the outgoing write ordering documented by Pinex C++, rather than overtaking earlier writes. On stalled draining, the 10-second Unbind deadline enables closure. A control request behind unread TCP payload cannot be magically discovered ahead of earlier bytes; receive strategy must ensure finite buffering and a fail-safe deadline when progress is impossible.
 
-## 3. Q-009 — Incoming overload policy (owner decision pending)
+## 3. Q-009 — Incoming overload policy (APPROVED OPTION B)
 
-### Option A — pause/resume application dispatch with bounded memory (recommended)
+### Option B — close saturated Session (owner approved 2026-11-16)
 
-- When a Session's incoming callback capacity becomes saturated, pause **new application callback delivery** for that Session and apply bounded TCP/read-side flow control until the existing callback backlog drains.
-- Existing per-Session callbacks remain serialized; other Sessions continue operating independently.
-- Keep protocol control handling responsive as far as possible **without unlimited buffering or violating TCP/frame ordering**. Only complete validated frame data may be dispatched or scanned; do not skip an incomplete application frame to search for a control PDU behind it.
-- If the peer cannot make bounded forward progress, use a clearly specified per-Session stall/close policy; never allow the reader's retained bytes or pending callback count to grow indefinitely.
-- When capacity becomes available, resume application dispatch in original receive order.
+- Incoming Application Stream callbacks for a Session run serially in receive order; the waiting callback backlog has a **bounded**, configurable capacity. Numeric capacity is Q-010, still OPEN.
+- If the next decoded valid Application frame does **not fit** the remaining callback backlog capacity, **close only the responsible Session** promptly with a resource-limit/queue-overload reason. Reaching exactly the limit without a new non-fitting frame is not itself overflow.
+- No silent drop, indefinite wait, unbounded queue, or Pause/Resume recovery on this overload path. Stop admitting Application work and release all session-owned queue reservations, timers and Pending Requests; Close must not be reported twice.
+- Other Sessions remain independent; no global lock may be held during a user callback or blocking teardown.
+- If Client Auto Reconnect is enabled, reconnect is allowed through the normal configured retry policy; Server never reconnects accepted peers.
+- Control frames already decoded **before** the overflow are processed by the normal ordered state machine. After an overload-triggered socket close there is no obligation/possibility to process future frames on that closed Session.
+- Go cannot forcibly stop a callback blocked in user code. Transport teardown must not block indefinitely waiting for it; the exact close-event/callback ordering/cancellation guarantee must be resolved separately under API-001/GO-PINEX-004.
 
-### Option B — close saturated Session instead
+### Option A — pause/resume (not selected)
 
-- Once an incoming Application frame cannot be admitted to its bounded callback queue, close that Session promptly with a resource-limit error.
-- Simpler failure path, but a temporary slow callback causes a disconnection and could trigger reconnect churn.
-- Even on close, perform a single terminal callback, free buffers and avoid other Sessions being affected.
+The owner rejected the Pause/Resume overload policy for V1. Do not use it as the fallback when the incoming callback backlog is full.
 
-**Scope of approval requested for Q-009:** choose A (pause/resume) or B (close on saturation); neither is authorized merely by approving Q-008.
+**Approved scope:** the **per-Session** incoming-queue overflow reaction, not numeric capacities or the global-overload reaction. See the [Decision Log](DECISION_LOG.md).
 
-## 4. Suggested numeric defaults for Q-009 — **not approved**
+## 4. Q-010 — suggested numeric defaults (NOT APPROVED)
 
 These are sizing illustrations to guide review, not verified production requirements:
 
@@ -67,14 +67,14 @@ These are sizing illustrations to guide review, not verified production requirem
 | `MaxPendingPreBindSessions` | **128 per listener** | Matches currently documented C++ Pinex baseline; separate from bound limit |
 | `PreBindHandshakeTimeout` | **30s** | Existing C++ reference value; Go default not yet approved |
 | Bounded control reserve | **size TBD** | Needs separate count/bytes policy; cannot be unlimited |
-| Inbound stall deadline | **TBD** | Defines when stalled callback/peer forces close under Option A |
+| Inbound overload close | **Immediate when next Frame cannot fit** | Reaction approved under Q-009 B; callback teardown timing details remain under API-001 |
 
-**Important:** The numbers 4 MiB inbound, 256 MiB global and 1024 bound sessions are **proposals only**. The owner has so far approved **only 4 MiB outgoing per Session under Q-008**. The queue cap and session cap are independently configurable deployment tradeoffs. Avoid pre-allocating full configured queue capacity for every accepted Session.
+**Important:** The numbers 4 MiB inbound, 256 MiB global and 1024 bound Sessions are **proposals only** under Q-010. The owner approved **4 MiB outgoing per Session under Q-008** and **close-on-incoming-overflow under Q-009 B**, not these additional numerical limits. Capacity must be configurable; avoid eagerly allocating the maximum byte limit for every Session.
 
 ## 5. Resource and lifecycle invariants
 
 1. Atomic admission happens before pending request becomes visible to the writer. On Queue Full, no queued frame, leaked pending request or response timer remains.
-2. If a decoded input Frame is blocked by callback backlog, retain only bounded data, use TCP backpressure and do not dispatch application frames out of order.
+2. On **failed admission** of a decoded incoming Application frame to the Session's bounded callback backlog, **close that Session promptly** (Q-009 B), without silent drop or pause/resume recovery; preserve prior callback order and release resources.
 3. A caller's slow callback never holds the global Session Registry lock or blocks unrelated Session readers/writers.
 4. Go shutdown and `unbind_req` must remain progress-capable under backpressure, respecting serialized full-frame writes and Pinex drain/deadline semantics.
 5. Enquire Link defaults approved separately: idle-only 30s, response deadline 10s. A Session stalled behind an un-drainable TCP buffer must eventually close under a bounded policy; do not infer that an application-layer heartbeat can bypass TCP's ordered byte stream.
@@ -86,17 +86,17 @@ These are sizing illustrations to guide review, not verified production requirem
 
 - Stress simultaneous `SendRequest`/`SendResponse` calls around 4 MiB boundary: no over-admission, no Frame interleaving, Queue Full is prompt.
 - Wire interoperability Go Client ↔ C++ Server and C++ Client ↔ Go Server under send and receive pressure.
-- Callback slowed indefinitely: bounded incoming bytes, unaffected other Sessions, deterministic recovery or close.
+- Callback slowed indefinitely: bounded incoming bytes, **only the overflowing Session closes**, unaffected other Sessions, no double-close. A stuck user callback cannot be forcibly terminated; do not promise indefinite Stop waits.
 - Global pressure across many Sessions: aggregate queue ceiling respected and admission effects isolated.
 - TCP fragmentation and partial frame reads: no blind skip of application data; control PDU order preserved.
-- Incoming Enquire Link and Unbind when application delivery is paused: reply when reachable without violating byte order/limits; bounded exit otherwise.
+- Incoming Enquire Link/Unbind already decoded before overflow follow normal state rules; after overflow closes Session, do not skip incomplete frames or promise control processing through a closed transport.
 - Session teardown while a writer is stalled: all reserved bytes and pending sequences released exactly once.
 - Race detector and bounded-churn/soak suite for Go Session state and callbacks.
 
 ## 7. Next design actions
 
-- **Q-009 OPEN:** owner choice for inbound overload handling: Option A pause/resume vs Option B immediate close.
-- **Q-010 OPEN:** proposed numerical ingress/global/session admission defaults. These cannot be derived from Q-008 and need workload sizing/approval.
+- **Q-009 CLOSED / APPROVED B:** close only Session whose incoming callback backlog cannot admit a new Application frame; other Sessions are unaffected.
+- **Q-010 OPEN:** proposed numerical ingress/global/session admission defaults and what happens when **global** capacity cannot admit a frame. These cannot be derived from Q-008 or Q-009 and require independent approval.
 - **API-004 OPEN:** Go configuration must distinguish **unset** from explicit `EnquireLinkIdleInterval=0`. A plain zero-valued `time.Duration` field cannot simultaneously implement approved **default 30s** and explicit **0 disables**. Prefer a constructor+functional-option override or pointer/optional type; choose before implementation.
 - Existing **API-001..003** also remain open: exported types, callbacks, capacity config validation, module/package naming.
 - Pin the exact C++ develop HEAD before any cross-language test execution.
