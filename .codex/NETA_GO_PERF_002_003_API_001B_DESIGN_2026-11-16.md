@@ -287,3 +287,9 @@ The ceilings count physically executing callbacks; waiting queues/event populati
 Numeric values, public option names, physical worker-pool layout and event/queue capacities remain open. Next: WORKER-003, OnClose event saturation.
 
 See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). No implementation, tests or benchmarks authorized.
+
+## 20. WORKER-003 — OnClose event saturation (OWNER APPROVED, OPTION A, 2026-11-16)
+
+OnClose uses a separate owner-scoped event budget counting queued + running events. After Done closes, the engine attempts one nonblocking reservation. If full, the event is skipped permanently; no retry, overflow goroutine or teardown wait. An admitted event retains its event credit until callback return. Done, transport cleanup and reconnect are independent of OnClose delivery. The budget is shared across Client reconnect generations.
+
+Next: WORKER-004, logical execution-pool topology. Numeric event limits remain open. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10. No implementation or benchmark authorized.
