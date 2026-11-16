@@ -195,12 +195,12 @@ Choose **Option A** for V1. User callbacks may block indefinitely, and predictab
 
 **Owner decision requested:** choose WORKER-004 Option A (three class-isolated pools) or Option B (one shared owner pool with strict per-class reservations). This is a logical execution architecture decision; numeric ceilings and idle-worker retirement remain separate.
 
-## 11. Explicitly not decided
+## 12. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
 - WORKER-004 physical/logical pool topology and idle-worker lifecycle.
-- OnClose saturation/skip policy and event-budget numbers.
+- OnClose event-budget numeric default and public option name.
 - Incoming callback event-count cap.
 - Completion payload-byte budget and final maximum frame size.
 - PERF-003 numeric Request-credit defaults.
