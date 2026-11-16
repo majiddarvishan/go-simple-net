@@ -163,3 +163,9 @@ Each Client and Server instance has three independently configurable aggregate a
 These ceilings count callbacks physically executing; waiting Application frames remain subject to Q-009/Q-010 byte admission, queued/running Completion lifecycle remains subject to PERF-003 Request credits, and OnClose events require their own bounded event population. WORKER-001 owner scope applies across Sessions and Client reconnect generations, including already-running callbacks from retired Sessions.
 
 No numeric worker/event limits or public option names are approved. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-003 remains open for OnClose event saturation.
+
+## 11. WORKER-003 — OnClose event admission (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner approved nonblocking skip on saturation. Each Client/Server has a separate bounded OnClose event budget counting queued + running events. After Done closes, the engine attempts one event-credit reservation. If full, it permanently skips OnClose for that Session; no retry, overflow goroutine or wait. An admitted event retains its event credit until callback return. Done, transport cleanup and reconnect are independent. Reconnect generations share the Client budget.
+
+This event-count ledger is distinct from WORKER-002 active-worker permits and PERF-003 Request credits. Numeric event limits remain open. Next: WORKER-004, worker-pool topology.
