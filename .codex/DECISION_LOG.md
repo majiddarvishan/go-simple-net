@@ -409,14 +409,27 @@ Q-009 is **CLOSED**, and no code, tests, deployments or module/repository rename
 
 ## API-004 — Go configuration representation (2026-11-16)
 
-**Status:** OPEN — DESIGN PROPOSAL ONLY; the user has not approved an API shape  
+**Status:** CLOSED — OWNER APPROVED OPTION A (Functional Options), 2026-11-16  
 **Detailed draft:** [NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md)  
 **Implementation:** NOT AUTHORIZED
 
 Q-010 requires all resource ceilings, pre-bind deadline and Control reserve to be independently configurable, and Q-002/Q-006 require omitted `EnquireLinkIdleInterval` to use 30s while an **explicit** `0` disables outgoing Enquire Link.
 
-- **Proposed Option A (recommended):** Go-native typed Functional Options applied over complete defaults, validated as a whole into immutable effective per-instance config. Omitted means default; explicit override (including idle interval zero) remains distinguishable. Invalid resource zero/negative is rejected, not interpreted as unbounded.
-- **Alternative B:** public Config structs using optional/pointer fields for explicit presence and default resolution, with the same validation/snapshot/behavior.
+- **APPROVED Option A:** Go-native typed Functional Options applied over complete defaults, validated as a whole into immutable effective per-instance config. Omitted means default; explicit override (including idle interval zero) remains distinguishable. Invalid resource zero/negative is rejected, not interpreted as unbounded.
+- **Option B not selected:** public Config structs using optional/pointer fields as the primary API. Internal/private structs and resolved configuration snapshots are still allowed.
 - No live hot-reload semantics are approved; no released exported identifier, package/module path or source changes have been chosen.
 
-**Owner decision pending:** select A or B to close API-004. API-001, API-002 and API-003 also remain open. No code or tests authorized.
+**Owner approved Option A:** API-004 is **CLOSED**. Client/Server use typed Functional Options with internally applied complete defaults, independent explicit overrides, validation before starting Dial/Listen, and immutable effective per-instance settings. Caller omission of `EnquireLinkIdleInterval` means 30s; explicit `0` disables outgoing auto-probes, while inbound requests are still answered. No hot reload requirement. Exact exported option/constructor names remain under API-001. See [API-004 contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). API-001, API-002 and API-003 remain OPEN. No code or tests authorized.
+
+---
+
+## API-001 — Public Client/Server/Session design follow-up (2026-11-16)
+
+**Status:** DRAFT / OWNER CHOICE OPEN — no API-001 completion model approved  
+**Design:** [NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md)
+
+- Approved API-004 functional options shape is carried into the Client/Server construction and configuration plan.
+- Proposed public concepts: Client, Server, Session, Session-bound incoming Request and explicit Response with original Sequence and header Status, per-Session ordered callbacks, and predictable Close/Done behavior under Q-003/Q-008/Q-009.
+- The most immediate **unapproved** choice is **API-001a**: Option A nonblocking request submission with callback completion, versus Option B synchronous Context-first Request as the primary interface. Both retain raw binary payload and Pinex 1.5.0 wire compatibility.
+- Do not confuse successful enqueue with network delivery or remote application processing. Completion and transport shutdown guarantees need separate, testable contracts, particularly when arbitrary user callbacks never return.
+- Exact method/handler names, Go package/module path, error taxonomy, byte ownership, timer/reconnect details remain OPEN. No source changes are authorized.
