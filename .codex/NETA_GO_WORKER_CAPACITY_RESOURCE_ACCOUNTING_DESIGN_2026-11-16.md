@@ -1,7 +1,7 @@
 # neta-go V1 — Worker Capacity & Resource Accounting Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN IN PROGRESS — WORKER-001 AND WORKER-002 OWNER APPROVED  
+**Status:** DESIGN IN PROGRESS — WORKER-001/002/003 OWNER APPROVED  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. Documentation/design only.
 
@@ -75,7 +75,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 - OnClose never consumes PERF-003 Request credits.
 - It uses the WORKER-002 OnClose active-worker ceiling plus a separate bounded active+queued event population per owning instance.
 - A started OnClose retains its active-worker and event charges until return.
-- If the event budget is exhausted, Done still closes and internal teardown still completes. WORKER-003 must decide whether the new event is skipped or protected by admission-time reservation.
+- If the event budget is exhausted, the WORKER-003 approved policy permanently skips that OnClose invocation. Done and internal teardown still complete.
 
 ## 5. Recommended scheduler and worker lifecycle (PROPOSAL)
 
@@ -94,7 +94,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 |---|---|
 | Application active capacity full | Keep work in the existing bounded incoming queue; if Q-009/Q-010 admission fails, close only the offending Session |
 | Completion active capacity full | Keep admitted completions bounded by their existing Request credits; do not spawn overflow goroutines; reject new SendRequest when PERF-003 credits are exhausted |
-| OnClose active/event capacity full | Done and internal cleanup still proceed; OnClose remains best-effort; exact skip/admission policy is WORKER-003 OPEN |
+| OnClose event budget full | Permanently skip the new OnClose invocation; Done/internal cleanup/reconnect proceed; no retry or overflow goroutine (WORKER-003 approved) |
 | All workers in one class block forever | Only that class loses execution capacity; internal engine and other independently bounded classes continue |
 | Reconnect while old callback runs | Old callback remains charged to the same owner; new Session cannot reset or bypass the owner budget |
 | Forced Close races with callback start | Exactly one winner: cancel-before-start or started-and-charged-through-return |
@@ -144,45 +144,62 @@ Rules:
 
 Explicit class ceilings make upper bounds independent of current Session count, prevent one class from consuming another class's execution reserve and keep reconnect churn from multiplying active work. The cost is three additional capacity dimensions per Client/Server; this does not require eager creation of all worker goroutines.
 
-## 10. WORKER-003 — OnClose event-budget saturation (OPEN; RECOMMENDATION ONLY)
+## 10. WORKER-003 — OnClose event-budget saturation (OWNER APPROVED, OPTION A)
 
-WORKER-002 bounds physically active OnClose callbacks but does not bound how many close events may wait behind blocked OnClose workers. A separate owner-scoped event budget is still required. It should count **queued + running OnClose events**, with at most one event per Session. Events from old Client reconnect generations remain charged to the same Client owner until their callback returns.
+The owner approved **Option A: skip the new OnClose event when the event budget is full**.
 
-### Option A — skip the new event when the event budget is full (RECOMMENDED)
+### Binding V1 contract
 
-- After Session `Done` closes, if an OnClose handler is configured, attempt a nonblocking reservation from the owning Client/Server's OnClose event budget.
-- If reservation succeeds, enqueue the event; it may start only after Done is closed and only when both the owner OnClose active-worker ceiling and scheduler rules allow it.
-- If reservation fails because queued+running events already equal the configured cap, skip this OnClose invocation permanently. Do not retry it later and do not create an overflow goroutine.
-- A started callback holds both its active-worker permit and event credit until return. A queued event holds its event credit until it starts or is otherwise cancelled by a separately approved lifecycle rule.
-- Skipping an event does not affect Done, terminal cause, socket closure, internal resource cleanup, Application capacity or Completion capacity.
-- This directly implements the already-approved best-effort/at-most-once OnClose contract and avoids coupling transport admission to user callback progress.
+- Each owning Client/Server has a separate bounded OnClose event budget. It counts **queued + currently executing** OnClose events.
+- At most one OnClose event may be admitted per closed Session.
+- After Session `Done` closes, if an OnClose callback is configured, the engine makes one nonblocking reservation attempt.
+- If reservation succeeds, the event is queued. Its event credit remains held while queued and while the callback runs, and is released only after callback return.
+- If reservation fails because the event budget is full, the OnClose invocation is skipped permanently. No retry, overflow goroutine, hidden queue or wait is allowed.
+- A started OnClose callback holds both its WORKER-002 active-worker permit and its event credit until return.
+- Skipping OnClose never delays or changes Done, terminal cause, socket closure, internal cleanup, reconnect eligibility, Application/Completion capacity or PERF-003 Request credits.
+- Client reconnect generations share the same Client event budget. Queued/running events from retired generations remain charged until return.
+- No numeric event-budget default, public option name or diagnostic API is selected.
 
-**Advantages:** simplest bounded behavior; no teardown wait; no reconnect deadlock caused by permanently blocked OnClose callbacks; one event-count ceiling covers active and waiting events.
+### Rationale
 
-**Costs:** a Session may close without invoking OnClose when its owner is saturated. This is consistent with the already-approved best-effort contract but must be clearly documented.
+This preserves transport and internal-engine liveness even if OnClose callbacks block forever. It follows N-ORD2/DONE-A's independent, best-effort/at-most-once contract and avoids coupling connection admission/reconnect to arbitrary user callback progress. Counting queued + running events also bounds retained Session references and event metadata.
 
-### Option B — reserve one OnClose event credit before admitting each Session
+## 11. WORKER-004 — Logical execution-pool topology (OPEN; RECOMMENDATION ONLY)
 
-- A Session may be admitted only if its owner can reserve a future OnClose event credit.
-- The reservation follows that Session across its lifetime and is converted to a queued/running event when the Session closes; it is released after OnClose returns or if the Session terminates without an eligible OnClose handler under a separately specified rule.
-- If no reservation is available, reject/defer new Server Session admission or Client reconnect rather than accepting a Session whose eventual OnClose cannot be retained.
-- Existing admitted Sessions can therefore retain an OnClose event slot even when all OnClose workers are blocked.
+WORKER-001/002 establish owner scope and strict per-class active ceilings; WORKER-003 establishes bounded OnClose event admission. The remaining architecture choice is how to execute the three callback classes without unbounded goroutines or cross-class head-of-line blocking.
 
-**Advantages:** stronger callback-delivery guarantee for admitted Sessions; saturation is moved to Session admission rather than dropping a close notification after the fact.
+### Option A — three class-isolated worker pools (RECOMMENDED)
 
-**Costs:** couples OnClose user-callback health to accepting new connections/reconnects; permanently blocked callbacks can exhaust reservations and stop future admission; reserves event capacity for long-lived Sessions that have not closed; requires precise treatment of pre-bind, rejected Bind, reconnect and sessions with no registered OnClose handler.
+Each Client/Server owner has a logically and physically separate Application, Completion and OnClose worker pool. Each pool:
+- Has its own per-Session FIFO/ready-session scheduler and owner-scoped active limit.
+- Starts workers lazily on demand, never above its WORKER-002 class ceiling; idle workers may be reused within that class.
+- Uses no per-Request/per-frame goroutine. A worker executes one callback synchronously, then returns to that class's scheduler.
+- Has independent queue/accounting locks and wakeups; no callback-class global lock is required.
+- Retains WORKER-002 active permits and class-specific event/Request credits until the callback returns.
+
+**Advantages:** strongest isolation and simplest reasoning; a blocked callback class cannot consume another class's execution goroutines; lower cross-class scheduler contention; independent queue and wake-up hot paths.
+
+**Costs:** idle workers cannot be reused across classes; three schedulers/worker groups per owner add implementation structure; if worker creation is eager it would waste goroutines, so lazy creation is mandatory.
+
+### Option B — one shared owner worker pool with strict class reservations
+
+Each Client/Server has one shared execution pool whose maximum worker count is at least the sum of its three class ceilings. A shared scheduler dispatches from separate class queues only when that class has an available active permit. Workers may execute any class, but each callback retains only its own class permit.
+
+**Advantages:** idle worker goroutines can be reused across callback classes; one worker lifecycle implementation; potentially lower idle-goroutine count when workloads are imbalanced.
+
+**Costs:** a shared scheduler/wakeup/dispatch path can create cross-class lock contention and tail-latency coupling; fairness must be enforced both across classes and across Sessions; sizing below the sum of ceilings would violate WORKER-002 isolation; scheduler bugs could cause head-of-line blocking.
 
 ### Recommendation
 
-Choose **Option A**. N-ORD2 and DONE-A explicitly make OnClose independent and best-effort, while internal teardown must never wait for arbitrary user callbacks. Reserving capacity at Session admission would make unrelated connection availability depend on OnClose callback progress. A nonblocking skip on event-budget exhaustion is the cleaner match for the approved V1 liveness contract.
+Choose **Option A** for V1. User callbacks may block indefinitely, and predictable class isolation is more valuable than cross-class reuse of idle goroutines. Lazy worker creation avoids paying the maximum goroutine cost up front. A common internal implementation can still share worker-loop code without sharing runtime pools, queue locks or active capacity.
 
-**Owner decision requested:** choose WORKER-003 Option A (skip new OnClose event on saturation) or Option B (reserve event credit at Session admission and backpressure new Sessions/reconnects). No numeric event-budget default is included in this choice.
+**Owner decision requested:** choose WORKER-004 Option A (three class-isolated pools) or Option B (one shared owner pool with strict per-class reservations). This is a logical execution architecture decision; numeric ceilings and idle-worker retirement remain separate.
 
 ## 11. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
-- Physical worker-pool layout and idle-worker lifecycle.
+- WORKER-004 physical/logical pool topology and idle-worker lifecycle.
 - OnClose saturation/skip policy and event-budget numbers.
 - Incoming callback event-count cap.
 - Completion payload-byte budget and final maximum frame size.
