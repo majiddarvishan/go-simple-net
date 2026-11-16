@@ -234,7 +234,7 @@ See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOU
 - WORKER-001 owner scope applies across all Sessions and Client reconnect generations, including callbacks still running from retired Sessions.
 - Numeric defaults, public option names, physical pool layout and event capacities remain open.
 
-See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-003 is next.
+WORKER-003 was subsequently resolved: OnClose is skipped on event-budget saturation. Next is WORKER-004, worker-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
 
 ## 21. WORKER-003 — OnClose saturation (OWNER APPROVED, OPTION A, 2026-11-16)
 
