@@ -1,5 +1,8 @@
 # neta-go V1 — Performance Engineering Contract (Design, Not Implementation)
 
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 owner-approved configurable concurrent **Application** handlers per Session, replacing unconditional serial callback execution when `Concurrency > 1`. Internal protocol machinery is independent of user handler return. Older Q-003 wording in this file is historical; see [Decision Log](DECISION_LOG.md). API-001b remains OPEN.
+
+
 **Date:** 2026-11-16  
 **Status:** PERFORMANCE PRIORITY APPROVED; PERF-002 payload ownership **APPROVED OPTION A**; other techniques, numeric targets and PERF-003/API-001b remain DRAFT / OPEN.  
 **Source of priority:** Owner explicitly approved API-001a Option A (asynchronous/callback-first) and stated that performance is **very important**.  
@@ -110,3 +113,12 @@ Earlier sections describing PERF-002 as OPEN are historical and superseded by [t
 **Owner approved PERF-003 Option A at the model level**: count-bounded outstanding Request + queued/running completion per Session and Server aggregate; independently configurable with API-004 Functional Options; promptly reject new Request on exhausted count while keeping Session connected and without publishing a frame or leaking pending state. No goroutine-per-Request or unbounded completion queue. This is in addition to Q-008/Q-010 queued byte caps, not a replacement.
 
 **Not approved:** 1024 per Session/65536 Server are merely illustrative numbers, separate incoming event-count cap is still only a proposal, and API-001b forced-close callback behavior and credit release semantics need owner choice. Earlier PERF-003 OPEN statements in this document refer to historic *preapproval* status; refer to [Decision Log](DECISION_LOG.md) and [current design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) for the latest authoritative split. No implementation/test/benchmark authorization.
+
+
+## 10. Parallel application callback performance implications (Q-003-R1)
+
+**Owner-approved choice:** bounded Application callback parallelism within the same Session, independently configurable per Session, `Concurrency=1` serial, >1 parallel. No unconditional callback return ordering in parallel mode; incoming queue dispatch still respects FIFO selection. Internal Reader/Writer/state machine, Control PDU, Pending/Timer/Close and resource cleanup are not blocked by a slow user Application callback. Do not permit goroutine-per-frame fanout.
+
+**Performance plan (NOT EXECUTED):** compare 1/2/4/8/16 concurrent handlers per Session and large Session counts; monitor p50/p95/p99 handler scheduling delay, completed callbacks per second, active/queued payload memory, GC, goroutine counts, starvation, fairness and Control response latency under permanently blocked handlers. Test callbacks producing `SendResponse` out-of-order: wire reply Sequence must always match its request and writer remains single-frame serialized, though response *time order* may differ from request arrival. This is not permission to reorder received wire parsing.
+
+**Open decisions:** choose default concurrency and potential Server-wide active callback guard; select separate bounded user lifecycle/completion callback dispatcher vs unified worker admission in API-001b; decide forced Close policy and callback completion guarantees. The 256 MiB Server queued Application cap does not cover N running user callbacks or user-retained payloads. No numeric SLA or new default approved.
