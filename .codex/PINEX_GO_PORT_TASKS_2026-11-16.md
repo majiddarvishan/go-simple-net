@@ -593,7 +593,7 @@ Baseline فعلی Pinex:
 
 ### PERF-003 — Bounded Pending/Completion
 
-**وضعیت:** OPEN — سقف Pending Request و صف Callback Completion و رفتار اشباع؛ مدل Async نباید باعث ایجاد Goroutine به‌ازای هر Request یا رشد نامحدود حافظه شود.
+**وضعیت:** MODEL APPROVED — مالک گزینه A را در 2026-11-16 تأیید کرد: سقف شمارشی قابل تنظیم برای Pending Request و Completionهای صف‌شده/درحال اجرا به‌ازای Session و مجموع Server؛ هنگام اشباع، Request جدید بدون قطع Session فوراً رد شود و Pending/Frame معلق نماند. سقف‌های عددی، Error name، وضعیت Callback هنگام Forced Close و پیشنهاد سقف شمارش رویدادهای ورودی هنوز OPEN هستند. Goroutine به ازای Request یا صف نامحدود ممنوع است.
 
 **مرجع:** [NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md). تا مجوز صریح، هیچ کدی نوشته یا Benchmark اجرا نشود.
 
@@ -629,4 +629,11 @@ Baseline فعلی Pinex:
 
 ### PERF-002 approval / PERF-003 next handoff (2026-11-16)
 
-**PERF-002 CLOSED — OWNER APPROVED A**: independent outgoing snapshot on successful async admission; owned inbound payload can outlive callback return. No implementation was authorized. The detailed contract and next PERF-003 count-bound pending/completion design are in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). **PERF-003 and API-001b remain OPEN**. Proposed numeric completion counts are illustrative, not approved defaults. No code/test/benchmark execution.
+**PERF-002 CLOSED — OWNER APPROVED A**: independent outgoing snapshot on successful async admission; owned inbound payload can outlive callback return. No implementation was authorized. The detailed contract and next PERF-003 count-bound pending/completion design are in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). **PERF-003 count-based Option A MODEL APPROVED; numeric / lifecycle details and API-001b remain OPEN**. Proposed counts are illustrative, not approved defaults. No code/test/benchmark execution.
+
+
+### PERF-003 owner selection and next owner decision (2026-11-16)
+
+**PERF-003 Option A MODEL APPROVED:** per-Session and aggregate Server count-based completion/pending limits, configurable Functional Options, reject new Requests promptly when count exhausted while keeping Session alive. Counts are in addition to Q-008/010 byte queue limits. See [Decision Log](DECISION_LOG.md).
+
+**OPEN:** numeric completion limits; whether to add a separate inbound callback event-count cap; terminal callbacks / credit release on forced Close (**API-001b**); timeout start (**API-002**). Illustrative 1024/65536 **NOT APPROVED**. No code, benchmark, tests or operational changes.
