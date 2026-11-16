@@ -4,7 +4,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** protocol analysis and task planning only
+**Current work:** design-only API/performance review (PERF-002, PERF-003, API-001b); owner choices remain open
 
 ## 1. Repository state
 
@@ -150,3 +150,17 @@ Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001
 The owner **already renamed the GitHub repository** from `majiddarvishan/go-simple-net`; this update only synchronizes documentation references. No repository rename, source code edit, `go.mod` edit, test, or build is performed by the assistant. A `go.mod` file was **not found at repository root on main**; do not presume a Go module path is configured. Keep API-003 (package/module path) open. C++ Pinex remains unchanged.
 
 **Next:** continue PERF-002 payload ownership/copy-lifetime and PERF-003 bounded async completions; performance remains first-class V1 requirement. No coding authorization.
+
+
+## 18. PERF-002 / PERF-003 / API-001b follow-up review (2026-11-16)
+
+**Baseline inspected:** `main` HEAD was exactly `0fe42d3f0ac634a5a1c9617d1e800b68a00fdf9f` before these documentation changes. `.codex/AGENT_CONTEXT.md` was not found (404); all requested remaining design documents were read.
+
+**New design draft:** [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). This contains **proposals, not new owner approvals**:
+
+- **PERF-002 OPEN:** recommended A — single private snapshot of outbound `[]byte` on accepted asynchronous admission; direct read into fresh owned, retainable receive payload to avoid an extra receive copy. Borrowed callback-lifetime and explicit ownership transfer remain alternatives; neither selected. Pooling only for proven-safe private internal buffers, after evidence; no end-to-end zero-copy claim.
+- **PERF-003 OPEN:** bounded per-Session completion credits for pending + queued + active completion, with a Server aggregate ceiling; separate count cap for zero-length incoming callback events; no goroutine per Request. Suggested `1024` and `65536` are illustrative **unapproved** counts, not defaults. Queue byte budgets and overload outcomes approved under Q-008/009/010 stay unchanged.
+- **API-001b OPEN:** blocked callback makes prompt `OnClose` and strict per-Session callback serialization mutually incompatible. Proposed `Done()` reflects transport/accounting termination independent of arbitrary callback return; `OnClose` at-most-once on serial dispatcher. Forced-close Option A cancels unstarted callbacks promptly but creates an explicit exception to user-visible completion delivery; Option B retains bounded deferred completions but may retain closed workers indefinitely. **Owner must choose**; do not silently claim callback-delivery exactly once in all failure modes.
+- **API-002 / API-003 OPEN:** timeouts/reconnect/Stop defaults and module path `github.com/majiddarvishan/neta-go` / package `neta` proposed only; no `go.mod` added.
+
+**Next owner decision:** PERF-002 Option A vs B/C, then PERF-003 admission model and API-001b forced-close tradeoff. Existing owner decisions Q-001..Q-010, NAM-001, API-004 A and API-001a A remain unchanged. No Go/C++ source, test, benchmark, build, CI, deployment or operational change performed. Main has documentation commits only for this review.
