@@ -306,4 +306,4 @@ The owner-scoped OnClose event budget counts queued plus running events. After S
 
 This implements the already-approved best-effort/at-most-once OnClose contract. No numeric budget, public option name or diagnostic API is selected.
 
-**Next:** WORKER-004 — logical execution-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10.
+**Next:** WORKER-004 — logical execution-pool topology. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §11.
