@@ -184,3 +184,24 @@ WORKER-005 separately decides idle-worker retirement. Numeric worker/event capac
 Worker retirement is a lifecycle policy, not a queue-admission policy. Each class-isolated pool retires an idle worker after a finite configurable grace period, with zero warm-idle workers by default. The timer starts only after callback return and no dispatchable work. Work arriving before expiry reuses the worker; retirement after expiry must atomically update the worker count and preserve queued work plus all byte/Request/event credits. Running or blocked callbacks are never interrupted and retain active permits until return. Numeric timeout defaults/ranges remain for WORKER-009; owner shutdown/drain remains API-002.
 
 WORKER-006 defines fair ready-Session scheduling within each independent class pool. Queue-byte admission, PERF-003 Request credits, OnClose event credits and WORKER-002 active permits remain distinct. No implementation, tests or benchmarks authorized.
+
+ 
+## 14. WORKER-006 — fair Session scheduling (OWNER APPROVED, OPTION A, 2026-11-16)
+
+Each callback-class pool independently schedules eligible Sessions with a FIFO round-robin ready-Session queue. A Session has at most one reusable ready node per class. Each turn dispatches one callback from that Session's FIFO; if work remains and its per-Session concurrency slot is available, it moves to the tail. A Session at its concurrency ceiling becomes temporarily ineligible and is reconsidered when a callback returns. Completion preserves C-ORD-B start-selection order by terminal-result settlement/enqueue, not SendRequest admission order. This is dispatch fairness, not CPU-time equality or preemption. Pools/locks/wakeups remain class-isolated, and no lock is held during user code.
+
+WORKER-006 does not change Q-008/Q-009/Q-010 byte admission, PERF-003 Request credits, WORKER-002 active permits or WORKER-003 OnClose event credits. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §13.
+
+## 15. WORKER-007 — Queue Capacity and Event Capacity (OPEN; RECOMMENDATION ONLY)
+
+The existing Q-008/Q-009/Q-010 Application queue byte caps, PERF-003 Completion Request credits and WORKER-003 OnClose event credits remain binding and separate. WORKER-007 proposes adding a count dimension to Application frame queues to protect against large populations of tiny frames and queue metadata:
+
+- Incoming callback backlog: proposed per-Session and Server-aggregate queued-frame counts alongside the existing 4 MiB/Session and 256 MiB/Server byte limits. Count waiting frames only; on count saturation, close only the offending Session under Q-009/Q-010.
+- Outgoing Application FIFO: proposed per-Session and Server-aggregate frame counts alongside the existing 4 MiB/Session and 256 MiB/Server byte limits. Count a frame until fully written, including the in-progress Writer frame; on count saturation, return Queue Full and keep the Session.
+- Server aggregate frame count covers queued incoming + outgoing Application frames, matching the existing combined aggregate byte budget.
+- Completion gets no second event-count cap: queued/running Completion remains covered by the existing per-Session and Server-aggregate PERF-003 Request credits for the entire Request lifecycle.
+- OnClose gets no second queue cap: its WORKER-003 event credit already counts queued + running events and permanently skips a new event on saturation.
+- Control PDU headroom remains a separate Q-010 4 KiB/Session byte budget. Ready-Session scheduling metadata remains bounded to one reusable node per eligible Session/class under WORKER-006.
+- Numeric count defaults, maxima and public option names remain open for WORKER-009/API-004. No eager preallocation.
+
+**Recommended:** WORKER-007 Option A — per-Session incoming/outgoing frame-count caps plus one aggregate Server count across both directions, reusing existing Completion and OnClose credits. Options B (per-Session count only) and C (retain byte-only Application queues) remain alternatives. No policy selected yet; no implementation, tests or benchmarks authorized.

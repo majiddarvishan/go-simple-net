@@ -1,7 +1,7 @@
 # neta-go V1 — Worker Capacity & Resource Accounting Design
 
 **Date:** 2026-11-16  
-**Status:** DESIGN IN PROGRESS — WORKER-001/002/003/004/005 OWNER APPROVED; WORKER-006 OPEN  
+**Status:** DESIGN IN PROGRESS — WORKER-001/002/003/004/005/006 OWNER APPROVED; WORKER-007 OPEN  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. Documentation/design only.
 
@@ -59,7 +59,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 - A frame moving from the waiting queue to active callback ownership must transfer its accounting without an uncharged gap or accidental double charge.
 - Each started handler consumes one per-Session active slot and one owning Client/Server active Application slot until callback return.
 - Active callback payload and goroutine stack are not covered by the waiting-frame byte budget.
-- A separate incoming event-count limit for zero/small frames remains a proposal, not an approved extension to Q-009/Q-010.
+- A separate incoming event-count limit for zero/small frames is proposed under WORKER-007; it is not yet owner approved.
 
 ### 4.2 Completion
 
@@ -86,7 +86,7 @@ Forced Close A remains binding: unstarted Application and Completion callbacks a
 - Never hold registry/global hot-path locks while invoking user code.
 - Never create an unbounded goroutine per Request, frame or callback event.
 - Lazy allocation is preferred; do not eagerly allocate each Session's maximum queue or payload capacity.
-- WORKER-004 has now selected three independent physical class pools. WORKER-006 will define the fair ready-Session scheduling policy within each pool; N-ORD2's Completion/OnClose isolation remains binding.
+- WORKER-004 has now selected three independent physical class pools. WORKER-006 has approved per-class round-robin ready-Session scheduling within each pool; N-ORD2's Completion/OnClose isolation remains binding.
 
 ## 6. Saturation and liveness invariants
 
@@ -225,55 +225,104 @@ Finite idle retirement prevents long-lived owners from retaining their historica
 **Detailed design:** this document §12.  
 **Next:** WORKER-006 — fair scheduling between Sessions. Numeric idle timeout defaults/ranges remain open for WORKER-009.
 
-## 13. WORKER-006 — Fair Scheduling Between Sessions (OPEN; RECOMMENDATION ONLY)
+## 13. WORKER-006 — Fair Scheduling Between Sessions (OWNER APPROVED, OPTION A, 2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Owner selection:** “برای WORKER-006 گزینه A را تأیید می‌کنم.”  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+1. Each of the three independent callback-class pools (Application, Completion and OnClose) schedules eligible Sessions using its own FIFO round-robin ready-Session queue.
+2. Each Session may have at most one ready node in a given class pool. The node is reusable and represents the Session's eligibility, not an individual callback.
+3. A worker selects one callback from the head Session's per-Session FIFO queue per turn. If the Session still has queued work and a free per-Session concurrency slot, its ready node moves to the tail. It does not drain its entire backlog in one turn.
+4. If the Session has no queued work, remove/clear its ready state. If its per-Session concurrency limit is full, it is temporarily ineligible; when a callback returns, the Session is re-evaluated and, if work remains, re-enters at the tail.
+5. Preserve FIFO callback-start selection within each Session. For Completion, C-ORD-B remains binding: order is the internal engine's serialized terminal-result settlement/enqueue order, not SendRequest admission order. When Completion concurrency is greater than one, callback return order remains unspecified.
+6. Fairness is scoped to continuously eligible Sessions within one owner and one callback class. It does not guarantee equal CPU time or preempt already-running callbacks.
+7. Application, Completion and OnClose ready queues, locks and wake-up state remain physically independent under WORKER-004. No cross-class scheduling or capacity borrowing.
+8. No scheduler lock is held while invoking user code. Dispatch and ready-node rotation use bounded critical sections. No per-callback goroutine or per-turn heap allocation is required; ready nodes are reusable per Session/class.
+9. A Session's eligibility, callback start and Forced Close cancellation must retain the existing single linearization boundary. A callback cancelled before start is never dispatched; a callback whose start wins retains its active permits until return.
+10. The round-robin policy does not change WORKER-001 owner scope, WORKER-002 active ceilings, WORKER-003 OnClose event saturation, WORKER-004 pool isolation or WORKER-005 idle retirement.
+
+### Rationale and performance consequences
+
+One callback per eligible Session turn prevents a continuously busy Session from draining all available dispatch opportunities ahead of other ready Sessions. A single reusable ready node per Session/class bounds scheduler metadata by the Session population rather than callback volume. O(1) queue rotation is possible with a per-class FIFO ready list and a short isolated lock domain.
+
+The policy gives dispatch fairness, not CPU-time fairness: a slow callback remains non-preemptive and occupies its own class worker until return. Weighted/quantum scheduling would add configuration and could increase tail latency for low-volume Sessions without guaranteeing CPU fairness.
+
+### Rejected alternatives
+
+- **Option B — weighted round-robin / configurable per-Session quantum:** not selected. It adds public policy and scheduling state; callback-count weights cannot guarantee CPU-time fairness and large quanta worsen tail latency.
+- **Option C — global FIFO by enqueue time:** not selected. A high-volume Session can flood the queue and delay sparse Sessions; enqueue-volume order is not Session fairness.
+
+**Detailed design:** this document §13.  
+**Next:** WORKER-007 — Queue Capacity and Event Capacity. Numeric limits and safe defaults remain open for WORKER-009.
+
+---
+
+## 14. WORKER-007 — Queue Capacity and Event Capacity (OPEN; RECOMMENDATION ONLY)
 
 **Status: OPEN — no owner selection yet.**  
 **Implementation:** NOT AUTHORIZED.
 
-WORKER-004 fixes three class-isolated pools. WORKER-006 defines how each pool chooses among Sessions with dispatchable work; it does not merge pools or alter WORKER-001/002 ownership and capacity contracts.
+### Scope and existing binding limits
 
-### Binding constraints inherited from prior decisions
+WORKER-007 defines the count dimension and ownership of waiting work/event populations. It does not reopen existing byte caps, active-worker ceilings, PERF-003 Request-credit semantics or WORKER-003 OnClose saturation.
 
-- Fairness is scoped to eligible Sessions within one owner and one callback class. Client reconnect generations share the Client owner scheduler; queued work from a retired generation remains visible until its own lifecycle ends.
-- Preserve FIFO work order within each Session. For Completion, C-ORD-B remains binding: FIFO callback-start selection follows serialized terminal-result settlement/enqueue order, not SendRequest admission order. Parallel callback return order remains unspecified.
-- A Session is eligible while it has queued work and an available per-Session concurrency slot. Owner/class active-worker ceilings remain binding.
-- Application, Completion and OnClose have independent ready-session state; scheduling turns cannot cross callback classes.
-- Callbacks are non-preemptive. Fairness governs dispatch opportunities/start selection, not CPU-time equality or callback completion deadlines.
-- No scheduler lock is held while user code runs. No goroutine or heap allocation is required per callback turn.
+- **Application incoming callback backlog:** Q-009/Q-010 already approve 4 MiB per Session and 256 MiB aggregate queued Application-frame bytes per Server. The incoming overflow action is close only the offending Session.
+- **Application outgoing FIFO:** Q-008/Q-010 already approve 4 MiB per Session and the 256 MiB aggregate Server queued-frame byte budget. Byte-cap exhaustion returns Queue Full and keeps the Session connected.
+- **Control PDU headroom:** Q-010's separate 4 KiB per-Session byte budget remains isolated from Application traffic; Pinex ordering and the Unbind deadline remain binding.
+- **Completion:** PERF-003 already approves count credits per Session and Server aggregate for the complete callback-based Request lifecycle: waiting for response, terminal result queued and Completion callback executing until return/cancellation. A queued Completion is a subset of that lifecycle and must not acquire a second event credit.
+- **OnClose:** WORKER-003 already approves a separate owner-scoped event budget counting queued + running OnClose events; at most one event per closed Session; if full, skip permanently.
+- **Active execution:** WORKER-002 active-worker permits remain separate from waiting queue/event populations. The internal engine remains outside user callback pools.
+- **Scheduler metadata:** WORKER-006's ready queue contains at most one reusable node per eligible Session/class, so its size is bounded by the Session population, not callback count.
 
-### Option A — per-class round-robin, one callback per Session turn (RECOMMENDED)
+### The unresolved count-accounting gap
 
-Each class pool maintains a FIFO rotation of ready Sessions. A Session appears at most once in that class's ready set. A worker dispatches one callback from the head Session's FIFO queue, then moves that Session to the tail if it still has queued work and an available per-Session slot. If the Session reaches its concurrency limit, it becomes eligible again only when a callback returns and frees a slot.
+Byte-only Application queues can retain a large number of small/empty frames and their queue metadata. PERF-003 explicitly recommends an incoming callback event-count cap, but that cap and its aggregate scope were not approved. The outgoing Application FIFO also has a byte cap but no explicit frame-count cap. The count dimension should protect queue nodes and event metadata independently of payload bytes.
 
-**Advantages:** explicit and predictable fairness; a continuously busy Session cannot drain its entire queue before other ready Sessions receive a turn; O(1) ready-queue rotation is possible; one reusable ready node per Session/class avoids per-callback scheduling allocations; per-Session FIFO start order is preserved.
+### Option A — two-dimensional Application queue admission, with existing Completion/OnClose credits reused (RECOMMENDED)
 
-**Costs:** more bookkeeping than a single global FIFO; a shared ready-queue lock may contend at very high worker counts if held too long. Keep its critical section short and isolated per class. Do not add lock-free or sharded scheduling without measured evidence.
+Add independent count ceilings alongside the existing Application byte ceilings:
 
-**Fairness boundary:** each continuously eligible Session receives one dispatch opportunity per rotation. This does not guarantee equal CPU time when callback durations differ, and cannot preempt callbacks already running.
+1. **Incoming Application callback backlog:** count queued frames per Session and across the Server aggregate. Count only frames waiting to start an Application callback; do not count an active callback as a queued event. On dispatch, transfer ownership to the active callback under one atomic accounting transition. If either incoming count ceiling cannot admit the next valid frame, close only the originating Session under the existing Q-009/Q-010 overload outcome.
+2. **Outgoing Application FIFO:** count admitted frames per Session and across the Server aggregate, including the frame currently being written until the full frame is written. If either outgoing count ceiling is full, fail the new Send promptly with Queue Full; do not close an otherwise healthy Session and do not publish pending state for a rejected SendRequest.
+3. **Server aggregate count:** one aggregate queued-Application-frame count covers incoming + outgoing queued frames, matching the existing combined MaxAggregateQueuedFrameBytes scope. A frame is charged to exactly one queued owner bucket at a time. The incoming queue-to-active transition must not create a charge gap; its active payload accounting is finalized under WORKER-008.
+4. **Completion:** reuse PERF-003 Request credits. They already bound queued + running Completion work and the preceding pending-response lifecycle; do not add a second Completion event-count cap or reserve a new credit on terminal settlement.
+5. **OnClose:** reuse WORKER-003's queued+running event credit. No second OnClose queue cap. A full budget permanently skips the new OnClose event.
+6. Keep the Control PDU byte headroom separate. Do not merge Control or callback events into the Application frame-count budget or a shared cross-class event pool.
 
-### Option B — weighted round-robin / configurable per-Session quantum
+**Advantages:** protects against tiny-frame/metadata floods; keeps inbound and outbound overload reactions consistent with already approved Q-009/Q-010 behavior; provides an aggregate Server bound across many Sessions; avoids duplicate Completion/OnClose credits and cross-class interference.
 
-Each Session receives a configured weight or a multi-callback quantum per turn.
+**Costs:** adds count reservations to Application ingress/egress admission and an aggregate Server counter. These counters must be atomic/race-safe and must not become a long-held global lock. Exact numeric values and public option names remain for WORKER-009/API-004.
 
-**Advantages:** can improve throughput for intentionally prioritized Sessions and reduce scheduling overhead for homogeneous high-volume workloads.
+### Option B — per-Session Application frame-count caps only
 
-**Costs:** adds weight/quantum state and likely public configuration; equal service is no longer the default; large quanta increase tail latency for low-volume Sessions and can approximate starvation. Callback-count weights cannot guarantee CPU-time fairness because callback durations are unknown and non-preemptive.
+Add incoming and outgoing frame-count ceilings per Session, but no Server aggregate frame-count ceiling. Keep the existing 256 MiB aggregate byte budget and existing Completion/OnClose credits.
 
-### Option C — global FIFO by enqueue time
+**Advantages:** simpler aggregate hot path and per-Session isolation; one noisy Session cannot exceed its own event count.
 
-All work items from all Sessions enter one FIFO per class and workers take the oldest item.
+**Costs:** up to MaxBoundSessions Sessions can each consume their full count allowance. Aggregate queue metadata can therefore grow to the per-Session cap multiplied by the Session limit, even while aggregate payload bytes remain within 256 MiB. This is a weaker owner-wide metadata bound.
 
-**Advantages:** simple enqueue ordering and comparatively little ready-session bookkeeping.
+### Option C — retain byte-only Application queue admission
 
-**Costs:** no Session fairness. A busy Session can fill the queue with a burst and push sparse Sessions far back; fairness depends on arrival volume rather than Session opportunity.
+Do not add Application incoming/outgoing frame-count ceilings. Keep Q-008/Q-009/Q-010 byte limits, PERF-003 Request credits and WORKER-003 OnClose event credits as they are.
+
+**Advantages:** no new count reservation or configuration dimension for Application frame queues.
+
+**Costs:** byte limits alone are not a useful practical bound on queue-node/event metadata for very small frames; a burst of tiny frames can create a large number of queued objects and scheduler operations. This leaves the incoming count-cap gap already identified by PERF-003 unresolved.
 
 ### Recommendation
 
-Choose **Option A** for V1: per-class round-robin over eligible Sessions, one callback dispatch per Session turn, with FIFO preserved inside each Session. It provides an understandable noisy-neighbour boundary with bounded scheduling metadata and low per-turn work. Keep scheduler critical sections short and per-class; defer lock-free/sharded implementation choices until measurements justify them.
+Choose **Option A**. Add per-Session incoming/outgoing frame-count limits plus one aggregate Server queued-Application-frame count covering both directions. Keep Completion Request credits and OnClose event credits as their existing independent ledgers; do not double-count them or introduce a shared budget across callback classes. Count only waiting Application events in the incoming queue; active callback execution is already bounded by WORKER-002 and active payload memory is WORKER-008.
 
-**Owner decision requested:** choose WORKER-006 Option A (one callback per eligible Session turn), Option B (weighted/quantum scheduling), or Option C (global FIFO by enqueue time). No weights, quantum sizes or numeric capacity defaults are implied.
+Numeric defaults, practical maxima and public configuration names are not part of WORKER-007; defer them to WORKER-009 and API-004. Do not preallocate queue capacity.
 
-## 14. Explicitly not decided
+**Owner decision requested:** choose WORKER-007 Option A (per-Session incoming/outgoing frame counts plus aggregate Server frame count), Option B (per-Session counts only), or Option C (keep Application queues byte-only). No numeric count defaults are implied.
+
+---
+
+## 15. Explicitly not decided
 
 - Numeric per-Session concurrency defaults and maximums for Application/Completion.
 - Numeric owner active-worker ceilings.
@@ -282,8 +331,8 @@ Choose **Option A** for V1: per-class round-robin over eligible Sessions, one ca
 - Incoming callback event-count cap.
 - Completion payload-byte budget and final maximum frame size.
 - PERF-003 numeric Request-credit defaults.
-- WORKER-006 fair scheduling between Sessions (pending owner selection).
-- WORKER-007 queue and event capacities.
+- WORKER-007 queue/event count policy (pending owner selection).
+- WORKER-007 numeric count-cap defaults and public configuration names (pending owner selection on policy).
 - WORKER-008 resource accounting and payload-memory ceilings.
 - WORKER-009 safe defaults, valid ranges and public configuration limits.
 - API-002 timeout, reconnect and Stop/drain semantics; API-003 module/package path.

@@ -265,3 +265,10 @@ WORKER-004 Option B (one shared owner pool with per-class reservations) is not s
 - Numeric idle-timeout defaults/ranges remain for WORKER-009; Stop/drain semantics remain API-002.
 
 WORKER-006 now defines the scheduling fairness policy. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation authorized.
+
+
+## 24. WORKER-006 / WORKER-007 — scheduler and queue configuration handoff (2026-11-16)
+
+WORKER-006 is OWNER APPROVED, OPTION A: per-class round-robin over eligible Sessions, one callback per Session turn, with FIFO inside each Session. Each Session has at most one reusable ready node per class; Completion preserves C-ORD-B terminal-result settlement/enqueue start order. This is an internal scheduling contract, not a request for a public weight/priority API.
+
+WORKER-007 remains OPEN. Recommended policy: count incoming and outgoing queued Application frames per Session and aggregate queued Application frames across a Server, in addition to existing byte limits. Reuse PERF-003 Request credits for Completion and WORKER-003 event credits for OnClose; do not expose duplicate count settings. Numeric count defaults and public configuration names remain deferred to WORKER-009/API-004. No public API names are selected here.

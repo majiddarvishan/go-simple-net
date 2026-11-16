@@ -167,3 +167,12 @@ This supersedes earlier references to WORKER-004 as an open topology choice. WOR
 **APPROVED Option B:** workers that return from callbacks and find no dispatchable work enter Idle for a finite, independently configurable class-specific grace period, then atomically retire if still idle. The default warm-idle floor is zero. Work arriving before expiry reuses the worker. Running or permanently blocked callbacks are never interrupted and retain active permits until return. Retirement preserves queued work and all independent queue/Request/event credits. Enqueue/retirement races must not lose wakeups or strand work. No goroutine per timeout or process-global reaper. Numeric timeout defaults/ranges are deferred to WORKER-009; owner shutdown/drain remains API-002.
 
 **Next:** WORKER-006 fair scheduling between Sessions. No code, tests or benchmarks authorized.
+
+
+## 16. WORKER-006 — per-class fair Session scheduling (OWNER APPROVED, OPTION A, 2026-11-16)
+
+Each callback-class pool uses a FIFO round-robin ready-Session queue. One callback is dispatched per eligible Session turn, preserving FIFO inside that Session. One reusable ready node per Session/class bounds scheduler metadata by Session count. Completion preserves C-ORD-B terminal-result settlement/enqueue order. Fairness does not mean equal CPU time or callback preemption. Class pools remain isolated and no lock is held while user code runs.
+
+## 17. WORKER-007 — queue/event capacity design (OPEN; RECOMMENDATION ONLY)
+
+The recommended extension is a count dimension alongside existing byte caps for queued Application frames: per-Session incoming and outgoing counts plus one aggregate Server count across both directions. Incoming count saturation closes only the offending Session; outgoing count saturation returns Queue Full. Completion remains bounded by PERF-003 whole-lifecycle Request credits, and OnClose by WORKER-003 queued+running event credits. Avoid duplicate or shared cross-class budgets. Numeric defaults and limits remain deferred to WORKER-009. No implementation, tests or benchmarks authorized.

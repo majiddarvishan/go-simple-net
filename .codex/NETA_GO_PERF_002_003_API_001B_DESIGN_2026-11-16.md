@@ -306,3 +306,16 @@ This supersedes the earlier WORKER-004-open handoff in §§18–20. WORKER-005 s
 The owner approved finite, independently configurable idle retirement for each class pool, with a zero warm-idle floor by default. An idle timeout begins only after callback return and only when the worker has no dispatchable work. Work arriving before expiry reuses the worker; expiry with no work retires it atomically from the pool count. Running or permanently blocked callbacks are never interrupted and retain active permits until return. Queued work and its Request/event/byte credits survive worker retirement. Enqueue/retire races must not lose wakeups or strand ready work. Numeric timeout defaults/ranges are deferred to WORKER-009; owner Stop/drain semantics remain API-002.
 
 **Next:** WORKER-006 fair Session scheduling. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation, tests or benchmarks authorized.
+
+
+## 23. WORKER-006 — fair Session scheduling (OWNER APPROVED, OPTION A, 2026-11-16)
+
+Application, Completion and OnClose each use their own FIFO round-robin ready-Session queue. One callback is dispatched per eligible Session turn; a still-eligible Session moves to the tail. Each Session has at most one reusable ready node per class. Its internal FIFO start order is preserved; Completion follows serialized terminal-result settlement/enqueue order under C-ORD-B. A Session at its per-Session concurrency ceiling is temporarily ineligible and re-enters at the tail when a callback returns. Fairness is between eligible Sessions, not CPU-time equality or preemption. No class shares queues/locks/wakeups and no lock is held while invoking user code.
+
+## 24. WORKER-007 — Queue and Event Capacity (OPEN; RECOMMENDATION ONLY)
+
+The approved PERF-003 Request credits already bound the complete callback-based Request lifecycle per Session and Server aggregate, including queued and executing Completion callbacks. Do not create a duplicate Completion event credit. WORKER-003's OnClose event budget already counts queued + running events and skips a new event on saturation.
+
+The remaining count-accounting gap is Application frame queues: the existing Q-008/Q-009/Q-010 limits are byte-based, so a high population of tiny frames can retain many queue descriptors. The recommendation is to add incoming and outgoing Application frame-count caps per Session plus one aggregate Server queued-frame count covering both directions. Incoming count saturation follows Q-009/Q-010 and closes only the offending Session; outgoing count saturation returns Queue Full and keeps the Session. Count incoming frames only while waiting to start; count outgoing frames until full write completion, including the in-progress Writer frame. Keep the existing Control 4 KiB/Session byte reserve separate. Numeric count defaults and public configuration names remain deferred to WORKER-009/API-004.
+
+No new cap is approved by this proposal. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§13–14. No implementation, tests or benchmarks authorized.

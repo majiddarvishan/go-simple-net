@@ -328,3 +328,10 @@ The owner approved finite idle retirement. A worker becomes eligible for retirem
 Application, Completion and OnClose idle timeouts are independently configurable; numeric defaults and ranges are deferred to WORKER-009. A running or permanently blocked callback is never interrupted or retired by the timeout and retains its active permit until actual return. Retirement cannot discard queued work or release Request/event/queue credits. Enqueue-versus-retirement must have one linearization point, with no lost wakeup, stranded ready Session or worker-count overshoot. No goroutine per timeout or process-global reaper. Owner shutdown/drain remains API-002.
 
 **Next:** WORKER-006 — fair scheduling between Sessions within each class-isolated pool. See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §§12–13. No implementation, tests or benchmarks authorized.
+
+
+## 17. WORKER-006 / WORKER-007 — callback scheduling and event-capacity handoff (2026-11-16)
+
+WORKER-006 is OWNER APPROVED, OPTION A: each isolated callback-class pool uses a FIFO round-robin ready-Session queue, dispatching one callback per eligible Session turn and preserving FIFO within each Session. Completion start order remains governed by C-ORD-B. This does not alter Done/OnClose ordering, the WORKER-003 skip-on-saturation rule or active-worker permits.
+
+WORKER-007 remains OPEN. The recommendation is to add per-Session incoming/outgoing Application frame-count caps plus an aggregate Server count across both directions, alongside existing byte limits. Completion already uses PERF-003 Request credits; OnClose already uses WORKER-003 queued+running event credits. Do not duplicate those credits or create a shared cross-class event budget. Numeric count defaults/ranges remain for WORKER-009. No implementation, tests or benchmarks authorized.

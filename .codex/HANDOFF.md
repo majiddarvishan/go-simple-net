@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-005 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-006 fair Session scheduling is next.** Numeric worker/event defaults, queue/event capacities, payload-byte bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-006 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 Queue Capacity and Event Capacity is next.** Numeric worker/event/count defaults, payload-byte bounds and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-16  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 through WORKER-004 and WORKER-005 Option B are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after a finite configurable class-specific grace period, with zero warm-idle floor by default. Next: WORKER-006, fair scheduling between Sessions. Numeric idle timeouts, worker ceilings, queue/event capacities, payload-byte bounds, API-002 and API-003 remain open.
+**Current work:** WORKER-001 through WORKER-006 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin, one callback per eligible Session turn. Next: WORKER-007, Queue Capacity and Event Capacity. Numeric idle timeouts, worker ceilings, queue/event counts, payload-byte bounds, API-002 and API-003 remain open.
 
 ## 1. Repository state
 
@@ -454,5 +454,34 @@ The owner approved Option B: idle workers retire after a finite configurable gra
 ### Next decision — WORKER-006
 
 Choose fair scheduling among eligible Sessions within each isolated callback-class pool. The recommendation is one callback per eligible Session turn using a per-class round-robin ready-session queue.
+
+**Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
+
+
+## 33. WORKER-006 — Fair Scheduling Between Sessions (OWNER APPROVED, OPTION A, 2026-11-16)
+
+The owner approved per-class round-robin scheduling, with one callback dispatch per eligible Session turn.
+
+### Binding contract
+
+- Application, Completion and OnClose each have an independent FIFO ready-Session rotation.
+- A Session has at most one reusable ready node per class pool.
+- Each turn dispatches one callback from the head Session's own FIFO. If work remains and a per-Session concurrency slot is free, that Session moves to the tail.
+- If no work remains, its ready state is cleared. If its concurrency limit is full, it is temporarily ineligible and is reconsidered at the tail when a callback returns.
+- Per-Session FIFO callback-start order is preserved. Completion follows C-ORD-B terminal-result settlement/enqueue order, not SendRequest admission order; parallel return order is unspecified.
+- Fairness applies to continuously eligible Sessions within one owner/class. It does not promise equal CPU time or preempt callbacks.
+- Pools, queues, locks and wakeups remain class-isolated. No lock is held during user code. No per-callback goroutine or per-turn allocation is required.
+- Forced Close/start linearization and WORKER-001..005 remain unchanged.
+
+### Synchronized documents
+
+- [DECISION_LOG.md](DECISION_LOG.md) — binding WORKER-006 approval and WORKER-007 proposal.
+- [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) — approved scheduler contract and WORKER-007 alternatives.
+- [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [PERF-002/003 design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) — queue and credit accounting.
+- [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) and [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
+
+### Next decision — WORKER-007
+
+Choose how to bound queued Application frame/event counts alongside the already-approved byte limits. The recommendation is per-Session incoming/outgoing frame-count caps plus one aggregate Server count covering both directions, while reusing existing PERF-003 Completion credits and WORKER-003 OnClose event credits.
 
 **Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
