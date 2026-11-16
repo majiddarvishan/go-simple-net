@@ -1,7 +1,7 @@
 # neta-go V1 — API-001b Forced Close, Notification Delivery and Worker Bound Review
 
 **Date:** 2026-11-16  
-**Status:** DESIGN PROPOSAL ONLY — **API-001b remains OPEN; owner has NOT selected forced-close A or B**  
+**Status:** **Forced Close A OWNER APPROVED**; API-001b remains PARTIALLY OPEN for Notification ordering/capacity and Done. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
 **Baseline:** `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811`  
 **Permission:** documentation review only. No Go/C++ code, go.mod, build, tests, benchmarks or operational changes.
 
@@ -23,7 +23,7 @@
 - **No promised guaranteed user callback execution if a user function blocks permanently** and teardown must remain bounded. An executing callback may outlive Session closure.
 - Application backlog byte caps, global queued-byte caps and separate control reserve do not bound *active* callback payloads, callback stacks or application-retained memory.
 
-## 3. Forced Close policy: material owner decision (OPEN)
+## 3. Forced Close policy: historical comparison (A subsequently OWNER APPROVED; see §11)
 
 | Property | **A — Cancel unstarted** (recommended) | **B — Retain bounded terminal callbacks** |
 |---|---|---|
@@ -118,3 +118,73 @@ Proposed public module import path: `github.com/majiddarvishan/neta-go`; propose
 **Only next essential owner choice:** API-001b forced-close **A** (cancel not-yet-started notification callbacks) versus **B** (retain bounded deferred callbacks). A is recommended on performance/resource-isolation grounds. The independent Notification lane (API-001b-N1) and Application callback parallelism (Q-003-R1) are **already approved** and must not be conflated with the forced-close letter choice.
 
 After that choice, seek approval for Notification ordering/`Done` contract and finite worker/close-event budgets; review PERF-003 numeric defaults and inbound event count; then API-002 deadlines/reconnect/Stop and API-003 import path. **Do not close any OPEN ID without explicit owner selection; do not implement, test or benchmark.**
+
+## 11. OWNER-APPROVED API-001b-FC-A and follow-up Notification ordering/capacity design (2026-11-16)
+
+**Authority split:** the owner has **explicitly approved Forced Close Option A** in [Decision Log](DECISION_LOG.md) § `API-001b-FC-A`. Sections 3 and 10 were written before the approval; their A/B choice and "not approved" statements are historical. Everything **below marked PROPOSAL or OPEN is NOT approved** by this selection. Parent API-001b remains partly open.
+
+### 11.1 Forced Close A: concrete event classification and race constraints (APPROVED POLICY, detailed mechanism still design)
+
+- Internal settlement is a single winner among matching response, deadline, fatal transport outcome and Close; its logical outcome is stored/observed exactly once.
+- Forced Close **cancels all not-yet-started Application handlers and Completion callbacks** for that Session. A queued Completion can be cancelled even if the response already won and was recorded internally. Do not invoke callbacks simply to report their cancellation; that would defeat option A.
+- A callback that *has started* cannot be forcibly stopped, including if its underlying transport is closed. Continue charging its active-worker budget (and running Request Completion credit where applicable) until it returns, even after Session removal/reconnect.
+- A callback about to start and a concurrent Close need one linearization boundary: a worker commits the event from `queued` to `started` only if Session policy still permits it; otherwise cancel and release the owned charge exactly once. A worker must not keep starting cancelled events after Forced Close.
+- `OnClose` remains best-effort/at-most-once, not necessarily executed if Notification scheduling is saturated. Internal engine cleanup and a possible `Done` do not wait for user callbacks. **Exporting `Done` and its exact position in ordering remain OPEN.**
+- The exact catalogue of Forced Close causes versus graceful Stop deadline/drain and type names is **API-002 OPEN**, not approved implicitly by selecting A.
+
+### 11.2 Two Notification ordering architectures (both OPEN; recommend N-ORD-2)
+
+| Dimension | `N-ORD-1`: one per-Session serialized notification stream | `N-ORD-2`: distinct bounded Completion + OnClose sublanes (RECOMMENDED) |
+|---|---|---|
+| Completion callback execution | At most one at a time per Session; FIFO by terminal-result enqueue/settlement linearization, **not** original Request admission order | Completion concurrency and per-Session ordering separately configurable/proposed; maintain once-only event admission |
+| OnClose | After any already-running same-Session Completion returns; it can be blocked forever | After internal Session closure (proposed: after `Done`), **without waiting for any running Completion** |
+| Callback overlap | OnClose never overlaps a Completion in the same Session | OnClose **may overlap** a previously started Completion callback from the closed Session; user code must tolerate that |
+| Permanently blocked Completion | Holds Session's notification execution lane and can starve OnClose; engine remains healthy | Cannot occupy OnClose worker reserve; can still prevent future Completion delivery within its own class |
+| Ordering guarantee | FIFO **dispatch starts** for Completion notifications admitted before Close; upon Forced Close A all unstarted Completions are cancelled | No cross-class callback ordering guarantee; `OnClose` signals internal closure, not that all Completion callbacks returned |
+| Cost | Smaller scheduler, simpler user-visible ordering | Extra finite scheduling/bookkeeping and worker reservation, better OnClose independence under stalled Completion code |
+
+**Recommendation, not owner decision:** `N-ORD-2` better matches the high-performance and independent-user-callback goals. It needs an explicit public contract that `OnClose` may execute *concurrently with an already-running Completion*. This tradeoff is MATERIAL and requires owner approval. A global shared pool **without dedicated class capacity** does not deliver meaningful class isolation when all workers are stuck.
+
+### 11.3 Proposed `Done` vs `OnClose` event ordering (OPEN)
+
+Suggested internal sequence is:
+
+1. Close admission gate, settle pending Request outcomes, cancel unstarted Application/Completion callbacks under approved A.
+2. Close transport, detach registry and timers, discharge queued metadata/byte reservations and all non-active completion credits; retain credits/worker slots for any running user callback.
+3. Publish immutable close reason and close a potential `Done()` signal to indicate **internal Session/transport termination only**, NOT that any user callback has finished.
+4. Best-effort enqueue a single `OnClose` event using a separately bounded OnClose-event budget, independent of Request completion-credit exhaustion. If budget admission fails, do not block the engine or grow a queue indefinitely. If N-ORD-2 selected, OnClose may start before a previously running Completion returns.
+
+The core Engine must remain nonblocking with respect to both callback pools. A best-effort `OnClose` cannot be used as a resource-cleanup barrier. A late Callback calling `SendResponse` must receive a closed-session error; it cannot resurrect the transport. **Order `Done` before `OnClose`, event drop/admission policy and exported method names are not approved.**
+
+### 11.4 Resource-credit model and worker ceilings (all new defaults OPEN)
+
+| Limit | Why it is independent | Lifetime / recommended treatment |
+|---|---|---|
+| `MaxOutstandingCompletionSlotsPerSession` | Count admitted Request response/terminal notification work, including small or zero payloads | Reserve before Request admission; hold through pending, queued and actively running Completion; on forced A release if never started, otherwise upon callback return |
+| `MaxAggregateCompletionSlotsPerServer` | Prevent thousands of Sessions from multiplying pending/retired Completion work | Keep active callback charges until return **even if Session is closed** |
+| `MaxConcurrentApplicationCallbacksPerSession` | Owner-approved configurable Q-003-R1; one is serial | Count active handler after dispatch start until return; *default remains OPEN* |
+| `MaxActiveApplicationCallbacksPerServer` | `MaxBoundSessions × SessionConcurrency` alone is not a safe bound across reconnect churn | Finite active goroutine permit, retained across retired Session generations; when full, work waits in existing bounded ingress queue, overflow follows Q-009/Q-010 |
+| `MaxActiveCompletionNotificationWorkers` | Bound physically running arbitrary Completion user functions | Finite worker/pool budget, charged until callback returns even if close cancelled unstarted tasks |
+| `MaxActiveOnCloseWorkers` (if N-ORD-2) | Avoid Completion callbacks consuming all OnClose execution capacity | Finite independent worker reserve; a permanently stalled OnClose can exhaust this class |
+| `MaxOutstandingOnCloseEvents` | OnClose is **not** a Request and must not require a Request completion slot, especially when that quota is full | Global active+queued event credits, at most one OnClose per closed Session; best-effort overflow disposition **OPEN**, preferably skip rather than hang |
+| `MaxQueuedIncomingCallbackEvents` (optional proposal) | Small/empty Application frames occupy metadata even under 4 MiB byte cap | Bounded count alongside approved incoming bytes; exceeding it would use existing Session-only Q-009 close if independently approved |
+
+These are **semantic dimension names only, not exported API names or approved knobs/defaults**. Prior numeric examples 1024/Session and 65536/Server outstanding completion credits remain **unapproved**. Explicit zero/unlimited for a required bounded worker/event cap should not silently disable limits; validation details are open.
+
+**Do not mis-account**: Request credits and running Notification worker slots are different obligations, not two replacements for one another. The response/timeout/close handler reuses an admitted Request's completion credit and may not demand a second terminal-result credit. After forced A, cancelled queued completions release credits promptly; a running callback keeps its credit and worker permit until it actually returns. A retired Session should not hold full incoming FIFO/circular buffers merely because a running callback retains a user-visible payload.
+
+**Scheduler concept — PROPOSAL:** shared, bounded, lazily activated workers with a finite per-Session queue and a bounded ready-Session structure; rotate among Sessions rather than spawning a goroutine per event or locking a global mutex while invoking user code. An independent OnClose sublane could have a separate small worker reserve (if N-ORD-2 is approved). Avoid eager preallocation to configured maxima. No numerical performance SLA or worker count has been measured.
+
+### 11.5 Resource and liveness failure cases (design-only review; no tests executed)
+
+1. **All Completion workers permanently blocked:** internal response settlement, TCP control handling and Forced Close still progress. Completion events remain counted until cancelled/returned; new Request admission rejects at respective approved caps. If N-ORD-2 is chosen, available OnClose workers may continue independently.
+2. **All OnClose workers blocked:** subsequent OnClose callbacks are best-effort within finite OnClose event credits; do not create unlimited goroutines or delay `Done`. No unconditional delivery guarantee.
+3. **Repeated reconnect with stalled Application callbacks:** old callbacks still occupy the global active Application ceiling; new Session cannot reset those charges. Global saturation may reduce other Sessions' callback throughput, but must not make internal state machine block on user code.
+4. **Completion vs Forced Close:** outcome settlement has a unique winner; callback-start vs cancellation has a unique winner. Cancelled callbacks never later start, and each credit releases once.
+5. **Close-event queue full while Request slots full:** OnClose admission does not consume Request slots; if its own bounded resource is full, apply a separately approved best-effort congestion policy rather than deadlocking cleanup.
+6. **A Completion is already executing when the socket closes:** it may continue; if N-ORD-2 selected, OnClose can overlap it; `Done` does not mean the running Completion has returned.
+7. **Graceful Stop:** no unbounded await for user callbacks. Stop grace, which work can drain and the transition to Forced Close A at deadline are API-002 OPEN.
+
+### 11.6 Decisions still awaiting owner approval
+
+**Next essential question:** `N-ORD-1` same-Session serialized Completion/OnClose vs `N-ORD-2` Completion/OnClose bounded sublanes with possible callback overlap (recommended N-ORD-2). Once selected, determine `Done` visibility/order, Completion concurrency and fairness, separate worker/close-event quotas and numerical defaults. Then review PERF-003 slots/event caps, API-002 timeouts and Stop/reconnect, and API-003 module name. **No unapproved choice above is final.**

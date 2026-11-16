@@ -591,10 +591,31 @@ Finalize API-001b's forced-close/callback guarantees and then the remaining PERF
 
 ## API-001b-R2 — Forced Close / Notification Capacity Review (2026-11-16)
 
-**Status:** **DESIGN ANALYSIS ONLY; NO NEW OWNER DECISION.** Owner-approved API-001b-N1 (independent bounded Notification lane), Q-003-R1 (configurable parallel Application handlers), PERF-003 A count-admission *model*, PERF-002 A, API-001a A and API-004 A remain unchanged. Verified `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811` before this documentation-only review.
+**Historical review status (subsequently superseded for the forced-close choice by API-001b-FC-A):** DESIGN ANALYSIS ONLY at that time. Owner-approved API-001b-N1 (independent bounded Notification lane), Q-003-R1 (configurable parallel Application handlers), PERF-003 A count-admission *model*, PERF-002 A, API-001a A and API-004 A remain unchanged. Verified `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811` before this documentation-only review.
 
 **Engineering recommendation, not approval:** prefer **API-001b forced-close Option A** (cancel not-yet-started Completion user notifications and Application work) for bounded teardown; running user callbacks cannot be stopped. Use separate per-Session Request completion credits and globally capped active workers/close-event notification capacity so reconnect churn cannot multiply unaccounted blocked goroutines. Consider a `Done`-like signal for internal transport settlement with best-effort `OnClose` after it; this ordering and all callback delivery guarantees remain **OPEN**.
 
 **Important:** forced-close A has **NOT** been selected by the owner. Previously proposed completion limits 1024/Session and 65536/Server are **NOT approved defaults**. Notification worker counts, close-event budgets, Q-003-R1 callback concurrency default, incoming event-count cap, API-002 deadlines/Stop/reconnect and API-003 module/package path are **OPEN**.
 
 **Design details and explicit question:** [API-001b Forced Close / Notification Review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). No Go/C++ code, module changes, tests, benchmarks or operations performed.
+
+## API-001b-FC-A — Forced Close Option A (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED for the forced-close disposition ONLY.** Parent **API-001b remains PARTIALLY OPEN** for Notification ordering, worker/queue ceilings, `Done`, exact OnClose scheduling and API names.
+
+**Owner's explicit choice:** "برای API-001b Forced Close گزینه A را تأیید می‌کنم." This is a new decision subsequent to the historical preapproval comparison `API-001b-R2`. This **does NOT** mean Q-003-R1's former "Option B" or PERF-003 Option A has changed.
+
+### Binding V1 rules
+
+1. On **Forced Close**, atomically cease admission and settle each outstanding Request's *internal terminal result* exactly once (response, timeout, failure or Close race has a unique winner). No later peer response may revive it.
+2. **Cancel all not-yet-started queued Application user callbacks and per-Request Completion user notifications**, including already-settled results that have been queued but not yet invoked. Release their library-owned queued payloads/metadata and completion credits; do not retain a deferred backlog of terminal callbacks after forced Close.
+3. **Already-running user callbacks cannot be killed.** They may outlive the Session; library-owned capacity/active-worker credits that account for their execution must remain charged until return. A new Session after reconnect cannot bypass finite aggregate execution bounds.
+4. The internal Reader/Writer, timers, pending registry, socket closure, resource release and once-only state settlement must **never wait for arbitrary Application or Notification callback return**. This preserves owner-approved Q-003-R1 and API-001b-N1 lane separation.
+5. **Accepted Request != guaranteed user Completion invocation.** During ordinary progress, admitted Requests should receive at most one user Completion invocation, but Forced Close **may cancel an unstarted callback**. Logical settlement is exactly once internally; callback invocation is at most once, not unconditionally exactly once.
+6. `OnClose` is a **best-effort, at-most-once user notification** under the previously disclosed Option A tradeoff, not an unconditional liveness guarantee when Notification work is congested or permanently blocked. Its exact ordering, capacity-admission, callback overlap and `Done` relationship remain separate **OPEN** choices.
+7. Callback start versus Forced Close must have a single race resolution: if Close wins before dispatch start, cancel; if callback-start wins, it is already-running and cannot be stopped. Exact dispatch handoff mechanism is an engineering design detail, not authorization to write code.
+8. Preserve approved PERF-003 A per-Session/Server completion-credit admission, Q-008/009/010 bounded queue outcomes, immutable ownership PERF-002 A, API-001a A and API-004 A. No new numeric default is approved.
+
+**Not decided by this approval:** graceful Stop/drain contract, taxonomy of conditions classified as Forced Close under API-002, `Done` publication, `OnClose` versus Completion execution ordering, single versus partitioned Notification worker domains, Application/Notification worker counts and aggregate budgets, OnClose event capacity, callback concurrency default, PERF-003 numeric credits/event count, API-002 request deadlines and reconnect, API-003 module/package path.
+
+**Follow-on proposals (not approved):** [Forced-close review and Notification ordering/capacity analysis](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11; [Handoff](HANDOFF.md) §24. **Documentation only; no code, tests, benchmarks, module or operational change.**

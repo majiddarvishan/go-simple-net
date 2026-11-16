@@ -234,3 +234,9 @@ No code/test/benchmark run. `API-001b` and these detailed callback semantics rem
 ## 13. API-001b forced-close, ordering and worker bounds — design follow-up (2026-11-16)
 
 A separate **nonbinding** owner-choice review now covers forced-close A vs B, delivery and `OnClose`/`Done` ordering proposals, active-worker caps across closed Session generations, the need for a separate bounded `OnClose` event budget, PERF-003 numeric/event-count choices, API-002 deadlines and API-003 module name: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md). **No new decision is approved.** In particular API-001b forced-close A is recommended but remains **OPEN**.
+
+## 14. API-001b Forced Close Option A — OWNER APPROVED (2026-11-16)
+
+The owner explicitly selected **API-001b Forced Close A**, after the historical analysis in §§4, 9–13. This supersedes the earlier "forced-close A/B OPEN" statements *only for the forced-close disposition*, not the still-open Notification ordering/capacity/`Done` choices. **Policy:** all not-yet-started Application callbacks and per-Request Completion notifications are cancelled on forced closure, even if the terminal result was already internally settled; their queued library-owned payload/metadata and completion credits release. Already-started user callbacks cannot be interrupted and retain active-worker capacity (including any running Completion credit) until return. Internal Session resource cleanup and once-only Request settlement never wait. `OnClose` is best-effort/at-most-once; exact ordering and dispatcher bounds remain open.
+
+Binding approval: [DECISION_LOG.md](DECISION_LOG.md) § `API-001b-FC-A`. Further nonbinding ordering/worker-capacity proposals: [NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) §11. No code, tests, benchmarks or operational changes.

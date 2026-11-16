@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** API-001b-N1 bounded separate user Notification lane APPROVED; API-001b forced-close A vs B, Notification worker/event budgets, ordering and Done remain OPEN. A documentation-only follow-up recommends A without owner approval (see §23). Q-003-R1, PERF-002 A and PERF-003 A model remain approved.
+**Current work:** API-001b-FC-A (Forced Close Option A) OWNER APPROVED alongside API-001b-N1 bounded independent Notification lane; Application callback parallelism Q-003-R1, PERF-002 A, PERF-003 A model remain approved. Notification ordering/Done, worker/event budgets and numerical defaults remain OPEN. See §24; older A/B-open material is historical.
 
 ## 1. Repository state
 
@@ -264,3 +264,15 @@ The owner **already renamed the GitHub repository** from `majiddarvishan/go-simp
 **Next decision gate (one at a time):** owner selects **API-001b A or B**. Then finalize Notification ordering/`Done`, Worker/OnClose count caps and callback concurrency defaults, PERF-003 count defaults and incoming event cap, API-002 admission-origin timeout/reconnect/Stop, API-003 module/package. Previous examples 1024 completion slots/Session and 65536/Server remain **unapproved**; proposed `github.com/majiddarvishan/neta-go` / package `neta` also **unapproved**.
 
 **Guardrail unchanged:** no code/go.mod, tests, benchmarks, CI, builds, deployments, operational actions or new owner decision inferred from this document.
+
+## 24. API-001b-FC-A approval and Notification ordering/worker-capacity handoff (2026-11-16)
+
+**Verified baseline before documentation commit:** `main@4183d182264d768f8c2856d8cead22b37f758c63`. Owner **APPROVED API-001b Forced Close Option A**; previous `API-001b-R2` comparison was historical and A/B selection is no longer open. Binding authority: [Decision Log](DECISION_LOG.md) § `API-001b-FC-A`.
+
+**On Forced Close:** internal Request result settles exactly once; not-yet-started queued `OnRequest` and per-Request Completion callbacks are cancelled, with queued library-owned payload/metadata/credits released. A Completion already queued after a successful response can still be cancelled if its invocation has not started. Already-running user callbacks cannot be interrupted and may outlive Session closure. Transport/pending/timer/registry cleanup must not wait. Completion user callback execution is at-most-once, **not** unconditionally guaranteed for every admitted Request. `OnClose` is best effort/at-most-once. Exact `Done`/OnClose ordering and callback overlap are still **OPEN**.
+
+**Additional engineering design, all unapproved:** [Detailed review §11](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md) compares `N-ORD-1` same-Session serial Completion+OnClose notification against `N-ORD-2` separate bounded Completion and OnClose sublanes. `N-ORD-2` is recommended for prompt OnClose under blocked completion handlers, at the cost of possible OnClose overlap with an already-running Completion callback. Both require `Done` and terminal-cause semantics, per-Session/global active-worker limits persisting across retired Sessions, bounded `OnClose` events and Request completion credits. All defaults, queue-event capacities, fairness, terminal event metadata and Notification concurrency remain OPEN.
+
+**Next single essential owner decision:** choose `N-ORD-1` serial Notification events or `N-ORD-2` isolated OnClose/Completion sublanes (recommend `N-ORD-2`, with OnClose eligible after internal cleanup/Done and allowed to overlap active Completion). After approval, design `Done` behavior and choose worker/global count ceilings, PERF-003 numeric defaults and optional incoming event-count cap; then API-002 request deadline origin, graceful Stop/reconnect, API-003 path. **Do not infer approval of any open design item.**
+
+**Implementation guardrail:** documentation only; no Go/C++ code, go.mod, test, build, benchmark, CI, or operations. Continue from actual GitHub main HEAD, not historical handoff SHAs.
