@@ -784,3 +784,30 @@ Reserve a future OnClose event credit when admitting a Session. Convert it to a 
 Recommend **Option A**: a nonblocking skip on saturation. N-ORD2 and DONE-A already make OnClose independent and best-effort; transport admission should not depend on arbitrary user callback progress.
 
 **Owner decision requested:** choose Option A (skip OnClose on event-budget saturation) or Option B (reserve at Session admission and backpressure new Sessions/reconnects). No numeric event-budget default is part of this decision.
+
+---
+
+## WORKER-003 — OnClose Event-Budget Saturation (2026-11-16)
+
+**Status: CLOSED / OWNER APPROVED — OPTION A.**  
+**Owner selection:** “گزینه A” (skip new OnClose event on saturation).  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding V1 contract
+
+1. OnClose event admission is best-effort and at-most-once per Session.
+2. The owning Client/Server has a separate bounded OnClose event budget. Its usage counts **queued + currently executing** OnClose events, not merely waiting events.
+3. After Session `Done` closes, if an OnClose callback is configured, the engine makes one nonblocking attempt to reserve one event credit from the owning instance.
+4. If reservation succeeds, the event is queued and may execute when an OnClose active-worker permit is available. The event credit remains held from admission through callback return, including while queued.
+5. If reservation fails because the event budget is full, that Session's OnClose callback is skipped permanently. No retry, overflow goroutine, hidden queue or wait is permitted.
+6. A started OnClose callback holds both its WORKER-002 active-worker permit and its event credit until return. A queued event holds its event credit until it starts and returns.
+7. Skipping OnClose never delays or changes Session `Done`, terminal cause, socket closure, internal cleanup, reconnect eligibility or Application/Completion capacity. It does not consume PERF-003 Request credits.
+8. All reconnect generations of one Client share the same OnClose event budget under WORKER-001. A retired generation's queued/running OnClose event remains charged until callback return.
+9. No numeric event-budget default, public option name or overflow diagnostic API is selected here.
+
+### Rationale
+
+This preserves transport and internal-engine liveness when user OnClose callbacks block forever. It follows N-ORD2/DONE-A's independent, best-effort OnClose contract and avoids coupling connection admission/reconnect to arbitrary user callback progress. The explicit queued+running event count prevents unbounded retained Session references and event metadata.
+
+**Detailed design:** [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §10.  
+**Next:** WORKER-004 — choose the logical execution-pool topology: three class-isolated worker pools versus a shared owner scheduler with strict per-class active reservations. Numeric capacities remain open.
