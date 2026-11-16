@@ -428,7 +428,7 @@ Callbackهای checkLicenseCallback، validationCallbackFunc و callback نیز 
 - صف ارسال ظرفیت 100 پیام دارد.
 - حداکثر طول فریم ورودی حدود 1 MiB است.
 
-بنابراین صرفاً ظرفیت داده صف‌های هر Connection در حالت بدبینانه می‌تواند بسیار زیاد باشد؛ حدود 200 MiB برای صف دریافت و تا حدود 100 MiB برای صف ارسال، بدون احتساب سربار و سایر حافظه‌ها.
+بنابراین صرفاً ظرفیت داده صف‌های هر Connection در حالت بدبینانه می‌تواند بسیار زیاد باشد؛ حدود 200 MiB برای صف دریافت و در فرضی که پیام‌های خروجی نیز نزدیک 1 MiB باشند حدود 100 MiB برای صف ارسال، بدون احتساب سربار و سایر حافظه‌ها. سقف 1 MiB فقط در Reader ورودی enforce شده و برای پیام خروجی در این کد سقف متناظری دیده نمی‌شود.
 
 هیچ Max Connection یا Global Memory Budget در کد مشاهده نشد.
 
@@ -656,7 +656,7 @@ Rate Limiter پیش از Switch مربوط به Command ID اجرا می‌شو�
 
 KeepAlive فقط یک Boolean برای pendingEnquireLink نگه می‌دارد. در دریافت هر enquire_link_resp، این مقدار بدون بررسی sequenceNumber برابر false می‌شود.
 
-همچنین lastActivity با دریافت هر فریم به‌روزرسانی می‌شود و KeepAlive در صورت مشاهده فعالیت اخیر، Pending را پاک می‌کند.
+همچنین lastActivity پس از خواندن Header هر فریم به‌روزرسانی می‌شود و KeepAlive در صورت مشاهده فعالیت اخیر، Pending را پاک می‌کند.
 
 **اثر:** رفتار فعلی عملاً بر اساس «هر فعالیت ورودی نشانه زنده بودن Peer است» بنا شده، نه الزاماً پاسخ Enquire Link متناظر.
 
@@ -687,7 +687,7 @@ KeepAlive فقط یک Boolean برای pendingEnquireLink نگه می‌دارد
 
 Connection.Close ابتدا Context را Cancel می‌کند و سپس تا 10 ثانیه برای خالی شدن sendCh منتظر می‌ماند. Writer نیز هنگام خروج، drainQueue را اجرا می‌کند که Timeout دو ثانیه‌ای دارد؛ اما این Timeout فقط بین عملیات بررسی می‌شود و یک Write/Flush مسدودشده را قطع نمی‌کند. Write Deadline پیش‌فرض 30 ثانیه است.
 
-از طرف دیگر Server.Stop، Connectionها را به‌صورت ترتیبی Close می‌کند و WaitGroup نیز Goroutineهای واقعی را Join نمی‌کند.
+از طرف دیگر Server.Stop، Connectionها را به‌صورت ترتیبی Close می‌کند و WaitGroup نیز Goroutineهای واقعی را Join نمی‌کند. در drainQueue نیز نتیجه writeMessage و Flush بررسی نمی‌شود؛ بنابراین خطای ارسال هنگام Drain می‌تواند بدون گزارش قابل اتکا رخ دهد.
 
 **اثر:**
 - زمان Shutdown با تعداد Connectionها و وضعیت Socketها تغییر می‌کند.
