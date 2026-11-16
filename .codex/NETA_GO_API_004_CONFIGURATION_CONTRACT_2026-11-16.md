@@ -135,3 +135,12 @@ Additional C++-observed reference values (client Connect/Bind 30s, reconnect del
 **APPROVED OPTION A.** Client and Server configuration uses **Go typed Functional Options**. Constructors build approved defaults first, apply only explicit options, validate the resulting effective configuration **before Dial/Listen**, and retain a private immutable snapshot for the instance and inherited Session settings. Options independently override every approved numeric cap/deadline; an omitted idle interval remains **30s**, while explicit `WithEnquireLinkIdleInterval(0)` (illustrative name only) **disables only automatic Enquire Link**. Explicit invalid zero/negative resource limits or mandatory positive timeouts fail validation; none silently become unlimited. Client-only and Server-only option domains should be separated. No hot reload is implied.
 
 **Deferred to API-001/API-002:** precise constructor signatures, option identifier spelling, treatment of bind/readyness and reconnection, and callback completion/teardown semantics. **No implementation or tests authorized.**
+
+
+## 10. WORKER-008 / WORKER-009 — resource accounting and default resolution handoff (2026-11-17)
+
+WORKER-008 Option A is owner approved: separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. Queue byte/count limits are separate admission dimensions, not additive physical-memory totals. Reconnect generations share Client owner accounting; started callbacks retain their charges until actual return.
+
+WORKER-009 is open. The recommended default model is to resolve only owner worker ceilings from GOMAXPROCS at Client/Server configuration construction, with finite caps, while keeping queue/count/Request/Event/retained-byte quotas as fixed finite defaults. The resolved config remains immutable; no live adaptation or hot reload. The candidate numeric matrix is in [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md) §17. The current owner decision is WORKER-009A: CPU-derived versus fixed worker defaults.
+
+The exact public option names remain API-001 work. Omitted values use defaults; explicit zero is invalid for required positive resource limits, except the already-approved EnquireLinkIdleInterval=0 disable behavior. No implementation or tests authorized.

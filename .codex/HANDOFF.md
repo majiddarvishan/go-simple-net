@@ -1,17 +1,17 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-006 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 is CLOSED / OWNER APPROVED, OPTION A:** per-Session incoming/outgoing Application frame counts plus one Server-aggregate queued Application frame count across both directions; Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 event credits. **WORKER-008 Resource Accounting and Payload Memory Ceiling is next.** Numeric count/worker defaults, retained-payload byte ceilings and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
+> **CANONICAL REVISION (2026-11-16):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 is CLOSED / OWNER APPROVED, OPTION A:** per-Session incoming/outgoing Application frame counts plus one Server-aggregate queued Application frame count across both directions. Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 event credits. **WORKER-008 is CLOSED / OWNER APPROVED, OPTION A:** separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion. **WORKER-009 Defaults, Valid Ranges and Public Configuration Limits is next.** Numeric defaults, Completion-byte exhaustion disposition, final frame maximum and API-002/API-003 details remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
-**Updated:** 2026-11-16  
+**Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** WORKER-001 through WORKER-007 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. Next: WORKER-008, Resource Accounting and Payload Memory Ceiling. Numeric idle timeouts, worker/count limits, retained-payload byte ceilings, API-002 and API-003 remain open.
+**Current work:** WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. Next: WORKER-009, Defaults, Valid Ranges and Public Configuration Limits. WORKER-008 Completion-byte exhaustion behavior and exact frame maximum remain open for Architecture Freeze; API-002 and API-003 also remain open.
 
 ## 1. Repository state
 
 - Default branch: main
-- Current verified remote HEAD before this documentation update: `081dc30320b7b208dda501329b5318ee84a0d2f6`.
+- Current verified remote HEAD before this documentation update: `2f8cbebd27f34777598982e7157c0de45b29c461`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
@@ -480,9 +480,9 @@ The owner approved per-class round-robin scheduling, with one callback dispatch 
 - [Resource Admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md) and [PERF-002/003 design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md) — queue and credit accounting.
 - [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md) and [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md).
 
-### Next decision — WORKER-007
+### Next decision at that time — WORKER-007 (RESOLVED BY §34)
 
-Choose how to bound queued Application frame/event counts alongside the already-approved byte limits. The recommendation is per-Session incoming/outgoing frame-count caps plus one aggregate Server count covering both directions, while reusing existing PERF-003 Completion credits and WORKER-003 OnClose event credits.
+The owner subsequently approved Option A: per-Session incoming/outgoing Application frame-count caps plus one aggregate Server count covering both directions. Completion and OnClose reuse their existing independent credits.
 
 **Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
 
@@ -491,8 +491,21 @@ Choose how to bound queued Application frame/event counts alongside the already-
 
 The owner approved per-Session incoming and outgoing Application frame-count ceilings plus one Server-aggregate queued Application frame-count ceiling across both directions. Incoming count saturation closes only the offending Session under Q-009/Q-010; outgoing count saturation returns Queue Full and keeps the Session. Outgoing frames remain counted through full Writer completion. Incoming Request count is released at callback start. Completion reuses PERF-003 Request credits; OnClose reuses WORKER-003 queued+running event credits. No duplicate Completion/OnClose event credit or shared cross-class budget is added. Existing byte limits and 4 KiB Control reserve remain independent. Numeric count defaults/ranges and public option names remain for WORKER-009/API-004.
 
-### Next decision — WORKER-008
+### Next decision at that time — WORKER-008 (RESOLVED BY §35)
 
-The recommendation is owner-scoped retained-payload byte ledgers separated for Application and Completion callback classes. They cover in-progress/queued/active Application payload and queued/running Completion response payload without double-charging ownership transitions. See DECISION_LOG.md and Worker Capacity Design §§14–15.
+The owner subsequently approved Option A: separate owner-scoped retained-payload byte ledgers for Application and Completion classes. The binding contract is recorded in DECISION_LOG.md and Worker Capacity Design §15.
+
+**Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
+
+
+## 35. WORKER-008 — Resource Accounting and Payload Memory Ceiling (OWNER APPROVED, OPTION A, 2026-11-17)
+
+The owner approved two independent retained-payload byte ledgers: Application and Completion. Each has per-Session and aggregate per-owner ceilings; Client reconnect generations share the same Client owner ledger. Application covers inbound Request storage from validated-header reservation through active OnRequest return/cancellation and outgoing private frame storage through full Writer completion. Completion covers matched Response storage from before body allocation through queued/running Completion return or Forced Close A cancellation. Queue byte/count limits remain independent sub-limits and are not added to retained-payload bytes as if they were separate physical allocations. Queue-to-active releases queue-only charges while the retained-byte charge follows the same buffer. Started callbacks remain charged until actual return; unstarted cancelled callbacks release once. No user-visible inbound buffer recycling.
+
+**Still open before Architecture Freeze:** exact policy if a matching Response cannot reserve Completion bytes; exact Pinex maximum frame size and cross-language confirmation; all numeric limits/defaults. No silent Response drop is allowed.
+
+### Next decision — WORKER-009
+
+The recommendation is CPU-derived, capped defaults for the three owner worker ceilings, with fixed finite defaults for queue/count/Request/Event/retained-byte quotas. The candidate matrix and alternatives are in DECISION_LOG.md and Worker Capacity Design §17. The current owner question is WORKER-009A: choose CPU-derived worker defaults or fixed worker defaults.
 
 **Guardrail:** documentation/design only. No Go/C++ code, tests, benchmarks, builds, dependencies, CI or operational changes.
