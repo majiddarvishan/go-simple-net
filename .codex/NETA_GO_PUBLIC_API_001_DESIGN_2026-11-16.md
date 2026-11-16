@@ -215,3 +215,12 @@ The owner **APPROVED PERF-002 Option A**: independent snapshot of caller's bytes
 - **Still open:** numeric concurrency default and option name/range; worker counts/aggregate limits; event and payload-byte/frame-size bounds; OnClose saturation; terminal-cause and Close return API; API-002/API-003.
 - Implementation remains unauthorized.
 
+
+## 19. WORKER-001 — owner-scoped callback capacity (OWNER APPROVED, 2026-11-16)
+
+- **APPROVED Option A:** each Client instance and each Server instance owns an independent callback-worker resource domain.
+- Sessions within one Server share its aggregate budgets. Reconnect generations of one Client share its budget; already-running callbacks from retired Sessions remain charged until return.
+- Independent instances do not share a hidden process-global worker pool or mandatory process-global active-worker ceiling.
+- This is an ownership-scope decision only. Numeric capacities, physical pool layout, per-class aggregate-cap policy, public option names and saturation policies remain open.
+
+See [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). WORKER-002 is next.
