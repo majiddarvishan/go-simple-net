@@ -3,7 +3,7 @@
 **Date:** 2026-11-16
 **Repository:** `majiddarvishan/neta-go`, branch `main`
 **Baseline HEAD reviewed:** `0fe42d3f0ac634a5a1c9617d1e800b68a00fdf9f`
-**Status:** DESIGN PROPOSAL ONLY — PERF-002, PERF-003 and API-001b remain **OPEN / NOT OWNER-APPROVED**
+**Status:** PERF-002 **CLOSED / OWNER-APPROVED OPTION A**; PERF-003 and API-001b remain **OPEN / NOT OWNER-APPROVED**
 **Implementation:** NOT AUTHORIZED. No Go source, module, tests, benchmarks, builds, network operations or deployments.
 
 ## 1. Authority and unchanged prior approvals
@@ -14,7 +14,7 @@ Do **not** reopen: API-004 A (typed Functional Options, validated immutable defa
 
 The approved maximum queued bytes are **not** preallocated, do **not** define the maximum wire PDU and do **not** bound process RSS.
 
-## 2. PERF-002 — byte ownership and copy-cost options (OPEN)
+## 2. PERF-002 — byte ownership and copy-cost options (OWNER APPROVED A)
 
 | Choice | Send ownership | Receive ownership | Typical user-space payload copies | Safety / cost |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@ The approved maximum queued bytes are **not** preallocated, do **not** define th
 | **B — Borrowed** callback lifetime | Caller must keep payload unchanged until explicit write/release acknowledgement; a return from async enqueue is insufficient | Borrowed pooled payload only valid until callback returns; retaining requires application copy | Potentially zero library-level send snapshot and receive copy, but kernel copies still occur | Lower copy potential, much harder API, accidental mutation and use-after-recycle hazards; complicates error/close |
 | **C — Ownership transfer** | Caller hands off exclusive ownership of the backing array; after successful handoff no reads/writes/aliases permitted | Similar to A, or explicitly transferred receive ownership | Potentially zero user-space send payload copies with split header/payload writes | Go slices do not enforce unique ownership; must define failure/rollback and aliasing rules; not a V1 default recommendation |
 
-**Recommendation awaiting owner:** **A** for V1. This does *not* claim end-to-end zero-copy. OS TCP/network copies, framing and allocator effects are outside this count. Direct receive can eliminate the **second** receive-side application copy; it does not eliminate the network-to-user-memory copy.
+**Owner decision:** **A APPROVED** for V1 (2026-11-16). This does *not* claim end-to-end zero-copy. OS TCP/network copies, framing and allocator effects are outside this count. Direct receive can eliminate the **second** receive-side application copy; it does not eliminate the network-to-user-memory copy.
 
 ### 2.1 Proposed outbound hot path under A
 
@@ -116,9 +116,9 @@ Approved Q-003 requires **non-overlapping callbacks within a Session**. If user 
 6. No extra public payload wrapper, mandatory Protobuf, C++-style event loop or business-layer machinery.
 7. No numeric throughput/latency target is approved; benchmark methodology remains a plan only.
 
-## 6. Recommended owner decisions, in order (ALL OPEN)
+## 6. Recommended owner decisions, in order (PERF-002 CLOSED; others OPEN)
 
-1. **PERF-002:** choose **A**: send snapshot once, receive directly into owned retainable buffer (recommended), versus B borrowed callback-lifetime or C explicit ownership transfer.
+1. **PERF-002 — CLOSED / APPROVED A:** send snapshot once, receive directly into owned retainable buffer. Borrowed callback-lifetime B and transfer C not selected as V1 public contracts.
 2. **PERF-003:** approve the **shared per-Session completion-credit model + Server aggregate cap + incoming event-count cap**, then review separately proposed numeric defaults (1024 / 65536 are *illustrative only*) and deadline-start rule.
 3. **API-001b:** decide **forced-close Option A** prompt cancellation/best-effort callback vs **Option B** deferred bounded callback delivery; choose exact callback registration shape.
 4. **API-002:** resolve dial/bind/reconnect/request/Stop defaults and terminal errors; do not silently promote all observed C++ timings to Go approvals.
@@ -132,4 +132,31 @@ Approved Q-003 requires **non-overlapping callbacks within a Session**. If user 
 - Go `sync.Pool` docs: https://pkg.go.dev/sync#Pool
 - Existing .codex contract references linked in section 1.
 
-**All alternatives above are proposals, not approvals; source code and test execution remain prohibited.**
+**Only PERF-002 A is newly owner-approved; all PERF-003, API-001b, numeric, timer and pooling choices above remain proposals. Source code and test execution remain prohibited.**
+
+
+## 8. Owner approval: PERF-002 A (2026-11-16)
+
+The owner explicitly selected **Option A**. This makes the fundamental **public payload lifetime** contract binding, without automatically approving all private implementation details in §§2.1–2.3. The copy should be made during accepted synchronous admission and be complete before successful return. An unsuccessful admission must not retain the input or publish a frame. A caller must not mutate its slice *concurrently with the snapshot operation*, but may reuse it after successful return. The owned received buffer may outlive callback return and must not be returned to an internal pool; try a direct-read path to avoid redundant receive-side copies. Do not label this end-to-end zero-copy. Full authoritative decision text: [DECISION_LOG.md](DECISION_LOG.md).
+
+### 8.1 PERF-003 continued engineering analysis — OPEN (not approved)
+
+**Why incoming event count also matters:** Q-009/010 impose byte budgets, but zero-length application Stream frames still have header and callback metadata. Counting **full serialized 10-byte header + body** where queue budgets specify full frame size helps, but a separate event count cap is recommended to protect handler queue metadata and control churn. The proposed event-count overflow reaction remains Session-local Close consistent with Q-009; the new numerical threshold is OPEN.
+
+**Proposed credit lifetime:** a successful callback-based SendRequest holds one counted credit from admission through response/timeout/close settlement and, in normal running, until its serialized completion callback returns. This keeps response-waiter/queued-completion growth bounded. A terminal response reuses its reserved credit instead of attempting a fresh credit allocation, avoiding deadlock under full capacity. Internal once-only state transition can precede delayed user callback execution. The credit cannot be released at wire-write completion because response tracking and callback delivery remain outstanding.
+
+**Proposed credit overflow:** reject new callback-based SendRequest synchronously with a distinguishable completion-capacity error and **do not enqueue or transmit**. This is separate from byte-based Queue Full; never alter the approved Q-008 error for an outgoing byte overrun. SendResponse and no-wait operations consume outgoing-byte quota but not response-tracking credits.
+
+**Proposed quota topology:** per-Session count limit for Client/Server Session, and separate Server-aggregate count limit for its admitted Session requests. No max-size preallocation; atomic admission with coherent rollback across Sequence/pending, byte quota and count quota. Avoid single global mutex around normal Session operations. Configurability uses approved typed Functional Options if the added knobs are approved.
+
+**Deadline choice still open:** start at local admission (recommended to bound time spent queued) vs start after complete TCP Write (better excludes queue delay but can defer forever behind blocked writer). No deadline numeric default has been approved. If an expiry occurs while frame is waiting, ensure cancellable queue ownership; if Write began, remote delivery status is ambiguous.
+
+**Blocked callback/cancellation caution:** internal state can settle and transport can close promptly, but forced-close treatment of queued callbacks and when credit charges are released must follow **API-001b owner choice**, not an implicit exactly-once user callback delivery claim.
+
+**Illustrative only:** per-Session 1024 and Server-aggregate 65536 completion credits are provisional discussion figures and **not approved defaults**. Any target should be calibrated against expected inflight ≈ offered requests/s × observed response latency, and validated with memory/GC/tail-latency tests after separate authorization.
+
+## 9. API-001b next review — OPEN
+
+Both forced-close Option A (cancel queued user callbacks for promptly bounded teardown) and Option B (defer finite completions until earlier callbacks return) remain owner choices. Neither can guarantee that `OnClose` runs promptly behind a permanently blocked callback while preserving Q-003 non-overlap. Recommend lifecycle `Done` report transport/accounting closure independent of arbitrary user callback return, **subject to owner approval**. Response/timeout/close can settle internally once; physical user callback invocation needs explicit lifecycle guarantees. Detailed exported method names and timing remain OPEN.
+
+**No code, tests, benchmarks or operational actions were performed.**
