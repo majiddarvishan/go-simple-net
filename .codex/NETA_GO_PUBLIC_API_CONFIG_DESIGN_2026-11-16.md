@@ -132,9 +132,9 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 ### Backpressure and control frames
 
-- Normal outgoing application messages go through bounded FIFO admission (bounded by bytes and/or count; precise policy OPEN).
-- Exceeding capacity must produce a documented bounded outcome. Initial recommendation: fail fast with a dedicated queue-full error; optional context-aware waiting needs separate API discussion.
-- Incoming per-session callback queue also needs a bound or an equivalent pause strategy; do not let callback slowness grow memory without limit.
+- Outgoing Application Stream Frames use a **4 MiB default FIFO byte budget per Session** with immediate Queue Full on failed admission (Q-008 APPROVED).
+- If an outgoing Application Frame cannot fit, reject the Send promptly with Queue Full (Q-008); no queued partial Frame or orphaned pending Request.
+- The incoming per-session callback queue must be **bounded**; when a new Application Frame cannot fit, **close that Session promptly** (Q-009 APPROVED B). The exact incoming capacity is still OPEN under Q-010.
 - Protocol control work (Enquire Link, Unbind) must be able to progress under application queue congestion. Preserve order where the C++ protocol requires it; do not reorder ordinary application messages.
 - Unbind protocol deadline must still protect sessions that cannot drain application backlog.
 
@@ -148,7 +148,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 - Outgoing application Stream frames are admitted into a bounded FIFO. If a new frame would exceed capacity, `SendRequest`/`SendResponse` fail promptly with a dedicated **queue-full** error: do not block indefinitely and do not silently drop or partially enqueue the frame.
 - Request pending/sequence tracking must be rolled back or left unadmitted when enqueue fails; a rejected frame must not later time out as if it was sent.
 - Keep control frames (`enquire_link_req/resp`, `unbind_req/resp`) operable even when the application FIFO is full via separate **bounded** control capacity/coordination; never interleave bytes, bypass invalid protocol states or reorder application messages. On incoming Unbind, honor the existing Pinex-compatible queued-write drain plus 10s deadline contract.
-- Bound incoming callback backlog as well. Its byte/count limit and pause/resume behavior are under separate review (Q-009/Q-010); do not let slow callbacks grow memory without bound. See [Resource Admission Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
+- Bound incoming callback backlog as well. On a new non-fitting Application Frame, **close only that Session** (Q-009 B); incoming byte/count defaults and global limits remain OPEN under Q-010. See [Resource Admission Design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md).
 - A per-session cap alone is insufficient if unlimited sessions can be accepted. A global/server queued-frame budget and maximum bound-session admission must also be specified; numerical values are open under Q-010. A queued-frame budget is not a full process RSS cap.
 - No additional business Rate Limiter, Circuit Breaker, Priority Queue, or automatic Deduplicator is added.
 
@@ -158,7 +158,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 **Future acceptance tests (not run):** concurrent producers cannot exceed byte accounting; full queue returns bounded error (A) without missing sequence cleanup; small Frame admission after drain works; incoming Enquire Link and Unbind progress under saturation; closed session releases all held buffers; many sessions remain within the configured aggregate budget.
 
-**Decision recorded:** Owner explicitly selected **A** on 2026-11-16: 4 MiB default per-session Application output FIFO, immediate queue-full failure, and bounded independently progressing control work. Q-008 is CLOSED. Numeric server-wide budget, inbound callback capacity and exact control reserve are **not approved** and are tracked under Q-009.
+**Decision recorded:** Owner explicitly selected **A** on 2026-11-16: 4 MiB default per-session Application output FIFO, immediate queue-full failure, and bounded independently progressing control work. Q-008 is CLOSED. Q-009 Option B separately approved incoming-overflow Session close; numeric server-wide budget, inbound callback capacity and exact control reserve remain OPEN under Q-010.
 
 ## 7. Open decisions and next steps
 
@@ -167,8 +167,8 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-006 | Numeric default for Enquire Link idle interval | **30s by default (Option B); 0 disables automatic sending** | CLOSED — owner approved 2026-11-16 |
 | Q-007 | Enquire Link response timeout and action | **Default 10s, configurable; close Session on missing matching reply, Client reconnect iff enabled** | CLOSED — owner approved 2026-11-16 |
 | Q-008 | Capacity defaults and behavior at queue saturation | **Option A: 4 MiB per-session outgoing Application FIFO, immediate Queue Full, bounded control path** | CLOSED — approved 2026-11-16 |
-| Q-009 | Incoming callback overload policy | Option A: pause/resume bounded application delivery; Option B: close saturated Session | OPEN — owner choice |
-| Q-010 | Numeric ingress/global/session admission defaults | Inbound 4 MiB, aggregate queued frames 256 MiB, max 1024 bound sessions are **illustrative proposals only** | OPEN — not approved |
+| Q-009 | Incoming callback overload policy | **Option B:** close the Session promptly if a new Application frame cannot fit its bounded callback backlog; do not affect other Sessions | CLOSED — approved 2026-11-16 |
+| Q-010 | Numeric ingress/global/session admission defaults | Inbound 4 MiB, aggregate queued frames 256 MiB, max 1024 bound sessions remain **proposals only**; global-overload reaction and bounded control reserve also need design | OPEN — not approved |
 | API-004 | Unset vs explicit zero Enquire Link interval | Prefer Options or optional field to preserve 30s default and explicit 0 disable | OPEN — API design |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
@@ -178,7 +178,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 1. Q-006 approved: default idle interval **30s**, explicit **0** disables autonomous sending.
 2. Q-007 approved: configurable **10s** default response deadline, close on missing matching response; Client reconnect only when enabled.
-3. Q-008 approved: per-session 4 MiB outgoing Application FIFO and Fail-Fast. Next review Q-009: inbound/global resource limits and overload behavior.
+3. Q-008 approved: per-session 4 MiB outgoing Application FIFO and Fail-Fast; Q-009 approved: close Session on inbound queue overflow. Next review Q-010: ingress/global resource limits, admission and global overload behavior.
 4. Pin exact C++ develop HEAD and golden-wire test vectors in GO-PINEX-001.
 5. Obtain explicit owner approval **before any** coding, go.mod/module/repository changes, tests or deployment.
 
