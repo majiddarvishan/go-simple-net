@@ -627,3 +627,84 @@ PutBuffer فقط Slice را به طول صفر Reslice می‌کند و محدو
 اولویت من شروع با بازنویسی کامل نیست. بهتر است ابتدا قراردادهای Lifecycle و Protocol را روشن کنیم، سپس اصلاحات کوچک و قابل تست را در چند مرحله انجام دهیم.
 
 **هیچ کد برنامه‌ای در این بازبینی تغییر نکرده است.**
+
+---
+
+## 9. یافته‌های تکمیلی در بازبینی نهایی
+
+### F-24 — Rate Limit روی Control Commandها نیز اعمال می‌شود
+
+**شدت: Medium تا High، بسته به semantics پروتکل**
+
+**مراجع:** ss7/protocol_handler.go:86-99 و ss7/connection.go:81-85
+
+Rate Limiter پیش از Switch مربوط به Command ID اجرا می‌شود؛ بنابراین فقط Submitها را محدود نمی‌کند و Bind، Enquire Link، Response و Unbind نیز از همان Token Bucket عبور می‌کنند. Limiter نیز برای هر Connection جداگانه ساخته می‌شود.
+
+**اثر:**
+- در بار زیاد ممکن است Enquire Link یا Response معتبر Drop شود.
+- Timeout کاذب برای درخواست‌ها یا KeepAlive ایجاد می‌شود.
+- اگر هدف محدود کردن نرخ پیام‌های تجاری باشد، Control Traffic نیز ناخواسته وارد همان محدودیت شده است.
+- محدودیت per-connection معادل محدودیت کلی Server نیست؛ چند Connection می‌توانند نرخ تجمیعی را افزایش دهند.
+
+**پیشنهاد:** نرخ پیام‌های تجاری از Control Traffic جدا شود. اگر محدودیت باید به هویت Client اعمال شود، کلید Limiter باید پس از احراز هویت و در سطح Client باشد؛ در کنار آن یک سقف کلی برای Server نیز لازم است.
+
+### F-25 — پاسخ Enquire Link با Sequence Number همبسته نمی‌شود
+
+**شدت: Medium؛ نیازمند تأیید قرارداد پروتکل**
+
+**مراجع:** ss7/protocol_handler.go:115-122 و ss7/connection_keepalive.go:87-105
+
+KeepAlive فقط یک Boolean برای pendingEnquireLink نگه می‌دارد. در دریافت هر enquire_link_resp، این مقدار بدون بررسی sequenceNumber برابر false می‌شود.
+
+همچنین lastActivity با دریافت هر فریم به‌روزرسانی می‌شود و KeepAlive در صورت مشاهده فعالیت اخیر، Pending را پاک می‌کند.
+
+**اثر:** رفتار فعلی عملاً بر اساس «هر فعالیت ورودی نشانه زنده بودن Peer است» بنا شده، نه الزاماً پاسخ Enquire Link متناظر.
+
+**پیشنهاد:** باید تصمیم گرفته شود که قرارداد Liveness صرفاً بر اساس هر ترافیک ورودی است یا پاسخ Enquire Link باید با Sequence متناظر باشد. در حالت دوم، Sequence درخواست Pending باید ذخیره و تطبیق داده شود.
+
+### F-26 — خطای Listen می‌تواند کل Process میزبان را خاتمه دهد
+
+**شدت: High**
+
+**مرجع:** ss7/server.go:409-415
+
+در صورت خطای net.Listen، Start از logger.Fatalf و os.Exit(1) استفاده می‌کند.
+
+**اثر:**
+- یک Package/Library نباید مالک خاتمه Process میزبان باشد.
+- برنامه‌ای که چند Server یا Component دارد نمی‌تواند خطای Listen را مدیریت یا بازیابی کند.
+- امضای فعلی Start نیز Error را به Caller برنمی‌گرداند.
+
+**پیشنهاد:** Start باید خطا را به Caller برگرداند و تصمیم Restart یا Exit در لایه Main/Process Supervisor گرفته شود.
+
+نکته تکمیلی: در خطاهای Accept نیز حلقه صرفاً Log و بلافاصله Retry می‌کند. برای خطاهای موقت باید Backoff محدود و برای خطاهای دائمی باید خروج کنترل‌شده از حلقه تعریف شود؛ در غیر این صورت احتمال Log/CPU Hot Loop وجود دارد.
+
+### F-27 — زمان Drain و Shutdown سقف زمانی قابل اتکایی ندارد
+
+**شدت: High**
+
+**مراجع:** ss7/connection.go:152-188، ss7/connection_writer.go:112-131 و ss7/server.go:461-466
+
+Connection.Close ابتدا Context را Cancel می‌کند و سپس تا 10 ثانیه برای خالی شدن sendCh منتظر می‌ماند. Writer نیز هنگام خروج، drainQueue را اجرا می‌کند که Timeout دو ثانیه‌ای دارد؛ اما این Timeout فقط بین عملیات بررسی می‌شود و یک Write/Flush مسدودشده را قطع نمی‌کند. Write Deadline پیش‌فرض 30 ثانیه است.
+
+از طرف دیگر Server.Stop، Connectionها را به‌صورت ترتیبی Close می‌کند و WaitGroup نیز Goroutineهای واقعی را Join نمی‌کند.
+
+**اثر:**
+- زمان Shutdown با تعداد Connectionها و وضعیت Socketها تغییر می‌کند.
+- Timeout دو ثانیه‌ای drainQueue یک سقف سخت برای مدت Drain نیست.
+- Stop ممکن است قبل از پایان واقعی Writer و سایر Goroutineها برگردد.
+
+**پیشنهاد:** یک Shutdown Deadline مشترک در سطح Server تعریف شود. تمام Connectionها باید به‌صورت کنترل‌شده وارد Closing شوند و Join واقعی آن‌ها تحت همان Deadline انجام شود. سیاست پیام‌های باقی‌مانده در Queue نیز باید صریح باشد: ارسال تا Deadline، Drop با شمارنده، یا انتقال به مکانیزم دیگری.
+
+### F-28 — ارسال هم‌زمان با Close می‌تواند پیام را پس از توقف Writer وارد صف کند
+
+**شدت: Medium تا High**
+
+**مرجع:** ss7/connection.go:190-226
+
+sendWithPriority ابتدا closed را بررسی می‌کند و سپس وارد Select ارسال می‌شود. اگر Close بین این دو مرحله رخ دهد، هم ارسال به sendCh و هم ctx.Done می‌توانند Ready باشند. Select ممکن است مسیر ارسال را انتخاب کند، حتی در حالی که Writer در حال خروج یا خارج‌شده است.
+
+**اثر:** امکان باقی ماندن پیام در Queue پس از پایان Writer وجود دارد و این پیام دیگر مصرف نمی‌شود.
+
+**پیشنهاد:** پذیرش Send و آغاز Close باید با یک Synchronization/Admission State مشترک هماهنگ شوند. پس از آغاز Closing نباید Producer جدیدی بتواند به Queue متصل شود. صرف بررسی یک Atomic Bool قبل از Select برای جلوگیری از این Race کافی نیست.
+
