@@ -91,3 +91,8 @@
 No coding or benchmarks are authorized at this stage. When the owner later authorizes implementation, measure a minimal baseline early, document reproducible commands and environment, and keep optimizations evidence-driven. New benchmarks and tests should validate performance without sacrificing Q-003/Q-008/Q-009/Q-010 or wire compatibility.
 
 **Next architectural topic:** decide the public payload ownership model (PERF-002) with explicit performance/correctness tradeoffs. Do not silently select zero-copy or extra copies merely because performance was emphasized.
+
+
+## 7. Follow-up design review (2026-11-16; ALL NEW CHOICES OPEN)
+
+A detailed copy/ownership/retention matrix, bounded pending/completion-credit proposal, callback lifecycle impossibility boundary, and owner decision list are recorded in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md). Recommended **PERF-002 A** is one outbound snapshot copy on successful async admission and zero *extra* receive payload copies by decoding directly into an owned user-retainable buffer. This is a proposal, not an approval. PERF-003 numerical example limits and API-001b forced-close tradeoffs also remain OPEN; no benchmark or implementation was run.
