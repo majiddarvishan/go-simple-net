@@ -35,7 +35,7 @@
 
 - PINEX_GO_PORT_TASKS_2026-11-16.md — task breakdown, dependencies, acceptance criteria, open decisions.
 - PINEX_WIRE_PROTOCOL_2026-11-16.md — current Pinex 1.5.0 wire contract and differences from the uploaded Go sample.
-- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 approved, Q-007/008 pending.
+- NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md — design-only draft of public API, config, session lifecycle, concurrency, idle keepalive, request tracking and backpressure; Q-006 and Q-007 approved; Q-008 pending.
 - DECISION_LOG.md — approved Q-001 Option A and Q-005 Option B.
 - SERVER_REVIEW_2026-11-16.md — original static review of the uploaded server sample.
 
@@ -77,13 +77,13 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 - **Q-001 — APPROVED (Option A, 2026-11-16):** Pinex-compatible Bind Validator callback based on System ID and actual remote address. No password/token on the wire, no change to Bind PDU layout. Accepted Bind => rok 0x00; rejected => rfail 0xFF. This is not cryptographic identity authentication. See DECISION_LOG.md.
 - **Q-005 — APPROVED (Option B, 2026-11-16):** If no Bind Validator callback is supplied, allow an otherwise-valid Bind by default, matching Pinex C++. Duplicate `system_id`, malformed Bind, invalid state and admission limits are still enforced. If a callback is provided, enforce its allow/reject result. This is permissive admission, not authenticated peer identity. See DECISION_LOG.md.
-- **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric idle default is now **30s** (Q-006); unanswered-probe timeout still needs policy specification. See DECISION_LOG.md.
+- **Q-002 — APPROVED (2026-11-16):** Configurable, idle-only Enquire Link on Go Client and Server. Send automatically only after no successful frame exchange in either direction for a positive idle interval; `0` disables automatic sending, not replies to peer Enquire Link requests. Never send a second probe while one is outstanding; protocol bytes unchanged. Numeric idle default is **30s** (Q-006); matching-probe response timeout default **10s** and failure closure are approved (Q-007). See DECISION_LOG.md.
 - **Q-003 — APPROVED (2026-11-16):** Goroutine-safe Client/Server/Session APIs; non-overlapping, receipt-ordered callbacks per Session; isolation across Sessions; frame-safe concurrent sends; controlled shutdown for callbacks and pending operations. Implementation details (queue capacity, deadline, API signatures) still need design. See DECISION_LOG.md.
 - **Q-004 — CLOSED / APPROVED OPTION A (2026-11-16):** Lean V1 Core retains Pinex interoperability, sessions, backpressure, bounded FIFO, reconnect/timeout and idle-only Enquire Link. Defer Circuit Breaker, business Rate Limiter, Priority Queue, Prometheus exporter and SS7/Protobuf integrations; exclude automatic sequence dedup. Transport admission/backpressure remains mandatory. See DECISION_LOG.md.
 
 ## 8. Next action
 
-Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B is CLOSED (default idle interval 30s, explicit 0 disables sending). Next: resolve Q-007 (unanswered Enquire Link response deadline and failure policy), Q-008 (bounded queue defaults), then complete exported API decisions. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
+Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Lifecycle design is now drafted in NETA_GO_PUBLIC_API_CONFIG_DESIGN_2026-11-16.md. Q-006 Option B and Q-007 are CLOSED (idle interval default 30s; Enquire Link response timeout default 10s, close Session on missing matching response, reconnect Client only if configured). Next: resolve Q-008 (bounded queue defaults), then complete exported API decisions. Cross-language baseline/golden frames remain pending. No code, module or repository rename is authorized.
 
 
 ## 9. Approved Go library name
@@ -93,4 +93,9 @@ Q-001, Q-005, Q-002, Q-003, Q-004 and NAM-001 are closed. Public API/Config/Life
 
 ## 10. Enquire Link default decision
 
-**Q-006 CLOSED, Option B (2026-11-16):** neta-go Client/Server use an idle-only, configurable Enquire Link interval with a **30-second default**. It is not a fixed 30-second periodic probe: actual incoming/outgoing messages reset idle time. Explicit `0` disables automatic requests but never disables responding to incoming Enquire Link. Probe response deadline/action is **not** approved yet (Q-007).
+**Q-006 CLOSED, Option B (2026-11-16):** neta-go Client/Server use an idle-only, configurable Enquire Link interval with a **30-second default**. It is not a fixed 30-second periodic probe: actual incoming/outgoing messages reset idle time. Explicit `0` disables automatic requests but never disables responding to incoming Enquire Link. Probe response policy is approved in Q-007: **10-second configurable default**, matching response Sequence required; timeout closes the Session and Client reconnect is conditional on Auto Reconnect.
+
+
+## 11. Enquire Link response timeout decision
+
+**Q-007 CLOSED (2026-11-16):** Enquire Link response timeout is separately configurable, **10 seconds by default** on Go Client and Server. It begins after the full Request is written. Only matching `enquire_link_resp` (same Sequence) satisfies it; unrelated traffic cannot satisfy it. On expiry, Session closes once and pending operations terminate; Client retries only if Auto Reconnect was enabled. No Pinex wire changes or implementation were authorized.
