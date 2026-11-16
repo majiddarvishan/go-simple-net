@@ -185,7 +185,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 
 **Tests to write only after implementation authorization:** unset versus explicitly configured zero for Enquire Link, nonzero overrides of each Q-010 limit, invalid zero/negative input, unit conversion and limits in bytes vs MiB, parallel configuration use, no preallocation of full quotas.
 
-**API-004 STATUS:** OPEN — implementation approach proposed, not yet selected.
+**API-004 STATUS:** OPEN — implementation approach proposed, not yet selected. **Detailed contracts, validation matrix, examples of intents, and owner-choice comparison:** [NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md). No exported names or Config implementation have been approved.
 
 ## 7. Open decisions and next steps
 
@@ -196,7 +196,7 @@ The proposed Go defaults should be distinguished from *observed C++ defaults*. D
 | Q-008 | Capacity defaults and behavior at queue saturation | **Option A: 4 MiB per-session outgoing Application FIFO, immediate Queue Full, bounded control path** | CLOSED — approved 2026-11-16 |
 | Q-009 | Incoming callback overload policy | **Option B:** close the Session promptly if a new Application frame cannot fit its bounded callback backlog; do not affect other Sessions | CLOSED — approved 2026-11-16 |
 | Q-010 | Configurable resource limits and global overload | **Approved A:** inbound 4 MiB per Session, aggregate 256 MiB per Server, 1024 bound, 128 pre-bind/30s, Control reserve 4 KiB per Session; outgoing overflow => Queue Full, incoming => close offender | CLOSED — owner approved 2026-11-16; ALL CONFIGURABLE |
-| API-004 | Unset vs explicit zero Enquire Link interval | Prefer Options or optional field to preserve 30s default and explicit 0 disable | OPEN — API design |
+| API-004 | Default/explicit override and validation | **Option A recommended:** typed Functional Options + internal defaults + immutable resolved config. Option B: optional/pointer fields. [Detailed contract](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md) | OPEN — owner choice |
 | API-001 | Exported public types, callbacks, send/wait semantics, []byte ownership | Minimal Go-native API, explicit lifecycle and one completion source | DRAFT |
 | API-002 | Deadline/reconnect and shutdown configuration defaults | Prefer verified C++ baseline where appropriate; decide Go defaults explicitly | DRAFT |
 | API-003 | Package/module path | Library brand `neta-go` approved; package `neta` proposed; no rename | OPEN |
