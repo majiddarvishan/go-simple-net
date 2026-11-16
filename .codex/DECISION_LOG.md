@@ -108,14 +108,14 @@ Q-002 is **CLOSED** at the policy level. No code, tests or build actions were au
 
 ## Q-003 — Concurrency Safety and Callback Ordering (2026-11-16)
 
-**Status:** APPROVED — owner confirmed all five proposed rules  
+**Status:** HISTORICAL APPROVAL, **CALLBACK SERIALIZATION SUPERSEDED** by Q-003-R1 (2026-11-16); goroutine-safety, Session isolation, frame-safe sends and controlled shutdown remain binding  
 **Applies to:** GO-PINEX-002, GO-PINEX-004, GO-PINEX-007, GO-PINEX-008, GO-PINEX-009, GO-PINEX-010, GO-PINEX-013  
 **Implementation:** NOT AUTHORIZED
 
 ### Confirmed contract
 
 1. **Goroutine-safe public APIs:** Go Client, Server and Session methods must support concurrent calls from multiple goroutines.
-2. **Per-session callback ordering:** Callbacks for a given Session must execute serially, in message-receipt order. There must not be simultaneous callbacks for the same Session.
+2. **Per-session callback ordering — SUPERSEDED by Q-003-R1:** Original rule required serial execution in receipt order; the owner subsequently replaced it with bounded, **configurable parallel application callback execution**. At a configured concurrency of 1, application callbacks are serial. See Q-003-R1 below; do not implement the original unconditional serial rule.
 3. **Session independence:** A slow or blocked callback for one Session must not stall callbacks or network handling for unrelated Sessions. The owner approved independence, not unlimited background goroutines.
 4. **Concurrent sends:** Multiple goroutines may send over a single Session concurrently; outgoing Frame bytes must not interleave or corrupt. A session-local serialized writer must preserve the integrity of each frame.
 5. **Controlled shutdown:** On disconnect or shutdown, callback completion/cancellation and outstanding operations must be handled deterministically without duplicate terminal notifications, goroutine leaks, hangs or corrupted state.
@@ -127,7 +127,7 @@ Q-002 is **CLOSED** at the policy level. No code, tests or build actions were au
 - Race tests, concurrent-send frame-integrity tests, per-session order tests, cross-session isolation tests, and shutdown/churn tests are part of the planned acceptance work.
 - These are requirements to implement later; **no application code is approved**.
 
-Q-003 is **CLOSED**.
+Q-003 is **CLOSED as REVISED by Q-003-R1**; the original callback-serialization clause above is not current.
 
 ---
 
@@ -521,3 +521,38 @@ GitHub connector reads confirm existing `.codex` files are present under the new
 Finalize API-001b's forced-close/callback guarantees and then the remaining PERF-003 numerical/event-count details. Keep the contract and open questions reflected in [NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Performance Contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md) and [Handoff](HANDOFF.md).
 
 **Option B (byte FIFO bounds only) is NOT SELECTED. No code, tests, benchmarks or operational changes are authorized.**
+
+---
+
+## Q-003-R1 — Configurable Parallel Application Callback Dispatch (2026-11-16)
+
+**Status:** OWNER APPROVED — replaces the unconditional same-Session callback serialization clause in Q-003  
+**Owner selection:** **Option B** — parallel application callbacks with configurable maximum concurrency; setting **1** reproduces the serial processing mode for application messages.  
+**Implementation:** NOT AUTHORIZED.
+
+### Binding revision
+
+1. The original Q-003 **unconditional serial and non-overlapping application callback rule is revoked**. Deliver received Application messages via bounded Session-local dispatch, with a **positive independently configurable max number of concurrent application callbacks per Session**. Actual execution may overlap when the configured value is greater than one.
+2. **Concurrency = 1:** only one application message handler at a time for that Session; subsequent application messages wait, as in old Q-003. **Concurrency > 1:** multiple application handlers for the same Session may run at once; **completion order is not guaranteed**. Preserve FIFO **queue admission/dispatch selection order**, not sequential completion, for parallel mode. Do not infer delivery-order completion.
+3. The per-Session limit must be enforced without one unbounded goroutine per received message. Incoming waiting backlogs remain subject to **Q-009/Q-010** configurable byte bounds; if a valid Application frame cannot fit the bounded waiting queue, **close only that Session**, with no silent loss or backpressure policy change. A per-Session worker limit does not increase the 4 MiB incoming queue limit.
+4. **Independent internal engine:** frame parsing, Bind/Unbind, protocol Control responses, socket Reader/Writer ownership, Enquire Link, Sequence/Pending correlation, timeout processing, once-only logical completion and Close/Done resource settlement must **not depend on the application handler returning**. These are internal **state-machine functions, not user callback invocations**, and must proceed under bounded internal resources even if an application handler blocks forever. SendResponse remains safe from a handler.
+5. If **all** configured application workers are blocked, additional Application messages remain **waiting in the bounded queue**, not silently dispatched to unlimited workers; a subsequent overflow retains the Q-009/Q-010 Session-only close policy. No library can forcibly terminate an arbitrarily blocked user function. Already executing application callbacks may outlive socket closure; library-owned queued buffers, pending state and accounted resources must be reclaimed subject to the still-open API-001b terminal delivery policy.
+6. Previous approvals that remain binding: goroutine-safe public Client/Server/Session methods, cross-Session isolation, single serialized TCP Writer with no frame interleaving, deterministic controlled teardown and at-most-once logical terminal state. Pinex C++ 1.5.0 **wire protocol stays unchanged**.
+7. The configured `MaxConcurrentApplicationCallbacks` semantic is **approved**; the exact exported option name, **default value**, maximum validation rules, global running-worker admission and whether *user-facing* OnClose/per-request completion callbacks should share or use separate dispatch lanes are **OPEN**. Do not silently infer a default of 1 or N merely from the user's selection.
+
+### Internal-versus-user callback separation (engineering feasibility)
+
+- **Approved intent:** an application callback which hangs must not stop internal protocol/transport and Request/Pending timeout/close state-machine progress.
+- **Design recommendation, NOT YET APPROVED as an API-001b choice:** separate callback **work classes**: (a) internal state transitions (no arbitrary user code); (b) bounded application `OnRequest` workers; (c) bounded asynchronous user notification delivery for `OnClose` and per-request completion. The latter remain **user code** and may themselves block. They cannot be guaranteed to run promptly/exactly once under arbitrary permanent stalls without additional scheduling/resource tradeoffs.
+- **Open API-001b:** choose completion and lifecycle notification dispatch semantics, cancel/drop or defer unstarted callbacks on forced Close, `Done` signal and per-class ordering. The earlier forced-close Options A and B must be **reevaluated for the new parallel callback design**, not automatically approved by the user's selection of **callback concurrency Option B**.
+- The number of **active** callbacks can now be N per Session; their retained payloads and stacks are separate from the Q-010 **waiting queue** 4 MiB byte budget and 256 MiB Server aggregate **queued** application bytes. Propose bounded active-callback count and memory/admission accounting before implementation; do not present these queue limits as a global RSS cap.
+
+### Outstanding design questions
+
+- Default concurrency (recommend a conservative value pending representative load results), independent Server-wide worker ceiling, exact public Functional Option name and count-based validation.
+- Whether user-visible Request completions and OnClose execute in a separate bounded lane (and their ordering/overlap semantics).
+- API-001b forced Close behavior for already-running and queued application/notification callbacks.
+- PERF-003 approved bounded outstanding completion count remains binding and independent of application dispatch concurrency. Numeric pending/completion defaults still OPEN.
+- No implementation, tests, benchmark, builds, Go module changes or operational actions are authorized.
+
+**References:** [Public API design](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [Resource admission](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md), [Async completion design](NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md), [Handoff](HANDOFF.md).
