@@ -252,9 +252,13 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 
 	case wire.CommandEnquireLinkResponse:
 		s.mu.Lock()
-		if s.enquireLinkOutstanding && frame.Header.Sequence == s.enquireLinkSequence {
-			s.enquireLinkOutstanding = false
-			s.enquireLinkDeadline = time.Time{}
+		if frame.Header.Sequence == s.enquireLinkSequence {
+			if s.enquireLinkQueued {
+				s.enquireLinkResponseSeen = true
+			} else if s.enquireLinkOutstanding {
+				s.enquireLinkOutstanding = false
+				s.enquireLinkDeadline = time.Time{}
+			}
 		}
 		s.mu.Unlock()
 		s.signalControl()
@@ -272,6 +276,7 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 		err = s.enqueueControlLocked(&outboundFrame{
 			bytes: response,
 			control: true,
+			barrier: true,
 			afterWrite: func() { s.beginClose(nil, false) },
 		})
 		s.mu.Unlock()
@@ -299,16 +304,31 @@ func (s *Session) writerLoop() {
 	defer s.wg.Done()
 	for {
 		s.mu.Lock()
-		for len(s.outQueue) == 0 && !s.isClosingLocked() {
+		for len(s.controlQueue) == 0 && len(s.appQueue) == 0 && len(s.barrierQueue) == 0 && !s.isClosingLocked() {
 			s.cond.Wait()
 		}
 		if s.isClosingLocked() {
 			s.mu.Unlock()
 			return
 		}
-		item := s.outQueue[0]
-		s.outQueue[0] = nil
-		s.outQueue = s.outQueue[1:]
+
+		var item *outboundFrame
+		switch {
+		case len(s.controlQueue) > 0:
+			item = s.controlQueue[0]
+			s.controlQueue[0] = nil
+			s.controlQueue = s.controlQueue[1:]
+		case len(s.appQueue) > 0:
+			item = s.appQueue[0]
+			s.appQueue[0] = nil
+			s.appQueue = s.appQueue[1:]
+		case len(s.barrierQueue) > 0:
+			// Unbind is a FIFO barrier: it cannot pass any previously admitted
+			// Application Stream frame, but it uses independent control reserve.
+			item = s.barrierQueue[0]
+			s.barrierQueue[0] = nil
+			s.barrierQueue = s.barrierQueue[1:]
+		}
 		s.activeWrite = item
 		if item.requestSeq != 0 {
 			if pending := s.pending[item.requestSeq]; pending != nil {

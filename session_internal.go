@@ -63,6 +63,7 @@ type sessionIdentity struct {
 type outboundFrame struct {
 	bytes      []byte
 	control    bool
+	barrier    bool
 	requestSeq uint32
 	afterWrite func()
 }
@@ -104,7 +105,9 @@ type Session struct {
 	bindType            wire.BindType
 	sequence            wire.SequenceGenerator
 	pending             map[uint32]*pendingRequest
-	outQueue            []*outboundFrame
+	appQueue            []*outboundFrame
+	controlQueue        []*outboundFrame
+	barrierQueue        []*outboundFrame
 	queuedAppBytes      uint64
 	queuedAppFrames     uint32
 	queuedControlBytes  uint64
@@ -119,6 +122,7 @@ type Session struct {
 	enquireLinkSequence uint32
 	enquireLinkQueued   bool
 	enquireLinkOutstanding bool
+	enquireLinkResponseSeen bool
 	pendingBind         *bindRequestEvent
 	bindRequests        chan bindRequestEvent
 	closeCause          error
@@ -161,6 +165,9 @@ func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, d
 }
 
 func newBoundSession(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) *Session {
+	if conn == nil {
+		return nil
+	}
 	s := newSession(conn, config, identity, dispatcher, handlers)
 	s.mu.Lock()
 	s.state = SessionStateBound
@@ -173,6 +180,9 @@ func newBoundSession(conn net.Conn, config sessionConfig, identity sessionIdenti
 }
 
 func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind, bindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) (*Session, error) {
+	if conn == nil {
+		return nil, newConfigError("connection", "<nil>", "must be non-nil")
+	}
 	if bindTimeout <= 0 {
 		return nil, newConfigError("bind_response_timeout", bindTimeout.String(), "must be a positive duration")
 	}
@@ -204,6 +214,9 @@ func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind
 }
 
 func newServerPreBindSession(conn net.Conn, config sessionConfig, acceptedAt time.Time, preBindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) (*Session, error) {
+	if conn == nil {
+		return nil, newConfigError("connection", "<nil>", "must be non-nil")
+	}
 	if preBindTimeout <= 0 {
 		return nil, newConfigError("prebind_handshake_timeout", preBindTimeout.String(), "must be a positive duration")
 	}
@@ -360,19 +373,9 @@ func (s *Session) nextSequenceLocked() uint32 {
 	// sequences can be live. The extra attempts cover a wraparound collision.
 	for attempts := 0; attempts <= len(s.pending)+4; attempts++ {
 		sequence := s.sequence.Next()
-		if _, exists := s.pending[sequence]; exists {
-			continue
+		if !s.isSequenceInUseLocked(sequence) {
+			return sequence
 		}
-		if sequence == s.bindSequence && s.state == SessionStateBinding {
-			continue
-		}
-		if sequence == s.unbindSequence && s.state == SessionStateUnbinding {
-			continue
-		}
-		if sequence == s.enquireLinkSequence && (s.enquireLinkQueued || s.enquireLinkOutstanding) {
-			continue
-		}
-		return sequence
 	}
 	return 0
 }
@@ -386,7 +389,11 @@ func (s *Session) enqueueControlLocked(item *outboundFrame) error {
 		return ErrCapacity
 	}
 	s.queuedControlBytes = next
-	s.outQueue = append(s.outQueue, item)
+	if item.barrier {
+		s.barrierQueue = append(s.barrierQueue, item)
+	} else {
+		s.controlQueue = append(s.controlQueue, item)
+	}
 	s.cond.Signal()
 	return nil
 }
@@ -404,7 +411,7 @@ func (s *Session) enqueueApplicationLocked(item *outboundFrame) error {
 	}
 	s.queuedAppBytes = next
 	s.queuedAppFrames++
-	s.outQueue = append(s.outQueue, item)
+	s.appQueue = append(s.appQueue, item)
 	s.cond.Signal()
 	return nil
 }
@@ -432,14 +439,14 @@ func (s *Session) releaseFrameChargeLocked(item *outboundFrame) {
 }
 
 func (s *Session) removeQueuedRequestLocked(sequence uint32) bool {
-	for i, item := range s.outQueue {
+	for i, item := range s.appQueue {
 		if item.requestSeq != sequence {
 			continue
 		}
 		s.releaseFrameChargeLocked(item)
-		copy(s.outQueue[i:], s.outQueue[i+1:])
-		s.outQueue[len(s.outQueue)-1] = nil
-		s.outQueue = s.outQueue[:len(s.outQueue)-1]
+		copy(s.appQueue[i:], s.appQueue[i+1:])
+		s.appQueue[len(s.appQueue)-1] = nil
+		s.appQueue = s.appQueue[:len(s.appQueue)-1]
 		s.cond.Broadcast()
 		return true
 	}
@@ -483,10 +490,12 @@ func (s *Session) beginClose(cause error, forced bool) {
 			}
 		}
 
-		for _, item := range s.outQueue {
-			s.releaseFrameChargeLocked(item)
-		}
-		s.outQueue = nil
+		for _, item := range s.appQueue { s.releaseFrameChargeLocked(item) }
+		for _, item := range s.controlQueue { s.releaseFrameChargeLocked(item) }
+		for _, item := range s.barrierQueue { s.releaseFrameChargeLocked(item) }
+		s.appQueue = nil
+		s.controlQueue = nil
+		s.barrierQueue = nil
 		s.preBindDeadline = time.Time{}
 		s.bindDeadline = time.Time{}
 		s.unbindDeadline = time.Time{}
@@ -522,7 +531,9 @@ func (s *Session) finishClose() {
 	s.state = SessionStateClosed
 	cause := s.closeCause
 	s.pending = make(map[uint32]*pendingRequest)
-	s.outQueue = nil
+	s.appQueue = nil
+	s.controlQueue = nil
+	s.barrierQueue = nil
 	s.activeWrite = nil
 	s.mu.Unlock()
 

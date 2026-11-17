@@ -141,7 +141,7 @@ func (s *Session) Unbind(ctx context.Context) error {
 		s.state = SessionStateUnbinding
 		s.unbindSequence = sequence
 		s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
-		if err := s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true}); err != nil {
+		if err := s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true}); err != nil {
 			s.mu.Unlock()
 			s.beginClose(err, true)
 			return err

@@ -75,8 +75,14 @@ func (s *Session) controlLoop() {
 							s.mu.Lock()
 							if s.state == SessionStateBound && s.enquireLinkQueued {
 								s.enquireLinkQueued = false
-								s.enquireLinkOutstanding = true
-								s.enquireLinkDeadline = time.Now().Add(s.config.enquireLinkResponseTimeout)
+								if s.enquireLinkResponseSeen {
+									s.enquireLinkResponseSeen = false
+									s.enquireLinkOutstanding = false
+									s.enquireLinkDeadline = time.Time{}
+								} else {
+									s.enquireLinkOutstanding = true
+									s.enquireLinkDeadline = time.Now().Add(s.config.enquireLinkResponseTimeout)
+								}
 							}
 							s.mu.Unlock()
 							s.signalControl()
