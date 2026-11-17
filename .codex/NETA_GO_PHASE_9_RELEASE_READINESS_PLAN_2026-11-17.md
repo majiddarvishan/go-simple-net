@@ -57,6 +57,9 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 - Refined Phase 9 tasks, acceptance criteria, dependencies and the P9-06 release boundary.
 - Recorded the Phase 9 authorization in the decision log and this plan.
 - No production source, tests, public API, wire protocol, defaults or resource limits changed.
+- P9-00 commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450) and [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0).
+- Go correctness CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747) PASS (`make verify`) and Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634) PASS on the final P9-00 commit.
+- A relative Markdown link audit corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; the audited links now resolve.
 
 ### P9-01 — Client example
 

@@ -279,6 +279,9 @@ This root-level file is the single, canonical, implementation-facing task list f
 - P9-00 baseline HEAD: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`; the production source remains at `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
 - Final pre-Phase-9 Go CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) both PASS on the baseline HEAD.
 - P9-00 changes only project documentation/tracking/authorization records; no production source, tests, API, protocol or defaults are changed.
+- P9-00 documentation commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450) and [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0).
+- Final P9-00 Go CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747): PASS (`make verify`); Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634): PASS, both on HEAD `c6ac25338851edda1630dd6301a8eaf509f994c0`.
+- Internal Markdown link audit found and corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; all audited relative links now resolve.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---
@@ -318,7 +321,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ### Phase 4 completion evidence — 2026-11-17
 
-- Implementation report: [NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md).
+- Implementation report: [NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md](.codex/NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md).
 - Source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
 - 46 Session tests + 8 owner-ledger tests.
 - Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.

@@ -1100,4 +1100,4 @@ Do not apply or drop the stash as part of this review.
 
 ### Next action
 
-Proceed with P9-01 and P9-02 after P9-00 is committed and its documentation-only commit's automatic Go/Pinex CI results are inspected. Keep all frozen production contracts unchanged.
+P9-00 is committed. Go correctness CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747) and Pinex Wire Compatibility CI [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634) both PASS on final P9-00 HEAD `c6ac25338851edda1630dd6301a8eaf509f994c0`. Next: begin P9-01 and P9-02. Keep all frozen production contracts unchanged.
