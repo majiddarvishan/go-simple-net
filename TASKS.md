@@ -5,8 +5,8 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `be2511ba9701313526fdc03e27e8e51583f4af21`  
-**Current phase:** Phase 7 — Live interoperability and fault-injection verification (**IN PROGRESS**, owner authorized 2026-11-17). Phase 8–9 remain gated.
+**Last verified source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
+**Current phase:** Phase 7 — Live interoperability and fault-injection verification (**COMPLETE / CI PASS**, owner authorized 2026-11-17). Phase 8–9 remain gated.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -28,7 +28,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
-| 7 | Live interoperability and fault-injection verification | IN PROGRESS | Owner authorized 2026-11-17 |
+| 7 | Live interoperability and fault-injection verification | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
 
@@ -183,27 +183,28 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## Phase 7 — Live interoperability and fault-injection verification
 
-<badge color="warning">IN PROGRESS — OWNER AUTHORIZED 2026-11-17</badge>
+<badge color="success">COMPLETE / CI PASS — 2026-11-17</badge>
 
-**Authorization:** The owner explicitly approved Phase 7 by replying «آره» in this conversation. Scope is P7-01..P7-08 only. No Phase 8 performance optimization or Phase 9 release/deployment work is authorized.
+**Authorization:** The owner explicitly approved Phase 7 by replying «آره» in this conversation. P7-01..P7-08 are complete. Phase 8 performance optimization and Phase 9 release/deployment remain outside the authorization.
 
-- [x] **P7-01 — Re-pin Pinex:** rechecked majiddarvishan/pinex develop; version remains 1.5.0, exact HEAD f7bd1eb779baff0d10e624f20522df345e6ee747, identical to the frozen compatibility Snapshot. No Wire/API/default change is required.
-- [ ] **P7-02 — Bidirectional TCP interoperability:** real-socket harness added for Go Client ↔ actual Pinex C++ Server and actual Pinex C++ Client ↔ Go Server using Pinex public messaging_client / messaging_server headers. Awaiting the dedicated cross-repository workflow result.
-- [ ] **P7-03 — Wire fuzzing:** five Go fuzz targets added for Header parsing, Frame decoding, Bind Request/Response and Stream Request decoding. Seed-corpus unit execution passed; bounded fuzz campaigns are pending.
-- [ ] **P7-04 — Transport faults:** real-TCP tests added for fragmented Bind Response, out-of-order correlated Responses, absolute slow-trickle Frame Assembly timeout and abrupt TCP RST. Existing real-TCP Client tests cover silent Bind timeout and Bind rejection. Remaining: graceful EOF-specific assertion and privileged kernel-level SYN blackhole injection; do not claim those as verified.
-- [x] **P7-05 — Admission faults:** existing Phase 4 admission matrix was re-run under the Go race CI: queue/byte/count/Request/retained-memory limits, scratch-drain timeout, offender-only close, partial-read release and owner-ledger accounting all pass.
-- [x] **P7-06 — Callback faults:** existing Worker Scheduler matrix was re-run under the Go race CI: blocked callback isolation, Forced Close cancellation/start races, OnClose saturation, fairness and retired-generation permit retention all pass.
-- [ ] **P7-07 — Long-running soak:** bounded reconnect soak harness added. Dedicated workflow will run it for 30 seconds and verify generation churn, worker ceilings and zero owner-resource charges after Stop. Not yet executed.
-- [ ] **P7-08 — Compatibility acceptance:** pending both real-socket directions, fuzz campaign, soak and closure of remaining P7-04 gaps.
+- [x] **P7-01 — Re-pin Pinex:** rechecked majiddarvishan/pinex develop; version remains 1.5.0, exact HEAD f7bd1eb779baff0d10e624f20522df345e6ee747, identical to the frozen compatibility Snapshot. No Wire/API/default change was required.
+- [x] **P7-02 — Bidirectional TCP interoperability:** real loopback TCP passed in both directions: Go Client ↔ actual Pinex C++ Server and actual Pinex C++ Client ↔ Go Server. Both directions verified Bind identity, Request/Response payload, Sequence correlation and graceful Unbind.
+- [x] **P7-03 — Wire fuzzing:** all five Header/Frame/Bind/Stream fuzz targets passed bounded 10-second campaigns. Aggregate: 1,810,074 executions, no crash or failing input.
+- [x] **P7-04 — Transport faults:** passed fragmented reads/writes, slow-trickle absolute Bind Response timeout, silent accepted-socket blackhole, graceful EOF, abrupt RST, reordered Responses, Bind rejection and timeout/cancellation races. Firewall-level SYN-drop/network-namespace injection was not run; the application-stage silent Bind blackhole was exercised without privileged host-network changes.
+- [x] **P7-05 — Admission faults:** queue/byte/count/Request/retained-memory limits, scratch-drain timeout, offender-only close, partial-read release and owner-ledger accounting passed under race CI.
+- [x] **P7-06 — Callback faults:** blocked callback isolation, Forced Close cancellation/start races, OnClose saturation, fairness and retired-generation permit retention passed under race CI.
+- [x] **P7-07 — Long-running soak:** 30-second reconnect soak with three Clients passed; Bound generation churn stayed within configured worker ceilings and owner Request/retained-byte/event credits returned to zero after Stop.
+- [x] **P7-08 — Compatibility acceptance:** all pinned golden vectors and both real-socket Go↔Pinex directions passed. Final Go race, fault, soak and fuzz campaign passed.
 
-### Initial Phase 7 implementation and verification evidence — 2026-11-17
+### Final Phase 7 implementation and verification evidence — 2026-11-17
 
-- Implementation source HEAD: be2511ba9701313526fdc03e27e8e51583f4af21.
-- Go CI [44079860986](https://github.com/majiddarvishan/neta-go/actions/runs/44079860986): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
-- Pinex golden compatibility [44079861215](https://github.com/majiddarvishan/neta-go/actions/runs/44079861215): PASS. This remains a golden-frame check, not live socket proof.
-- Dedicated live interoperability workflow is in the Pinex-only test branch test/neta-go-phase7-interop; it verifies the develop ref against the frozen SHA, compiles the real C++ peer, checks out neta-go main, and runs race/fault/soak/fuzz tests. Current run: [44080043667](https://github.com/majiddarvishan/pinex/actions/runs/44080043667).
-- Test sources: test/interop/pinex_peer.cpp, phase7_interop_test.go, phase7_transport_test.go, phase7_soak_test.go, and internal/wire/wire_fuzz_test.go.
-- The Pinex test workflow is isolated on a test branch; Pinex develop and its production source were not modified.
+- Final verified neta-go source HEAD: 209c24a7dbc5a5aa3db95ec63705915406acacb6.
+- Dedicated Pinex live interoperability workflow [44081220680](https://github.com/majiddarvishan/pinex/actions/runs/44081220680): PASS. It verified Pinex develop SHA f7bd1eb779baff0d10e624f20522df345e6ee747, built the real C++ peer, checked out the exact neta-go HEAD above, and passed both real TCP directions, go vet, go test -race, the 30-second reconnect soak and all five fuzz campaigns.
+- Fuzz campaign totals from the workflow logs: 365,447 + 359,928 + 363,418 + 361,403 + 359,878 = 1,810,074 executions across five targets, each for 10 seconds with two workers.
+- Go CI [44081197715](https://github.com/majiddarvishan/neta-go/actions/runs/44081197715): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Golden Compatibility [44081197688](https://github.com/majiddarvishan/neta-go/actions/runs/44081197688): PASS.
+- Implementation report: [.codex/NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md](.codex/NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md).
+- The dedicated interoperability workflow lives on Pinex test-only branch test/neta-go-phase7-interop. Pinex develop and its production source were not modified.
 - No public API, wire format, timeout/reconnect policy, resource ceiling or frozen architecture decision was changed.
 
 ## Phase 8 — Performance baseline and evidence-driven optimization

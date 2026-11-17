@@ -1,15 +1,15 @@
 # Phase 7 — Live Interoperability and Fault-Injection Implementation Report
 
-**Status:** IN PROGRESS  
+**Status:** COMPLETE / CI PASS  
 **Date:** 2026-11-17  
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
-**Owner authorization:** Explicitly granted in this conversation on 2026-11-17  
-**Implementation source HEAD:** be2511ba9701313526fdc03e27e8e51583f4af21
+**Final verified source HEAD:** 209c24a7dbc5a5aa3db95ec63705915406acacb6  
+**Owner authorization:** Explicitly granted in this conversation on 2026-11-17
 
 ## Scope and safety boundary
 
-The owner authorized P7-01..P7-08 only. No frozen public API, Wire Protocol, timeout/reconnect policy, resource ceiling, default or architecture decision may be changed without a newly justified owner decision.
+The owner authorized P7-01..P7-08 only. All eight tasks are complete. No frozen public API, Wire Protocol, timeout/reconnect policy, resource ceiling, default or architecture decision was changed.
 
 Phase 8 performance/optimization and Phase 9 examples/release/deployment remain unauthorized.
 
@@ -23,43 +23,27 @@ Phase 8 performance/optimization and Phase 9 examples/release/deployment remain 
 - Exact HEAD: f7bd1eb779baff0d10e624f20522df345e6ee747
 - The current branch HEAD is identical to the frozen source Snapshot. No source drift or Wire Contract change was found.
 
-## Verification harness added
+## P7-02 — Bidirectional real-socket interoperability
 
-### Real Pinex C++ peer
+**PASS.**
 
-test/interop/pinex_peer.cpp is a small test-only process using the actual Pinex public high-level APIs:
+A test-only C++ peer uses the actual Pinex public high-level APIs:
 
 - pa::pinex::messaging_server for the Pinex C++ Server role.
 - pa::pinex::messaging_client for the Pinex C++ Client role.
-- The peer exchanges one request/response and performs graceful Unbind.
 
-No Pinex private implementation source or header tree is copied into the public neta-go repository.
+Two loopback TCP scenarios passed:
 
-### Go interoperability tests
-
-phase7_interop_test.go adds two real loopback TCP scenarios:
-
-1. Go Client → Pinex C++ Server; validates Bind identity, Request/Response payload and graceful Stop.
+1. Go Client → Pinex C++ Server; validates Bind identity, Request/Response payload and graceful Stop/Unbind.
 2. Pinex C++ Client → Go Server; validates Bind, Request/Response payload and graceful Unbind.
 
-These tests are opt-in through NETA_PINEX_PEER_BIN, so ordinary Go-only CI does not pretend to perform cross-language verification.
+The C++ peer obeys Pinex thread affinity by constructing and dispatching all public API operations on one io_context thread. No Pinex private implementation source or header tree is copied into the public neta-go repository.
 
-### Transport faults
+## P7-03 — Wire fuzzing
 
-phase7_transport_test.go adds real-TCP coverage for:
+**PASS.**
 
-- fragmented Bind Response delivery;
-- two Stream Responses arriving out of order and matching the correct Request Sequence;
-- slow-trickle Bind Response exceeding the absolute Frame Assembly deadline;
-- abrupt TCP RST after a successful Bind.
-
-Existing Client tests additionally cover silent Bind timeout and Bind rejection without retry.
-
-**Remaining P7-04 gaps:** graceful EOF-specific coverage and privileged kernel-level SYN blackhole/network-namespace injection have not yet been run. The existing silent accepted-socket timeout is an application-stage blackhole, not proof of a firewall-level SYN drop.
-
-### Wire fuzzing
-
-internal/wire/wire_fuzz_test.go adds five fuzz targets:
+Five fuzz targets completed 10-second campaigns each with two workers:
 
 - FuzzParseHeader
 - FuzzDecodeFrame
@@ -67,13 +51,57 @@ internal/wire/wire_fuzz_test.go adds five fuzz targets:
 - FuzzDecodeBindResponse
 - FuzzDecodeStreamRequest
 
-Ordinary go test exercises their seed corpora. The bounded fuzz campaigns remain pending the dedicated workflow.
+Aggregate executions from the workflow logs:
 
-### Reconnect soak
+365,447 + 359,928 + 363,418 + 361,403 + 359,878 = **1,810,074 executions**.
 
-phase7_soak_test.go adds an environment-gated 3-Client loopback reconnect soak. It measures Bound generations, checks configured callback worker ceilings and verifies owner Request/retained-byte/event credits return to zero after Stop.
+All campaigns passed; no crash or failing input was found.
 
-The dedicated workflow configures a 30-second soak. It has not yet been executed.
+## P7-04 — Transport fault injection
+
+**PASS for the defined unprivileged loopback transport matrix.**
+
+The real-TCP tests cover:
+
+- fragmented Bind Response delivery and fragmented response writes;
+- out-of-order Stream Responses matched to the correct Request Sequence;
+- slow-trickle Bind Response that cannot extend the absolute Bind Response deadline;
+- silent accepted TCP peer that withholds Bind Response (application-stage blackhole);
+- graceful EOF after successful Bind;
+- abrupt TCP RST after successful Bind;
+- existing silent Bind timeout and Bind rejection/no-retry behavior;
+- existing short-writer/partial-write handling and Bind-vs-Context cancellation race tests.
+
+**Explicit limitation:** privileged firewall-level SYN-drop/network-namespace injection was not run. No host firewall or production network was modified. The application-stage silent TCP blackhole case was exercised.
+
+## P7-05 — Admission fault verification
+
+**PASS.**
+
+The existing Phase 4 admission matrix was re-run under the Go race detector, including queue/byte/count/Request/retained-memory exhaustion, scratch-drain timeout, offender-only close, partial-read release and owner-ledger accounting. All passed.
+
+## P7-06 — Callback fault verification
+
+**PASS.**
+
+The Worker Scheduler matrix was re-run under the Go race detector, including blocked callback isolation, Forced Close cancellation/start races, OnClose saturation, fairness and retired-generation permit retention. All passed.
+
+## P7-07 — Reconnect and resource soak
+
+**PASS.**
+
+The dedicated workflow ran the environment-gated soak for 30 seconds with three Clients. It verified Bound generation churn, configured callback worker ceilings, and zero owner Request/retained-byte/event credits after Stop. The soak passed under the Go race detector.
+
+## P7-08 — Final compatibility acceptance
+
+**PASS.**
+
+- Pinex 1.5.0 golden fixtures passed.
+- Go Client ↔ Pinex C++ Server real TCP passed.
+- Pinex C++ Client ↔ Go Server real TCP passed.
+- All transport, admission and callback fault tests passed.
+- All five bounded fuzz campaigns passed.
+- The 30-second reconnect soak passed.
 
 ## Dedicated cross-repository CI
 
@@ -83,48 +111,35 @@ Workflow:
 
 https://github.com/majiddarvishan/pinex/actions/workflows/neta-go-interop.yml
 
-The workflow:
+Final run:
 
-1. verifies Pinex develop is still the exact pinned SHA;
-2. compiles the C++ peer against the actual Pinex public headers and installed Boost/fmt dependencies;
-3. checks out neta-go main;
-4. runs formatting, vet, all tests under the Go race detector, and the 30-second soak;
-5. runs five bounded 10-second fuzz campaigns.
+https://github.com/majiddarvishan/pinex/actions/runs/44081220680
+
+The workflow verified the Pinex develop ref against the exact frozen SHA, built the C++ peer against the actual Pinex public headers and Boost/fmt dependencies, checked out the exact neta-go source HEAD above, and passed formatting, vet, race/fault/soak tests and all five fuzz campaigns.
 
 The workflow and branch are isolated from Pinex develop; no production Pinex source branch was modified.
 
-Current run:
+## Final verification evidence
 
-https://github.com/majiddarvishan/pinex/actions/runs/44080043667
+At neta-go source HEAD 209c24a7dbc5a5aa3db95ec63705915406acacb6:
 
-## Verification evidence so far
+- Dedicated Pinex live interoperability [44081220680](https://github.com/majiddarvishan/pinex/actions/runs/44081220680): PASS — real TCP in both directions, race, faults, 30-second soak and fuzz.
+- Go CI [44081197715](https://github.com/majiddarvishan/neta-go/actions/runs/44081197715): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Golden Compatibility [44081197688](https://github.com/majiddarvishan/neta-go/actions/runs/44081197688): PASS.
 
-At source HEAD be2511ba9701313526fdc03e27e8e51583f4af21:
+## Final task status
 
-- Go CI https://github.com/majiddarvishan/neta-go/actions/runs/44079860986: PASS — gofmt, go vet ./..., go test ./... and go test -race ./....
-- Pinex Golden Compatibility https://github.com/majiddarvishan/neta-go/actions/runs/44079861215: PASS. This is still a golden-frame check, not live socket proof.
+| Task | Status |
+|---|---|
+| P7-01 — Pinex source re-pin | PASS |
+| P7-02 — Bidirectional real TCP interoperability | PASS |
+| P7-03 — Wire fuzzing | PASS |
+| P7-04 — Transport faults | PASS |
+| P7-05 — Admission faults | PASS |
+| P7-06 — Callback faults | PASS |
+| P7-07 — Reconnect/resource soak | PASS |
+| P7-08 — Compatibility acceptance | PASS |
 
-The initial test commit had a Go vet failure because the RST test called SetLinger through the net.Conn interface. The test was corrected to use *net.TCPConn; the final Go CI run above passes.
+No public API, Wire Protocol, defaults, timeout/reconnect policy, resource ceilings or frozen architecture decisions changed.
 
-## Task status
-
-| Task | Status | Evidence / remaining |
-|---|---|---|
-| P7-01 | PASS | Exact Pinex develop SHA re-pinned; no drift |
-| P7-02 | PENDING | Bidirectional real-socket harness added; dedicated workflow running |
-| P7-03 | PENDING | Five fuzz targets added; campaigns pending |
-| P7-04 | IN PROGRESS | Fragmentation, reordering, slow-trickle and RST tests pass; graceful EOF and privileged SYN blackhole remain |
-| P7-05 | PASS | Existing Phase 4 admission matrix passes in Go race CI |
-| P7-06 | PASS | Existing Worker Scheduler fault/race matrix passes in Go race CI |
-| P7-07 | PENDING | 30-second reconnect soak added; execution pending |
-| P7-08 | PENDING | Final acceptance waits for P7-02, P7-03, P7-04 and P7-07 |
-
-## Next actions
-
-1. Inspect the dedicated Pinex workflow result and fix any actual compile/interoperability/test failure.
-2. Complete the fuzz campaigns and soak with the exact Pinex baseline.
-3. Add the remaining graceful EOF transport case; attempt privileged network-namespace SYN blackhole only if the runner supports it without changing the host network.
-4. Re-run both directions and the full verification matrix; update TASKS.md, this report and HANDOFF.md with only proven evidence.
-5. Close P7-08 only after every required acceptance criterion is satisfied.
-
-No Phase 8 or Phase 9 work is included.
+Phase 7 is closed. Phase 8 performance/optimization and Phase 9 release/deployment require separate owner authorization.

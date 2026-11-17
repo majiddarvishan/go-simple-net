@@ -937,3 +937,28 @@ The final Go verification also hardened an existing Worker Scheduler race-test a
 **Task status:** P7-01 complete; P7-05 and P7-06 pass on the race CI; P7-02, P7-03 and P7-07 await the dedicated workflow; P7-04 remains open for graceful EOF and privileged kernel-level SYN blackhole evidence; P7-08 remains open.
 
 No public API, wire format, defaults, resource ceilings or frozen architecture decisions were changed. Continue autonomously within Phase 7. Record each task only after its evidence passes. Do not begin Phase 8 or Phase 9.
+
+
+## 21. Phase 7 completion — Live interoperability and fault verification (2026-11-17)
+
+**Status:** COMPLETE / CI PASS  
+**Final neta-go source HEAD:** 209c24a7dbc5a5aa3db95ec63705915406acacb6  
+**Pinex compatibility baseline:** version 1.5.0, develop SHA f7bd1eb779baff0d10e624f20522df345e6ee747
+
+The owner authorized P7-01..P7-08. All eight tasks are now complete:
+
+- Both real TCP directions passed using the actual Pinex high-level C++ messaging_client / messaging_server APIs.
+- Five Go wire fuzz targets each ran for 10 seconds; aggregate 1,810,074 executions, no crash or failing input.
+- Transport matrix passed: fragmented frames, short writes, slow-trickle absolute Bind Response timeout, silent accepted-socket blackhole, graceful EOF, RST, reordered Responses, Bind rejection and timeout/cancellation races.
+- Existing admission and Worker Scheduler fault matrices passed under the race detector.
+- A 30-second, three-Client reconnect soak passed; owner resource charges returned to zero after Stop and callback worker ceilings were respected.
+- Golden compatibility passed.
+
+**Final CI evidence:**
+- Dedicated Pinex live interop [44081220680](https://github.com/majiddarvishan/pinex/actions/runs/44081220680): PASS — exact Pinex source re-pin, C++ peer build, bidirectional real sockets, Go race/fault tests, soak and fuzz.
+- Go CI [44081197715](https://github.com/majiddarvishan/neta-go/actions/runs/44081197715): PASS — format, vet, unit and race.
+- Pinex Golden Compatibility [44081197688](https://github.com/majiddarvishan/neta-go/actions/runs/44081197688): PASS.
+
+The dedicated Pinex workflow remains on test-only branch test/neta-go-phase7-interop; Pinex develop was not changed. The test suite exercises an application-stage silent TCP Bind peer as the blackhole case. Privileged firewall-level SYN-drop/network-namespace injection was not run and is not claimed.
+
+No public API, wire format, defaults, resource ceilings or frozen architecture decisions were changed. Phase 7 is closed. Phase 8 performance/optimization and Phase 9 release/deployment remain NOT AUTHORIZED and require separate owner approval.
