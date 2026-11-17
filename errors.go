@@ -44,6 +44,10 @@ type ConfigError struct {
 	constraint string
 }
 
+func newConfigError(field, value, constraint string) *ConfigError {
+	return &ConfigError{field: field, value: value, constraint: constraint}
+}
+
 // Error returns the diagnostic configuration error string.
 func (e *ConfigError) Error() string {
 	if e == nil {
