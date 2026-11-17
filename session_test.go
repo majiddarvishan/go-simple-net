@@ -254,7 +254,9 @@ func TestSessionOnBoundIsQueuedBeforeApplicationRequest(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
 	var order []string
-	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
+	config := defaultSessionConfig()
+	config.protocolVersion = ProtocolVersionV1 // Simulated Peer uses legacy BindResp.
+	session, err := newClientBindingSession(local, config, wire.Bind{
 		Type: wire.BindBiDirectional, SystemID: "client",
 	}, time.Second, dispatcher, sessionHandlers{
 		onBound:   func(*Session) { order = append(order, "bound") },
@@ -743,7 +745,9 @@ func TestSessionEnquireLinkResponseTimeout(t *testing.T) {
 func TestSessionClientBindHandshake(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
-	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
+	config := defaultSessionConfig()
+	config.protocolVersion = ProtocolVersionV1 // This test verifies the legacy Bind codec.
+	session, err := newClientBindingSession(local, config, wire.Bind{
 		Type: wire.BindBiDirectional, SystemID: "client",
 	}, time.Second, dispatcher, sessionHandlers{})
 	if err != nil {
