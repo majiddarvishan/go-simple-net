@@ -24,6 +24,13 @@ func sessionOption(apply func(*sessionConfig)) SessionOption {
 	return SessionOption{apply: apply}
 }
 
+// WithProtocolVersion selects the immutable, local version for each Session.
+// V2 is the default, and V1 is supported. Both currently use the unchanged
+// Pinex 1.5.0 wire format; this option performs no peer negotiation.
+func WithProtocolVersion(version ProtocolVersion) SessionOption {
+	return sessionOption(func(c *sessionConfig) { c.protocolVersion = version })
+}
+
 // WithClientAddress sets the remote TCP host:port endpoint.
 func WithClientAddress(address string) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.address = address }}
