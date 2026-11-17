@@ -1,12 +1,14 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
+> **CURRENT AUTHORITY (2026-11-17, implementation phase):** Architecture Freeze is complete and the owner has explicitly authorized Phase 1 implementation. Current implementation branch: \`feature/phase1-config-implementation-2026-11-17\`, based on verified \`main\` HEAD \`eb13272d851fa7d9aa6b3f30f90e65dbd760f91d\`. Go toolchain used for Phase 1 validation: Go 1.23.2 linux/amd64; module directive: \`go 1.23\`; no third-party dependencies. Phase 1 configuration code and tests are implemented locally and are being committed to this feature branch. Historical pre-freeze "implementation not authorized" statements below are superseded by this current authority and §49.
+
 > **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B are owner approved. Application and Completion concurrency are configurable per Session; Completion FIFO governs start selection only. OnClose has an independent bounded sublane and becomes eligible only after Done; Done does not join user callbacks. **WORKER-001 through WORKER-008 are CLOSED / OWNER APPROVED:** each Client/Server owns three class-isolated lazy worker pools (Application, Completion, OnClose), each with independent scheduler/queue/dispatch/lock/wakeup resources; idle workers retire after a finite class-configurable grace period, with zero warm-idle floor by default; fair dispatch uses per-class round-robin, one callback per eligible Session turn, with FIFO inside each Session; per-Session concurrency is intersected with its owner/class ceiling; retired-generation callbacks remain charged. No process-global ceiling. WORKER-003 saturation permanently skips OnClose without retry or teardown wait. **WORKER-007 is CLOSED / OWNER APPROVED, OPTION A:** per-Session incoming/outgoing Application frame counts plus one Server-aggregate queued Application frame count across both directions. Completion reuses PERF-003 Request credits and OnClose reuses WORKER-003 event credits. **WORKER-008 is CLOSED / OWNER APPROVED, OPTION A:** separate per-Session and aggregate-owner retained-payload byte ledgers for Application and Completion; Completion-byte exhaustion uses bounded Body drain followed by one terminal Resource Capacity Completion callback without payload, keeping the Session open (unless drain/transport fails). **WORKER-009A is CLOSED / OWNER APPROVED, OPTION A:** the three owner worker ceilings are derived once from GOMAXPROCS (Application=min(max(4,4P),128); Completion=min(max(2,2P),64); OnClose=min(max(2,P),32)); all other quotas remain fixed. **WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED.** WORKER-009B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. These are lazy admission ceilings, not preallocations or hard maxima. **WORKER-009C is CLOSED / OWNER APPROVED / OPTION A:** all approved hard maxima, valid ranges, cross-field validation and typed Functional-Option mapping are binding. Pinex Maximum Frame Size is source-verified at 1 MiB total including the 10-byte header; golden-frame/cross-language confirmation and API-002/API-003 remain open. See [DECISION_LOG.md](DECISION_LOG.md) and [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md).
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** NOT STARTED — NOT AUTHORIZED  
-**Current work:** ARCHITECTURE FREEZE COMPLETE. API-002-01..08, API-001, API-003, PROTOCOL-001, API-004, PERF-002/003 and WORKER-001..009C are CLOSED / OWNER APPROVED. No fundamental owner architecture decision remains open; golden-frame/interoperability validation, tests, benchmarks and PERF-004 are implementation/evidence tasks. Implementation remains NOT AUTHORIZED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. WORKER-009C is CLOSED / OWNER APPROVED / OPTION A; its limits and validation contract are synchronized across the design records. WORKER-008 Completion-byte exhaustion behavior is resolved under Option A. Remaining architecture work: API-002-04..08 lifecycle decisions, API-003 package architecture, final API-001 public surface, and golden-frame / socket-level Go↔C++ confirmation against the pinned Pinex baseline. Maximum Frame Size is source-verified. No implementation is authorized.
+**Current work:** Phase 1 implementation is underway on the feature branch. The first implementation slice contains the module, public data/error/state types, typed Client/Server/Session Functional Options, complete defaults, immutable effective configuration snapshots, post-option validation and boundary tests. No TCP transport, protocol codec, Reader/Writer, worker runtime or request tracker has been implemented yet. Architecture Freeze decisions remain unchanged. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. WORKER-009C is CLOSED / OWNER APPROVED / OPTION A; its limits and validation contract are synchronized across the design records. WORKER-008 Completion-byte exhaustion behavior is resolved under Option A. Remaining architecture work: API-002-04..08 lifecycle decisions, API-003 package architecture, final API-001 public surface, and golden-frame / socket-level Go↔C++ confirmation against the pinned Pinex baseline. Maximum Frame Size is source-verified. No implementation is authorized.
 
 ## 1. Repository state
 
@@ -667,3 +669,47 @@ All remaining owner choices are collected in [NETA_GO_ARCHITECTURE_FREEZE_DECISI
 Binding final records: DECISION_LOG.md; NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md; NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md; NETA_GO_API_003_MODULE_PACKAGE_ARCHITECTURE_2026-11-17.md; NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md; PINEX_WIRE_PROTOCOL_2026-11-16.md; NETA_GO_ARCHITECTURE_FREEZE_AND_IMPLEMENTATION_ROADMAP_2026-11-17.md.
 
 No fundamental owner decision remains open. Golden-frame vectors, bidirectional Go↔C++ socket verification, correctness/race/fuzz/soak tests, baseline benchmarks and evidence-driven PERF-004 are implementation validation tasks, not architecture blockers. Begin none of them until explicit implementation authorization. The previous §47 decision register is now CLOSED / OWNER APPROVED / OPTION A for all eight entries.
+
+## 49. Phase 1 — module skeleton and immutable configuration (2026-11-17)
+
+**Authorization:** Owner explicitly authorized implementation after Architecture Freeze.  
+**Branch:** \`feature/phase1-config-implementation-2026-11-17\`  
+**Base \`main\` HEAD:** \`eb13272d851fa7d9aa6b3f30f90e65dbd760f91d\`  
+**Local toolchain:** Go 1.23.2 linux/amd64; \`go.mod\` directive \`go 1.23\`.  
+**Dependencies:** Standard library only; \`go list -m all\` reports only this module.
+
+### Repository and compatibility baseline
+
+- Remote \`main\` was verified at the base SHA above; the repository had no \`go.mod\` or Go source, only LICENSE and \`.codex/\` documentation.
+- No \`.codex/AGENT_CONTEXT.md\` exists on the verified base.
+- Pinex \`develop\` was rechecked at \`f7bd1eb779baff0d10e624f20522df345e6ee747\`, matching the frozen compatibility baseline.
+- Pinex Bind Type values are 0 (uni-directional) and 1 (bi-directional); default is bi-directional. Its Bind \`system_id\` is a C-Octet String with at most 19 data bytes plus NUL.
+
+### Implemented Phase 1 scope
+
+- \`go.mod\` with module path \`github.com/majiddarvishan/neta-go\`.
+- Root package \`neta\`, public Client/Server/Session placeholder types, Request/Response/BindInfo and callback types.
+- Stable error sentinels, ConfigError/OperationError and SessionState values.
+- Typed \`ClientOption\`, \`ServerOption\` and \`SessionOption\`; options apply to complete defaults and are validated only after all overrides.
+- Client/Server constructors validate effective config without opening sockets or starting goroutines.
+- CPU-derived owner worker defaults capture GOMAXPROCS once per owner config using overflow-safe capped multiplication.
+- WORKER-009C hard maxima, valid ranges, positive duration rules, the sole zero exception (\`EnquireLinkIdleInterval=0\`), independent owner/Session limits and no theoretical-sum cross-field rejection.
+- Independent queue-byte, queue-frame, retained-byte, Request-credit, OnClose-credit and worker-ceiling settings.
+- Protocol-required Client/Server System ID options and Client Bind Type option. Empty System ID remains allowed; non-empty IDs reject NUL and lengths above 19 bytes. This closes an omission in the frozen API-001 option mapping without changing Wire semantics.
+
+### Validation executed locally
+
+- \`gofmt\` check: PASS.
+- \`go build ./...\`: PASS.
+- \`go test ./...\`: PASS (19 tests, including an external-package API compilation test).
+- \`go test -race ./...\`: PASS.
+- \`go vet ./...\`: PASS.
+- \`go test -cover ./...\`: PASS, 84.6% statement coverage.
+- No network listener, TCP integration, Wire codec, benchmark, dependency or deployment operation was performed.
+
+### Explicitly not implemented yet
+
+Session transport/method behavior, Wire codecs and 1 MiB frame enforcement, Request correlation, queue/resource ledgers, worker schedulers, reconnect, Graceful/Forced shutdown and Go↔C++ interoperability belong to later roadmap phases. No claim is made that Phase 1 validates those runtime behaviors.
+
+**Next:** commit the Phase 1 source/tests/report to this feature branch, verify the remote branch HEAD and review the complete diff before opening a draft PR. Do not merge or move main.
+
