@@ -4,7 +4,7 @@
 
 
 **Date:** 2026-11-16  
-**Status:** DESIGN DRAFT — API-001a APPROVED OPTION A (async callback-first), API-001b OPEN / API-004 APPROVED OPTION A  
+**Status:** API-001 CLOSED / OWNER APPROVED / OPTION A; API-001a/b, PERF-002/003 and API-004 CLOSED  
 **Repository:** `majiddarvishan/neta-go`, branch `main`  
 **Implementation:** NOT AUTHORIZED. This is architecture/documentation; no Go source, go.mod, test, build, or repository rename.
 
@@ -417,3 +417,54 @@ The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including
 
 ---
 
+## 21. Final owner-approved API-001 public surface (2026-11-17)
+
+**Status:** CLOSED / OWNER APPROVED / OPTION A. This section supersedes earlier proposal/draft/open statements about exported API shape, callback registration, terminal-cause access and Close return timing. API-001a, API-001b-FC-A, N-ORD2, DONE-A and C-ORD-B policies remain unchanged.
+
+### Public package and construction
+- Sole public package: repository root package identifier neta.
+- Module path: github.com/majiddarvishan/neta-go.
+- NewClient(opts ...ClientOption) returns (*Client, error); validates immutable effective Client configuration but does not dial.
+- NewServer(opts ...ServerOption) returns (*Server, error); validates immutable effective Server configuration but does not listen.
+- Client.Connect(ctx context.Context) performs connection/Bind and returns when Bound or when the attempt/wait fails. Caller Context bounds the initial Connect operation; cancellation after successful Connect does not close the Session. AutoReconnect is a separate explicit Client policy.
+- Server.Start() listens and returns only after Listener and Accept loop are ready. Server.Addr() returns the actual bound address after Start.
+- Client.Stop(ctx context.Context) and Server.Stop(ctx context.Context) are terminal and idempotent.
+
+### Session methods
+- SendRequest(payload []byte, completion CompletionHandler) returns (uint32, error) and performs nonblocking local admission. Success means locally admitted, not delivered/processed by the peer. Exactly one Completion is delivered for each accepted Request unless its not-yet-started callback is cancelled under Forced Close A.
+- SendNoWait(payload []byte) returns (uint32, error) and admits a one-way Stream Request without a pending Completion.
+- SendResponse(sequence uint32, payload []byte, status uint8) returns error and replies using the original Request sequence.
+- Unbind(ctx context.Context) performs Graceful Unbind; Close() initiates immediate Forced Close and returns without waiting for teardown.
+- Done() returns a read-only channel closed after internal teardown and immutable terminal-cause publication; it is not a user-callback join.
+- Err() exposes the immutable terminal cause after Done; it may be nil for a clean graceful Unbind.
+- State() returns SessionState; SystemID() returns string; RemoteAddr() returns net.Addr.
+- Client.CurrentSession() returns (*Session, bool): current Bound generation and true, or nil and false when no generation is Bound.
+
+### Public callback and data types
+- Request contains Sequence uint32 and Payload []byte and is delivered to the Server Application Request handler. Payload is an owned retainable snapshot under PERF-002.
+- Response contains Sequence uint32, Status uint8 and Payload []byte; payload ownership follows PERF-002.
+- CompletionHandler is func(Response, error).
+- OnBoundHandler is func(*Session).
+- OnRequestHandler is func(*Session, Request).
+- OnCloseHandler is func(*Session, error).
+- BindInfo contains SystemID string, BindType uint8 and RemoteAddr net.Addr; BindValidator is func(BindInfo) error. An absent validator retains Q-005 Option B behavior; duplicate System IDs remain rejected.
+- Client callback options are OnBound and OnClose. Server callback options are OnBound, OnRequest and OnClose, plus optional BindValidator. Completion is registered only on its SendRequest call; no second global OnResponse delivery path exists.
+
+### Typed Functional Options and error surface
+- Exported option domains are ClientOption, ServerOption and SessionOption, each a typed Functional Option with an unexported effective-config target. Consumers use library-provided With... constructors; no generic map, mutable live Config or hot reload is exposed.
+- WithClientSessionOptions(opts ...SessionOption) returns ClientOption; WithServerSessionOptions(opts ...SessionOption) returns ServerOption. These attach immutable per-Session defaults inherited by Sessions created by that owner.
+- Client-only options include address/endpoint, ConnectTimeout, AutoReconnect and Client-owned worker/event/Request/retained-byte ceilings.
+- Server-only options include listen address, BindValidator, Pre-Bind/Bound Session admission and Server-owned aggregate resource ceilings.
+- Session options include RequestTimeout, FrameAssemblyTimeout, UnbindTimeout, WriteTimeout, Enquire Link settings, per-Session callback concurrency, queue/frame/Request limits and retained-byte limits. ConnectTimeout and BindResponseTimeout are Client-only.
+- Exported error sentinels support errors.Is; typed operation errors support errors.As. Minimum stable categories: ErrInvalidConfig, ErrNotBound, ErrClosing, ErrClosed, ErrQueueFull, ErrCapacity, ErrFrameTooLarge, ErrRequestTimeout, ErrConnectTimeout, ErrBindTimeout, ErrWriteTimeout, ErrUnbindTimeout, ErrBindRejected and ErrProtocol.
+- Session.Err() is the terminal-cause accessor selected for DONE-A. It is stable after Done; Close() initiates Forced Close and does not wait for Done.
+
+### Binding invariants
+- All exported Client/Server/Session methods are goroutine-safe.
+- Handler registration is construction-time only; no live setters after Start/Connect.
+- Outgoing payload is snapshotted before successful Send admission returns; incoming payload is owned and retainable as defined by PERF-002.
+- Callback execution retains the three isolated bounded worker lanes and all WORKER-001..009C limits. Application/Completion concurrency defaults remain 1 per Session; higher values require explicit options. Completion FIFO is callback-start order only.
+- No Codec, PDU, Reader/Writer, Request tracker, worker scheduler, resource ledger or transport implementation is exported.
+- API remains callback-first; no synchronous Context-first Request API is added to V1.
+
+**Decision:** API-001 is CLOSED / OWNER APPROVED / OPTION A. The exact API surface is design-frozen; source implementation and go.mod creation remain unauthorized.

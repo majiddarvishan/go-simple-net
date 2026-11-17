@@ -1,7 +1,7 @@
 # neta-go — API-004: Go Configuration Contract (Design Only)
 
 **Date:** 2026-11-16  
-**Status:** CLOSED — APPROVED OPTION A (Functional Options), 2026-11-16; precise exported names still under API-001  
+**Status:** CLOSED — APPROVED OPTION A (Functional Options), 2026-11-16; final API-001/API-002/API-003 surface OWNER APPROVED, 2026-11-17  
 **Repository:** `majiddarvishan/neta-go` / `main`  
 **Implementation:** **NOT AUTHORIZED** (no application source, Go module, examples, test runs, build or repository rename).
 
@@ -259,3 +259,15 @@ No wire change is introduced. Pinex C++ 1.5.0 has no separate equivalent bound-s
 - This does not enable AutoReconnect or authorize retries. Pinex C++ 1.5.0 also uses a 30s connect reference; this is an explicit Go owner approval, not an inferred default.
 
 API-002-04 Bind response timeout is next. No implementation or tests are authorized.
+
+## 12. Final API-002 timeout and reconnect configuration (OWNER APPROVED, 2026-11-17)
+
+| Setting | Approved default | Scope | Binding semantics |
+|---|---:|---|---|
+| BindResponseTimeout | 30s | Client | absolute from TCP establishment before Bind Write; covers Bind Write and matching response |
+| UnbindTimeout | 10s | Client + Server Sessions | absolute from Unbinding transition; includes admission closure, FIFO drain, Unbind Write and response |
+| WriteTimeout | 30s | Client + Server Sessions | absolute per Frame from Writer ownership; no progress reset; queue wait excluded |
+| AutoReconnect | false | Client | explicit opt-in only |
+| Reconnect backoff | Full Jitter, 1s base window, 30s cap | Client when enabled | reset after 30s continuously Bound; one supervisor/timer |
+
+All mandatory timeout durations are positive finite values; explicit zero is invalid. No additional hard maximum was approved. The sole zero-as-disable exception remains EnquireLinkIdleInterval=0. Bind rejection/timeout are non-retryable; only transient Dial failure/timeout and unexpected transport loss after Bound are retryable. No accepted Request is replayed or resent.

@@ -3,7 +3,7 @@
 **Date:** 2026-11-17  
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
-**Status:** OPEN — consolidated owner review; every option below is a proposal, not an approval.  
+**Status:** CLOSED / OWNER APPROVED — OPTION A FOR ALL EIGHT ITEMS (2026-11-17).  
 **Implementation:** NOT AUTHORIZED.
 
 این سند تمام تصمیم‌های معماری باقی‌مانده برای Freeze را یکجا جمع می‌کند. تصمیم‌های قبلاً تأییدشده عمداً باز نشده‌اند. پاسخ همه موارد را می‌توان یکجا و با شناسه‌های انتهای سند اعلام کرد.
@@ -198,3 +198,7 @@ API-003=A
 PROTOCOL-001=A
 
 هر گزینه را می‌توانی جداگانه تغییر دهی یا کنار شناسه اصلاح موردنظرت را بنویسی. پس از تأیید، تصمیم‌ها را در Decision Log و اسناد مرجع ثبت می‌کنم، سپس Architecture Freeze و Implementation Roadmap را نهایی می‌کنم. تا آن زمان Implementation و Test همچنان NOT AUTHORIZED هستند.
+
+## 10. Final authority
+
+Owner response «گزینه‌های A» closes all eight items: API-002-04, API-002-05, API-002-06, API-002-07, API-002-08, API-001, API-003 and PROTOCOL-001. Every item is CLOSED / OWNER APPROVED / OPTION A. Alternatives B/C were not selected. This register is no longer awaiting owner input; all decisions are synchronized in DECISION_LOG.md and corresponding design documents. Architecture Freeze and the implementation roadmap are recorded in NETA_GO_ARCHITECTURE_FREEZE_AND_IMPLEMENTATION_ROADMAP_2026-11-17.md. Implementation remains NOT AUTHORIZED.

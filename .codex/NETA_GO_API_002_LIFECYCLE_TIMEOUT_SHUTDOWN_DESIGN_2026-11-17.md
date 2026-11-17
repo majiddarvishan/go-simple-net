@@ -1,7 +1,7 @@
 # neta-go V1 — API-002 Timeout, Reconnect and Lifecycle/Shutdown Design
 
 **Date:** 2026-11-17  
-**Status:** DESIGN IN PROGRESS — API-002-01 through API-002-03 CLOSED / OWNER APPROVED / OPTION A; subsequent lifecycle decisions remain open  
+**Status:** ARCHITECTURE CLOSED — API-002-01 through API-002-08 CLOSED / OWNER APPROVED / OPTION A  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited `develop` HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`  
 **Authority:** [DECISION_LOG.md](DECISION_LOG.md), [API-001](NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md), [API-001b review](NETA_GO_API_001B_FORCED_CLOSE_NOTIFICATION_REVIEW_2026-11-16.md), [API-004](NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md), [Worker Capacity Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md), [Protocol Compatibility](PINEX_WIRE_PROTOCOL_2026-11-16.md).
@@ -211,3 +211,39 @@ Proposed semantics:
 - No implicit auto-restart after explicit Client/Server Stop.
 
 **Implementation:** NOT AUTHORIZED.
+
+## 10. Final owner-approved API-002 contract (2026-11-17)
+
+**Status:** CLOSED / OWNER APPROVED — OPTION A for API-002-01 through API-002-08. This section is authoritative and supersedes historical proposal language in §§4 and 6–8.
+
+### API-002-04 — Bind Response Timeout
+Default **30s absolute**. Starts immediately after TCP establishment and before Bind Request writer ownership. Covers Bind writer wait/ownership, complete Bind Request Write and matching Bind Response wait; progress does not reset it. Earlier caller Context cancellation/deadline wins. On expiry, close the unbound transport; do not publish a Bound Session or start normal Session workers. Client-only, positive finite duration, explicit zero invalid, no additional hard maximum approved. Bind rejection and Bind timeout are non-retryable.
+
+### API-002-05 — Graceful Unbind Timeout
+Default **10s absolute**, starting at the atomic transition to Unbinding. Covers new-Application-admission closure, FIFO drain of previously accepted Application Frames, Unbind PDU write and matching Unbind Response. Progress never resets it. Earlier caller Context cancellation/deadline escalates to Forced Close A. On expiry, force-close only that Session, expose ErrUnbindTimeout as its terminal cause and settle Requests exactly once. Applies to Client and Server Sessions through immutable inherited Session settings; positive finite, zero invalid, no additional hard maximum approved.
+
+### API-002-06 — Generic Writer Stall Timeout
+Default **30s absolute per Frame**, starting when the Session's single Writer takes ownership. Applies to Application and Control Frame writes. Partial Write/progress does not reset it; queue wait is excluded. Expiry closes only that Session because a partially written TCP Frame cannot be safely resumed. RequestTimeout and UnbindTimeout still bound their complete higher-level lifecycles; BindResponseTimeout bounds the entire earlier Bind phase. Applies to Client and Server Sessions through immutable inherited settings; positive finite, zero invalid, no additional hard maximum approved.
+
+### API-002-07 — Client Reconnect Policy
+- AutoReconnect defaults to **false** and is explicit Client opt-in.
+- Retryable: transient Dial failure/timeout and unexpected transport loss after a Session reached Bound.
+- Non-retryable: Bind rejection and Bind timeout; caller receives the failure.
+- One reconnect supervisor and one active retry timer per Client. Exponential backoff with Full Jitter; base window **1s**, cap **30s**. After 30s continuously Bound, reset the next retry window to base.
+- Reconnect creates a new Session generation and fresh Session-scoped sequence/pending state. Client owner worker/resource budgets remain shared across generations.
+- Never replay/resend an accepted Request. Each old-generation Request settles exactly once; resubmission is an application decision.
+- Stop permanently disables reconnect. Server Sessions never self-reconnect.
+
+### API-002-08 — Stop / Close Lifecycle
+- Session.Unbind(ctx) is Graceful: stop new Application admission, preserve FIFO for accepted Application Frames, write Unbind after the FIFO and await the matching response, bounded by the absolute 10s UnbindTimeout and caller Context.
+- Session.Close() is immediate Forced Close A and returns after initiating close; it does not wait for Done.
+- Client.Stop(ctx) disables reconnect, cancels Dial/Bind/retry, Gracefully Unbinds the current Bound Session and waits for internal Done. It is terminal and idempotent.
+- Server.Stop(ctx) closes Listener first, closes Pre-Bind connections, starts Unbind concurrently for all Bound Sessions and waits for their Done signals. It is terminal and idempotent.
+- If caller Context expires, Stop force-closes remaining Sessions, waits for internal Done publication and returns the caller Context error.
+- Stop/Done do not wait for user callbacks. OnClose becomes eligible only after Done and may execute after Stop returns.
+- Repeated Stop does not issue another Unbind or duplicate terminal notification. A stopped Client/Server cannot restart.
+
+### Callback/resource interaction
+Forced Close A cancels queued, not-yet-started Application and Completion callbacks; started callbacks cannot be terminated. Started Application retains its worker permit and Application retained-byte charge until return. Started Completion retains its worker permit, Request credit and Completion retained-byte charge until return. Done closes after internal teardown and terminal-cause immutability, not callback completion. OnClose remains independently bounded, at-most-once and best-effort under N-ORD2/WORKER-003.
+
+**Decision:** API-002-04, -05, -06, -07 and -08 are all CLOSED / OWNER APPROVED / OPTION A. Combined with API-002-01..03, API-002 is complete. Implementation remains NOT AUTHORIZED.
