@@ -57,6 +57,43 @@ func TestBindGoldenVectors(t *testing.T) {
 	}
 }
 
+func TestStreamPDUUseRawBody(t *testing.T) {
+	payload := []byte{0x00, 0x01, 0x02, 0xfe, 0xff}
+	requestBytes, err := EncodeStreamRequest(42, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestFrame, err := DecodeFrame(requestBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestBody, err := DecodeStreamRequest(requestFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(requestBody, payload) {
+		t.Fatalf("request body = %x, want %x", requestBody, payload)
+	}
+	responseBytes, err := EncodeStreamResponse(42, StatusFailed, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	responseFrame, err := DecodeFrame(responseBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	responseBody, err := DecodeStreamResponse(responseFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(responseBody, payload) {
+		t.Fatalf("response body = %x, want %x", responseBody, payload)
+	}
+	if _, err := DecodeStreamRequest(responseFrame); err == nil {
+		t.Fatal("DecodeStreamRequest accepted a Stream Response")
+	}
+}
+
 func TestControlPDUAreHeaderOnlyAndEchoSequence(t *testing.T) {
 	cases := []struct {
 		name    string
