@@ -225,7 +225,7 @@ No public API, wire behavior, approved defaults, resource ceilings or frozen arc
 
 The owner explicitly authorized Phase 6 by replying **«ادامه بده»** after being asked whether Phase 6 could start.
 
-**Authorized scope:** P6-01 through P6-11 in the root [TASKS.md](../TASKS.md):
+**Authorized scope:** P6-01 through P6-11 in the root [TASKS.md](TASKS.md):
 - Client Dial/Bind, lifecycle, CurrentSession, terminal Stop, reconnect supervisor and generation fencing, strictly following API-001/API-002.
 - Server Listen/Accept, pending socket admission, absolute Pre-Bind deadline, Bound Session capacity, BindValidator, atomic duplicate-SystemID admission/removal and terminal Stop.
 - Shared owner resource ledger and callback dispatcher across all Sessions/generations.

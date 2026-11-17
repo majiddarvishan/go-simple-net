@@ -1,7 +1,458 @@
-# Canonical Task Tracker
+# neta-go — Canonical Implementation Task Tracker
 
-The implementation task list is maintained at the repository root:
+**Repository:** `github.com/majiddarvishan/neta-go`  
+**Branch:** `main`  
+**Tracker owner:** Project owner  
+**Last updated:** 2026-11-18  
+**Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
+**Last verified repository HEAD before P9-00:** `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`  
+**Last verified production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
+**Current phase:** Phase 9 — Documentation, examples and V1 release readiness (**IN PROGRESS; owner-authorized 2026-11-17**). P9-00..P9-05 are complete, including a qualified final release-readiness review with explicit publication-time limitations. P9-06 (release tag) remains NOT AUTHORIZED without separate explicit owner approval.
 
-**[Open TASKS.md](../TASKS.md)**
+This file is the **single canonical implementation task tracker** for `neta-go`. It lives in `.codex/TASKS.md`; the former repository-root `TASKS.md` was consolidated here on 2026-11-18. Update the checkboxes together with their acceptance evidence. Keep architecture decisions in `DECISION_LOG.md`; this file records implementation status and verification.
 
-Do not maintain a second checklist here. The root `TASKS.md` is the single source of truth for phase status, task checkboxes, acceptance criteria and CI evidence.
+## Status legend
+
+- `[x]` Implemented and accepted with evidence recorded below.
+- `[ ]` Not complete. A task may be in progress only when its phase heading says so.
+- A completed design decision does **not** mean its implementation task is complete.
+- CI links refer to GitHub Actions runs for the exact source/documentation HEAD shown.
+
+## Overall status
+
+| Phase | Scope | Status | Authorization |
+|---|---|---|---|
+| 0 | Architecture and contract freeze | COMPLETE | Complete |
+| 1 | Module and immutable configuration | COMPLETE / CI PASS | Complete |
+| 2 | Pinex-compatible Wire Codec | COMPLETE / CI PASS | Complete |
+| 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
+| 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
+| 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
+| 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
+| 7 | Live interoperability and fault-injection verification | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
+| 8 | Performance baseline and evidence-driven optimization | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
+| 9 | Examples, documentation and V1 release readiness | IN PROGRESS | Owner authorized 2026-11-17; release tag separately gated |
+
+---
+
+## Phase 0 — Architecture and contract freeze
+
+<badge>COMPLETE</badge>
+
+- [x] Freeze the Pinex C++ 1.5.0 compatibility target and record source commit `f7bd1eb779baff0d10e624f20522df345e6ee747`.
+- [x] Freeze the 10-byte Header, command/status/sequence layout and 1 MiB total Frame maximum.
+- [x] Close API-001 public surface and root-package boundary.
+- [x] Close API-002 timeout, reconnect and shutdown contracts.
+- [x] Close API-003 module/package architecture.
+- [x] Close API-004 Functional Options and immutable configuration semantics.
+- [x] Close Q-008/Q-009/Q-010 queue and overload policies.
+- [x] Close PERF-002 payload ownership and PERF-003 Request-credit model.
+- [x] Close WORKER-001..009C ownership, worker topology, capacity defaults, limits and accounting policy.
+- [x] Record final decisions and implementation boundaries in `DECISION_LOG.md`.
+
+**Evidence:** `.codex/DECISION_LOG.md`, `.codex/NETA_GO_ARCHITECTURE_FREEZE_DECISION_REGISTER_2026-11-17.md`, and the linked design records.
+
+## Phase 1 — Module and immutable configuration
+
+<badge color="success">COMPLETE / CI PASS</badge>
+
+- [x] Create `go.mod` with module path `github.com/majiddarvishan/neta-go` and root package `neta`.
+- [x] Implement typed `ClientOption`, `ServerOption` and `SessionOption`.
+- [x] Implement complete defaults and immutable effective Client/Server/Session configuration snapshots.
+- [x] Apply all options before final validation; reject nil/invalid options deterministically.
+- [x] Implement API-004 and WORKER-009C ranges, hard maxima, cross-field validation and checked arithmetic.
+- [x] Add typed public error categories and Session state declarations.
+- [x] Add configuration/default/range/precedence tests.
+- [x] Pass formatting, vet, unit and race checks.
+
+**Evidence:** Phase 1 implementation recorded in `IMPLEMENTATION_AUTHORIZATION_2026-11-17.md`; CI run [44040206052](https://github.com/majiddarvishan/neta-go/actions/runs/44040206052).
+
+## Phase 2 — Pinex-compatible Wire Codec
+
+<badge color="success">COMPLETE / CI PASS</badge>
+
+- [x] Implement pure-Go `internal/wire` Header and Frame codec.
+- [x] Implement Bind, Stream, Unbind and Enquire Link codecs with Pinex-compatible command/status/sequence semantics.
+- [x] Enforce the 1 MiB total Frame maximum inbound and outbound, before Body allocation.
+- [x] Add deterministic golden fixtures generated from the pinned production C++ serializer source snapshot.
+- [x] Compile the C++ fixture generator and compare Go codec output against the golden fixtures in CI.
+- [x] Match Pinex's omitted Bind Response Body default-value behavior.
+- [x] Pass gofmt, vet, unit and race tests plus C++ golden compatibility workflow.
+
+**Evidence:** `NETA_GO_PHASE_2_WIRE_IMPLEMENTATION_2026-11-17.md`; Go CI [44044273742](https://github.com/majiddarvishan/neta-go/actions/runs/44044273742), C++ golden CI [44044273818](https://github.com/majiddarvishan/neta-go/actions/runs/44044273818).
+
+## Phase 3 — Session transport and lifecycle
+
+<badge color="success">COMPLETE / CI PASS</badge>
+
+- [x] Implement one Reader and one serialized Writer per Session.
+- [x] Implement client Bind and server Pre-Bind Session-side handshake primitives and state transitions.
+- [x] Implement absolute Bind/Pre-Bind, Frame Assembly and per-Frame Writer deadlines.
+- [x] Implement idle-only Enquire Link, matching response tracking and incoming Enquire Link replies.
+- [x] Implement per-Session nonzero Sequence allocation and Request correlation.
+- [x] Implement Request timeout, late-response suppression and exactly-once internal settlement.
+- [x] Implement bounded per-Session outgoing Application FIFO byte/frame admission and separate Control-PDU reserve.
+- [x] Implement Graceful Unbind, Forced Close A, immutable terminal cause and Done after internal teardown.
+- [x] Ensure no user callback runs inline in Reader or Writer; retain private dispatcher boundary for Phase 5.
+- [x] Harden queued Enquire Link cancellation after outbound activity.
+- [x] Ignore Responses that arrive before Writer claims their Request.
+- [x] Preserve the first post-Bind Frame Assembly deadline across the server Bind transition.
+- [x] Start RequestTimeout after successful local FIFO admission.
+- [x] Add focused fragmentation, partial-write, timeout, correlation, close and race tests.
+- [x] Pass gofmt, vet, unit and race CI.
+
+**Evidence:** `NETA_GO_PHASE_3_SESSION_TRANSPORT_LIFECYCLE_2026-11-17.md`; source verification HEAD `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`; Go CI [44057820360](https://github.com/majiddarvishan/neta-go/actions/runs/44057820360), C++ golden compatibility CI [44057820405](https://github.com/majiddarvishan/neta-go/actions/runs/44057820405). The C++ workflow is golden-frame compatibility, **not** live TCP interoperability.
+
+## Phase 4 — Resource Admission and Accounting
+
+<badge color="success">COMPLETE / CI PASS</badge>
+
+**Owner authorization:** 2026-11-17, this conversation. Scope is limited to the already-approved WORKER/Q-008/Q-009/Q-010/PERF-002/PERF-003 contracts. Do not change public API, defaults, wire behavior or frozen overload policies.
+
+### Existing Phase 3 prerequisites
+
+- [x] Per-Session outgoing Application FIFO byte and frame limits; the active Writer-owned frame remains charged until full Write or discard.
+- [x] Separate bounded per-Session Control-PDU byte reserve.
+- [x] Per-Session pending Request population is bounded and held through normal Completion callback return/cancellation.
+
+### Implementation tasks
+
+- [x] **P4-01 — Reservation primitives:** implement race-safe, checked reserve/release primitives for owner byte and count resources; reject overflow/underflow. Session lifecycle idempotency is verified in the integration tasks below.
+- [x] **P4-02 — Owner ledgers:** implement independent Client/Server-owned counters for outstanding Request credits, retained Application bytes, retained Completion bytes and OnClose event credits. NewClient/NewServer each create one independent owner ledger; Phase 6 will inject the same Client ledger into every reconnect generation.
+- [x] **P4-03 — Server aggregate queue ledger:** one combined incoming+outgoing Application queued-frame byte (256 MiB default) and frame-count (65,536 default) budget per Server.
+- [x] **P4-04 — Outgoing Application admission:** per-Session queue/count, retained Application and owner/Server budgets reserved before Frame allocation/copy or Request publication; Queue Full and Capacity remain distinct; rejected work consumes no Sequence/Pending state.
+- [x] **P4-05 — Incoming Application admission:** full declared Frame bytes/count and retained Application capacity reserved after Header validation but before Body allocation; offender-only close on overload; partial-read/cancel/return release paths covered.
+- [x] **P4-06 — Completion admission:** matched Response retained bytes reserved before Body allocation; capacity exhaustion uses fixed 4 KiB scratch drain under the original absolute Frame Assembly deadline, then no-payload `ErrCapacity` Completion if the Request still wins.
+- [x] **P4-07 — Request credits:** per-Session and owner Request ceilings; credits held through response wait and Completion callback, released once on return/cancel/terminal cleanup.
+- [x] **P4-08 — OnClose event credits:** one nonblocking owner reservation after Done; permanent skip at capacity; release after callback return/cancellation.
+- [x] **P4-09 — Lifecycle transfer/release:** queue-only charges release at callback start; retained payloads follow callback ownership after Done; Writer completion, partial I/O, timeout, Forced Close A and callback cancellation release paths tested.
+- [x] **P4-10 — Admission verification:** exact/over boundaries, concurrent owner admission, multi-Session aggregate limits, scratch-drain success/timeout, partial reads, cancellation and callback-retention tests.
+- [x] **P4-11 — CI acceptance:** gofmt, go vet ./..., go test ./... and go test -race ./... all PASS on Phase 4 source HEAD.
+
+**Phase 4 exclusions:** no Client Dial/Server Listen or reconnect orchestration (Phase 6), no live Pinex TCP interoperability campaign (Phase 7), no benchmark/pooling work (Phase 8), and no release/deployment (Phase 9). Phase 5 is separately authorized below.
+
+## Phase 5 — Bounded callback Worker Scheduler
+
+<badge color="success">COMPLETE / CI PASS</badge>
+
+- [x] **P5-01 — Three isolated pools:** each Client/Server owner now creates separate lazy Application, Completion and OnClose pools with independent queue, lock, ready list and wake-up state.
+- [x] **P5-02 — Active permits:** owner/class worker ceilings and per-Session concurrency intersections are enforced; the same owner dispatcher is reusable by every Client generation and every Server Session.
+- [x] **P5-03 — Fair scheduling:** one reusable ready-Session node per class; FIFO per-Session tasks and round-robin one-callback-per-eligible-Session turns.
+- [x] **P5-04 — Idle retirement:** per-class configurable grace, 30s default, reusable worker timer, zero warm-idle floor, worker reuse before expiry and no retirement of running callbacks.
+- [x] **P5-05 — Forced Close A:** callback start is linearized with Forced Close by Session.dispatchMu; queued Application/Completion work is cancelled once, while started callbacks retain permits and payload/Request charges through return.
+- [x] **P5-06 — OnClose policy:** queued only after Done, best-effort/at-most-once, existing owner event credit covers queued + running callbacks, and saturation permanently skips the event.
+- [x] **P5-07 — Isolation/liveness tests:** blocked Application does not consume Completion/OnClose workers; blocked OnClose does not consume Application/Completion workers; real Session Reader/Writer and Done progress while callbacks block; no goroutine-per-event.
+- [x] **P5-08 — Race and churn tests:** concurrent enqueue/retirement and enqueue/Forced Close tests, retired-generation permit retention, queued+running OnClose credit saturation, fairness tests and Go race detector pass.
+- [x] **P5-09 — CI acceptance:** gofmt, go vet ./..., go test ./... and go test -race ./... pass; Pinex C++ 1.5.0 golden compatibility workflow passes.
+
+### Phase 5 completion evidence — 2026-11-17
+
+- Implementation report: [.codex/NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
+- 16 Worker Scheduler tests; existing 46 Session tests and 8 owner-ledger tests remain green.
+- Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) PASS; Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) PASS.
+- Phase 6 was authorized on 2026-11-17; implementation is in progress. See the Phase 6 plan and authorization addendum.
+
+## Phase 6 — Client and Server orchestration
+
+<badge color="success">COMPLETE / CI PASS — 2026-11-17</badge>
+
+**Authorization:** Owner replied «ادامه بده» after the explicit Phase 6 authorization question. Scope is limited to P6-01..P6-11. Phase 7+ remain gated.
+
+**Client Bind input decision CLOSED:** Owner approved Option B. WithClientSystemID(string) is mandatory; WithClientBindType(BindType) is optional with bi-directional default and uni-directional support. Client.Connect(ctx) signature remains unchanged. See DECISION_LOG.md §56.
+
+- [x] **P6-01 — Client Connect:** Dial with absolute ConnectTimeout, Bind with absolute BindResponseTimeout and Context cancellation semantics.
+- [x] **P6-02 — Client lifecycle:** CurrentSession exposes only the active Bound generation; terminal/idempotent Stop cancels Dial/Bind/reconnect, gracefully Unbinds or forces the current Session, and waits for internal Done; generation publication and stale-generation fencing are implemented.
+- [x] **P6-03 — Reconnect supervisor:** opt-in AutoReconnect=false by default; approved bounded exponential Full Jitter policy; no Request replay/resend; share owner resource/worker ledgers across generations.
+- [x] **P6-04 — Server listener:** Start/Addr/Accept lifecycle and listener-close ordering.
+- [x] **P6-05 — Pre-Bind admission:** enforce pending socket count before Session allocation, absolute accept-to-Bind deadline and early refusal.
+- [x] **P6-06 — Bound Session registry:** enforce MaxBoundSessions without eviction, reject excess Bind with Pinex rfail where feasible.
+- [x] **P6-07 — Identity admission:** BindValidator and duplicate System ID rejection with atomic registry insertion/removal.
+- [x] **P6-08 — Server Stop:** terminal/idempotent Stop; close listener and Pre-Bind Sessions, concurrently Graceful-Unbind Bound Sessions, force remaining Sessions on caller Context expiry.
+- [x] **P6-09 — Owner integration:** Server Sessions share the Server resource ledger and worker owner; every Client generation reuses the Client resource ledger and callback dispatcher.
+- [x] **P6-10 — Lifecycle tests:** Server lifecycle/admission, Client Stop/CurrentSession, Connect/Bind, timeout/rejection, reconnect generation replacement and uni-directional requester-only tests are implemented.
+- [x] **P6-11 — CI acceptance:** gofmt, go vet ./..., go test ./..., go test -race ./... and pinned Pinex C++ 1.5.0 Golden Compatibility all PASS at source HEAD f8ce7669d2bbde33d3134d300e3256ae290dc529.
+
+### Phase 6 Server implementation evidence — 2026-11-17
+
+- Report: [Phase 6 Server implementation report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `8eead509c6817722d6b7c6f5e5a17e1734749911`.
+- P6-04 through P6-08 complete; P6-02 is partially complete (Client CurrentSession/Stop); P6-09 and P6-10 are partially complete across Server and Client lifecycle slices.
+- 11 focused Server lifecycle/admission tests.
+- Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
+- At this historical checkpoint, Client Connect/Bind remained blocked by the missing Bind identity input. The owner later approved Option B; Client Connect/Bind and reconnect are now complete. See the Client implementation evidence below.
+
+## Phase 7 — Live interoperability and fault-injection verification
+
+<badge color="success">COMPLETE / CI PASS — 2026-11-17</badge>
+
+**Authorization:** The owner explicitly approved Phase 7 by replying «آره» in this conversation. P7-01..P7-08 are complete. Phase 8 performance optimization and Phase 9 release/deployment remain outside the authorization.
+
+- [x] **P7-01 — Re-pin Pinex:** rechecked majiddarvishan/pinex develop; version remains 1.5.0, exact HEAD f7bd1eb779baff0d10e624f20522df345e6ee747, identical to the frozen compatibility Snapshot. No Wire/API/default change was required.
+- [x] **P7-02 — Bidirectional TCP interoperability:** real loopback TCP passed in both directions: Go Client ↔ actual Pinex C++ Server and actual Pinex C++ Client ↔ Go Server. Both directions verified Bind identity, Request/Response payload, Sequence correlation and graceful Unbind.
+- [x] **P7-03 — Wire fuzzing:** all five Header/Frame/Bind/Stream fuzz targets passed bounded 10-second campaigns. Aggregate: 1,810,074 executions, no crash or failing input.
+- [x] **P7-04 — Transport faults:** passed fragmented reads/writes, slow-trickle absolute Bind Response timeout, silent accepted-socket blackhole, graceful EOF, abrupt RST, reordered Responses, Bind rejection and timeout/cancellation races. Firewall-level SYN-drop/network-namespace injection was not run; the application-stage silent Bind blackhole was exercised without privileged host-network changes.
+- [x] **P7-05 — Admission faults:** queue/byte/count/Request/retained-memory limits, scratch-drain timeout, offender-only close, partial-read release and owner-ledger accounting passed under race CI.
+- [x] **P7-06 — Callback faults:** blocked callback isolation, Forced Close cancellation/start races, OnClose saturation, fairness and retired-generation permit retention passed under race CI.
+- [x] **P7-07 — Long-running soak:** 30-second reconnect soak with three Clients passed; Bound generation churn stayed within configured worker ceilings and owner Request/retained-byte/event credits returned to zero after Stop.
+- [x] **P7-08 — Compatibility acceptance:** all pinned golden vectors and both real-socket Go↔Pinex directions passed. Final Go race, fault, soak and fuzz campaign passed.
+
+### Final Phase 7 implementation and verification evidence — 2026-11-17
+
+- Final verified neta-go source HEAD: 209c24a7dbc5a5aa3db95ec63705915406acacb6.
+- Dedicated Pinex live interoperability workflow [44081220680](https://github.com/majiddarvishan/pinex/actions/runs/44081220680): PASS. It verified Pinex develop SHA f7bd1eb779baff0d10e624f20522df345e6ee747, built the real C++ peer, checked out the exact neta-go HEAD above, and passed both real TCP directions, go vet, go test -race, the 30-second reconnect soak and all five fuzz campaigns.
+- Fuzz campaign totals from the workflow logs: 365,447 + 359,928 + 363,418 + 361,403 + 359,878 = 1,810,074 executions across five targets, each for 10 seconds with two workers.
+- Go CI [44081197715](https://github.com/majiddarvishan/neta-go/actions/runs/44081197715): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Golden Compatibility [44081197688](https://github.com/majiddarvishan/neta-go/actions/runs/44081197688): PASS.
+- Implementation report: [.codex/NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md).
+- The dedicated interoperability workflow lives on Pinex test-only branch test/neta-go-phase7-interop. Pinex develop and its production source were not modified.
+- No public API, wire format, timeout/reconnect policy, resource ceiling or frozen architecture decision was changed.
+
+## Phase 8 — Performance baseline and evidence-driven optimization
+
+<badge color="success">COMPLETE — 2026-11-17</badge>
+
+**Authorization:** The owner approved the complete Phase 8 scope by replying «ادامه بده» after the explicit Phase 8 approval question. P8-01..P8-05 are authorized. Phase 9 examples, documentation polish, release readiness and deployment remain outside scope.
+
+**Guardrails:** measure before optimizing. No public API, Wire Protocol, default, timeout/reconnect policy, resource ceiling, callback-ordering contract or frozen architecture decision may be changed in this phase. PERF-004 pooling/batching remains a measured engineering choice, not an assumed optimization. Do not create numeric performance SLAs before the reproducible baseline and owner workload review.
+
+- [x] **P8-01 — Reproducible baseline:** full loopback TCP benchmark matrix PASS; Go 1.23.12, Ubuntu 24.04/Linux amd64, Intel Xeon 6975P-C, 4 vCPU, exact source SHA and artifacts recorded. See Phase 8 report §14.
+- [x] **P8-02 — Record metrics:** throughput, p50/p95/p99, submission latency, allocations, bytes/op, CPU profiles, heap/GC, goroutines, worker snapshots, RSS, mutex and block profiles captured. Race runs remained separate.
+- [x] **P8-03 — Profile hot paths:** small- and large-payload CPU/heap/mutex/block profiles captured and reviewed. Allocation hotspots and expected ownership costs documented.
+- [x] **P8-04 — PERF-004 decision: NO CHANGE.** Outbound frame reuse is a potential allocation candidate but no safe material throughput/tail-latency win was proven. A generic `sync.Pool` lacks the hard retained-memory bound; per-Session pooling adds retained memory and complex writer/close/admission recycling. PERF-002 A inbound ownership remains unchanged; no inbound pooling.
+- [x] **P8-05 — Regression/verification gate:** shared correctness and Pinex compatibility CI PASS; corrected full benchmark/profile workflow PASS and artifacts archived. No production optimization was accepted, so no before/after optimization comparison was applicable. Numeric performance regression thresholds remain intentionally unset pending owner workload/SLA review.
+
+### Phase 8 repeatable automation — 2026-11-17
+
+- [x] Add a shared Makefile entry point for correctness and Phase 8 workloads.
+- [x] Add child-process scripts with uncached correctness tests, metadata, per-run logs and explicit PASS/FAIL status.
+- [x] Make GitHub Actions invoke the same scripts used locally.
+- [x] Store generated logs/profiles under ignored `artifacts/` and upload them from CI.
+- [x] Validate the complete Phase 8 performance workflow and inspect its benchmark/profile artifacts — corrected run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003), artifact [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627).
+- [x] Provide the owner a short local invocation and confirm local execution on their machine — local `make verify` PASS on 2026-11-17.
+
+### Phase 8 baseline implementation plan — 2026-11-17
+
+- Existing approved performance contract and workload matrix are in .codex/NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md; PERF-002 A and all resource/worker limits remain binding.
+- Initial benchmark code and CI workflow are being added as test-only infrastructure. No production code is changed for baseline collection.
+- The first baseline is loopback Go↔Go and pure-Go wire codec. The Phase 7 actual Pinex C++ peer is retained as the cross-language correctness gate; any direct performance comparison to C++ must use a separately matched benchmark harness and disclose language/runtime differences.
+- The initial runner baseline is an Ubuntu 24.04 GitHub-hosted runner. Results are environment-specific and are not production hardware guarantees.
+- Detailed measurements, profile analysis, benchmark commands, artifact links and decisions will be appended to .codex/NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md.
+
+### Phase 8 completion evidence — 2026-11-17
+
+- Corrected full Phase 8 workflow [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; artifact [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627); benchmark harness SHA `c5ebca4d3d0b7f1d36270501add0b059525df2c2`.
+- Final pre-Phase-9 repository HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`: Go correctness [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) PASS; Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) PASS.
+- Owner's local `make verify` passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5` on 2026-11-17: PASS (gofmt, vet, uncached unit and race). The prior local stash remains preserved as `stash@{0}`; it has not been applied or dropped.
+- Five-minute soak: PASS; baseline/final heap 335,696/308,088 bytes; max HeapInuse 4,374,528 bytes; max RSS 91,348 KiB; 4,549 GC cycles; two goroutines after cleanup; retained/queued Application bytes stayed zero.
+- 512-Session Request/Response: 64 B at 123,864 ops/s (p95 6.57 ms, p99 9.58 ms, fairness ratio 1.352); 256 B at 116,244 ops/s (p95 8.84 ms, p99 11.97 ms, fairness ratio 1.319).
+- SendNoWait delivery correlation is now per TCP peer and per-Session sequence; concurrent routing integration test [delivery_test.go](../delivery_test.go) passes ordinary and race CI.
+- PERF-004 closed as **NO CHANGE**. No production code, public API, Pinex wire protocol, defaults, timeouts, worker ceilings or resource limits changed.
+- Phase 9 was subsequently authorized by the owner on 2026-11-17; P9-00..P9-05 are in scope. P9-06 remains gated on separate explicit release approval. Numeric performance regression thresholds are not set; the workflow archives weekly evidence, not hard SLA enforcement.
+
+## Phase 9 — Documentation, examples and V1 release readiness
+
+**Status: IN PROGRESS — OWNER AUTHORIZED 2026-11-17.**
+
+**Authorization boundary:** P9-00 through P9-05 are authorized. P9-06 may create a V1 release tag only after all release gates pass and the owner gives separate explicit release approval. This Phase 9 authorization does not reopen the frozen production API, wire protocol, configuration defaults, timeout/reconnect policy, worker topology, resource ceilings or payload-ownership contracts.
+
+- [x] **P9-00 — Documentation and tracker reconciliation:** correct Phase 8/HEAD status; synchronize README, HANDOFF and authorization records; refine Phase 9 acceptance criteria/dependencies; record the owner authorization and release-tag boundary. No production source changed.
+- [x] **P9-01 — Client example:** added `examples/client/main.go` covering configuration, Connect/Bind, SendRequest/Completion, SendNoWait, error handling and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
+- [x] **P9-02 — Server example:** added `examples/server/main.go` covering Start/Addr, BindValidator, OnRequest/SendResponse, OnClose and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
+- [x] **P9-03 — Public API and usage documentation:** completed GoDoc for exported declarations and all 56 `With...` constructors; added API, Configuration and Lifecycle guides; expanded README with prerequisites, development installation, Quick Start and documentation links.
+  - [x] Audit GoDoc for every exported type, constant, function, method and Functional Option; all exported declarations are documented.
+  - [x] Document configuration defaults, valid ranges, hard maxima, zero-value semantics, inheritance and independent Client/Server/Session resource budgets.
+  - [x] Document payload ownership, callback lanes/concurrency/order, admission errors, Request completion semantics, errors.Is/errors.As, timeouts, reconnect and shutdown/Done semantics.
+  - [x] Expand README with prerequisites, installation, Quick Start, links to the examples and documentation index.
+- [x] **P9-04 — Historical wire interoperability documentation:** initial engineering verification was recorded in a dedicated compatibility guide. That public-facing guide was retired by the 2026-11-18 cleanup; current neta-go framing/version documentation is `docs/PROTOCOL.md`, while historical provenance remains in `.codex/`.
+- [x] **P9-05 — Test, CI and release-readiness review (COMPLETE; documented publication-time checks remain in P9-06):**
+  - [x] Add `make smoke` and a CI gate after `make verify`; preserve coverage and example-smoke logs as artifacts.
+  - [x] Build both examples and run paired Client/Server loopback smoke: Request/Response, SendNoWait event delivery and graceful Client/Server Stop all PASS.
+  - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
+  - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
+  - [x] Record toolchain/platform evidence and publish the owner-approved V1 support statement.
+  - [x] Add an Unreleased `CHANGELOG.md` and release-readiness checklist; current changelog entries OWNER APPROVED on 2026-11-17 as proposed V1 release notes, pending separate release permission.
+  - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
+  - [x] Owner confirms Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested platform; approved 2026-11-17; other platforms remain unverified.
+  - [x] Owner approved copyright holder **Majid Darvishan** and year **2026**, confirmed commercial use is permitted, and the Apache-2.0 `LICENSE` notice was updated on 2026-11-17.
+  - [x] Owner approved protecting `main` with two mandatory GitHub Actions checks on 2026-11-17: `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Verified their exact names, success and `pull_request` triggers; see `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`.
+  - [x] Owner applied `main` protection in GitHub UI on 2026-11-17. Verified by GitHub branch API: `protected=true`, `required_status_checks.enforcement_level=everyone`, and **exactly both** required contexts `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Both checks PASS on commit `b992beac7495934ce43111bd3a692ec272c8195d`.
+  - [x] Verify protected-branch Pull Request enforcement in a real end-to-end PR: [#2](https://github.com/majiddarvishan/neta-go/pull/2) was `blocked` while its required Go/Pinex checks were pending, became `clean` after both checks PASS, and was then successfully squash-merged to `main` (`b5839a42b0de99f1ce9abf278e1fba3ff66d6617`). Latest post-merge Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) and Pinex [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) CI PASS on the same HEAD.
+  - [x] Complete documented review of restricted admin settings and release publication capability **without claiming independent verification**: owner reported completing UI protection steps; GitHub reports `protected=true` with `enforcement_level=everyone` and both required contexts, confirmed by real PR #2; strict-up-to-date / specific bypass toggle is **NOT independently readable** (403). Repo is public with admin permission reported; releases/tags are absent and release listing works. Actual release publishing ability remains **NOT RUN** and moves to mandatory P9-06 preflight (no publication authorized).
+  - [x] Owner APPROVED current `CHANGELOG.md` (Unreleased draft) and semantic version **`v1.0.0`** for the intended initial release on 2026-11-17. This approval is **not** authorization to create a tag or GitHub Release.
+- [ ] **P9-06 — V1 release tag:** still NOT AUTHORIZED. Before any tag/release: obtain explicit fresh owner permission; verify release-creator access and the strict-up-to-date/admin-bypass controls in GitHub settings or via authorized admin; recheck exact current `main` SHA and both passing required checks; create `v1.0.0` tag/release only on that approved SHA and finalize release notes. Never infer release authorization from P9-05 closure.
+
+### Phase 9 completion evidence and authorization
+
+- Owner authorization: the owner replied «ادامه بده» on 2026-11-17 after reviewing and approving the Phase 9 execution plan.
+- P9-00 baseline HEAD: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`; the production source remains at `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
+- Final pre-Phase-9 Go CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) both PASS on the baseline HEAD.
+- P9-00 changes only project documentation/tracking/authorization records; no production source, tests, API, protocol or defaults are changed.
+- P9-00 documentation commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450), [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0), and final link/evidence correction [a43b0e5ca9b50f592ae402d18968b538af5bc128](https://github.com/majiddarvishan/neta-go/commit/a43b0e5ca9b50f592ae402d18968b538af5bc128).
+- Final P9-00 Go CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747): PASS (`make verify`); Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634): PASS, both on HEAD `c6ac25338851edda1630dd6301a8eaf509f994c0`.
+- Internal Markdown link audit found and corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; all audited relative links now resolve.
+- Final P9-00 Go CI [44114744808](https://github.com/majiddarvishan/neta-go/actions/runs/44114744808): PASS; Pinex Wire Compatibility [44114744875](https://github.com/majiddarvishan/neta-go/actions/runs/44114744875): PASS on HEAD `a43b0e5ca9b50f592ae402d18968b538af5bc128`.
+- P9-01/P9-02 example commit: [04d905f75786542c9b51f48a33228b9bd372b419](https://github.com/majiddarvishan/neta-go/commit/04d905f75786542c9b51f48a33228b9bd372b419).
+- Go correctness CI [44115049164](https://github.com/majiddarvishan/neta-go/actions/runs/44115049164): PASS (`make verify`: formatting, vet, unit and race); `go test ./...` compiles both example packages. Pinex Wire Compatibility [44115049277](https://github.com/majiddarvishan/neta-go/actions/runs/44115049277): PASS.
+- P9-03/P9-04 documentation and GoDoc commits: [119be0adc61d1306c595f7aca6d7dc551c445fce](https://github.com/majiddarvishan/neta-go/commit/119be0adc61d1306c595f7aca6d7dc551c445fce), [631382c97f0702ea822203532f73567eeb594611](https://github.com/majiddarvishan/neta-go/commit/631382c97f0702ea822203532f73567eeb594611), formatting correction [a9ac0f6b530e2246fc73914d9db4ffcf3664db04](https://github.com/majiddarvishan/neta-go/commit/a9ac0f6b530e2246fc73914d9db4ffcf3664db04), and final helper restoration [3adca4f49e8565010344411dfdb0d83976218688](https://github.com/majiddarvishan/neta-go/commit/3adca4f49e8565010344411dfdb0d83976218688).
+- Go correctness CI [44116677209](https://github.com/majiddarvishan/neta-go/actions/runs/44116677209): PASS (`make verify`: gofmt, go vet, unit tests and race tests) on final P9-03/P9-04 HEAD `3adca4f49e8565010344411dfdb0d83976218688`.
+- Pinex Wire Compatibility CI [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS on the same HEAD.
+- GoDoc audit: all exported top-level declarations in the root production package have comments; all 56 exported `With...` constructors are documented. Internal Markdown link audit: PASS.
+- P9-03/04 changed documentation and comments only. The private `newConfigError` helper was restored unchanged; no production behavior/API/protocol/default/resource policy changed.
+- P9-05 implementation commit: [c038fa60ffafd1f895e133db6d8cca08e7a2cc49](https://github.com/majiddarvishan/neta-go/commit/c038fa60ffafd1f895e133db6d8cca08e7a2cc49); shell expansion fix: [6d2521a22a476ee24f90dee364249e137357b756](https://github.com/majiddarvishan/neta-go/commit/6d2521a22a476ee24f90dee364249e137357b756); test-only deferred-credit assertion fix: [958601ee55dd6229021e36135a017527dfa8f778](https://github.com/majiddarvishan/neta-go/commit/958601ee55dd6229021e36135a017527dfa8f778).
+- Final P9-05 Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS on HEAD `958601ee55dd6229021e36135a017527dfa8f778`; includes `make verify` and `make smoke`. Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS.
+- Coverage: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% (no package-local tests). These are visibility metrics only; no coverage threshold is approved.
+- Runtime smoke: ephemeral loopback TCP, Client Request/Response, SendNoWait event observed by Server, and graceful Client/Server shutdown all PASS. Both example binaries built successfully.
+- Final Phase 9 evidence artifact: [14344846005](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
+- The first smoke attempt [44118086700](https://github.com/majiddarvishan/neta-go/actions/runs/44118086700) exposed a shell-parameter expansion escape; the script was corrected in `6d2521a` and the final run passed.
+- A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
+- Owner approved the V1 support baseline on 2026-11-17: Go 1.23 minimum and Ubuntu 24.04/Linux amd64 as CI-tested. Local Go 1.27.0 verification is additional evidence; other platforms are unverified. This closes only the support approval subtask.
+- Copyright/licensing decision CLOSED on 2026-11-17: owner specified `Majid Darvishan`, `2026` and explicitly permits commercial use. Existing Apache-2.0 license retained (including its conditions); copyright notice filled in. No extra non-commercial restriction or alternative license introduced.
+- Changelog/version review CLOSED on 2026-11-17: the owner approved the existing Unreleased changelog content and the intended semantic version `v1.0.0` for V1. The changelog remains Unreleased until a separately authorized publication.
+- Repository metadata check: `main` reports `protected=false` and the repository ruleset list is empty; classic branch-protection details are not readable through the integration (HTTP 403). Tags: 0; GitHub Releases: 0. This is a visible release-readiness risk, not evidence of enforced branch protection. GitHub Release settings still require owner/admin verification.
+- 2026-11-17: owner approved protecting `main` and requiring the exact Go `test` and Pinex `Verify Go wire codec against pinned Pinex C++ 1.5.0` status checks. GitHub verified that both jobs pass on `b3fad24938dd689cd270b6954a3a98e37f630614`, and both workflows trigger on pull requests. No protection-write action is offered by the GitHub integration; an admin application/verification guide was committed to `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`.
+- Branch protection now **ACTIVE / REQUIRED CHECKS VERIFIED** on 2026-11-17: after the owner's GitHub UI changes, `main.protected=true` and `required_status_checks.enforcement_level=everyone` with exactly `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. On HEAD `b992beac7495934ce43111bd3a692ec272c8195d` both Go [44163815612](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612) and Pinex [44163815661](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661) CI PASS. Classic protection-detail endpoint remains HTTP 403; strict-up-to-date/admin-bypass flags remain independently unverified.
+- End-to-end protected PR workflow is independently VERIFIED: [PR #2](https://github.com/majiddarvishan/neta-go/pull/2) was initially blocked pending two mandatory check runs, became mergeable after both succeeded, and was squash-merged as [b5839a42](https://github.com/majiddarvishan/neta-go/commit/b5839a42b0de99f1ce9abf278e1fba3ff66d6617). Both post-merge Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) and Pinex [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) CI PASS on that SHA.
+- P9-05 qualified engineering readiness review COMPLETE: latest verified post-merge `main` HEAD `cbd07421fec639a2d0db0bec7de03484bbcdb831` has Go [44167295340](https://github.com/majiddarvishan/neta-go/actions/runs/44167295340) and Pinex [44167295551](https://github.com/majiddarvishan/neta-go/actions/runs/44167295551) **PASS**. User approved support, license, version/changelog and reported finishing branch UI setup; actual protected PR enforcement PASS. Unreadable strict/admin toggle and untested GitHub Release publisher capability are explicitly **not** called verified; those checks are mandatory for P9-06 publication-time preflight.
+- P9-06 remains **NOT AUTHORIZED**; no `v1.0.0` tag or GitHub Release exists. The local `stash@{0}` was not touched.
+- The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
+
+---
+
+## PV-02B — Extend V2 SystemID to 20 bytes (owner-authorized 2026-11-18)
+
+**Post-merge requalification audit:** [PV-01 / PV-02A / PV-02B CI and release-notes gate](NETA_GO_PROTOCOL_V2_POSTMERGE_REQUALIFICATION_2026-11-18.md). CI PASS does **not** imply new release-note approval or release-publication permission.
+
+- [x] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains 19 bytes + NUL. Go Client validation honors the selected Session protocol version; Encode/Decode reject exceeding lengths. New tests verify V2 accepts 20/rejects 21, V1 accepts 19/rejects 20, Request/Response round-trips and real TCP V2 Bind of 20 bytes. Protected [PR #8](https://github.com/majiddarvishan/neta-go/pull/8): Go [44187040490](https://github.com/majiddarvishan/neta-go/actions/runs/44187040490) **PASS** and Pinex [44187040470](https://github.com/majiddarvishan/neta-go/actions/runs/44187040470) **PASS** on SHA `9e2ede41284684c640897d282b39f36468335424`. Post-merge main CI evidence is recorded in PV-02B-R; amended Unreleased notes still require fresh owner approval.
+- [ ] **PV-02B-R — Release requalification:** post-merge CI evidence is recorded and verified; **owner review/approval of the new V2 20-byte SystemID Unreleased release notes remains OPEN**. No owner approval is inferred from earlier V1 notes. **P9-06 remains NOT AUTHORIZED**; no tag/release.
+  - [x] Post-merge protected `main` HEAD `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2` (PR #8): [Go CI 44187548178](https://github.com/majiddarvishan/neta-go/actions/runs/44187548178) **PASS**, including shared correctness, race, coverage and paired-example smoke; [Pinex CI 44187548184](https://github.com/majiddarvishan/neta-go/actions/runs/44187548184) **PASS**, including pinned C++ fixture/golden comparison.
+  - [ ] Owner explicitly approves amended V2 20-byte SystemID release-note wording.
+
+## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
+
+- [x] **PV-02A — Remove trailing NUL from V2 Bind Request/Response:** Go V2 Client sends NUL-free Bind; default Go V2 Server detects V1/V2 from the first Bind and responds in that format; Go V1-only Server rejects V2; V1 codec and pinned Pinex 1.5.0 fixture unchanged. Codec, real Go loopback, legacy test-fixture, correctness and race checks verified on [PR #7](https://github.com/majiddarvishan/neta-go/pull/7), commit `d456afb2149b5976f560b57674be2e14da0f460a`: [Go CI PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468231) and [Pinex Compatibility PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468234).
+- [ ] **PV-02A-R — Re-review release evidence:** previous P9-05 wire-identity claims were superseded for V2 Bind; **post-merge CI is VERIFIED**, while new owner approval of the NUL-free V2 Bind CHANGELOG remains OPEN. P9-06 remains NOT AUTHORIZED.
+  - [x] Go/Pinex post-merge CI on exact `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2` as linked in PV-02B-R, preserving V1 C++ golden compatibility.
+  - [ ] Owner explicitly approves amended NUL-free V2 Bind release-note wording and the requirement for explicit V1 when connecting to legacy Pinex.
+
+## PV-01 — Go-only Session protocol version (owner authorized 2026-11-18)
+
+- [x] **PV-01 — Go protocol-version configuration:** add `ProtocolVersionV1`/`ProtocolVersionV2`, immutable per-Session local version and `WithProtocolVersion` via existing Client/Server Session options; **default V2**, reject unsupported values and test defaults/overrides. At PV-01 completion both versions sent legacy Pinex bytes; **PV-02A supersedes this for V2 Bind only**. V1 remains Pinex-identical. Check Go/Pinex CI on the protected PR before merging.
+- [ ] **PV-01-R — Pre-release requalification:** **post-merge CI is VERIFIED** for the version-option/default change; **owner review/approval of the new V2-default public API CHANGELOG remains OPEN**. This does not close P9-06.
+  - [x] Go correctness/race, coverage, paired examples and Pinex fixture CI PASS on exact protected `main` HEAD `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2`, linked in PV-02B-R.
+  - [ ] Owner explicitly approves amended Session-version / default-V2 release-note wording.
+
+## Future protocol evolution — owner-approved architecture, implementation NOT AUTHORIZED
+
+- [x] **PROTOCOL-VERSION-001 — Session-scoped version selection (DESIGN ONLY):** owner approved selecting the effective protocol version **once per Session**, with no extra version byte in each Frame. V1 / Pinex 1.5.0 remains unchanged; the earlier default-V1 decision was superseded by owner-approved default V2 (PV-01) and NUL-free Bind V2 (PV-02A). Session versions remain fixed. [Architecture decision](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md).
+- [ ] **PV-02 — Select a safe version-selection / negotiation mechanism:** out-of-band peer/endpoint configuration is a candidate; safe in-band negotiation is **not established** for legacy Pinex. Separate design/owner approval is required.
+- [x] **PV-03 (NUL-free V2 Bind scope) — Implemented under PV-02A:** the new V2 Bind Request/Response omit the NUL; V1 Bind stays Pinex 1.5.0-compatible and the 10-byte Frame Header/Stream frames are unchanged. Any further version-specific wire changes require separate approval.
+- [ ] **PV-04/PV-05 — Peer capability validation and future V2-wire-specific APIs and cross-version tests:** PV-01 provides only local Go configuration; negotiation and wire-dependent behavior still require separate design/approval.
+
+**Release boundary:** Future negotiation work remains out of scope; owner-approved PV-01, PV-02A and PV-02B introduce separately documented Go changes without reopening the legacy V1 wire contract. The P9-06 `v1.0.0` release task still requires separate explicit owner authorization.
+
+---
+
+## Repository structure and public documentation cleanup — 2026-11-18
+
+- [x] Replace implementation-phase filenames with descriptive tests for interoperability, transport faults, reconnect soak, delivery and benchmarks.
+- [x] Rename performance and example-smoke scripts, Makefile targets, and the performance workflow; update Go CI and benchmark selectors.
+- [x] Remove `docs/PINEX_COMPATIBILITY.md` and replace it with a self-contained `docs/PROTOCOL.md` documenting neta-go's Header, commands, V1/V2 Bind and Session behavior.
+- [x] Refocus README, public API, configuration, lifecycle, support and changelog on neta-go.
+- [x] Preserve the existing required C++ golden-wire CI job name because it is a protected-`main` required status context. Test fixtures and interoperability tests remain internal.
+- [ ] Verify Go correctness/race, example smoke and wire golden checks on the final protected-`main` SHA after the cleanup PR merges.
+- [ ] Obtain renewed approval of changed Unreleased release notes; release tagging remains separately unauthorized.
+
+**Naming/CI handoff:** [Repository cleanup report](NETA_GO_REPOSITORY_HYGIENE_2026-11-18.md). Historic `.codex/` phase records are archived evidence and may mention superseded paths.
+
+## Verification and update log
+
+| Date | HEAD / Commit | Scope | Evidence |
+|---|---|---|---|
+| 2026-11-17 | `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c` | Phase 3 source | Go [44057820360](https://github.com/majiddarvishan/neta-go/actions/runs/44057820360) PASS; C++ golden [44057820405](https://github.com/majiddarvishan/neta-go/actions/runs/44057820405) PASS |
+| 2026-11-17 | `c98f731fef89519d62d95248982538f25a36db82` | Documentation/handoff | Go [44058276200](https://github.com/majiddarvishan/neta-go/actions/runs/44058276200) PASS; C++ golden [44058274150](https://github.com/majiddarvishan/neta-go/actions/runs/44058274150) PASS |
+| 2026-11-17 | `8eead509c6817722d6b7c6f5e5a17e1734749911` | Phase 6 Server lifecycle/admission | Go [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS |
+| 2026-11-17 | `a05a735aa0383d2588b41b1a2258282d734ff72b` | Phase 6 Client CurrentSession/Stop lifecycle | Go [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS |
+| 2026-11-17 | `f8ce7669d2bbde33d3134d300e3256ae290dc529` | Phase 6 Client Connect/Bind, reconnect and final acceptance | Go [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) PASS; Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) PASS |
+
+## Canonical references
+
+- [Project handoff](HANDOFF.md)
+- [Phase 9 release-readiness plan](NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)
+- [Architecture freeze and implementation roadmap](NETA_GO_ARCHITECTURE_FREEZE_AND_IMPLEMENTATION_ROADMAP_2026-11-17.md)
+- [Implementation authorization](IMPLEMENTATION_AUTHORIZATION_2026-11-17.md)
+- [Resource admission design](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
+- [Worker capacity and resource accounting design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md)
+- [Performance contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md)
+- [Phase 6 Server implementation report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md)
+- [Phase 6 Client lifecycle report](NETA_GO_PHASE_6_CLIENT_STOP_IMPLEMENTATION_2026-11-17.md)
+- [Decision log](DECISION_LOG.md)
+
+
+### Phase 4 progress evidence — 2026-11-17
+
+- P4-01 and P4-02 implemented in `resource_ledger.go`; Client/Server constructors now create independent owner ledgers.
+- Tests cover exact capacity, over-capacity rejection, release/underflow protection, independent Application/Completion budgets, shared Server aggregate queue counters, Client-vs-Server aggregate behavior, OnClose event credits, owner isolation and concurrent Request admission.
+- Implementation commit: `9f2514115b601c7cdc2efb91fe98daa628b1c7b0`; formatting-only follow-up: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
+- Go CI [44060075443](https://github.com/majiddarvishan/neta-go/actions/runs/44060075443) PASS; Pinex Wire Compatibility [44060075468](https://github.com/majiddarvishan/neta-go/actions/runs/44060075468) PASS.
+- Current source baseline for the next Phase 4 slice: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
+
+
+### Phase 4 completion evidence — 2026-11-17
+
+- Implementation report: [NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
+- 46 Session tests + 8 owner-ledger tests.
+- Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
+- At the time Phase 4 closed, Phase 5 had not yet been authorized. Phase 5 was subsequently authorized and is now COMPLETE / CI PASS; see the Phase 5 completion evidence below.
+
+
+### Phase 5 implementation authorization — 2026-11-17
+
+The owner explicitly approved Phase 5 by replying «آره» after the request to begin the bounded callback Worker Scheduler.
+
+**Authorized scope:** implement the already-frozen WORKER-001..009C contracts only:
+- Three independent owner-scoped Application, Completion and OnClose pools; lazy creation; no shared scheduling/lock/wakeup domain across classes.
+- Enforce owner active-worker ceilings and per-Session concurrency intersections; preserve owner accounting across Session generations.
+- Per-class FIFO round-robin scheduling with one reusable ready-Session node and one callback per eligible Session turn.
+- Independently configurable 30s idle retirement grace, zero warm-idle floor, worker reuse and enqueue/retirement linearization.
+- Forced Close A cancellation/start linearization; queued Application/Completion cancellation and exact resource release; started callbacks retain permits/credits until return.
+- OnClose only after Done, best-effort/at-most-once, bounded queued+running event credits and permanent skip at saturation.
+- Isolation, fairness, lifecycle, race and churn tests plus gofmt, vet, unit and race CI.
+
+**Not authorized by this approval:** Phase 6 Client/Server networking and reconnect, Phase 7 live Pinex TCP interoperability, Phase 8 benchmark/pooling optimization, Phase 9 examples/release/deployment. No frozen decision, default, public API or wire contract is reopened.
+
+
+### Phase 5 authorization closure
+
+Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE / CI PASS. This closure does not authorize Phase 6 or later phases.
+
+
+### Phase 6 Client lifecycle evidence — 2026-11-17
+
+- Report: [Client CurrentSession/Stop lifecycle](NETA_GO_PHASE_6_CLIENT_STOP_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `a05a735aa0383d2588b41b1a2258282d734ff72b`.
+- 4 focused Client lifecycle tests.
+- Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
+- At this earlier Client lifecycle checkpoint, Connect/Bind still awaited the owner Bind identity decision; Option B was subsequently approved and implemented. Final evidence is recorded in the completion section below.
+
+
+### Phase 6 Client Connect/Bind and reconnect implementation — 2026-11-17
+
+- Owner decision: Option B, recorded in .codex/DECISION_LOG.md §56.
+- Added mandatory WithClientSystemID(string) and optional WithClientBindType(BindType); default is bi-directional.
+- Added Client.Connect(ctx) with absolute Dial and Bind deadlines, caller Context precedence and no post-success Context coupling.
+- Added generation fencing and a single reconnect supervisor using the approved 1s/30s Full-Jitter exponential windows; retries only Dial failures/timeouts and unexpected post-Bound transport failures. Bind rejection/timeout are non-retryable. No Request replay.
+- Every generation reuses the Client-owned resource ledger and callback dispatcher.
+- Uni-directional Client behavior is requester-only and compatible with Pinex 1.5.0.
+- Added Client Bind validation, connect/stop, timeout, rejection, reconnect-generation, uni-directional behavior and Bind-vs-Context race tests. Also hardened the Worker Scheduler test to wait for deferred resource release after callback return, eliminating a timing-sensitive false failure. Final Go and Pinex CI evidence is recorded below.
+
+
+### Phase 6 Client Connect/Bind and reconnect completion evidence — 2026-11-17
+
+- Report: [.codex/NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md).
+- Owner decision: Option B, DECISION_LOG.md §56.
+- Final verified source HEAD: f8ce7669d2bbde33d3134d300e3256ae290dc529.
+- Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) PASS: gofmt, vet, unit tests and race tests.
+- Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) PASS: pinned C++ 1.5.0 golden fixtures.
+- Phase 6 P6-01..P6-11 are COMPLETE. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain NOT AUTHORIZED.

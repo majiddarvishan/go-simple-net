@@ -10,7 +10,7 @@
 
 ## 1. Repository state
 
-- Canonical implementation checklist: [TASKS.md](../TASKS.md). Update it whenever a task changes status.
+- Canonical implementation checklist: [TASKS.md](TASKS.md). Update it whenever a task changes status.
 
 - Default branch: main
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
@@ -85,7 +85,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 - GO-PINEX-001: protocol source baseline pinned to Pinex develop `f7bd1eb779baff0d10e624f20522df345e6ee747`; Maximum Frame Size verified as 1 MiB total including Header; golden-frame artifacts are compiled and compared in CI. Live socket-level cross-language confirmation remains Phase 7.
 - Phases 1–5 (Configuration, Wire Codec, Session Transport/Lifecycle, Resource Admission and Worker Scheduler) are COMPLETE / CI PASS.
-- GO-PINEX-002 through GO-PINEX-014 remain broader integration/backlog items; the root `TASKS.md` is the canonical implementation tracker, while Phases 6–9 remain gated.
+- GO-PINEX-002 through GO-PINEX-014 remain broader integration/backlog items; the `.codex/TASKS.md` is the canonical implementation tracker, while Phases 6–9 remain gated.
 
 ## 7. Owner decisions
 
@@ -99,7 +99,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next action:** Phase 6 is complete. Do not begin Phase 7 live Go↔Pinex TCP interoperability, Phase 8 performance benchmarking/optimization or Phase 9 examples/release without separate owner authorization. Keep root `TASKS.md` as the canonical tracker.
+**Next action:** Phase 6 is complete. Do not begin Phase 7 live Go↔Pinex TCP interoperability, Phase 8 performance benchmarking/optimization or Phase 9 examples/release without separate owner authorization. Keep `.codex/TASKS.md` as the canonical tracker.
 
 ## 9. Approved Go library name
 
@@ -846,7 +846,7 @@ Out of scope: Phase 6 Client/Server networking/reconnect, Phase 7 live TCP inter
 
 ## Phase 5 implementation evidence — COMPLETE / CI PASS
 
-Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`. See [Phase 5 implementation report](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md) and the canonical [TASKS.md](../TASKS.md). Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) and Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) both PASS. Phase 6+ remain unauthorized.
+Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`. See [Phase 5 implementation report](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md) and the canonical [TASKS.md](TASKS.md). Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) and Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) both PASS. Phase 6+ remain unauthorized.
 
 
 ## Phase 6 Server implementation evidence — 2026-11-17
@@ -970,7 +970,7 @@ No public API, wire format, defaults, resource ceilings or frozen architecture d
 
 **Starting repository HEAD:** 7f9fe62e4ffa85966b5f028365086707ec08fed2 (Phase 7 completion documentation commit; source baseline remains 209c24a7dbc5a5aa3db95ec63705915406acacb6).
 
-**Repository inspection:** .codex/AGENT_CONTEXT.md is not present on main; the canonical tracker is root TASKS.md. Reviewed NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md, NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md, Worker Capacity/Resource Accounting design, Architecture Freeze/Decision Register, current implementation and CI workflows.
+**Repository inspection:** .codex/AGENT_CONTEXT.md is not present on main; the canonical tracker is `.codex/TASKS.md`. Reviewed NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md, NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md, Worker Capacity/Resource Accounting design, Architecture Freeze/Decision Register, current implementation and CI workflows.
 
 **Binding performance constraints:**
 - PERF-002 A: one outbound snapshot on successful admission; inbound payload is directly read into owned, user-retainable memory; never recycle user-visible inbound payload.
@@ -1107,7 +1107,7 @@ P9-05 implementation commit `c038fa60ffafd1f895e133db6d8cca08e7a2cc49` added the
 
 **Status: APPROVED.** The owner answered «آره» to the explicit support baseline proposal. Minimum supported Go: **1.23** (module directive `go 1.23`; CI selector `1.23.x`). Continuously CI-verified environment: **Ubuntu 24.04 / Linux amd64**. The owner's local `make verify` with Go 1.27.0 was previously reported PASS, but the local platform was not captured. Other GOOS/GOARCH targets remain unverified and cannot be advertised as supported without new evidence.
 
-Pre-decision CI at HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness + paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS, Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Support decision is closed in root `TASKS.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
+Pre-decision CI at HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness + paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS, Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Support decision is closed in `.codex/TASKS.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
 
 P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/version approval and branch-protection/release-settings verification. P9-06 is NOT AUTHORIZED. No release/tag, production changes or local stash operations were performed.
 
@@ -1131,7 +1131,7 @@ P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/versi
 - Go correctness/coverage/paired-example CI [44159858260](https://github.com/majiddarvishan/neta-go/actions/runs/44159858260) PASS and Pinex Wire Compatibility [44159858233](https://github.com/majiddarvishan/neta-go/actions/runs/44159858233) PASS on pre-decision HEAD `11d2a0a9508b59e603f038e14772d29bb1bb17ea`.
 - GitHub branch metadata reports `main.protected=false` and repository rulesets API returns `[]`. Classic branch protection details are inaccessible via the integration (HTTP 403), so do not claim the branch has enforced protection.
 - Repository tags: none. Published GitHub Releases: none. GitHub Release settings require owner/admin inspection.
-- `docs/RELEASE_READINESS.md` now has a PASS / NOT VERIFIED / NOT AUTHORIZED matrix. Root `TASKS.md` and Phase 9 plan record version/changelog decision as COMPLETE.
+- `docs/RELEASE_READINESS.md` now has a PASS / NOT VERIFIED / NOT AUTHORIZED matrix. `.codex/TASKS.md` and Phase 9 plan record version/changelog decision as COMPLETE.
 - **P9-05 stays IN PROGRESS:** branch protection / release settings still need owner/admin review or explicit risk acceptance. **P9-06 is NOT AUTHORIZED**; no tag, release, production code change or local stash operation was performed.
 
 
@@ -1158,7 +1158,7 @@ The release tracker and checklist require a feature branch / pull request to rec
 - Protected `main` HEAD `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`: Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) **PASS**, Pinex Compatibility [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) **PASS**. Required check contexts `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0` both completed successfully.
 - Live [PR #2](https://github.com/majiddarvishan/neta-go/pull/2): `mergeable_state=blocked` while check runs in progress, later `clean` with successful checks, and squash-merged. Actual required-check gating is demonstrated, not just configured.
 - GitHub repository: public, no tags, no Releases; release listing accessible. Connected integration has no release publication or full branch protection settings-read action. Therefore strict up-to-date, exact administrator bypass settings and release-creation permissions remain **NOT INDEPENDENTLY VERIFIED**. Owner reported completing browser configuration; this report does not substitute for seeing private admin configuration.
-- Root `TASKS.md`, `docs/RELEASE_READINESS.md`, branch guide and Phase 9 plan updated with verifiable evidence and unresolved gate. **P9-05 remains IN PROGRESS**; **P9-06 still NOT AUTHORIZED**; `CHANGELOG.md` remains Unreleased. Local stash untouched.
+- `.codex/TASKS.md`, `docs/RELEASE_READINESS.md`, branch guide and Phase 9 plan updated with verifiable evidence and unresolved gate. **P9-05 remains IN PROGRESS**; **P9-06 still NOT AUTHORIZED**; `CHANGELOG.md` remains Unreleased. Local stash untouched.
 
 
 ## 36. P9-05 — Qualified engineering sign-off; P9-06 release remains gated (2026-11-17)
@@ -1176,7 +1176,7 @@ The owner explicitly instructed **not to change code**, asked about dropping the
 
 This is a design-only decision. V1 stays default and wire-identical to Pinex C++ 1.5.0: 10-byte header; BindType + `c_octet_str<20>` NUL-terminated SystemID; omitted BindResp body allowed with defaults. The old Pinex C++ decoder explicitly searches for NUL; sending V2 Bind without it to a legacy peer is incompatible. Positive peer capability agreement is required before V2. The selection/handshake mechanism, possible V2 Bind optimization and API contracts remain OPEN — no speculative in-band negotiation, version probing or automatic downgrade allowed.
 
-Formal architecture record: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md); canonical root `TASKS.md` tracks PV-02..PV-05 as future, separately unauthorised tasks. No source/tests/CI/golden fixtures were changed. P9-06 `v1.0.0` release **NOT AUTHORIZED**; local stash untouched.
+Formal architecture record: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md); canonical `.codex/TASKS.md` tracks PV-02..PV-05 as future, separately unauthorised tasks. No source/tests/CI/golden fixtures were changed. P9-06 `v1.0.0` release **NOT AUTHORIZED**; local stash untouched.
 
 
 ## 38. PV-01 — Go-only Session protocol version API, V2 local default (2026-11-18)
@@ -1201,4 +1201,4 @@ Review release-boundary carefully: PV-02A and PV-02A-R tasks in `TASKS.md` requi
 
 Owner explicitly requested expanding `SystemID` capacity to **20 bytes** after V2 NUL removal. Implementation in `feature/v2-system-id-20-bytes-2026-11-18`: internal V2 Bind codec now allows 20 rather than 19 bytes for both Request and Response; legacy V1 codec retains 19 bytes plus NUL. Go Client construction derives the byte limit from `ProtocolVersion`, including default V2=20 and explicit V1=19. New codec and TCP tests cover boundaries and actual Session identity. No new Header field, no Pinex C++ change, no V2 auto-fallback.
 
-Track `PV-02B` and `PV-02B-R` separately in root `TASKS.md`. Merge only after protected-PR Go/race/example and Pinex wire CI PASS. Post-merge main CI and renewed changelog review remain release preflight. P9-06 is NOT AUTHORIZED, no tag/Release; local stash remains untouched.
+Track `PV-02B` and `PV-02B-R` separately in `.codex/TASKS.md`. Merge only after protected-PR Go/race/example and Pinex wire CI PASS. Post-merge main CI and renewed changelog review remain release preflight. P9-06 is NOT AUTHORIZED, no tag/Release; local stash remains untouched.
