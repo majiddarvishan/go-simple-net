@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GO="\${GO:-go}"
-ARTIFACT_DIR="\${ARTIFACT_DIR:-artifacts/phase9}"
+GO="${GO:-go}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-artifacts/phase9}"
 mkdir -p "$ARTIFACT_DIR"
 
 TMP_DIR="$(mktemp -d)"
