@@ -1033,3 +1033,8 @@ The artifact was downloaded and inspected. The five-minute soak passed with base
 SendNoWait metrics from this run are excluded because the initial test harness could attribute one producer's delivery signal to another producer. This was corrected in commit `c5ebca4d3d0b7f1d36270501add0b059525df2c2`; a new full Phase 8 run is required and is currently queued/running.
 
 Profile review identifies outbound `buildStreamFrame` as a possible allocation optimization and inbound `Session.readFrame` as an ownership-required allocation. PERF-002 A forbids recycling inbound payloads. Any outbound reuse must be strictly bounded and reconciled with owner resource accounting. No production optimization has been accepted yet.
+
+
+## 27. Phase 8 — End-to-end SendNoWait routing test (2026-11-17)
+
+Added `phase8_delivery_test.go`: eight concurrent producers send one-way Requests over two live TCP Sessions. It verifies per-connection sequence routing, overlapping sequence values across Sessions, and early/out-of-order delivery notification. This runs under normal and race CI; no production code changed.

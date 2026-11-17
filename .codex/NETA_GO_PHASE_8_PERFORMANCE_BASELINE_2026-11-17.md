@@ -178,3 +178,10 @@ The full script completed successfully in about 9m22s of job execution. All work
 `Session.readFrame` allocates the owned inbound payload that may be retained by the application. Pooling/recycling that memory is prohibited by PERF-002 A. No inbound pooling is proposed.
 
 **Current decision:** no production optimization is accepted from this preliminary run. Re-run on the corrected SendNoWait harness, compare the same workload, then decide whether a strictly bounded outbound-only reuse design provides enough measured benefit to justify its resource-accounting and lifecycle complexity. If not, record PERF-004 = NO CHANGE.
+
+
+## 13. End-to-end SendNoWait correlation test — 2026-11-17
+
+Added `phase8_delivery_test.go` to validate the benchmark's real TCP routing independently of the long benchmark matrix. Eight concurrent producers send one-way Requests over two Sessions; each Session begins with overlapping sequence values, and every delivery must reach the tracker for the correct TCP peer and sequence. The test also exercises delivery racing ahead of waiter registration.
+
+This is test-only and runs in ordinary and race CI. It does not alter the production API or implementation.
