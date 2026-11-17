@@ -265,12 +265,18 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Document payload ownership, callback lanes/concurrency/order, admission errors, Request completion semantics, errors.Is/errors.As, timeouts, reconnect and shutdown/Done semantics.
   - [x] Expand README with prerequisites, installation, Quick Start, links to the examples and documentation index.
 - [x] **P9-04 — Pinex compatibility documentation:** added `docs/PINEX_COMPATIBILITY.md` with the Pinex 1.5.0 source SHA, wire/frame contract, golden-fixture provenance, both real TCP interoperability directions, fuzz/fault/soak evidence and explicit test limitations.
-- [ ] **P9-05 — Test, CI and release-readiness review:**
-  - [ ] Build/test both examples and ensure CI compiles them; run the complete correctness and Pinex compatibility gates.
-  - [ ] Record `go test -cover ./...` results for visibility; do not invent or enforce a coverage threshold without owner approval.
-  - [ ] Resolve and document the supported Go toolchain/platform baseline (current module directive and CI use Go 1.23; owner's local toolchain is Go 1.27.0).
-  - [ ] Review API/documentation consistency, dependency footprint, changelog/release notes, versioning and release checklist.
-  - [ ] Verify repository release settings/branch protection where access permits; record any unavailable controls.
+- [ ] **P9-05 — Test, CI and release-readiness review (IN PROGRESS):**
+  - [x] Add `make phase9` and a CI gate after `make verify`; preserve coverage and example-smoke logs as artifacts.
+  - [x] Build both examples and run paired Client/Server loopback smoke: Request/Response, SendNoWait event delivery and graceful Client/Server Stop all PASS.
+  - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.6%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
+  - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
+  - [x] Record toolchain/platform evidence and publish a proposed support statement; owner approval remains pending.
+  - [x] Add an Unreleased `CHANGELOG.md` and a release-readiness checklist; owner review remains pending.
+  - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
+  - [ ] Owner confirms the Go 1.23 minimum and Linux/amd64 tested-platform statement in `docs/SUPPORT.md`.
+  - [ ] Owner supplies the exact copyright holder/year to replace the Apache-2.0 LICENSE template placeholder `[yyyy] [name]`.
+  - [ ] Verify main branch protection/ruleset and GitHub Release settings. The GitHub integration returned HTTP 403 for branch protection; status remains unknown.
+  - [ ] Owner reviews the changelog and confirms semantic versioning; `v1.0.0` is only a candidate, not an approved tag.
 - [ ] **P9-06 — V1 release tag:** create the agreed V1 tag/release only after P9-05 passes and the owner explicitly approves the release operation. No release tag is authorized by the general Phase 9 approval.
 
 ### Phase 9 completion evidence and authorization
@@ -290,8 +296,14 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Pinex Wire Compatibility CI [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS on the same HEAD.
 - GoDoc audit: all exported top-level declarations in the root production package have comments; all 56 exported `With...` constructors are documented. Internal Markdown link audit: PASS.
 - P9-03/04 changed documentation and comments only. The private `newConfigError` helper was restored unchanged; no production behavior/API/protocol/default/resource policy changed.
-- P9-05 still needs a paired Client/Server runtime smoke test, `go test -cover ./...` evidence, supported Go/OS/architecture baseline, changelog/versioning and repository release-setting review.
-- Runtime smoke of the two programs together remains in P9-05; current CI proves compilation and repository correctness, not yet a paired live example run.
+- P9-05 implementation commit: [c038fa60ffafd1f895e133db6d8cca08e7a2cc49](https://github.com/majiddarvishan/neta-go/commit/c038fa60ffafd1f895e133db6d8cca08e7a2cc49); shell expansion fix: [6d2521a22a476ee24f90dee364249e137357b756](https://github.com/majiddarvishan/neta-go/commit/6d2521a22a476ee24f90dee364249e137357b756).
+- Final P9-05 Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS on HEAD `6d2521a22a476ee24f90dee364249e137357b756`; includes `make verify` and `make phase9`. Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS.
+- Coverage: root `neta` 79.6%; `internal/wire` 90.3%; example main packages 0.0% (no package-local tests). These are visibility metrics only; no coverage threshold is approved.
+- Runtime smoke: ephemeral loopback TCP, Client Request/Response, SendNoWait event observed by Server, and graceful Client/Server shutdown all PASS. Both example binaries built successfully.
+- Phase 9 evidence artifact: [14343193350](https://github.com/github/actions/runs/44118324345/artifacts/14343193350).
+- The first smoke attempt [44118086700](https://github.com/majiddarvishan/neta-go/actions/runs/44118086700) exposed a shell-parameter expansion escape; the script was corrected in `6d2521a` and the final run passed.
+- A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
+- Release review still needs owner approval for the proposed support baseline, exact LICENSE copyright holder/year, branch-protection state and version/tag policy. No V1 tag has been created.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---

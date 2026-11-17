@@ -13,7 +13,7 @@ Phases 0–8 are complete. Phase 8's corrected performance run [44105272003](htt
 
 The root `TASKS.md` is the only implementation checklist. `.codex/TASKS.md` is a pointer to it, not a second checklist.
 
-The repository currently has no `examples/` or user-facing `docs/` directory. The root README is only a short project-status page. The package-level `doc.go` is minimal. The module directive is Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The release support baseline is not yet decided.
+At the authorization baseline HEAD, the repository had no `examples/` or user-facing `docs/` directory, the root README was only a short project-status page, and package-level `doc.go` was minimal. These gaps are now closed by P9-01..P9-04. The module directive remains Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The final release support baseline still requires owner approval.
 
 ## 2. Authorization and non-negotiable boundaries
 
@@ -36,7 +36,7 @@ Examples may add source under `examples/`; docs, tests and CI harness changes ar
 
 ## 3. Task sequence, estimates and acceptance criteria
 
-Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00 through P9-04 are complete; remaining work is approximately **2.5–3.5 hours**, including the separately gated release operation.
+Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00 through P9-04 are complete. P9-05 implementation checks now pass; remaining work is primarily owner-dependent release review. Estimated engineering work remaining: **about 1–2 hours**, plus owner decision/review time. P9-06 remains separately gated.
 
 | Task | Estimate | Dependency | Acceptance |
 |---|---:|---|---|
@@ -149,14 +149,22 @@ Document:
 
 ### P9-05 — Test, CI and release-readiness review
 
-- Build all examples in CI; execute safe loopback integration checks where practical.
-- Run `make verify`, Pinex golden compatibility, and the established Phase 7 interoperability gate.
-- Run `go test -cover ./...` and record the result for visibility. Do not invent a minimum coverage percentage.
-- Review current workflow triggers/artifacts and ensure documentation/example changes cannot silently bypass required correctness checks.
-- Decide/document the supported Go toolchain and OS/architecture baseline. Current facts are `go.mod: go 1.23`, Go CI `1.23.x`, Phase 8 runner Go 1.23.12/Linux amd64, and owner local Go 1.27.0.
-- Review dependencies (currently standard-library-only expectation), license, changelog/release notes, semantic version and compatibility statement.
-- Verify branch protection/ruleset/release settings if access permits. The previous GitHub integration request for branch-protection details returned HTTP 403; this control remains unverified and must not be represented as disabled.
-- Produce a final checklist with PASS/FAIL/NOT RUN for every gate and list any known limitation.
+**Status: IN PROGRESS — implementation and automated verification gates PASS; final owner review remains open.**
+
+Completed:
+- Added `scripts/phase9-release-check.sh` and `make phase9`. The script records coverage, builds both examples, starts the Server on an ephemeral loopback port, runs the Client, verifies Request/Response and one-way event delivery, and gracefully stops both processes.
+- Updated Go CI to run `make verify` followed by `make phase9`, then upload correctness and Phase 9 artifacts.
+- Final Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS on `6d2521a22a476ee24f90dee364249e137357b756`. Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS.
+- Coverage from `go test -count=1 -cover ./...`: `neta` 79.6%; `internal/wire` 90.3%; `examples/client` and `examples/server` 0.0% because they have no package-local tests. No minimum coverage threshold is approved.
+- Runtime smoke PASS: Client Request/Response, SendNoWait event observed by Server, graceful Client Stop and graceful Server Stop.
+- Added `CHANGELOG.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
+
+Remaining owner/repository gates:
+- Owner approval of proposed Go 1.23 minimum and Linux/amd64 tested-platform baseline. Go CI currently runs Go 1.23.12 on Ubuntu 24.04/Linux amd64; owner-reported local Go 1.27.0 `make verify` also passed.
+- Confirm exact copyright holder and year; Apache-2.0 `LICENSE` still contains `[yyyy] [name]`.
+- Review the Unreleased changelog and proposed semantic version `v1.0.0` (not approved).
+- Verify branch protection/ruleset and release settings. The GitHub integration returned HTTP 403; state is unknown.
+- Produce final PASS/FAIL/NOT RUN checklist. No release tag is part of this task.
 
 ### P9-06 — V1 release tag
 

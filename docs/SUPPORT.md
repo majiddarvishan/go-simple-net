@@ -8,7 +8,7 @@
 |---|---|
 | Module Go directive | `go 1.23` in `go.mod` |
 | Go CI selector | `1.23.x`, resolving to Go 1.23.12 in the 2026-11-17 CI run |
-| Go CI OS/architecture | GitHub Actions `ubuntu-24.04`, Linux/amd64 |
+| Go CI OS/architecture | GitHub Actions `ubuntu-24.04`, Linux/amd64; latest Phase 9 Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345) |
 | Performance baseline | Ubuntu 24.04 / Linux amd64, Go 1.23.12 |
 | Owner local toolchain | Go 1.27.0; owner-reported `make verify` PASS on 2026-11-17 |
 | Owner local OS/architecture | Not captured in the committed verification artifact |

@@ -12,10 +12,17 @@
 - [x] P9-04 Pinex 1.5.0 compatibility and verification evidence documented.
 - [x] Go correctness CI and Pinex golden compatibility CI pass on the final documentation/GoDoc HEAD.
 
+## P9-05 evidence
+
+- Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS; Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS on commit `6d2521a22a476ee24f90dee364249e137357b756`.
+- `neta`: 79.6% statement coverage; `internal/wire`: 90.3%; examples: 0.0% package-local coverage (no tests in those main packages). No threshold is approved.
+- Loopback smoke verified Request/Response, one-way event reception and graceful shutdown of both programs. Both example binaries built.
+- Artifact: [Phase 9 coverage and smoke evidence](https://github.com/github/actions/runs/44118324345/artifacts/14343193350).
+
 ## P9-05 gates still to close
 
-- [ ] Paired Client/Server runtime smoke and graceful shutdown pass in CI.
-- [ ] Record `go test -cover ./...` output; no minimum percentage has been approved.
+- [x] Paired Client/Server runtime smoke and graceful shutdown pass in CI.
+- [x] Record `go test -cover ./...` output; no minimum percentage has been approved.
 - [ ] Owner approves the proposed Go 1.23 minimum and Linux/amd64 tested-platform statement in [SUPPORT.md](SUPPORT.md).
 - [ ] Confirm the intended copyright holder and year. The Apache-2.0 `LICENSE` currently retains the template placeholder `[yyyy] [name]`; do not guess these values.
 - [ ] Review the Unreleased entries in [CHANGELOG.md](../CHANGELOG.md).
