@@ -221,7 +221,7 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 	}
 }
 
-func TestPhase7SlowTrickleCannotExtendFrameAssemblyDeadline(t *testing.T) {
+func TestPhase7SlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -256,8 +256,8 @@ func TestPhase7SlowTrickleCannotExtendFrameAssemblyDeadline(t *testing.T) {
 	client, err := NewClient(
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("slow-client"),
-		WithBindResponseTimeout(time.Second),
-		WithClientSessionOptions(WithFrameAssemblyTimeout(60*time.Millisecond)),
+		WithBindResponseTimeout(60*time.Millisecond),
+		WithClientSessionOptions(WithFrameAssemblyTimeout(time.Second)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -268,10 +268,10 @@ func TestPhase7SlowTrickleCannotExtendFrameAssemblyDeadline(t *testing.T) {
 	err = client.Connect(ctx)
 	elapsed := time.Since(started)
 	if err == nil {
-		t.Fatal("Connect unexpectedly accepted a slow-trickled Bind Response")
+		t.Fatal("Connect unexpectedly accepted a Bind Response beyond its absolute deadline")
 	}
 	if elapsed > 700*time.Millisecond {
-		t.Fatalf("absolute Frame Assembly deadline took %s", elapsed)
+		t.Fatalf("absolute Bind Response deadline took %s", elapsed)
 	}
 	if _, ok := client.CurrentSession(); ok {
 		t.Fatal("timed-out Bind published a current Session")
