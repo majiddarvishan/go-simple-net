@@ -1625,3 +1625,14 @@ This is an **engineering review acceptance**, not a new owner authorization for 
 - Existing 10-byte V1 header and frozen `v1.0.0` API/wire contract **must not change**. Per-Frame version overhead is not added. Future V2 may be separately specified and explicitly authorized, but no code/test/CI/fixture change is permitted by this decision.
 
 Design and deferred tasks: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md) and root `TASKS.md` PV-02..PV-05. This **does not authorize or block** P9-06 release tagging. No Tag/GitHub Release or code change was performed.
+
+
+## 69. PV-01 — Go-only Session ProtocolVersion, default V2 (2026-11-18)
+
+**New explicit owner direction:** «ورژن رو به کتابخانه go فقط اضافه کن. می خوام به صورت پیش فرض v2 باشه.» This overrides the previous Go-local default V1 and explicitly authorizes a minimal public Go API/default change after the initial API freeze, but not a wire-format change.
+
+The new Go-only API includes `ProtocolVersionV1` and `ProtocolVersionV2`, defaulting to `ProtocolVersionV2` for each Session. `WithProtocolVersion` is a `SessionOption` inherited using `WithClientSessionOptions` or `WithServerSessionOptions`; `Session.ProtocolVersion()` reports the immutable **local** setting. Both valid values are accepted, other values fail construction-time validation.
+
+**Hard boundary:** V1 and V2 configuration values **currently send identical Pinex C++ 1.5.0 wire bytes** (10-byte Header and NUL-terminated SystemID). There is no V2 packet encoding, peer capability negotiation, automatic downgrade or assertion that the remote side supports V2. Removing NUL or introducing a new wire header remains unapproved PV-02/PV-03 work.
+
+The new Go API/default requires fresh CI and release-note approval under PV-01-R; prior P9-05 results were for the old HEAD. The approved intended **library** version `v1.0.0` is distinct from protocol generation V2. P9-06 remains NOT AUTHORIZED; no Tag or GitHub Release.
