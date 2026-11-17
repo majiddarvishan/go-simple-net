@@ -1597,3 +1597,10 @@ Both check runs are SUCCESS on commit `b3fad24938dd689cd270b6954a3a98e37f630614`
 **Crucial distinction: POLICY APPROVED ≠ ENFORCEMENT APPLIED.** GitHub branch metadata reports `protected=false`, and repository rulesets are empty. The GitHub integration does not expose branch-protection mutation and cannot read classic protection details (HTTP 403). A repository administrator must apply and verify the rule. Exact command/check names and verification criteria are recorded in `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`. The actual protection implementation gate remains UNCHECKED.
 
 P9-05 remains IN PROGRESS pending enforcement verification and GitHub Release settings review. P9-06 tag/Release remains NOT AUTHORIZED. No production API, wire, defaults, test or CI workflow changes approved.
+
+
+## 66. P9-05 — Owner applied branch protection; required checks verified (2026-11-17)
+
+The owner confirmed applying GitHub protection in the browser. GitHub branch API independently returned `main.protected=true`, `required_status_checks.enforcement_level=everyone`, and precisely two required contexts: `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Both CI check runs PASS at HEAD `b992beac7495934ce43111bd3a692ec272c8195d` ([Go 44163815612](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612), [Pinex 44163815661](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661)). Thus **branch protection ACTIVE and exact mandatory checks VERIFIED**.
+
+Full classic protection detail read remains blocked (HTTP 403), so strict branch up-to-date and admin bypass enforcement options are not independently verified. GitHub Release settings still need owner/admin review. P9-05 remains IN PROGRESS, P9-06 release/tag NOT AUTHORIZED. No production source, workflow, default, API or local stash change was made.
