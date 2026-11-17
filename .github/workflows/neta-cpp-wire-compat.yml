@@ -1,4 +1,4 @@
-name: neta-c++ Wire Compatibility
+name: neta-cpp Wire Compatibility
 
 on:
   push:

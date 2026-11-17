@@ -15,7 +15,7 @@ func loadNetaCPPGoldenFrames(t *testing.T) map[string][]byte {
 	t.Helper()
 	data, err := os.ReadFile("../../testdata/neta-cpp-1.5.0/golden.txt")
 	if err != nil {
-		t.Fatalf("read neta-c++ golden fixtures: %v", err)
+		t.Fatalf("read neta-cpp golden fixtures: %v", err)
 	}
 	frames := make(map[string][]byte)
 	for lineNo, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
@@ -91,7 +91,7 @@ func TestNetaCPP150GeneratedGoldenFrames(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(got, want) {
-			t.Errorf("%s = %x, C++ neta-c++ 1.5.0 fixture = %x", name, got, want)
+			t.Errorf("%s = %x, C++ neta-cpp 1.5.0 fixture = %x", name, got, want)
 		}
 	}
 
@@ -196,7 +196,7 @@ func TestBindResponseAllowsOmittedBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bind.Type != BindBiDirectional || bind.SystemID != "" {
-		t.Fatalf("omitted Bind Response decoded as %+v, want neta-c++ defaults", bind)
+		t.Fatalf("omitted Bind Response decoded as %+v, want neta-cpp defaults", bind)
 	}
 }
 

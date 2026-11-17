@@ -16,10 +16,10 @@ func interopPeerBinary(t *testing.T) string {
 	t.Helper()
 	path := os.Getenv("NETA_CPP_PEER_BIN")
 	if path == "" {
-		t.Skip("set NETA_CPP_PEER_BIN to run live neta-c++ interoperability")
+		t.Skip("set NETA_CPP_PEER_BIN to run live neta-cpp interoperability")
 	}
 	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("neta-c++ peer binary %q: %v", path, err)
+		t.Fatalf("neta-cpp peer binary %q: %v", path, err)
 	}
 	return path
 }
@@ -37,20 +37,20 @@ func startInteropNetaCPPServer(t *testing.T, binary, address string) *interopPee
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		cancel()
-		t.Fatalf("neta-c++ server stdout: %v", err)
+		t.Fatalf("neta-cpp server stdout: %v", err)
 	}
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
 		cancel()
-		t.Fatalf("start neta-c++ server: %v", err)
+		t.Fatalf("start neta-cpp server: %v", err)
 	}
 
 	ready, err := bufio.NewReader(stdout).ReadString('\n')
 	if err != nil || strings.TrimSpace(ready) != "READY" {
 		cancel()
 		_ = cmd.Wait()
-		t.Fatalf("neta-c++ server readiness = %q, err=%v, stderr=%s", ready, err, stderr.String())
+		t.Fatalf("neta-cpp server readiness = %q, err=%v, stderr=%s", ready, err, stderr.String())
 	}
 
 	done := make(chan error, 1)
@@ -71,10 +71,10 @@ func waitInteropNetaCPPServer(t *testing.T, process *interopPeerProcess) {
 	select {
 	case err := <-process.done:
 		if err != nil {
-			t.Fatalf("neta-c++ server failed: %v; stderr=%s", err, process.stderr.String())
+			t.Fatalf("neta-cpp server failed: %v; stderr=%s", err, process.stderr.String())
 		}
 	case <-time.After(8 * time.Second):
-		t.Fatalf("neta-c++ server did not exit; stderr=%s", process.stderr.String())
+		t.Fatalf("neta-cpp server did not exit; stderr=%s", process.stderr.String())
 	}
 }
 
@@ -87,20 +87,20 @@ func runInteropNetaCPPClient(t *testing.T, binary, address string) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start neta-c++ client: %v", err)
+		t.Fatalf("start neta-cpp client: %v", err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("neta-c++ client failed: %v; stdout=%s; stderr=%s", err, stdout.String(), stderr.String())
+			t.Fatalf("neta-cpp client failed: %v; stdout=%s; stderr=%s", err, stdout.String(), stderr.String())
 		}
 	case <-ctx.Done():
-		t.Fatalf("neta-c++ client timed out; stdout=%s; stderr=%s", stdout.String(), stderr.String())
+		t.Fatalf("neta-cpp client timed out; stdout=%s; stderr=%s", stdout.String(), stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "PASS go:from-cpp") {
-		t.Fatalf("neta-c++ client did not confirm the Go response: stdout=%s; stderr=%s", stdout.String(), stderr.String())
+		t.Fatalf("neta-cpp client did not confirm the Go response: stdout=%s; stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -133,14 +133,14 @@ func TestNetaCPPServerWithGoClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Connect(ctx); err != nil {
-		t.Fatalf("Go Client Connect to neta-c++ Server: %v", err)
+		t.Fatalf("Go Client Connect to neta-cpp Server: %v", err)
 	}
 	session, ok := client.CurrentSession()
 	if !ok {
 		t.Fatal("Go Client did not publish its Bound Session")
 	}
 	if session.SystemID() != "neta-cpp-server" {
-		t.Fatalf("neta-c++ server SystemID = %q", session.SystemID())
+		t.Fatalf("neta-cpp server SystemID = %q", session.SystemID())
 	}
 
 	type completion struct {
@@ -160,10 +160,10 @@ func TestNetaCPPServerWithGoClient(t *testing.T) {
 			t.Fatalf("Go Client Completion: %v", result.err)
 		}
 		if result.response.Status != 0 || string(result.response.Payload) != "cpp:from-go" {
-			t.Fatalf("neta-c++ response = status %d payload %q", result.response.Status, result.response.Payload)
+			t.Fatalf("neta-cpp response = status %d payload %q", result.response.Status, result.response.Payload)
 		}
 	case <-ctx.Done():
-		t.Fatal("timed out waiting for neta-c++ Server response")
+		t.Fatal("timed out waiting for neta-cpp Server response")
 	}
 
 	if err := client.Stop(ctx); err != nil {
@@ -203,7 +203,7 @@ func TestGoServerWithNetaCPPClient(t *testing.T) {
 			t.Fatalf("Go Server SendResponse: %v", err)
 		}
 	case <-ctx.Done():
-		t.Fatal("Go Server did not receive the neta-c++ Request")
+		t.Fatal("Go Server did not receive the neta-cpp Request")
 	}
 	if err := server.Stop(ctx); err != nil {
 		t.Fatalf("Go Server graceful Stop: %v", err)

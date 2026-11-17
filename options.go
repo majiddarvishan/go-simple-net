@@ -37,7 +37,7 @@ func WithClientAddress(address string) ClientOption {
 }
 
 // WithClientSystemID sets the required Client Bind identity.
-// V1 allows at most 19 bytes plus a trailing NUL for neta-c++ compatibility.
+// V1 allows at most 19 bytes plus a trailing NUL for neta-cpp compatibility.
 // V2 allows 20 bytes with no trailing NUL. Embedded NUL is always invalid.
 func WithClientSystemID(systemID string) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) {
