@@ -53,6 +53,11 @@ func DecodeBindResponse(frame Frame) (Bind, error) {
 	if frame.Header.Command != CommandBindResponse {
 		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
 	}
+	// Pinex 1.5.0 marks Bind Response as omittable: an empty Body
+	// deserializes to the PDU's default values (bi_direction, empty ID).
+	if len(frame.Body) == 0 {
+		return Bind{Type: BindBiDirectional}, nil
+	}
 	return decodeBindBody(frame.Body)
 }
 
