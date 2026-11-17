@@ -42,9 +42,10 @@ Existing Client configuration tests now use an explicit test SystemID helper bec
 
 ## Verification
 
-Final verification at source HEAD 1484f26437cb509a56b377e0efe68ea32b175c3d:
-- Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
-- Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981): PASS — pinned C++ 1.5.0 golden fixtures.
-- A follow-up regression test confirms that a Bind which reaches Bound before caller Context cancellation is preserved.
+Final verification at source HEAD f8ce7669d2bbde33d3134d300e3256ae290dc529:
+- Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770): PASS — pinned C++ 1.5.0 golden fixtures.
+- A regression test confirms that a Bind which reaches Bound before caller Context cancellation is preserved.
+- The Worker Scheduler race-test resource assertion now waits for the worker's deferred release after callback return; this removes a transient test-only timing failure.
 
 No live TCP Go↔Pinex interoperability was run; that remains Phase 7 and is not authorized by this work.

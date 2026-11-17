@@ -1447,7 +1447,7 @@ This decision unblocks the remaining owner-authorized Phase 6 Client Connect/Bin
 ## 57. Phase 6 Client Connect/Bind and reconnect — implementation evidence (2026-11-17)
 
 **Status:** COMPLETE / CI PASS  
-**Verified source HEAD:** 1484f26437cb509a56b377e0efe68ea32b175c3d  
+**Verified source HEAD:** f8ce7669d2bbde33d3134d300e3256ae290dc529  
 **Implementation report:** NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md
 
 The Option B decision in §56 is implemented:
@@ -1461,7 +1461,7 @@ The Option B decision in §56 is implemented:
 - Pinex-compatible uni-directional requester-only Client semantics.
 
 **Verification:**
-- Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
-- Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981): PASS — pinned C++ 1.5.0 golden fixtures.
+- Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770): PASS — pinned C++ 1.5.0 golden fixtures.
 
-Phase 6 P6-01..P6-11 is COMPLETE. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain separately gated and NOT AUTHORIZED.
+Phase 6 P6-01..P6-11 is COMPLETE. The existing Worker Scheduler race-test assertion was also hardened to wait for deferred resource release after callback return. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain separately gated and NOT AUTHORIZED.
