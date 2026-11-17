@@ -18,7 +18,7 @@
 - Phase 5 worker-scheduler source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
-- Phase 1, Phase 2, Phase 3 and Phase 4 source/tests are committed and verified by GitHub Actions.
+- Phase 1, Phase 2, Phase 3, Phase 4 and Phase 5 source/tests are committed and verified by GitHub Actions.
 - Phases 4 and 5 are implemented and CI-green. Phase 6+ remain gated.
 
 ## 2. Source inputs
