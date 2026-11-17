@@ -186,7 +186,7 @@ The owner explicitly authorized Phase 1 implementation in this conversation («�
 - CI run: https://github.com/majiddarvishan/neta-go/actions/runs/44040206052 — PASS.
 - Passed: gofmt, go vet ./..., go test ./..., go test -race ./....
 - Configuration hardening includes TCP endpoint syntax, all Server-side WORKER-009C boundaries, final nested Session Option precedence, nil-option rejection, and checked arithmetic.
-- Authorization is limited to Phase 1. Phase 2 Wire Protocol is the next planned phase but is not authorized. No wire codec or transport implementation has been started.
+- Authorization is limited to Phase 1. Phase 2 Wire Protocol is in progress under explicit owner authorization; pure-Go codec and unit tests are implemented, with cross-language evidence outstanding. No wire codec or transport implementation has been started.
 
 
 ## Phase 2 — Wire Protocol implementation authorization (2026-11-17)
@@ -200,3 +200,16 @@ Owner approval was explicitly granted in this conversation by replying «ادا�
 **Out of scope / not authorized:** TCP transport, read/write loops, Client/Server runtime integration, Session lifecycle, worker scheduling, resource admission runtime, reconnect, socket-level cross-language test execution, benchmarks, release and deployment. Those require later phase authorization.
 
 Implementation must stay inside `internal/wire`, use only the standard library, and must not import root package `neta`. Root `neta` may depend on `internal/wire`.
+
+
+## Phase 2 implementation progress — 2026-11-17
+
+**Wire codec implementation:** initial pure-Go implementation committed and CI verified.
+
+- Source commit containing current wire implementation and focused tests: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
+- Current verified branch HEAD at the time of this record: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
+- GitHub Actions run `44042140607`: PASS — gofmt, go vet, go test, go test -race.
+- Implementation: 10-byte Header codec, complete-frame encode/decode, 1 MiB hard cap, Bind Request/Response, raw Stream Request/Response, empty Unbind/Enquire Link PDU encoders, nonzero wrapping Sequence generator.
+- Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
+
+**Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.

@@ -60,3 +60,16 @@ CI run for the initial Phase 2 source commit: pending at time of this record. Do
 ## Explicit exclusions
 
 No TCP listener/dialer, Reader/Writer loops, Session state machine, Client/Server runtime integration, worker pools, reconnect, benchmark, deployment or release implementation is included.
+
+
+## Phase 2 implementation progress — 2026-11-17
+
+**Wire codec implementation:** initial pure-Go implementation committed and CI verified.
+
+- Source commit containing current wire implementation and focused tests: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
+- Current verified branch HEAD at the time of this record: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
+- GitHub Actions run `44042140607`: PASS — gofmt, go vet, go test, go test -race.
+- Implementation: 10-byte Header codec, complete-frame encode/decode, 1 MiB hard cap, Bind Request/Response, raw Stream Request/Response, empty Unbind/Enquire Link PDU encoders, nonzero wrapping Sequence generator.
+- Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
+
+**Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.
