@@ -25,8 +25,8 @@ func sessionOption(apply func(*sessionConfig)) SessionOption {
 }
 
 // WithProtocolVersion selects the immutable, local version for each Session.
-// V2 is the default, and V1 is supported. Both currently use the unchanged
-// Pinex 1.5.0 wire format; this option performs no peer negotiation.
+// V2 is the default and sends NUL-free Bind bodies. V1 retains the
+// NUL-terminated Bind representation. No peer negotiation is performed.
 func WithProtocolVersion(version ProtocolVersion) SessionOption {
 	return sessionOption(func(c *sessionConfig) { c.protocolVersion = version })
 }
@@ -37,7 +37,7 @@ func WithClientAddress(address string) ClientOption {
 }
 
 // WithClientSystemID sets the required Client Bind identity.
-// V1 allows at most 19 bytes plus a trailing NUL for Pinex compatibility.
+// V1 allows at most 19 bytes plus a trailing NUL for neta-c++ compatibility.
 // V2 allows 20 bytes with no trailing NUL. Embedded NUL is always invalid.
 func WithClientSystemID(systemID string) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) {

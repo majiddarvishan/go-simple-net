@@ -1,4 +1,4 @@
-// Package wire implements the Pinex 1.5.0 wire format.
+// Package wire implements the neta-c++ 1.5.0 wire format.
 // It deliberately has no dependency on the public neta package or runtime.
 package wire
 
@@ -43,7 +43,7 @@ var (
 	ErrInvalidControlBody = errors.New("wire: control command must have an empty body")
 )
 
-// Header is the fixed 10-byte Pinex frame header.
+// Header is the fixed 10-byte neta-c++ frame header.
 type Header struct {
 	Length   uint32
 	Command  CommandID
@@ -153,7 +153,7 @@ func isEmptyBodyCommand(id CommandID) bool {
 	}
 }
 
-// SequenceGenerator implements Pinex's per-Session incrementing sequence
+// SequenceGenerator implements neta-c++'s per-Session incrementing sequence
 // rule. Zero is skipped on wraparound. It is safe for concurrent callers.
 type SequenceGenerator struct {
 	value atomicUint32

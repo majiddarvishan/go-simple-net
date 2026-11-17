@@ -14,12 +14,12 @@ import (
 
 func interopPeerBinary(t *testing.T) string {
 	t.Helper()
-	path := os.Getenv("NETA_PINEX_PEER_BIN")
+	path := os.Getenv("NETA_CPP_PEER_BIN")
 	if path == "" {
-		t.Skip("set NETA_PINEX_PEER_BIN to run live Pinex C++ interoperability")
+		t.Skip("set NETA_CPP_PEER_BIN to run live neta-c++ interoperability")
 	}
 	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("Pinex peer binary %q: %v", path, err)
+		t.Fatalf("neta-c++ peer binary %q: %v", path, err)
 	}
 	return path
 }
@@ -30,27 +30,27 @@ type interopPeerProcess struct {
 	cancel context.CancelFunc
 }
 
-func startInteropPinexServer(t *testing.T, binary, address string) *interopPeerProcess {
+func startInteropNetaCPPServer(t *testing.T, binary, address string) *interopPeerProcess {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	cmd := exec.CommandContext(ctx, binary, "server", address)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		cancel()
-		t.Fatalf("Pinex server stdout: %v", err)
+		t.Fatalf("neta-c++ server stdout: %v", err)
 	}
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
 		cancel()
-		t.Fatalf("start Pinex server: %v", err)
+		t.Fatalf("start neta-c++ server: %v", err)
 	}
 
 	ready, err := bufio.NewReader(stdout).ReadString('\n')
 	if err != nil || strings.TrimSpace(ready) != "READY" {
 		cancel()
 		_ = cmd.Wait()
-		t.Fatalf("Pinex server readiness = %q, err=%v, stderr=%s", ready, err, stderr.String())
+		t.Fatalf("neta-c++ server readiness = %q, err=%v, stderr=%s", ready, err, stderr.String())
 	}
 
 	done := make(chan error, 1)
@@ -66,19 +66,19 @@ func startInteropPinexServer(t *testing.T, binary, address string) *interopPeerP
 	return process
 }
 
-func waitInteropPinexServer(t *testing.T, process *interopPeerProcess) {
+func waitInteropNetaCPPServer(t *testing.T, process *interopPeerProcess) {
 	t.Helper()
 	select {
 	case err := <-process.done:
 		if err != nil {
-			t.Fatalf("Pinex C++ server failed: %v; stderr=%s", err, process.stderr.String())
+			t.Fatalf("neta-c++ server failed: %v; stderr=%s", err, process.stderr.String())
 		}
 	case <-time.After(8 * time.Second):
-		t.Fatalf("Pinex C++ server did not exit; stderr=%s", process.stderr.String())
+		t.Fatalf("neta-c++ server did not exit; stderr=%s", process.stderr.String())
 	}
 }
 
-func runInteropPinexClient(t *testing.T, binary, address string) {
+func runInteropNetaCPPClient(t *testing.T, binary, address string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -87,20 +87,20 @@ func runInteropPinexClient(t *testing.T, binary, address string) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start Pinex C++ client: %v", err)
+		t.Fatalf("start neta-c++ client: %v", err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("Pinex C++ client failed: %v; stdout=%s; stderr=%s", err, stdout.String(), stderr.String())
+			t.Fatalf("neta-c++ client failed: %v; stdout=%s; stderr=%s", err, stdout.String(), stderr.String())
 		}
 	case <-ctx.Done():
-		t.Fatalf("Pinex C++ client timed out; stdout=%s; stderr=%s", stdout.String(), stderr.String())
+		t.Fatalf("neta-c++ client timed out; stdout=%s; stderr=%s", stdout.String(), stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "PASS go:from-cpp") {
-		t.Fatalf("Pinex C++ client did not confirm the Go response: stdout=%s; stderr=%s", stdout.String(), stderr.String())
+		t.Fatalf("neta-c++ client did not confirm the Go response: stdout=%s; stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -117,10 +117,10 @@ func interopFreeAddress(t *testing.T) string {
 	return address
 }
 
-func TestPinexCPPServerWithGoClient(t *testing.T) {
+func TestNetaCPPServerWithGoClient(t *testing.T) {
 	binary := interopPeerBinary(t)
 	address := interopFreeAddress(t)
-	peer := startInteropPinexServer(t, binary, address)
+	peer := startInteropNetaCPPServer(t, binary, address)
 
 	client, err := NewClient(
 		WithClientAddress(address),
@@ -133,14 +133,14 @@ func TestPinexCPPServerWithGoClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := client.Connect(ctx); err != nil {
-		t.Fatalf("Go Client Connect to Pinex C++ Server: %v", err)
+		t.Fatalf("Go Client Connect to neta-c++ Server: %v", err)
 	}
 	session, ok := client.CurrentSession()
 	if !ok {
 		t.Fatal("Go Client did not publish its Bound Session")
 	}
-	if session.SystemID() != "pinex-cpp-server" {
-		t.Fatalf("Pinex server SystemID = %q", session.SystemID())
+	if session.SystemID() != "neta-cpp-server" {
+		t.Fatalf("neta-c++ server SystemID = %q", session.SystemID())
 	}
 
 	type completion struct {
@@ -160,19 +160,19 @@ func TestPinexCPPServerWithGoClient(t *testing.T) {
 			t.Fatalf("Go Client Completion: %v", result.err)
 		}
 		if result.response.Status != 0 || string(result.response.Payload) != "cpp:from-go" {
-			t.Fatalf("Pinex response = status %d payload %q", result.response.Status, result.response.Payload)
+			t.Fatalf("neta-c++ response = status %d payload %q", result.response.Status, result.response.Payload)
 		}
 	case <-ctx.Done():
-		t.Fatal("timed out waiting for Pinex C++ Server response")
+		t.Fatal("timed out waiting for neta-c++ Server response")
 	}
 
 	if err := client.Stop(ctx); err != nil {
 		t.Fatalf("Go Client graceful Stop: %v", err)
 	}
-	waitInteropPinexServer(t, peer)
+	waitInteropNetaCPPServer(t, peer)
 }
 
-func TestGoServerWithPinexCPPClient(t *testing.T) {
+func TestGoServerWithNetaCPPClient(t *testing.T) {
 	binary := interopPeerBinary(t)
 	requests := make(chan error, 1)
 	server, err := NewServer(
@@ -196,14 +196,14 @@ func TestGoServerWithPinexCPPClient(t *testing.T) {
 		_ = server.Stop(stopCtx)
 	}()
 
-	runInteropPinexClient(t, binary, server.Addr().String())
+	runInteropNetaCPPClient(t, binary, server.Addr().String())
 	select {
 	case err := <-requests:
 		if err != nil {
 			t.Fatalf("Go Server SendResponse: %v", err)
 		}
 	case <-ctx.Done():
-		t.Fatal("Go Server did not receive the Pinex C++ Request")
+		t.Fatal("Go Server did not receive the neta-c++ Request")
 	}
 	if err := server.Stop(ctx); err != nil {
 		t.Fatalf("Go Server graceful Stop: %v", err)

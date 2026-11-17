@@ -26,7 +26,7 @@ auto noop_packet()
 
 int run_server(const std::string& address, bool prefix_response)
 {
-    // Pinex's public Client/Server and Session APIs are single-io_context-
+    // neta-c++'s public Client/Server and Session APIs are single-io_context-
     // thread objects. Construct, start, dispatch callbacks and stop on this
     // same thread; io.run() therefore runs on main rather than a worker.
     asio::io_context io;
@@ -36,17 +36,17 @@ int run_server(const std::string& address, bool prefix_response)
     std::unique_ptr<messaging_server> server;
 
     server = std::make_unique<messaging_server>(
-        &io, "pinex-cpp-server", address, 5, 0,
+        &io, "neta-cpp-server", address, 5, 0,
         [&](const std::string& client_id, uint32_t sequence, const std::string& body) {
             try
             {
                 const auto response = prefix_response ? "cpp:" + body : body;
                 if (!server || server->send_response(response, sequence, client_id) != sequence)
-                    std::cerr << "Pinex server failed to admit response\n";
+                    std::cerr << "neta-c++ server failed to admit response\n";
             }
             catch (const std::exception& error)
             {
-                std::cerr << "Pinex server response error: " << error.what() << "\n";
+                std::cerr << "neta-c++ server response error: " << error.what() << "\n";
             }
         },
         noop_packet(),
@@ -78,7 +78,7 @@ int run_server(const std::string& address, bool prefix_response)
 
 int run_client(const std::string& address)
 {
-    // Keep all Pinex operations on the same thread that first calls start().
+    // Keep all neta-c++ operations on the same thread that first calls start().
     asio::io_context io;
     asio::steady_timer deadline(io);
     bool completed = false;
@@ -97,7 +97,7 @@ int run_client(const std::string& address)
     };
 
     client = std::make_shared<messaging_client>(
-        &io, "pinex-cpp-client", address, 5, 0, false,
+        &io, "neta-cpp-client", address, 5, 0, false,
         noop_packet(),
         [&](const std::string&, uint32_t, const std::string& body) {
             publish_outcome(body);
@@ -176,7 +176,7 @@ int run_client(const std::string& address)
 
     if (timed_out || !completed)
     {
-        std::cerr << "Pinex Client did not complete the request/Unbind exchange\n";
+        std::cerr << "neta-c++ Client did not complete the request/Unbind exchange\n";
         return 2;
     }
     if (!outcome_set || outcome != "go:from-cpp")
@@ -220,7 +220,7 @@ int run_client_bench(const std::string& address, int target, int payload_size)
     };
 
     client = std::make_shared<messaging_client>(
-        &io, "pinex-cpp-bench-client", address, 5, 0, false,
+        &io, "neta-cpp-bench-client", address, 5, 0, false,
         noop_packet(),
         [&](const std::string&, uint32_t, const std::string& body) {
             const auto now = std::chrono::steady_clock::now();
@@ -325,7 +325,7 @@ int run_client_bench(const std::string& address, int target, int payload_size)
     if (failed || timed_out || !completed || responses != target ||
         latencies.size() != static_cast<std::size_t>(target) || total_elapsed_ns <= 0)
     {
-        std::cerr << "Pinex C++ Client benchmark did not complete cleanly; responses="
+        std::cerr << "neta-c++ C++ Client benchmark did not complete cleanly; responses="
                   << responses << " target=" << target << "\n";
         return 2;
     }
@@ -347,7 +347,7 @@ int main(int argc, char** argv)
 {
     if (argc < 3)
     {
-        std::cerr << "usage: pinex-peer server|server-echo|client host:port | client-bench host:port count payload-size\n";
+        std::cerr << "usage: neta-cpp-peer server|server-echo|client host:port | client-bench host:port count payload-size\n";
         return 64;
     }
 
@@ -372,7 +372,7 @@ int main(int argc, char** argv)
     }
     catch (const std::exception& error)
     {
-        std::cerr << "Pinex peer exception: " << error.what() << "\n";
+        std::cerr << "neta-c++ peer exception: " << error.what() << "\n";
         return 70;
     }
 
