@@ -18,13 +18,13 @@ import (
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
-type phase8PinexPeerProcess struct {
+type interopBenchmarkPeerProcess struct {
 	cmd  *exec.Cmd
 	done chan struct{}
 	err  error
 }
 
-func startPhase8PinexServer(b *testing.B, binary, address string) *phase8PinexPeerProcess {
+func startInteropBenchmarkServer(b *testing.B, binary, address string) *interopBenchmarkPeerProcess {
 	b.Helper()
 	cmd := exec.Command(binary, "server-echo", address)
 	stdout, err := cmd.StdoutPipe()
@@ -41,7 +41,7 @@ func startPhase8PinexServer(b *testing.B, binary, address string) *phase8PinexPe
 		waitErr := cmd.Wait()
 		b.Fatalf("Pinex C++ Server readiness = %q, read error=%v, process error=%v", ready, err, waitErr)
 	}
-	peer := &phase8PinexPeerProcess{cmd: cmd, done: make(chan struct{})}
+	peer := &interopBenchmarkPeerProcess{cmd: cmd, done: make(chan struct{})}
 	go func() {
 		peer.err = cmd.Wait()
 		close(peer.done)
@@ -49,7 +49,7 @@ func startPhase8PinexServer(b *testing.B, binary, address string) *phase8PinexPe
 	return peer
 }
 
-func (p *phase8PinexPeerProcess) wait(timeout time.Duration) error {
+func (p *interopBenchmarkPeerProcess) wait(timeout time.Duration) error {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
@@ -60,7 +60,7 @@ func (p *phase8PinexPeerProcess) wait(timeout time.Duration) error {
 	}
 }
 
-func (p *phase8PinexPeerProcess) killAndWait() {
+func (p *interopBenchmarkPeerProcess) killAndWait() {
 	if p == nil {
 		return
 	}
@@ -73,7 +73,7 @@ func (p *phase8PinexPeerProcess) killAndWait() {
 	}
 }
 
-func phase8FreeTCPAddress(b *testing.B) string {
+func benchmarkFreeTCPAddress(b *testing.B) string {
 	b.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -86,13 +86,13 @@ func phase8FreeTCPAddress(b *testing.B) string {
 	return address
 }
 
-func phase8ClientWorkersRetired(client *Client) bool {
+func benchmarkClientWorkersRetired(client *Client) bool {
 	return client.callbacks.application.snapshot().Workers == 0 &&
 		client.callbacks.completion.snapshot().Workers == 0 &&
 		client.callbacks.onClose.snapshot().Workers == 0
 }
 
-func BenchmarkPhase8PinexServer(b *testing.B) {
+func BenchmarkInteropCppServer(b *testing.B) {
 	binary := os.Getenv("NETA_PINEX_PEER_BIN")
 	if binary == "" {
 		b.Skip("set NETA_PINEX_PEER_BIN to benchmark against the pinned Pinex C++ Server")
@@ -107,10 +107,10 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 			producers = []int{1}
 		}
 		for _, producerCount := range producers {
-			name := fmt.Sprintf("payload=%s/producers=%d", phase8PayloadName(size), producerCount)
+			name := fmt.Sprintf("payload=%s/producers=%d", benchmarkPayloadName(size), producerCount)
 			b.Run(name, func(b *testing.B) {
-				address := phase8FreeTCPAddress(b)
-				peer := startPhase8PinexServer(b, binary, address)
+				address := benchmarkFreeTCPAddress(b)
+				peer := startInteropBenchmarkServer(b, binary, address)
 
 				var client *Client
 				b.Cleanup(func() {
@@ -119,7 +119,7 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 						_ = client.Stop(ctx)
 						cancel()
 						deadline := time.Now().Add(2 * time.Second)
-						for !phase8ClientWorkersRetired(client) && time.Now().Before(deadline) {
+						for !benchmarkClientWorkersRetired(client) && time.Now().Before(deadline) {
 							time.Sleep(time.Millisecond)
 						}
 					}
@@ -129,7 +129,7 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 				var err error
 				client, err = NewClient(
 					WithClientAddress(address),
-					WithClientSystemID("phase8-pinex-client"),
+					WithClientSystemID("benchmark-pinex-client"),
 					WithClientApplicationWorkerIdleGrace(10*time.Millisecond),
 					WithClientCompletionWorkerIdleGrace(10*time.Millisecond),
 					WithClientOnCloseWorkerIdleGrace(10*time.Millisecond),
@@ -149,13 +149,13 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 				}
 
 				fakeServer := &Server{callbacks: newOwnerCallbackDispatcher(defaultOwnerConfig())}
-				env := &phase8BenchEnv{
+				env := &benchmarkEnv{
 					server:   fakeServer,
 					clients:  []*Client{client},
 					sessions: []*Session{session},
 					errors:   make(chan error, 1),
 				}
-				phase8RunRequestResponse(b, env, phase8Payload(size), producerCount)
+				benchmarkRunRequestResponse(b, env, benchmarkPayload(size), producerCount)
 
 				stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
 				if err := client.Stop(stopCtx); err != nil {
@@ -168,10 +168,10 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 					b.Fatalf("Pinex C++ Server graceful exit: %v", err)
 				}
 				deadline := time.Now().Add(2 * time.Second)
-				for !phase8ClientWorkersRetired(client) && time.Now().Before(deadline) {
+				for !benchmarkClientWorkersRetired(client) && time.Now().Before(deadline) {
 					time.Sleep(time.Millisecond)
 				}
-				if !phase8ClientWorkersRetired(client) {
+				if !benchmarkClientWorkersRetired(client) {
 					b.Errorf("Go Client callback workers did not retire after idle grace")
 				}
 			})
@@ -179,7 +179,7 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 	}
 }
 
-func BenchmarkPhase8PinexClient(b *testing.B) {
+func BenchmarkInteropCppClient(b *testing.B) {
 	binary := os.Getenv("NETA_PINEX_PEER_BIN")
 	if binary == "" {
 		b.Skip("set NETA_PINEX_PEER_BIN to benchmark the Pinex C++ Client against the Go Server")
@@ -189,7 +189,7 @@ func BenchmarkPhase8PinexClient(b *testing.B) {
 	}
 
 	for _, size := range []int{64, 1024, 4096, 64 << 10, wire.MaxBodySize} {
-		name := fmt.Sprintf("payload=%s", phase8PayloadName(size))
+		name := fmt.Sprintf("payload=%s", benchmarkPayloadName(size))
 		b.Run(name, func(b *testing.B) {
 			serverErrors := make(chan error, 1)
 			server, err := NewServer(
@@ -312,7 +312,7 @@ func BenchmarkPhase8PinexClient(b *testing.B) {
 			runtime.ReadMemStats(&after)
 			appSnapshot := server.callbacks.application.snapshot()
 			goroutines := runtime.NumGoroutine()
-			phase8ReportRuntime(b, before, after, elapsed, goroutines, appSnapshot, 0)
+			benchmarkReportRuntime(b, before, after, elapsed, goroutines, appSnapshot, 0)
 
 			select {
 			case serverErr := <-serverErrors:

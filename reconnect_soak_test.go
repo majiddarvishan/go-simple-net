@@ -14,14 +14,14 @@ import (
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
-func TestPhase7ReconnectSoak(t *testing.T) {
-	rawDuration := os.Getenv("NETA_PHASE7_SOAK_SECONDS")
+func TestReconnectSoak(t *testing.T) {
+	rawDuration := os.Getenv("NETA_RECONNECT_SOAK_SECONDS")
 	if rawDuration == "" {
-		t.Skip("set NETA_PHASE7_SOAK_SECONDS to run the bounded reconnect soak")
+		t.Skip("set NETA_RECONNECT_SOAK_SECONDS to run the bounded reconnect soak")
 	}
 	seconds, err := strconv.Atoi(rawDuration)
 	if err != nil || seconds < 5 || seconds > 120 {
-		t.Fatalf("NETA_PHASE7_SOAK_SECONDS must be between 5 and 120, got %q", rawDuration)
+		t.Fatalf("NETA_RECONNECT_SOAK_SECONDS must be between 5 and 120, got %q", rawDuration)
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -47,7 +47,7 @@ func TestPhase7ReconnectSoak(t *testing.T) {
 				defer peerWG.Done()
 				defer conn.Close()
 				_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-				request, err := readPhase7Frame(conn)
+				request, err := readInteropFrame(conn)
 				if err != nil {
 					peerErrors <- err
 					return
@@ -64,17 +64,17 @@ func TestPhase7ReconnectSoak(t *testing.T) {
 					peerErrors <- err
 					return
 				}
-				if err := writePhase7Full(conn, response); err != nil {
+				if err := writeInteropFull(conn, response); err != nil {
 					// A concurrent terminal Stop may close the socket.
 					return
 				}
 
 				_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
-				next, err := readPhase7Frame(conn)
+				next, err := readInteropFrame(conn)
 				if err == nil && next.Header.Command == wire.CommandUnbindRequest {
 					unbindResponse, encodeErr := wire.EncodeUnbindResponse(next.Header.Sequence)
 					if encodeErr == nil {
-						_ = writePhase7Full(conn, unbindResponse)
+						_ = writeInteropFull(conn, unbindResponse)
 					}
 					return
 				}

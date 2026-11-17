@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func TestPhase8SendNoWaitDeliveryRouting(t *testing.T) {
-	env := newPhase8BenchEnv(t, 2, 1, 1, false, false)
+func TestSendNoWaitDeliveryRouting(t *testing.T) {
+	env := newBenchmarkEnv(t, 2, 1, 1, false, false)
 
 	const producers = 8
 	var wg sync.WaitGroup
@@ -22,7 +22,7 @@ func TestPhase8SendNoWaitDeliveryRouting(t *testing.T) {
 		}
 
 		wg.Add(1)
-		go func(producer int, session *Session, tracker *phase8DeliveryTracker) {
+		go func(producer int, session *Session, tracker *benchmarkDeliveryTracker) {
 			defer wg.Done()
 			sequence, err := session.SendNoWait([]byte{byte(producer)})
 			if err != nil {
