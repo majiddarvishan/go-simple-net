@@ -1,6 +1,6 @@
 # neta-go — Engineering Notes
 
-**نام تأییدشده برای کتابخانه Go:** `neta-go` (تصمیم NAM-001، 2026-11-16). مخزن GitHub با تغییر نام انجام‌شده توسط مالک اکنون `majiddarvishan/neta-go` است (شاخه `main`). مسیر Go Module هنوز تعیین یا تأیید نشده و هیچ تغییری در کد انجام نشده است.
+**نام تأییدشده برای کتابخانه Go:** `neta-go` (تصمیم NAM-001، 2026-11-16). مخزن GitHub اکنون `majiddarvishan/neta-go` و مسیر تأییدشده Go Module برابر `github.com/majiddarvishan/neta-go` است؛ Package عمومی ریشه `neta` است. پیاده‌سازی فازهای ۱ تا ۸ کامل و CI-verified شده است.
 
 این پوشه محل ثبت بازبینی‌های فنی، قراردادهای پروتکل، برنامه تسک‌ها و یادداشت‌های ادامه کار پروژه است.
 
@@ -32,6 +32,10 @@
 
 ## وضعیت فعلی
 
-وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 7 کامل و CI-verified هستند؛ Phase 8 با مجوز مالک در حال اجراست و Phase 9 همچنان نیازمند مجوز جداگانه است.
+وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 8 کامل و CI-verified هستند. Phase 9 با مجوز مالک در حال اجراست؛ P9-00 کامل شده و P9-01 تا P9-05 در محدوده مجوز هستند. ایجاد Tag/Release نسخه V1 در P9-06 به تأیید جداگانه مالک نیاز دارد.
 
 - [گزارش و Baseline عملکرد Phase 8](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
+
+- [برنامه اجرایی Phase 9 و معیارهای پذیرش](NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)
+- [گزارش Phase 8 و تصمیم نهایی PERF-004](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
+- [راهنمای اجرای تست و Performance Automation](NETA_GO_TEST_AUTOMATION_2026-11-17.md)

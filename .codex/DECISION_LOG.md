@@ -1518,3 +1518,34 @@ Binding limits:
 - Phase 9 examples/release/deployment remains unauthorized.
 
 This approval authorizes Phase 8 implementation and benchmark execution only. It does not reopen architecture or API decisions.
+
+
+## 61. Phase 9 — Documentation, examples and V1 release readiness authorization (2026-11-17)
+
+**Decision:** Phase 9 is OWNER AUTHORIZED / IN PROGRESS. The owner approved the presented execution plan by replying «ادامه بده» on 2026-11-17.
+
+### Authorized scope
+
+- **P9-00:** reconcile stale phase/HEAD status in the tracker and current project entry points; refine task acceptance criteria and dependencies; record the authorization and release boundary.
+- **P9-01:** build a runnable Client example using only the frozen public API.
+- **P9-02:** build a runnable Server example using only the frozen public API.
+- **P9-03:** complete GoDoc and user-facing documentation for Public API, options/configuration, payload ownership, callback behavior, admission/errors, timeout/reconnect, lifecycle/shutdown and Quick Start.
+- **P9-04:** document Pinex 1.5.0 version/source compatibility, golden vectors, real bidirectional TCP evidence and known verification limitations.
+- **P9-05:** perform test/CI coverage and release-readiness review; record supported Go/platform baseline, versioning and changelog/release notes.
+
+### Explicit boundary
+
+- **P9-06 release tagging is NOT authorized by this decision.** A V1 tag/release requires all P9-05 gates to pass and a separate explicit owner approval immediately before the release operation.
+- No production public API signature, wire format, Pinex compatibility target, configuration default/range, timeout/reconnect behavior, callback ordering, worker topology, payload ownership, resource-accounting policy or resource ceiling is reopened.
+- Examples may add code under `examples/`; documentation and CI/test harness changes are in scope. Changes to production package behavior are not in scope without a separate technical review and owner approval.
+- No new third-party dependency is approved by this authorization.
+
+### Baseline
+
+- Repository HEAD at authorization: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`.
+- Production source HEAD: `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
+- Go correctness CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039): PASS.
+- Pinex Wire Compatibility CI [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167): PASS.
+- Phase 8 performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; PERF-004 = NO CHANGE.
+
+The canonical execution checklist is root `TASKS.md`; scope, estimates, dependencies, acceptance criteria and open release questions are in `NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md`.

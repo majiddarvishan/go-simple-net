@@ -5,7 +5,7 @@
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–6 COMPLETE / CI PASS; PHASE 7–9 NOT AUTHORIZED
+**Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
 **Current work:** Phase 6 is COMPLETE / CI PASS at source HEAD `f8ce7669d2bbde33d3134d300e3256ae290dc529`. Server lifecycle/admission, Client CurrentSession/Stop, Client Connect/Bind, generation fencing, owner resource integration and reconnect supervisor are implemented. Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) and Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) PASS. See [Phase 6 Client Connect report](NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md) and root [TASKS.md](../TASKS.md). Phase 7 live TCP interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 ## 1. Repository state
@@ -20,7 +20,7 @@
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2, Phase 3, Phase 4 and Phase 5 source/tests are committed and verified by GitHub Actions.
-- Phases 4 and 5 are implemented and CI-green. Phase 6+ remain gated.
+- Phases 1–8 are implemented/verified and Phase 8 is closed. Phase 9 is now owner-authorized; P9-00..P9-05 are in scope, while release tagging remains separately gated.
 
 ## 2. Source inputs
 
@@ -1058,3 +1058,46 @@ P8-01..P8-05 are COMPLETE:
 The five-minute soak completed with heap 335,696 → 308,088 bytes, max HeapInuse 4,374,528 bytes, max RSS 91,348 KiB, 4,549 GC cycles and two goroutines after cleanup. Server retained/queued Application bytes stayed zero in periodic samples.
 
 No production code, public API, wire format, default, timeout/reconnect policy, worker ceiling or resource limit changed. Numeric performance thresholds remain intentionally unset pending owner workload review. Phase 9 remains NOT AUTHORIZED.
+
+
+## 29. Phase 9 authorization and P9-00 tracker reconciliation — 2026-11-17
+
+**Status:** Phase 9 IN PROGRESS / OWNER AUTHORIZED. P9-00 COMPLETE. P9-01..P9-05 authorized. P9-06 release tag NOT YET AUTHORIZED.
+
+The owner approved the Phase 9 execution plan by replying «ادامه بده» after the plan and release boundary were presented.
+
+### Authorized scope
+
+- P9-00: reconcile stale project status and tracker records; refine Phase 9 tasks, acceptance criteria and dependencies; record this authorization.
+- P9-01/P9-02: add runnable, standard-library-only Client and Server examples using only the frozen public API.
+- P9-03: complete public GoDoc, configuration, lifecycle, callback, ownership, error and Quick Start documentation.
+- P9-04: document the pinned Pinex 1.5.0 compatibility contract and available golden/live TCP evidence.
+- P9-05: review test/CI coverage, supported Go/platform baseline, changelog/versioning and release readiness.
+
+**Separate gate:** P9-06 may create a V1 tag/release only after all prior acceptance gates pass and the owner gives explicit release approval. The general Phase 9 approval does not authorize a release tag.
+
+### P9-00 baseline and result
+
+- Baseline repository HEAD: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`.
+- Production source HEAD remains: `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
+- Correctness CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039): PASS.
+- Pinex Wire Compatibility CI [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167): PASS.
+- Phase 8 full performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS.
+- P9-00 is documentation/tracker/authorization-only. No production source, API, protocol, default or resource-accounting behavior changes.
+
+### Local stash limitation
+
+The owner's `stash@{0}` is local Git state and is not exposed by GitHub. The exact stash patch has therefore **not** been reviewed. It must remain untouched. To inspect it safely in the owner clone:
+
+```bash
+git stash show --stat stash@{0}
+git stash show --patch stash@{0} -- \
+  .github/workflows/go.yml \
+  .github/workflows/phase8-performance.yml
+```
+
+Do not apply or drop the stash as part of this review.
+
+### Next action
+
+Proceed with P9-01 and P9-02 after P9-00 is committed and its documentation-only commit's automatic Go/Pinex CI results are inspected. Keep all frozen production contracts unchanged.

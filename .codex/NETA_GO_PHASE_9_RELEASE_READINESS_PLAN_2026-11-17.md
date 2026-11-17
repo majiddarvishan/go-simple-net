@@ -1,0 +1,177 @@
+# neta-go — Phase 9 Release Readiness Plan
+
+**Date:** 2026-11-17  
+**Repository:** `github.com/majiddarvishan/neta-go`  
+**Branch:** `main`  
+**Authorization:** OWNER AUTHORIZED for P9-00..P9-05; P9-06 release tag separately gated  
+**Authorization baseline HEAD:** `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`  
+**Production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`
+
+## 1. Current state
+
+Phases 0–8 are complete. Phase 8's corrected performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003) passed and PERF-004 was closed as **NO CHANGE**. The final pre-Phase-9 Go correctness run [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility run [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`.
+
+The root `TASKS.md` is the only implementation checklist. `.codex/TASKS.md` is a pointer to it, not a second checklist.
+
+The repository currently has no `examples/` or user-facing `docs/` directory. The root README is only a short project-status page. The package-level `doc.go` is minimal. The module directive is Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The release support baseline is not yet decided.
+
+## 2. Authorization and non-negotiable boundaries
+
+The owner approved the Phase 9 execution plan by replying «ادامه بده» on 2026-11-17.
+
+Authorized: P9-00 through P9-05, as defined below.
+
+**Not authorized:** P9-06 release tagging. Creating a V1 tag/release requires all prior gates to pass and a separate explicit owner approval immediately before the operation.
+
+The following remain frozen:
+- Root public package and exported API signatures.
+- Pinex 1.5.0 wire format and 1 MiB total Frame limit.
+- All approved Functional Option defaults, ranges and hard maxima.
+- Payload ownership and no recycling of user-visible inbound payload.
+- Callback class isolation, ordering/concurrency contracts and worker ceilings.
+- Request-credit, retained-byte, queue and aggregate resource accounting.
+- Timeout, reconnect, shutdown and Session terminal semantics.
+
+Examples may add source under `examples/`; docs, tests and CI harness changes are in scope. Production package behavior/API changes and new third-party dependencies are not authorized by this plan.
+
+## 3. Task sequence, estimates and acceptance criteria
+
+Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00 is complete; remaining work is approximately **8.5–13.5 hours**.
+
+| Task | Estimate | Dependency | Acceptance |
+|---|---:|---|---|
+| P9-00 Tracker/status reconciliation | 0.5–1 h | None | Complete |
+| P9-01 Client example | 1–2 h | P9-00 | Runnable/buildable example uses only public API and demonstrates lifecycle, Request/Completion, SendNoWait and errors |
+| P9-02 Server example | 1–2 h | P9-00 | Runnable/buildable example uses only public API and demonstrates validation, Request/Response and graceful shutdown |
+| P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | Exported API/option GoDoc complete; configuration and lifecycle contracts documented; README Quick Start works |
+| P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | Exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
+| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | Examples compile; correctness/compatibility gates pass; coverage and support baseline recorded; changelog/version/release checklist reviewed |
+| P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
+
+### P9-00 — Documentation and tracker reconciliation
+
+**Status: COMPLETE.**
+
+- Corrected the Phase 8 status and latest verified repository HEAD in the canonical tracker.
+- Updated root README, current HANDOFF summary, implementation authorization and engineering-notes index.
+- Refined Phase 9 tasks, acceptance criteria, dependencies and the P9-06 release boundary.
+- Recorded the Phase 9 authorization in the decision log and this plan.
+- No production source, tests, public API, wire protocol, defaults or resource limits changed.
+
+### P9-01 — Client example
+
+Expected location: `examples/client/main.go` (or a small example package if separation materially improves clarity).
+
+Must demonstrate:
+- Construct Client using required endpoint/SystemID options and reasonable documented Session settings.
+- Call `Connect(ctx)` and handle Bind/Dial errors.
+- Observe the Bound Session using the supported callback/current-session API.
+- Submit a Request with a Completion callback and handle both Response and error.
+- Submit a one-way message with `SendNoWait` and explain that successful return means local admission, not peer delivery.
+- Handle terminal notification and stop the Client gracefully with a bounded Context.
+- Use only the public root package; no `internal/` imports and no external dependencies.
+
+Acceptance: example compiles on the selected supported Go baseline, has comments explaining the peer/server prerequisite, and is exercised by the example verification path.
+
+### P9-02 — Server example
+
+Expected location: `examples/server/main.go`.
+
+Must demonstrate:
+- Construct and Start the Server; print/use the actual `Addr()`.
+- Configure `BindValidator` and explain identity validation/duplicate SystemID behavior.
+- Handle inbound `OnRequest` and send the matching `SendResponse(sequence, payload, status)`.
+- Explain callback concurrency and payload ownership at the point of use.
+- Handle OnClose and OS/process shutdown without leaking listener or Sessions.
+- Stop gracefully with a bounded Context and handle forced cleanup if the Context expires.
+- Use only the public root package and standard library.
+
+Acceptance: example compiles, documents how the Client example connects, and is exercised by the example verification path.
+
+### P9-03 — Public API and usage documentation
+
+Required outputs:
+- Complete GoDoc for exported package declarations and all exported methods/types/constants/errors/options. The initial audit found 56 exported `With...` constructors, only 9 with directly adjacent comments; verify every exported declaration rather than assuming this count is the entire public API.
+- Configuration reference: every option, scope (Client/Server/Session), default, valid range/hard maximum, zero-value behavior, inheritance, and cross-field validation.
+- Resource model: distinguish per-Session queue limits, retained payload limits, owner budgets, Server aggregate queued limits and process RSS; do not describe any one of these as a total process-memory cap.
+- Payload ownership: outgoing snapshot timing, inbound retainable owned snapshot, callback lifetime and memory charges.
+- Callback model: three isolated worker lanes, owner ceilings, per-Session concurrency, FIFO/round-robin behavior, Completion callback-start ordering, OnClose after Done and best-effort saturation semantics.
+- Admission and errors: local admission vs delivery, Queue Full vs Capacity, typed errors, `errors.Is`/`errors.As`, terminal cause.
+- Lifecycle: Connect/Bind, Server Start/Stop, CurrentSession, reconnect opt-in/no replay, Graceful Unbind, Forced Close, Done and Err.
+- README Quick Start: prerequisites, module install, link to both examples, basic usage and links to the detailed docs.
+
+No documentation may promise delivery merely because a send was admitted, claim that callbacks are joined by Done, or imply that AutoReconnect replays Requests.
+
+### P9-04 — Pinex compatibility documentation
+
+Document:
+- Pinex C++ 1.5.0 compatibility target and exact source SHA `f7bd1eb779baff0d10e624f20522df345e6ee747`.
+- Frame header, command/status/sequence semantics and 1 MiB total Frame maximum including the 10-byte Header.
+- Golden-fixture source provenance and the CI workflow that checks it.
+- Actual bidirectional TCP interoperability: Go Client ↔ C++ Server and C++ Client ↔ Go Server.
+- Fault/fuzz/soak evidence, with exact workflow links and tested scope.
+- Explicit limitation: privileged firewall-level SYN-drop/network-namespace injection was not run; the accepted-socket silent Bind-response blackhole was tested instead.
+- Version matrix: only Pinex 1.5.0 is currently verified. Do not claim compatibility with other versions without evidence.
+
+### P9-05 — Test, CI and release-readiness review
+
+- Build all examples in CI; execute safe loopback integration checks where practical.
+- Run `make verify`, Pinex golden compatibility, and the established Phase 7 interoperability gate.
+- Run `go test -cover ./...` and record the result for visibility. Do not invent a minimum coverage percentage.
+- Review current workflow triggers/artifacts and ensure documentation/example changes cannot silently bypass required correctness checks.
+- Decide/document the supported Go toolchain and OS/architecture baseline. Current facts are `go.mod: go 1.23`, Go CI `1.23.x`, Phase 8 runner Go 1.23.12/Linux amd64, and owner local Go 1.27.0.
+- Review dependencies (currently standard-library-only expectation), license, changelog/release notes, semantic version and compatibility statement.
+- Verify branch protection/ruleset/release settings if access permits. The previous GitHub integration request for branch-protection details returned HTTP 403; this control remains unverified and must not be represented as disabled.
+- Produce a final checklist with PASS/FAIL/NOT RUN for every gate and list any known limitation.
+
+### P9-06 — V1 release tag
+
+Do not create a tag or GitHub Release until:
+1. P9-01..P9-05 are accepted and recorded in `TASKS.md`.
+2. The final main HEAD passes the required correctness and compatibility CI.
+3. The final release version/tag and release notes are agreed.
+4. The owner gives separate explicit approval for the tag/release operation.
+
+## 4. Dependency order
+
+```text
+P9-00
+  ├── P9-01 Client example ──┐
+  ├── P9-02 Server example ──┼── P9-03 Public API/docs/Quick Start ──┐
+  └── P9-04 Compatibility docs ──────────────────────────────────────┤
+                                                                     └── P9-05 Release review
+                                                                            │
+                                                                            └── P9-06 (separate owner approval)
+```
+
+P9-01, P9-02 and P9-04 may proceed independently after P9-00. P9-03 depends on the examples so Quick Start can refer to verified artifacts. P9-05 depends on all docs/examples and evidence. P9-06 is always separately gated.
+
+## 5. Open release questions (do not guess)
+
+- Supported minimum Go version and supported GOOS/GOARCH matrix.
+- Exact V1 semantic version/tag naming and changelog/release-note format.
+- Whether the owner wants a numeric test coverage target. Until approved, report coverage without a threshold.
+- Branch protection/ruleset state; previous API inspection was denied with HTTP 403, so verify through repository settings or an authorized path.
+- Any production workload SLA/benchmark thresholds remain outside Phase 9 and are not inferred from hosted-runner measurements.
+
+## 6. Stash review status
+
+The owner reported a local `stash@{0}` containing historical workflow changes. GitHub does not expose a developer's local stash, so the exact patch cannot be inspected remotely. Do not apply or drop it. In the owner clone, the following are read-only:
+
+```bash
+git stash show --stat stash@{0}
+git stash show --patch stash@{0} -- \
+  .github/workflows/go.yml \
+  .github/workflows/phase8-performance.yml
+```
+
+A comparison with an older committed workflow version is not a substitute for reviewing the actual stash patch.
+
+## 7. Source authority
+
+- Root `TASKS.md`: canonical task status and acceptance evidence.
+- `.codex/DECISION_LOG.md`: owner decisions and authorization boundaries.
+- `.codex/HANDOFF.md`: current continuation state and important project constraints.
+- This file: Phase 9 plan, estimates, dependencies and release gates.
+- Phase 8 evidence: [NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md).
+- CI automation: [NETA_GO_TEST_AUTOMATION_2026-11-17.md](NETA_GO_TEST_AUTOMATION_2026-11-17.md).
