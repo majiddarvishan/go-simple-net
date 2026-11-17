@@ -1236,3 +1236,14 @@ The consolidated owner-choice set is recorded in [NETA_GO_ARCHITECTURE_FREEZE_DE
 - **PROTOCOL-001 — CLOSED / OWNER APPROVED / OPTION A:** fixed 1,048,576-byte total Frame in both directions, including 10-byte Header; maximum Body 1,048,566 bytes. Inbound oversized Frames rejected before Body allocation and close offending Session/Pre-Bind transport. Outbound oversized Frames rejected before Sequence/Pending/Queue admission with ErrFrameTooLarge.
 
 **Result:** all eight remaining owner decisions are CLOSED / OWNER APPROVED / OPTION A. Together with API-002-01..03, API-001a/b, API-003, API-004, PERF-002/003 and WORKER-001..009C, no fundamental owner architecture decision remains open. Golden frames, cross-language verification, tests, benchmarks and PERF-004 remain implementation/evidence tasks. Implementation remains NOT AUTHORIZED.
+
+
+## Implementation Authorization — Phase 1 only (2026-11-17)
+
+The owner explicitly authorized Phase 1 implementation in this conversation («آره، اجازه داری»). This supersedes earlier blanket NOT AUTHORIZED statements only for the scope below.
+
+**Scope:** approved module skeleton/root package, typed Functional Options, immutable effective configuration, approved defaults, apply-all-then-validate behavior, API-004/WORKER-009C validation and checked arithmetic, API-001 configuration errors/state declarations, focused tests and CI.
+
+**Baseline at authorization:** main HEAD f3f525e5f36f65235a4c8e023cfafb4bfd6b5737. The authorization is also recorded in HANDOFF.md and IMPLEMENTATION_AUTHORIZATION_2026-11-17.md.
+
+**Boundary:** Phase 2 Wire Protocol and all later runtime/transport/worker/reconnect/interoperability/benchmark/release/deployment work remain NOT AUTHORIZED and require separate owner approval. No frozen architecture decision is reopened.

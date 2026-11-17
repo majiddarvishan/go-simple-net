@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** NOT GRANTED  
+**Implementation authorization:** PHASE 1 GRANTED / PHASES 2+ NOT GRANTED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. This does not authorize source implementation, go.mod creation, tests, builds, benchmarks, dependency changes or deployment. Those actions require separate explicit implementation authorization.
+The architecture is frozen at the design/contract level. The owner subsequently granted explicit authorization for Phase 1 only (module skeleton and immutable configuration). Phase 2+ remain unauthorized until a separate approval.
 
 ## 2. Architecture decision closure
 
@@ -91,9 +91,9 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 8. Implementation roadmap — gated, production-grade
 
-**Gate 0 — Owner authorization and baseline pin**
-- Obtain explicit owner authorization to begin implementation.
-- Re-fetch current main HEAD and record the starting commit.
+**Gate 0 — Owner authorization and baseline pin (PASS for Phase 1 only)**
+- Owner explicitly authorized Phase 1 on 2026-11-17.
+- Verified starting main HEAD: f3f525e5f36f65235a4c8e023cfafb4bfd6b5737.
 - Re-check Pinex develop HEAD and version; re-audit any change from f7bd1eb779baff0d10e624f20522df345e6ee747.
 - Record Go toolchain and supported platform baseline; do not add dependencies by default.
 
@@ -165,4 +165,14 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. The next action is not automatic implementation. The owner must explicitly authorize the implementation phase before any source code, go.mod, tests, builds, benchmarks or dependency changes are made.
+Architecture Freeze is complete as a documentation/decision milestone. On 2026-11-17 the owner explicitly authorized Phase 1 only. Phase 2 (Wire Protocol) and all later phases remain gated by separate owner authorization. Phase 1 code and additional boundary tests are under final CI verification.
+
+## Implementation Authorization — Phase 1 only (2026-11-17)
+
+The owner explicitly authorized Phase 1 implementation in this conversation («آره، اجازه داری»). This supersedes earlier blanket NOT AUTHORIZED statements only for the scope below.
+
+**Scope:** approved module skeleton/root package, typed Functional Options, immutable effective configuration, approved defaults, apply-all-then-validate behavior, API-004/WORKER-009C validation and checked arithmetic, API-001 configuration errors/state declarations, focused tests and CI.
+
+**Baseline at authorization:** main HEAD f3f525e5f36f65235a4c8e023cfafb4bfd6b5737. The authorization is also recorded in HANDOFF.md and IMPLEMENTATION_AUTHORIZATION_2026-11-17.md.
+
+**Boundary:** Phase 2 Wire Protocol and all later runtime/transport/worker/reconnect/interoperability/benchmark/release/deployment work remain NOT AUTHORIZED and require separate owner approval. No frozen architecture decision is reopened.
