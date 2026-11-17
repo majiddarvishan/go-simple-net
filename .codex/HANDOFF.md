@@ -1168,3 +1168,12 @@ P9-05 review is **COMPLETE with explicit verification limitations**. All technic
 Most recent pre-signoff protected `main` commit `cbd07421fec639a2d0db0bec7de03484bbcdb831`: Go [44167295340](https://github.com/majiddarvishan/neta-go/actions/runs/44167295340) **PASS** and Pinex [44167295551](https://github.com/majiddarvishan/neta-go/actions/runs/44167295551) **PASS**. The owner reported completing the GitHub UI protection steps; GitHub independently reports `protected=true`, mandatory checks and `enforcement_level=everyone`, with actual blocked/then-merged PR enforcement. Full classic branch-protection read remains HTTP 403; do not claim exact `strict` or administrator bypass flags as independently verified.
 
 The repo is public; connected owner-repository metadata reports admin permission, and GitHub Releases/tags APIs can be read with zero existing releases/tags. Actual release creation permission and release configuration are **NOT TESTED** to avoid unauthorized publication. Those detailed admin checks, final target SHA/CI revalidation and **fresh explicit owner release approval** are mandatory prepublication P9-06 gates, not silently waived. **P9-06 remains NOT AUTHORIZED**; `CHANGELOG.md` stays Unreleased. Local stash untouched. Use protected feature branch + PR for this review closure.
+
+
+## 37. PROTOCOL-VERSION-001 — Owner selects Session-level versioning (2026-11-18)
+
+The owner explicitly instructed **not to change code**, asked about dropping the NUL terminator after Bind SystemID while staying backward compatible, then approved **selecting the protocol version once per Session instead of adding a per-Frame version byte**.
+
+This is a design-only decision. V1 stays default and wire-identical to Pinex C++ 1.5.0: 10-byte header; BindType + `c_octet_str<20>` NUL-terminated SystemID; omitted BindResp body allowed with defaults. The old Pinex C++ decoder explicitly searches for NUL; sending V2 Bind without it to a legacy peer is incompatible. Positive peer capability agreement is required before V2. The selection/handshake mechanism, possible V2 Bind optimization and API contracts remain OPEN — no speculative in-band negotiation, version probing or automatic downgrade allowed.
+
+Formal architecture record: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md); canonical root `TASKS.md` tracks PV-02..PV-05 as future, separately unauthorised tasks. No source/tests/CI/golden fixtures were changed. P9-06 `v1.0.0` release **NOT AUTHORIZED**; local stash untouched.
