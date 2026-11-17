@@ -45,7 +45,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 | P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | COMPLETE — exported GoDoc, API/configuration/lifecycle docs and README Quick Start verified |
 | P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | COMPLETE — exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
-| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS; support and Apache-2.0 copyright/commercial licensing APPROVED; branch protection and version/changelog remain open |
+| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS; support, Apache-2.0 licensing, `v1.0.0` and current changelog APPROVED; branch-protection/release settings owner-admin review remains |
 | P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
 
 ### P9-00 — Documentation and tracker reconciliation
@@ -162,8 +162,8 @@ Completed:
 Remaining owner/repository gates:
 - **CLOSED / OWNER APPROVED 2026-11-17:** minimum Go 1.23 and Ubuntu 24.04/Linux amd64 as CI-tested platform; owner-reported local Go 1.27.0 `make verify` PASS is separate evidence, not a guarantee for other architectures/platforms.
 - **CLOSED / OWNER CONFIRMED 2026-11-17:** copyright holder `Majid Darvishan`, year `2026`; original Apache License 2.0 retained, with commercial use permitted under its terms and its copyright notice updated.
-- Review the Unreleased changelog and proposed semantic version `v1.0.0` (not approved).
-- Verify branch protection/ruleset and release settings. The GitHub integration returned HTTP 403; state is unknown.
+- **CLOSED / OWNER APPROVED 2026-11-17:** owner accepted the current Unreleased `CHANGELOG.md` as the V1 release-notes draft and semantic version `v1.0.0`; neither the tag nor GitHub Release creation is authorized.
+- **PARTIALLY VERIFIED / REQUIRES OWNER-ADMIN REVIEW:** branch API reports `main.protected=false`; repository rulesets list is empty; full classic protection endpoint remains HTTP 403. Tags and Releases are absent. Review the intended main protection policy and GitHub Release settings before P9-05 closure.
 - Produce final PASS/FAIL/NOT RUN checklist. No release tag is part of this task.
 
 ### P9-06 — V1 release tag

@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (changelog/version approval and branch-protection verification). Copyright holder/year (`Majid Darvishan`, `2026`) and commercial use under existing Apache-2.0 were explicitly confirmed by owner on 2026-11-17; LICENSE notice updated. Go/platform support remains approved (Go 1.23 minimum; Ubuntu 24.04/Linux amd64 CI-tested). P9-06 release tagging remains separately gated on explicit owner approval.
+**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner/admin review of main branch protection and GitHub Release settings. The owner approved current `CHANGELOG.md` entries and intended `v1.0.0` on 2026-11-17 (no tag authorization). Copyright holder/year (`Majid Darvishan`, `2026`) and commercial use under existing Apache-2.0 were explicitly confirmed by owner on 2026-11-17; LICENSE notice updated. Go/platform support remains approved (Go 1.23 minimum; Ubuntu 24.04/Linux amd64 CI-tested). P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
@@ -1122,3 +1122,14 @@ P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/versi
 - Closed only the copyright/licensing subtask in the canonical tracker and release checklist; P9-05 remains IN PROGRESS.
 - Remaining: verify GitHub classic branch protection/release settings (integration lacks the required administration scope), owner review of changelog/versioning. P9-06 tag and GitHub Release still need separate explicit owner approval.
 - No production source, public API, protocol, defaults, CI automation, tests or local `stash@{0}` were changed.
+
+
+## 32. P9-05 — Owner-approved v1.0.0 and CHANGELOG; branch release risk (2026-11-17)
+
+**Owner decision: APPROVED** — owner answered «آره» to the direct request to approve the intended semantic version `v1.0.0` and the **current `CHANGELOG.md` Unreleased content**. The changelog content is preserved unchanged and remains under `Unreleased` until an actual separately authorized publication.
+
+- Go correctness/coverage/paired-example CI [44159858260](https://github.com/majiddarvishan/neta-go/actions/runs/44159858260) PASS and Pinex Wire Compatibility [44159858233](https://github.com/majiddarvishan/neta-go/actions/runs/44159858233) PASS on pre-decision HEAD `11d2a0a9508b59e603f038e14772d29bb1bb17ea`.
+- GitHub branch metadata reports `main.protected=false` and repository rulesets API returns `[]`. Classic branch protection details are inaccessible via the integration (HTTP 403), so do not claim the branch has enforced protection.
+- Repository tags: none. Published GitHub Releases: none. GitHub Release settings require owner/admin inspection.
+- `docs/RELEASE_READINESS.md` now has a PASS / NOT VERIFIED / NOT AUTHORIZED matrix. Root `TASKS.md` and Phase 9 plan record version/changelog decision as COMPLETE.
+- **P9-05 stays IN PROGRESS:** branch protection / release settings still need owner/admin review or explicit risk acceptance. **P9-06 is NOT AUTHORIZED**; no tag, release, production code change or local stash operation was performed.

@@ -271,12 +271,12 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
   - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
   - [x] Record toolchain/platform evidence and publish the owner-approved V1 support statement.
-  - [x] Add an Unreleased `CHANGELOG.md` and a release-readiness checklist; owner review remains pending.
+  - [x] Add an Unreleased `CHANGELOG.md` and release-readiness checklist; current changelog entries OWNER APPROVED on 2026-11-17 as proposed V1 release notes, pending separate release permission.
   - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
   - [x] Owner confirms Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested platform; approved 2026-11-17; other platforms remain unverified.
   - [x] Owner approved copyright holder **Majid Darvishan** and year **2026**, confirmed commercial use is permitted, and the Apache-2.0 `LICENSE` notice was updated on 2026-11-17.
-  - [ ] Verify main branch protection/ruleset and GitHub Release settings. The GitHub integration returned HTTP 403 for branch protection; status remains unknown.
-  - [ ] Owner reviews the changelog and confirms semantic versioning; `v1.0.0` is only a candidate, not an approved tag.
+  - [ ] Complete branch-protection/release-settings review: main branch API reports `protected=false` and no repository rulesets; full classic branch protection settings return HTTP 403. No tags/releases exist. Owner must review any protection policy and GitHub Release settings; no protected-branch guarantee is claimed.
+  - [x] Owner APPROVED current `CHANGELOG.md` (Unreleased draft) and semantic version **`v1.0.0`** for the intended initial release on 2026-11-17. This approval is **not** authorization to create a tag or GitHub Release.
 - [ ] **P9-06 — V1 release tag:** create the agreed V1 tag/release only after P9-05 passes and the owner explicitly approves the release operation. No release tag is authorized by the general Phase 9 approval.
 
 ### Phase 9 completion evidence and authorization
@@ -305,7 +305,9 @@ This root-level file is the single, canonical, implementation-facing task list f
 - A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
 - Owner approved the V1 support baseline on 2026-11-17: Go 1.23 minimum and Ubuntu 24.04/Linux amd64 as CI-tested. Local Go 1.27.0 verification is additional evidence; other platforms are unverified. This closes only the support approval subtask.
 - Copyright/licensing decision CLOSED on 2026-11-17: owner specified `Majid Darvishan`, `2026` and explicitly permits commercial use. Existing Apache-2.0 license retained (including its conditions); copyright notice filled in. No extra non-commercial restriction or alternative license introduced.
-- Remaining release review: branch-protection verification and owner approval of changelog/version/tag policy. No V1 tag has been created.
+- Changelog/version review CLOSED on 2026-11-17: the owner approved the existing Unreleased changelog content and the intended semantic version `v1.0.0` for V1. The changelog remains Unreleased until a separately authorized publication.
+- Repository metadata check: `main` reports `protected=false` and the repository ruleset list is empty; classic branch-protection details are not readable through the integration (HTTP 403). Tags: 0; GitHub Releases: 0. This is a visible release-readiness risk, not evidence of enforced branch protection. GitHub Release settings still require owner/admin verification.
+- Remaining P9-05: branch protection and GitHub Release settings owner/admin review. P9-06 remains NOT AUTHORIZED; no tag/release has been created.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---

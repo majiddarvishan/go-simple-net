@@ -1570,3 +1570,15 @@ Evidence on prior HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctnes
 - Mark the copyright/licensing checkbox complete in root `TASKS.md` and `docs/RELEASE_READINESS.md`.
 
 **Boundary:** This is a copyright/license attribution decision within P9-05. It does not approve a version, release notes, V1 tag, GitHub Release or any production API/wire/default behavior change. Branch protection and version/changelog review remain open.
+
+
+## 64. P9-05 — Semantic version and changelog acceptance for V1 (2026-11-17)
+
+**Owner approved:** intended first-release semantic version **`v1.0.0`** and the present entries in `CHANGELOG.md` (currently headed **Unreleased**) by replying «آره» to the explicit approval request.
+
+- This is approval of the **version designation and proposed release notes**, not approval to create a V1 tag, modify release history, publish a GitHub Release or treat an unreleased version as available.
+- Preserve the existing Unreleased changelog content unchanged at this stage. Only under a separate P9-06 publication authorization should the release record be finalized.
+- Go correctness / paired-example / race CI [44159858260](https://github.com/majiddarvishan/neta-go/actions/runs/44159858260) and Pinex Wire Compatibility [44159858233](https://github.com/majiddarvishan/neta-go/actions/runs/44159858233) passed on pre-decision HEAD `11d2a0a9508b59e603f038e14772d29bb1bb17ea`.
+- Repository `main` branch metadata reports `protected=false`, repository rulesets list is empty, classic branch protection detailed read is denied with HTTP 403; tags and Releases are absent. The owner/admin must verify or consciously accept the branch-protection and release-settings risk before closing P9-05.
+
+**Boundary:** Only the owner-review subtask for version/changelog is closed. Overall P9-05 remains **IN PROGRESS**. P9-06 is still **NOT AUTHORIZED** and requires an explicit separate owner decision immediately before any release/tag operation. No production code, Go API, wire protocol or default configuration decision changes.
