@@ -45,7 +45,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 | P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | COMPLETE — exported GoDoc, API/configuration/lifecycle docs and README Quick Start verified |
 | P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | COMPLETE — exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
-| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS; support/license/version/changelog APPROVED; `main` protection ACTIVE with exact two required checks, detailed protection options and GitHub Release settings still pending |
+| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | COMPLETE — qualified engineering review: Go/Pinex/example/coverage PASS, support/license/version/changelog APPROVED, protected PR enforcement PASS; independently unreadable strict/bypass controls and untested GitHub Release permission explicitly carried into P9-06 launch preflight |
 | P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
 
 ### P9-00 — Documentation and tracker reconciliation
@@ -149,7 +149,7 @@ Document:
 
 ### P9-05 — Test, CI and release-readiness review
 
-**Status: IN PROGRESS — implementation and automated verification gates PASS; final owner review remains open.**
+**Status: COMPLETE — qualified engineering review. Publication remains separately gated and detailed admin settings remain unverified by this integration.**
 
 Completed:
 - Added `scripts/phase9-release-check.sh` and `make phase9`. The script records coverage, builds both examples, starts the Server on an ephemeral loopback port, runs the Client, verifies Request/Response and one-way event delivery, and gracefully stops both processes.
@@ -164,7 +164,7 @@ Remaining owner/repository gates:
 - **CLOSED / OWNER CONFIRMED 2026-11-17:** copyright holder `Majid Darvishan`, year `2026`; original Apache License 2.0 retained, with commercial use permitted under its terms and its copyright notice updated.
 - **CLOSED / OWNER APPROVED 2026-11-17:** owner accepted the current Unreleased `CHANGELOG.md` as the V1 release-notes draft and semantic version `v1.0.0`; neither the tag nor GitHub Release creation is authorized.
 - **ACTIVE / REQUIRED CHECKS VERIFIED 2026-11-17:** owner enabled `main` protection in GitHub UI. Branch API now reports `protected=true`, `required_status_checks.enforcement_level=everyone` and mandatory `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0` contexts. Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d`. Strict-up-to-date and admin-bypass settings are not exposed by available branch metadata (classic endpoint HTTP 403); confirm independently, plus GitHub Release settings. Guide: [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Tags and Releases remain absent.
-- **DONE — PARTIAL/NOT VERIFIED EXCEPTIONS RECORDED:** P9-05 `docs/RELEASE_READINESS.md` contains a PASS/PARTIAL/NOT VERIFIED/NOT AUTHORIZED matrix. The real PR #2 and its post-merge CI both pass on `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`. Protection strict/admin details and release-creation permission remain unavailable through current integration and are recorded as outstanding. No release tag is part of this task.
+- **DONE — REVIEW CLOSED WITH EXPLICIT LIMITATIONS:** `docs/RELEASE_READINESS.md` has a PASS/PARTIAL/NOT VERIFIED/NOT AUTHORIZED matrix. Real protected PR #2 was blocked pending checks then merged after success; post-merge Go and Pinex CI both pass on latest reviewed `main` HEAD `cbd07421fec639a2d0db0bec7de03484bbcdb831`. Exact strict/admin setting flags and release-creation permission remain unavailable through current integration and must be checked before the separately approved P9-06 publication. No release tag is part of P9-05.
 
 ### P9-06 — V1 release tag
 

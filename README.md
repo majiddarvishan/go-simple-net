@@ -6,7 +6,7 @@ A high-performance, Pinex-compatible TCP messaging library written in Go.
 
 Phases 1–8 are complete. The Phase 8 performance baseline and evidence review closed with **PERF-004 = NO CHANGE**; no production optimization or public-contract change was accepted.
 
-**Phase 9 — documentation, examples and V1 release readiness — is owner-authorized and in progress.** The tracker reconciliation, Client/Server examples and public documentation are complete; examples compile and correctness/compatibility CI pass. Paired runtime smoke, coverage capture and CI integration now pass; final release-readiness owner approvals remain in progress. No V1 release tag has been created or authorized.
+**Phase 9 — documentation, examples and V1 release readiness — is owner-authorized and in progress.** Tasks P9-00..P9-05 are complete, including an engineering release-readiness review with documented release-time verification limits. Examples, correctness/compatibility CI, paired runtime smoke and protected-branch CI checks pass. The V1 release/tag task P9-06 remains separately gated on explicit owner approval and final admin settings / release permission preflight. No V1 release tag has been created or authorized.
 
 - **[Implementation tasks and live progress](TASKS.md)**
 - **[Phase 9 execution plan and acceptance criteria](.codex/NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)**
