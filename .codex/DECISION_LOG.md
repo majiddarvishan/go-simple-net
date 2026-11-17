@@ -1317,3 +1317,22 @@ The C++ fixture generator uses actual production PDU serializer templates; its H
 - Golden vectors cover Bind Request/Response, empty Bind Response, Stream Request/Response, Unbind Request/Response and Enquire Link Request/Response.
 
 **Explicit exclusions:** no TCP transport, socket read/write loops, Client/Server runtime integration, Session lifecycle, worker scheduler, resource admission runtime, reconnect, live Go↔C++ socket test, benchmarks, release or deployment. These remain Phase 3+ work and require separate owner authorization.
+
+
+## 50. Phase 3 Session Transport & Lifecycle — implementation COMPLETE (2026-11-17)
+
+**Owner authorization:** Phase 3 was explicitly approved in chat pg_07. This entry records implementation evidence only; it does not authorize Phase 4 or later.
+
+**Result:** COMPLETE / CI PASS at `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+
+- One Reader, one serialized Writer and one bounded Session control/deadline loop.
+- Session-side Bind/Pre-Bind, absolute Frame Assembly and Writer deadlines, idle-only Enquire Link, Request tracking/correlation, Graceful Unbind and Forced Close A.
+- Done closes after internal teardown and terminal-cause publication; it does not wait for user callbacks.
+- Regression hardening: outbound activity cancels a queued Enquire Link; pre-Writer-claim Responses cannot settle queued Requests; the first post-Bind server Frame retains its absolute assembly deadline; RequestTimeout starts after successful FIFO admission; Unbind Context cancellation exposes the approved ErrUnbindTimeout terminal classification.
+- `session_test.go` contains 33 focused tests.
+
+**Verification:**
+- Go Actions run `44057820360`: PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility run `44057820405`: PASS — pinned C++ 1.5.0 production serializer fixture build, golden comparison and Go wire tests.
+
+**Strict boundary:** Phase 4 full resource admission/owner ledgers, Phase 5 bounded worker scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability/fault-injection, Phase 8 performance and Phase 9 release remain outside Phase 3 and are not authorized by this entry. No architecture, public API or wire contract was reopened.

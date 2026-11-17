@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1 + PHASE 2 COMPLETE / PHASE 3 SESSION TRANSPORT & LIFECYCLE GRANTED  
+**Implementation authorization:** PHASE 1 + PHASE 2 + PHASE 3 COMPLETE / PHASE 4+ NOT AUTHORIZED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. Phase 1 and Phase 2 are COMPLETE / CI PASS. The owner has now explicitly authorized Phase 3 Session Transport & Lifecycle Engine; Phase 4+ remain outside this authorization.
+The architecture is frozen at the design/contract level. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4+ remain gated by separate owner authorization.
 
 ## 2. Architecture decision closure
 
@@ -110,14 +110,14 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 - [x] Match Pinex's omitted Bind Response Body default-value behavior.
 - [x] Pass gofmt, go vet, go test, go test -race and the C++ golden compatibility workflow.
 
-**Phase 3 — Session transport and lifecycle engine (OWNER AUTHORIZED 2026-11-17 / IN PROGRESS)**
+**Phase 3 — Session transport and lifecycle engine (OWNER AUTHORIZED 2026-11-17 / COMPLETE / CI PASS)**
 
-- [ ] One Reader and one serialized Writer per Session; no user callback inline in either loop.
-- [ ] Session-side Bind/Pre-Bind handshake state transitions and absolute Bind/Pre-Bind deadlines. Client Dial and Server Listen/accept orchestration remain Phase 6.
-- [ ] Absolute Frame Assembly and per-Frame Writer deadlines; idle-only Enquire Link and matching response timeout.
-- [ ] Request correlation, nonzero Sequence allocation, once-only internal settlement, RequestTimeout origin and late-response suppression.
-- [ ] Graceful Unbind, Forced Close A, immutable terminal cause, Done publication and exact cleanup of timers, transport loops, pending state and queues.
-- [ ] Focused transport/lifecycle, partial-I/O, timeout-race and race-detector tests.
+- [x] One Reader and one serialized Writer per Session; no user callback inline in either loop.
+- [x] Session-side Bind/Pre-Bind handshake state transitions and absolute Bind/Pre-Bind deadlines. Client Dial and Server Listen/accept orchestration remain Phase 6.
+- [x] Absolute Frame Assembly and per-Frame Writer deadlines; idle-only Enquire Link and matching response timeout.
+- [x] Request correlation, nonzero Sequence allocation, once-only internal settlement, RequestTimeout origin and late-response suppression.
+- [x] Graceful Unbind, Forced Close A, immutable terminal cause, Done publication and exact cleanup of timers, transport loops, pending state and queues.
+- [x] Focused transport/lifecycle, partial-I/O, timeout-race and race-detector tests.
 
 **Phase 3 boundary:** use the approved per-Session bounded FIFO as a minimal transport prerequisite only. Full independent resource ledgers remain Phase 4; isolated callback worker pools remain Phase 5; Client/Server orchestration, reconnect and generation fencing remain Phase 6. No public API expansion, dependency, benchmark, release or deployment.
 
@@ -171,7 +171,7 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. Phase 1 and Phase 2 are COMPLETE / CI PASS. The owner explicitly authorized Phase 3 Session Transport & Lifecycle Engine on 2026-11-17; Phase 4+ remain gated by separate authorization.
+Architecture Freeze is complete as a documentation/decision milestone. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4+ remain gated by separate owner authorization.
 
 ## Implementation Authorization — Phase 1 only (2026-11-17)
 
@@ -245,3 +245,13 @@ The fixture proves Go encoding/decoding against compiled C++ PDU serializer outp
 Owner approval received in chat pg_07: «اره هست و مجوز داری».
 
 The authorization is limited to the Phase 3 Session transport/lifecycle engine described in §8. It does not authorize Phase 4 independent resource ledgers, Phase 5 worker scheduler, Phase 6 Client/Server orchestration, Phase 7 live interoperability/fault-injection campaign, Phase 8 benchmarks, Phase 9 release/deployment, or any change to frozen architecture/API/protocol decisions.
+
+
+## Phase 3 implementation evidence — 2026-11-17
+
+- Current verified `main` HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+- `session_test.go`: 33 focused Session/transport/lifecycle tests.
+- Go CI run `44057820360`: PASS — gofmt, go vet, go test and go test -race.
+- Pinex Wire Compatibility run `44057820405`: PASS — compiled pinned C++ 1.5.0 production-serializer fixture, golden comparison and Go wire compatibility tests.
+- Live Go↔Pinex TCP interoperability remains Phase 7; Phase 3 does not claim socket-level cross-language proof.
+- Phase 4 resource ledgers, Phase 5 worker scheduler and Phase 6 Client/Server orchestration remain gated and were not implemented.

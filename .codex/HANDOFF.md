@@ -1,21 +1,21 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C are owner approved. The three callback-class pools, fairness, lazy retirement, bounded admission and retained-byte accounting remain as frozen in the design records. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phase 2 Wire Codec is now implemented and verified:** Go CI and a compiled C++ 1.5.0 production-serializer golden compatibility workflow both PASS against pinned source commit `f7bd1eb779baff0d10e624f20522df345e6ee747`. The source snapshot and fixture generator are retained under `testdata/pinex-1.5.0/`. Live TCP Go↔C++ interoperability was not included in Phase 2 and requires a separately authorized integration phase. Phase 3 transport/runtime, workers, reconnect, benchmarks and PERF-004 remain future work and are not yet authorized.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phase 1 Configuration, Phase 2 Wire Codec and Phase 3 Session Transport/Lifecycle are COMPLETE / CI PASS.** The pinned Pinex C++ 1.5.0 golden compatibility workflow passes against `f7bd1eb779baff0d10e624f20522df345e6ee747`; live TCP interoperability remains Phase 7. Phase 4 resource ledgers, Phase 5 worker pools, Phase 6 Client/Server orchestration, Phase 7 live interoperability, Phase 8 performance and Phase 9 release remain gated.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / GO CI + PINEX C++ GOLDEN CI PASS; PHASE 3 SESSION TRANSPORT/LIFECYCLE AUTHORIZED / IN PROGRESS  
-**Current work:** Phase 2 Wire Codec is COMPLETE. Verified implementation commit: `b026dadd9ad0b33118b05f49477e1412a4255978`. Go CI `44044273742` and Pinex C++ compatibility CI `44044273818` both PASS. The compiled C++ fixture uses pinned production PDU serializer headers; its header writer mirrors the audited Pinex header function. Live TCP Go↔C++ interoperability has not been run. **Phase 3 Session Transport & Lifecycle Engine is now owner-authorized (2026-11-17) and in progress.** Phase 4 resource ledgers, Phase 5 worker scheduler, Phase 6 Client/Server orchestration, live socket interoperability, benchmarks, release and deployment remain outside this authorization.
+**Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / CI PASS; PHASE 3 SESSION TRANSPORT/LIFECYCLE COMPLETE / CI PASS; PHASE 4+ NOT AUTHORIZED  
+**Current work:** Phase 3 Session Transport & Lifecycle is COMPLETE at `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`. Go CI `44057820360` and Pinex C++ golden compatibility CI `44057820405` both PASS. The Session implementation has 33 focused tests, including fragmentation, absolute deadlines, request correlation, Enquire Link, graceful Unbind and forced close. Live TCP Go↔C++ interoperability has not been run and remains Phase 7. Phase 4 resource ledgers, Phase 5 worker scheduler, Phase 6 Client/Server orchestration, Phase 7 live socket interoperability, Phase 8 performance, and Phase 9 release remain gated.
 
 ## 1. Repository state
 
 - Default branch: main
-- Verified remote `main` HEAD at Phase 3 authorization: `ebf269dc9ba1a8f5d88922cf1e6ab29c99782a05`.
+- Latest verified remote `main` HEAD after Phase 3 implementation: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
-- Only documentation under .codex has been added/updated for this planning step.
-- No Go application source, tests, go.mod, CI, runtime configuration or dependencies were added or changed.
+- Phase 1, Phase 2 and Phase 3 source/tests are committed and verified by GitHub Actions.
+- Phase 4+ runtime work remains gated; see the Phase 3 implementation evidence at the end of this handoff.
 
 ## 2. Source inputs
 
@@ -78,10 +78,9 @@ Therefore, copying the sample's protocol handling verbatim would not interoperat
 
 See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
-- GO-PINEX-001: protocol source baseline pinned to Pinex develop `f7bd1eb779baff0d10e624f20522df345e6ee747`; Maximum Frame Size verified as 1 MiB total including Header; owner approved Q-001 Option A. Golden-frame artifacts and socket-level cross-language confirmation remain open.
-- GO-PINEX-002 through GO-PINEX-014: open.
-- Cross-language tests have not been run.
-- No implementation has been started.
+- GO-PINEX-001: protocol source baseline pinned to Pinex develop `f7bd1eb779baff0d10e624f20522df345e6ee747`; Maximum Frame Size verified as 1 MiB total including Header; golden-frame artifacts are compiled and compared in CI. Live socket-level cross-language confirmation remains Phase 7.
+- Phase 1 Configuration, Phase 2 Wire Codec and Phase 3 Session Transport/Lifecycle are COMPLETE / CI PASS.
+- GO-PINEX-002 through GO-PINEX-014 remain broader integration/backlog items; use the gated roadmap below rather than treating them as Phase 3 blockers.
 
 ## 7. Owner decisions
 
@@ -761,3 +760,18 @@ The owner explicitly authorized Phase 3 in the continuation of chat pg_07 by rep
 **Baseline:** remote main HEAD ebf269dc9ba1a8f5d88922cf1e6ab29c99782a05; Phase 1 and Phase 2 remain complete. Pinex compatibility baseline remains version 1.5.0 at f7bd1eb779baff0d10e624f20522df345e6ee747.
 
 **Exit evidence required:** focused net.Pipe transport/lifecycle tests, fragmented and slow-trickle Frame tests, request timeout/late response/close races, partial writes and Writer timeout, Unbind FIFO/timeout, Bind/Pre-Bind handshake tests, gofmt, go vet ./..., go test ./..., and go test -race ./... in GitHub Actions. Live Pinex TCP interoperability remains Phase 7 evidence, not a Phase 3 gate.
+
+
+## Phase 3 implementation evidence — Session Transport & Lifecycle COMPLETE (2026-11-17)
+
+**Status:** COMPLETE / CI PASS within the explicitly owner-authorized Phase 3 boundary.
+
+- Current verified remote `main` HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+- The Session engine is implemented in `session.go`, `session_control.go`, `session_internal.go` and `session_transport.go`; focused coverage is in `session_test.go`.
+- `session_test.go` contains 33 focused Session/transport/lifecycle tests.
+- Correctness hardening includes outbound-activity cancellation of queued Enquire Link, ignoring a Response before Writer claim, preserving the first post-Bind Frame Assembly deadline, exact Writer-ownership Write deadline, Request timeout origin after successful local admission, and Unbind Context terminal-cause classification.
+- Go GitHub Actions run `44057820360`: PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility run `44057820405`: PASS — compile the pinned Pinex C++ 1.5.0 production serializer fixture, compare golden Frames, and run Go wire compatibility tests.
+- The compatibility workflow is a compiled C++ golden check, not live Go↔Pinex TCP interoperability.
+
+**Still gated:** Phase 4 full resource admission/owner ledgers; Phase 5 bounded callback worker pools; Phase 6 Client/Server orchestration and reconnect; Phase 7 live socket interoperability/fault-injection; Phase 8 performance campaign; Phase 9 release. No work outside Phase 3 is authorized by this result.
