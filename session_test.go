@@ -1208,7 +1208,6 @@ func (c shortWriteConn) Write(payload []byte) (int, error) {
 	return c.Conn.Write(payload)
 }
 
-
 func TestSessionIgnoresResponseBeforeWriterClaimsRequest(t *testing.T) {
 	local, peer := net.Pipe()
 	config := defaultSessionConfig()
