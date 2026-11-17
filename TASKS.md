@@ -246,7 +246,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Owner's local `make verify` passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5` on 2026-11-17: PASS (gofmt, vet, uncached unit and race). The prior local stash remains preserved as `stash@{0}`; it has not been applied or dropped.
 - Five-minute soak: PASS; baseline/final heap 335,696/308,088 bytes; max HeapInuse 4,374,528 bytes; max RSS 91,348 KiB; 4,549 GC cycles; two goroutines after cleanup; retained/queued Application bytes stayed zero.
 - 512-Session Request/Response: 64 B at 123,864 ops/s (p95 6.57 ms, p99 9.58 ms, fairness ratio 1.352); 256 B at 116,244 ops/s (p95 8.84 ms, p99 11.97 ms, fairness ratio 1.319).
-- SendNoWait delivery correlation is now per TCP peer and per-Session sequence; concurrent routing integration test [phase8_delivery_test.go](phase8_delivery_test.go) passes ordinary and race CI.
+- SendNoWait delivery correlation is now per TCP peer and per-Session sequence; concurrent routing integration test [delivery_test.go](delivery_test.go) passes ordinary and race CI.
 - PERF-004 closed as **NO CHANGE**. No production code, public API, Pinex wire protocol, defaults, timeouts, worker ceilings or resource limits changed.
 - Phase 9 was subsequently authorized by the owner on 2026-11-17; P9-00..P9-05 are in scope. P9-06 remains gated on separate explicit release approval. Numeric performance regression thresholds are not set; the workflow archives weekly evidence, not hard SLA enforcement.
 
@@ -264,9 +264,9 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Document configuration defaults, valid ranges, hard maxima, zero-value semantics, inheritance and independent Client/Server/Session resource budgets.
   - [x] Document payload ownership, callback lanes/concurrency/order, admission errors, Request completion semantics, errors.Is/errors.As, timeouts, reconnect and shutdown/Done semantics.
   - [x] Expand README with prerequisites, installation, Quick Start, links to the examples and documentation index.
-- [x] **P9-04 — Pinex compatibility documentation:** added `docs/PINEX_COMPATIBILITY.md` with the Pinex 1.5.0 source SHA, wire/frame contract, golden-fixture provenance, both real TCP interoperability directions, fuzz/fault/soak evidence and explicit test limitations.
+- [x] **P9-04 — Historical wire interoperability documentation:** initial engineering verification was recorded in a dedicated compatibility guide. That public-facing guide was retired by the 2026-11-18 cleanup; current neta-go framing/version documentation is `docs/PROTOCOL.md`, while historical provenance remains in `.codex/`.
 - [x] **P9-05 — Test, CI and release-readiness review (COMPLETE; documented publication-time checks remain in P9-06):**
-  - [x] Add `make phase9` and a CI gate after `make verify`; preserve coverage and example-smoke logs as artifacts.
+  - [x] Add `make smoke` and a CI gate after `make verify`; preserve coverage and example-smoke logs as artifacts.
   - [x] Build both examples and run paired Client/Server loopback smoke: Request/Response, SendNoWait event delivery and graceful Client/Server Stop all PASS.
   - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
   - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
@@ -300,7 +300,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - GoDoc audit: all exported top-level declarations in the root production package have comments; all 56 exported `With...` constructors are documented. Internal Markdown link audit: PASS.
 - P9-03/04 changed documentation and comments only. The private `newConfigError` helper was restored unchanged; no production behavior/API/protocol/default/resource policy changed.
 - P9-05 implementation commit: [c038fa60ffafd1f895e133db6d8cca08e7a2cc49](https://github.com/majiddarvishan/neta-go/commit/c038fa60ffafd1f895e133db6d8cca08e7a2cc49); shell expansion fix: [6d2521a22a476ee24f90dee364249e137357b756](https://github.com/majiddarvishan/neta-go/commit/6d2521a22a476ee24f90dee364249e137357b756); test-only deferred-credit assertion fix: [958601ee55dd6229021e36135a017527dfa8f778](https://github.com/majiddarvishan/neta-go/commit/958601ee55dd6229021e36135a017527dfa8f778).
-- Final P9-05 Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS on HEAD `958601ee55dd6229021e36135a017527dfa8f778`; includes `make verify` and `make phase9`. Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS.
+- Final P9-05 Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS on HEAD `958601ee55dd6229021e36135a017527dfa8f778`; includes `make verify` and `make smoke`. Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS.
 - Coverage: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% (no package-local tests). These are visibility metrics only; no coverage threshold is approved.
 - Runtime smoke: ephemeral loopback TCP, Client Request/Response, SendNoWait event observed by Server, and graceful Client/Server shutdown all PASS. Both example binaries built successfully.
 - Final Phase 9 evidence artifact: [14344846005](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
@@ -352,6 +352,18 @@ This root-level file is the single, canonical, implementation-facing task list f
 **Release boundary:** Future negotiation work remains out of scope; owner-approved PV-01, PV-02A and PV-02B introduce separately documented Go changes without reopening the legacy V1 wire contract. The P9-06 `v1.0.0` release task still requires separate explicit owner authorization.
 
 ---
+
+## Repository structure and public documentation cleanup — 2026-11-18
+
+- [x] Replace implementation-phase filenames with descriptive tests for interoperability, transport faults, reconnect soak, delivery and benchmarks.
+- [x] Rename performance and example-smoke scripts, Makefile targets, and the performance workflow; update Go CI and benchmark selectors.
+- [x] Remove `docs/PINEX_COMPATIBILITY.md` and replace it with a self-contained `docs/PROTOCOL.md` documenting neta-go's Header, commands, V1/V2 Bind and Session behavior.
+- [x] Refocus README, public API, configuration, lifecycle, support and changelog on neta-go.
+- [x] Preserve the existing required C++ golden-wire CI job name because it is a protected-`main` required status context. Test fixtures and interoperability tests remain internal.
+- [ ] Verify Go correctness/race, example smoke and wire golden checks on the final protected-`main` SHA after the cleanup PR merges.
+- [ ] Obtain renewed approval of changed Unreleased release notes; release tagging remains separately unauthorized.
+
+**Naming/CI handoff:** [Repository cleanup report](.codex/NETA_GO_REPOSITORY_HYGIENE_2026-11-18.md). Historic `.codex/` phase records are archived evidence and may mention superseded paths.
 
 ## Verification and update log
 
