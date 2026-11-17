@@ -43,7 +43,7 @@ type Request struct {
 type Response struct {
 	// Sequence is the sequence of the matching Stream Request.
 	Sequence uint32
-	// Status is the raw neta-c++ command status returned by the peer.
+	// Status is the raw neta-cpp command status returned by the peer.
 	Status uint8
 	// Payload is an owned snapshot and may be retained after the Completion callback returns.
 	Payload []byte
@@ -54,7 +54,7 @@ type Response struct {
 type BindInfo struct {
 	// SystemID is the identity presented in the peer's Bind Request.
 	SystemID string
-	// BindType is the raw neta-c++ Bind type: 0 for uni-directional and 1 for bi-directional.
+	// BindType is the raw neta-cpp Bind type: 0 for uni-directional and 1 for bi-directional.
 	BindType uint8
 	// RemoteAddr is the peer's TCP address.
 	RemoteAddr net.Addr

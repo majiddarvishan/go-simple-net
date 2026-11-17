@@ -18,7 +18,7 @@ var (
 	ErrQueueFull = errors.New("neta: application queue is full")
 	// ErrCapacity indicates that a configured resource or admission budget is exhausted.
 	ErrCapacity = errors.New("neta: resource capacity exhausted")
-	// ErrFrameTooLarge indicates that a Frame exceeds the fixed neta-c++-compatible 1 MiB total size.
+	// ErrFrameTooLarge indicates that a Frame exceeds the fixed neta-cpp-compatible 1 MiB total size.
 	ErrFrameTooLarge = errors.New("neta: frame exceeds the protocol maximum")
 	// ErrRequestTimeout indicates that an admitted Request did not receive its matching Response in time.
 	ErrRequestTimeout = errors.New("neta: request timed out")

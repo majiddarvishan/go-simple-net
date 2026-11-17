@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// MaxSystemIDLength is the legacy neta-c++ V1 SystemID byte limit.
+	// MaxSystemIDLength is the legacy neta-cpp V1 SystemID byte limit.
 	// V1 needs one additional NUL byte within its 20-byte string field.
 	MaxSystemIDLength = 19
 	// MaxSystemIDLengthV2 permits all 20 SystemID bytes, without a NUL.
@@ -76,7 +76,7 @@ func DecodeBindRequestV2(frame Frame) (Bind, error) {
 }
 
 // DecodeBindResponseV2 expects a NUL-free Body if present. An omitted
-// Bind Response Body retains the neta-c++ default-value compatibility case.
+// Bind Response Body retains the neta-cpp default-value compatibility case.
 func DecodeBindResponseV2(frame Frame) (Bind, error) {
 	if frame.Header.Command != CommandBindResponse {
 		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
@@ -125,7 +125,7 @@ func DecodeBindResponse(frame Frame) (Bind, error) {
 	if frame.Header.Command != CommandBindResponse {
 		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
 	}
-	// neta-c++ 1.5.0 marks Bind Response as omittable: an empty Body
+	// neta-cpp 1.5.0 marks Bind Response as omittable: an empty Body
 	// deserializes to the PDU's default values (bi_direction, empty ID).
 	if len(frame.Body) == 0 {
 		return Bind{Type: BindBiDirectional}, nil
