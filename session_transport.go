@@ -70,7 +70,7 @@ func (s *Session) readFrame() (wire.Frame, error) {
 			return wire.Frame{}, err
 		}
 	}
-	if bound {
+	if frameAssemblyApplies {
 		if err := s.conn.SetReadDeadline(time.Time{}); err != nil {
 			return wire.Frame{}, err
 		}
