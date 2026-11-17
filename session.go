@@ -311,19 +311,21 @@ func (s *Session) SystemID() string {
 func (s *Session) RemoteAddr() net.Addr { return s.remoteAddr }
 
 func (s *Session) completeRequest(sequence uint32, response Response, resultErr error) {
+	s.completeRequestWithCharge(sequence, response, resultErr, nil)
+}
+
+func (s *Session) completeRequestWithCharge(sequence uint32, response Response, resultErr error, charge *completionReadCharge) {
 	s.dispatchMu.Lock()
 	s.mu.Lock()
 	pending := s.pending[sequence]
 	if pending == nil || pending.settled || !pending.writerClaimed {
 		s.mu.Unlock()
 		s.dispatchMu.Unlock()
+		charge.release()
 		return
 	}
 	pending.settled = true
-	if !pending.writerClaimed {
-		s.removeQueuedRequestLocked(sequence)
-	}
-	task := s.completionTaskLocked(sequence, pending, response, resultErr)
+	task := s.completionTaskWithChargeLocked(sequence, pending, response, resultErr, charge)
 	s.mu.Unlock()
 
 	accepted := s.enqueueCallbackWithDispatchLock(callbackCompletion, task)
@@ -335,13 +337,21 @@ func (s *Session) completeRequest(sequence uint32, response Response, resultErr 
 }
 
 func (s *Session) completionTaskLocked(sequence uint32, pending *pendingRequest, response Response, resultErr error) callbackTask {
+	return s.completionTaskWithChargeLocked(sequence, pending, response, resultErr, nil)
+}
+
+func (s *Session) completionTaskWithChargeLocked(sequence uint32, pending *pendingRequest, response Response, resultErr error, charge *completionReadCharge) callbackTask {
 	return callbackTask{
 		session: s,
 		run: func() {
 			defer s.releasePending(sequence, pending)
+			defer charge.release()
 			pending.completion(response, resultErr)
 		},
-		cancel: func() { s.releasePending(sequence, pending) },
+		cancel: func() {
+			charge.release()
+			s.releasePending(sequence, pending)
+		},
 	}
 }
 

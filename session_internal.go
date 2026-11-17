@@ -97,6 +97,15 @@ type bindRequestEvent struct {
 	decision chan bindDecision
 }
 
+type inboundFrame struct {
+	frame                  wire.Frame
+	applicationCharge      *applicationReadCharge
+	completionCharge       *completionReadCharge
+	ignoreRequest          bool
+	ignoreResponse         bool
+	completionCapacityErr  bool
+}
+
 // Session owns exactly one Reader and one serialized Writer for one TCP
 // connection. All mutable protocol state is protected by mu.
 type Session struct {
@@ -466,6 +475,50 @@ func (s *Session) enqueueControlLocked(item *outboundFrame) error {
 	return nil
 }
 
+func (s *Session) reserveIncomingApplicationLocked(frameBytes uint64) (*applicationReadCharge, error) {
+	if frameBytes == 0 {
+		return nil, ErrProtocol
+	}
+	if s.queuedIncomingFrames >= s.config.maxIncomingApplicationFrames {
+		return nil, ErrCapacity
+	}
+	nextQueueBytes, ok := checkedAddUint64(s.queuedIncomingBytes, frameBytes)
+	if !ok || nextQueueBytes > s.config.maxQueuedIncomingBytes {
+		return nil, ErrCapacity
+	}
+	nextRetainedBytes, ok := checkedAddUint64(s.retainedApplicationBytes, frameBytes)
+	if !ok || nextRetainedBytes > s.config.maxRetainedApplicationBytes {
+		return nil, ErrCapacity
+	}
+	if s.resources == nil {
+		return nil, ErrCapacity
+	}
+	if err := s.resources.reserveApplicationFrame(frameBytes); err != nil {
+		// Incoming overload always closes only this Session; callers do not
+		// expose the Server-wide Queue Full distinction to the peer.
+		return nil, ErrCapacity
+	}
+	s.queuedIncomingBytes = nextQueueBytes
+	s.queuedIncomingFrames++
+	s.retainedApplicationBytes = nextRetainedBytes
+	return &applicationReadCharge{session: s, bytes: frameBytes}, nil
+}
+
+func (s *Session) reserveCompletionLocked(frameBytes uint64) *completionReadCharge {
+	if frameBytes == 0 {
+		return nil
+	}
+	nextRetainedBytes, ok := checkedAddUint64(s.retainedCompletionBytes, frameBytes)
+	if !ok || nextRetainedBytes > s.config.maxRetainedCompletionBytes {
+		return nil
+	}
+	if s.resources == nil || !s.resources.reserveRetainedCompletion(frameBytes) {
+		return nil
+	}
+	s.retainedCompletionBytes = nextRetainedBytes
+	return &completionReadCharge{session: s, bytes: frameBytes}
+}
+
 func (s *Session) reserveOutgoingApplicationLocked(frameBytes uint64) error {
 	if frameBytes == 0 {
 		return ErrProtocol
@@ -514,8 +567,9 @@ func (s *Session) releaseOutgoingApplicationReservationLocked(frameBytes uint64)
 	} else {
 		s.resourceAccountingFailed = true
 	}
-	if s.resources == nil || !s.resources.releaseQueuedApplication(frameBytes, 1) ||
-		!s.resources.releaseRetainedApplication(frameBytes) {
+	queueReleased := s.resources != nil && s.resources.releaseQueuedApplication(frameBytes, 1)
+	retainedReleased := s.resources != nil && s.resources.releaseRetainedApplication(frameBytes)
+	if !queueReleased || !retainedReleased {
 		s.resourceAccountingFailed = true
 	}
 }
@@ -714,11 +768,15 @@ func (s *Session) finishClose() {
 	s.mu.Unlock()
 
 	close(s.done)
-	if s.handlers.onClose != nil {
+	if s.handlers.onClose != nil && s.resources != nil && s.resources.reserveOnCloseEvent() {
+		credit := &onCloseEventCharge{owner: s.resources}
 		task := callbackTask{
 			session: s,
-			run:     func() { s.handlers.onClose(s, cause) },
-			cancel:  func() {},
+			run: func() {
+				defer credit.release()
+				s.handlers.onClose(s, cause)
+			},
+			cancel: credit.release,
 		}
 		// OnClose is best-effort and is eligible only after Done closes.
 		s.enqueueCallback(callbackOnClose, task)

@@ -14,24 +14,38 @@ import (
 func (s *Session) readerLoop() {
 	defer s.wg.Done()
 	for {
-		frame, err := s.readFrame()
+		inbound, err := s.readFrame()
 		if err != nil {
 			if !s.isClosing() {
-				s.failRead(err)
+				if errors.Is(err, ErrCapacity) {
+					s.beginClose(newOperationError("application admission", ErrCapacity), true)
+				} else {
+					s.failRead(err)
+				}
 			}
 			return
 		}
-		if err := s.handleFrame(frame); err != nil {
+		if err := s.handleInboundFrame(inbound); err != nil {
+			inbound.releaseAll()
 			s.beginClose(err, true)
 			return
 		}
 	}
 }
 
-func (s *Session) readFrame() (wire.Frame, error) {
+func (s *Session) readFrame() (result inboundFrame, readErr error) {
+	var applicationCharge *applicationReadCharge
+	var completionCharge *completionReadCharge
+	defer func() {
+		if readErr != nil {
+			applicationCharge.releaseAll()
+			completionCharge.release()
+		}
+	}()
+
 	var headerBytes [wire.HeaderSize]byte
 	if _, err := io.ReadFull(s.conn, headerBytes[:1]); err != nil {
-		return wire.Frame{}, err
+		return inboundFrame{}, err
 	}
 	firstByteAt := time.Now()
 
@@ -44,44 +58,114 @@ func (s *Session) readFrame() (wire.Frame, error) {
 		// Keep the deadline anchored to the first byte, including the small
 		// Binding->Bound race after the server's Bind Response reaches the peer.
 		if err := s.conn.SetReadDeadline(firstByteAt.Add(s.config.frameAssemblyTimeout)); err != nil {
-			return wire.Frame{}, err
+			return inboundFrame{}, err
 		}
 	}
 
 	if _, err := io.ReadFull(s.conn, headerBytes[1:]); err != nil {
-		return wire.Frame{}, err
+		return inboundFrame{}, err
 	}
 	header, err := wire.ParseHeader(headerBytes[:])
 	if err != nil {
-		return wire.Frame{}, err
+		return inboundFrame{}, err
 	}
 
 	switch header.Command {
 	case wire.CommandUnbindRequest, wire.CommandUnbindResponse, wire.CommandEnquireLinkRequest, wire.CommandEnquireLinkResponse:
 		if header.Length != wire.HeaderSize {
-			return wire.Frame{}, fmt.Errorf("%w: control command must not carry a Body", ErrProtocol)
+			return inboundFrame{}, fmt.Errorf("%w: control command must not carry a Body", ErrProtocol)
 		}
 	}
+
 	bodyLength := int(header.Length) - wire.HeaderSize
+	ignoreRequest := false
+	ignoreResponse := false
+	completionCapacityErr := false
+
+	s.mu.Lock()
+	state := s.state
+	role := s.role
+	bindType := s.bindType
+	if header.Command == wire.CommandStreamRequest {
+		if state == SessionStateBound && s.handlers.onRequest != nil {
+			if role == sessionRoleClient && bindType == wire.BindUniDirectional {
+				s.mu.Unlock()
+				return inboundFrame{}, ErrProtocol
+			}
+			applicationCharge, err = s.reserveIncomingApplicationLocked(uint64(header.Length))
+			if err != nil {
+				s.mu.Unlock()
+				return inboundFrame{}, ErrCapacity
+			}
+		} else {
+			// No Application consumer or no longer accepting Application work.
+			// Drain without allocating a user-retainable Body.
+			ignoreRequest = true
+		}
+	} else if header.Command == wire.CommandStreamResponse {
+		if state != SessionStateBound && state != SessionStateUnbinding {
+			s.mu.Unlock()
+			return inboundFrame{}, ErrProtocol
+		}
+		pending := s.pending[header.Sequence]
+		if pending == nil || pending.settled || !pending.writerClaimed {
+			ignoreResponse = true
+		} else {
+			completionCharge = s.reserveCompletionLocked(uint64(header.Length))
+			completionCapacityErr = completionCharge == nil
+		}
+	}
+	s.mu.Unlock()
+
 	var body []byte
-	if bodyLength > 0 {
+	if ignoreRequest || ignoreResponse || completionCapacityErr {
+		if err := drainFrameBody(s.conn, bodyLength); err != nil {
+			return inboundFrame{}, err
+		}
+	} else if bodyLength > 0 {
 		body = make([]byte, bodyLength)
 		if _, err := io.ReadFull(s.conn, body); err != nil {
-			return wire.Frame{}, err
+			return inboundFrame{}, err
 		}
 	}
 	if frameAssemblyApplies {
 		if err := s.conn.SetReadDeadline(time.Time{}); err != nil {
-			return wire.Frame{}, err
+			return inboundFrame{}, err
 		}
 	}
 	switch header.Command {
 	case wire.CommandUnbindRequest, wire.CommandUnbindResponse, wire.CommandEnquireLinkRequest, wire.CommandEnquireLinkResponse:
 		if len(body) != 0 {
-			return wire.Frame{}, fmt.Errorf("%w: control command has a non-empty Body", ErrProtocol)
+			return inboundFrame{}, fmt.Errorf("%w: control command has a non-empty Body", ErrProtocol)
 		}
 	}
-	return wire.Frame{Header: header, Body: body}, nil
+	return inboundFrame{
+		frame:                 wire.Frame{Header: header, Body: body},
+		applicationCharge:     applicationCharge,
+		completionCharge:      completionCharge,
+		ignoreRequest:         ignoreRequest,
+		ignoreResponse:        ignoreResponse,
+		completionCapacityErr: completionCapacityErr,
+	}, nil
+}
+
+func drainFrameBody(conn net.Conn, bodyLength int) error {
+	if bodyLength < 0 {
+		return ErrProtocol
+	}
+	var scratch [4 * 1024]byte
+	remaining := bodyLength
+	for remaining > 0 {
+		chunk := remaining
+		if chunk > len(scratch) {
+			chunk = len(scratch)
+		}
+		if _, err := io.ReadFull(conn, scratch[:chunk]); err != nil {
+			return err
+		}
+		remaining -= chunk
+	}
+	return nil
 }
 
 func (s *Session) noteActivityLocked() {
@@ -93,7 +177,13 @@ func (s *Session) noteActivityLocked() {
 }
 
 func (s *Session) handleFrame(frame wire.Frame) error {
+	return s.handleInboundFrame(inboundFrame{frame: frame})
+}
+
+func (s *Session) handleInboundFrame(inbound inboundFrame) error {
+	frame := inbound.frame
 	if frame.Header.Sequence == 0 {
+		inbound.releaseAll()
 		return ErrProtocol
 	}
 	s.mu.Lock()
@@ -106,6 +196,7 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 	switch state {
 	case SessionStateNew:
 		if role != sessionRoleServer || frame.Header.Command != wire.CommandBindRequest {
+			inbound.releaseAll()
 			return ErrProtocol
 		}
 		return s.handlePreBindRequest(frame)
@@ -118,19 +209,23 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 			responseStarted := s.bindResponseWriting || s.bindResponseSent
 			s.mu.Unlock()
 			if !responseStarted {
+				inbound.releaseAll()
 				return ErrProtocol
 			}
 			select {
 			case <-s.bound:
-				return s.handleBoundFrame(frame, role)
+				return s.handleBoundInboundFrame(inbound, role)
 			case <-s.closing:
+				inbound.releaseAll()
 				return ErrClosed
 			}
 		}
+		inbound.releaseAll()
 		return ErrProtocol
 	case SessionStateBound, SessionStateUnbinding:
-		return s.handleBoundFrame(frame, role)
+		return s.handleBoundInboundFrame(inbound, role)
 	default:
+		inbound.releaseAll()
 		return ErrClosed
 	}
 }
@@ -235,8 +330,16 @@ func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 }
 
 func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
+	return s.handleBoundInboundFrame(inboundFrame{frame: frame}, role)
+}
+
+func (s *Session) handleBoundInboundFrame(inbound inboundFrame, role sessionRole) error {
+	frame := inbound.frame
 	switch frame.Header.Command {
 	case wire.CommandStreamRequest:
+		if inbound.ignoreRequest {
+			return nil
+		}
 		s.dispatchMu.Lock()
 		s.mu.Lock()
 		currentState := s.state
@@ -244,23 +347,29 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 		s.mu.Unlock()
 		if currentState != SessionStateBound {
 			s.dispatchMu.Unlock()
+			inbound.applicationCharge.releaseAll()
 			return nil
 		}
 		if role == sessionRoleClient && currentBindType == wire.BindUniDirectional {
 			s.dispatchMu.Unlock()
+			inbound.applicationCharge.releaseAll()
 			return ErrProtocol
 		}
 		if s.handlers.onRequest == nil {
 			s.dispatchMu.Unlock()
+			inbound.applicationCharge.releaseAll()
 			return nil
 		}
 		payload := frame.Body
+		charge := inbound.applicationCharge
 		task := callbackTask{
 			session: s,
 			run: func() {
+				charge.releaseQueue()
+				defer charge.releaseRetained()
 				s.handlers.onRequest(s, Request{Sequence: frame.Header.Sequence, Payload: payload})
 			},
-			cancel: func() {},
+			cancel: func() { charge.releaseAll() },
 		}
 		accepted := s.enqueueCallbackWithDispatchLock(callbackApplication, task)
 		s.dispatchMu.Unlock()
@@ -270,11 +379,19 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 		return nil
 
 	case wire.CommandStreamResponse:
-		s.completeRequest(frame.Header.Sequence, Response{
+		if inbound.ignoreResponse {
+			return nil
+		}
+		response := Response{
 			Sequence: frame.Header.Sequence,
 			Status:   uint8(frame.Header.Status),
 			Payload:  frame.Body,
-		}, nil)
+		}
+		if inbound.completionCapacityErr {
+			s.completeRequestWithCharge(frame.Header.Sequence, response, ErrCapacity, nil)
+		} else {
+			s.completeRequestWithCharge(frame.Header.Sequence, response, nil, inbound.completionCharge)
+		}
 		return nil
 
 	case wire.CommandEnquireLinkRequest:
