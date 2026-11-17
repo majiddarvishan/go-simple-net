@@ -21,7 +21,7 @@ Phases 1–8 are complete. The Phase 8 performance baseline and evidence review 
 
 ## Quick Start
 
-The module directive is Go 1.23 and correctness CI currently uses Go 1.23.x. The final V1 GOOS/GOARCH support matrix is part of the release-readiness review.
+The owner-approved V1 minimum is **Go 1.23**. The continuously CI-verified platform is **Ubuntu 24.04 / Linux amd64**. Other platforms and architectures remain unverified; see [Support](docs/SUPPORT.md).
 
 From a checkout of this repository, start the Server in one terminal:
 

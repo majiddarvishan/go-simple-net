@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (Go/platform support approval, LICENSE copyright holder/year, changelog/version approval and branch-protection verification). P9-06 release tagging remains separately gated on explicit owner approval.
+**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (LICENSE copyright holder/year, changelog/version approval and branch-protection verification). The Go/platform support baseline was OWNER APPROVED on 2026-11-17: minimum Go 1.23, Ubuntu 24.04/Linux amd64 CI-tested. P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
@@ -1101,3 +1101,12 @@ Do not apply or drop the stash as part of this review.
 ### Next action
 
 P9-05 implementation commit `c038fa60ffafd1f895e133db6d8cca08e7a2cc49` added the coverage and paired-example CI gate; script fix commit `6d2521a22a476ee24f90dee364249e137357b756` corrected shell expansion. Final Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169) and Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078) both PASS. Coverage: neta 79.7%, internal/wire 90.3%, examples 0% (no package-local tests). Paired runtime and graceful shutdown smoke PASS. Next: owner-dependent release review. Keep all frozen production contracts unchanged.
+
+
+## 30. P9-05 — Owner-approved Go/platform support baseline (2026-11-17)
+
+**Status: APPROVED.** The owner answered «آره» to the explicit support baseline proposal. Minimum supported Go: **1.23** (module directive `go 1.23`; CI selector `1.23.x`). Continuously CI-verified environment: **Ubuntu 24.04 / Linux amd64**. The owner's local `make verify` with Go 1.27.0 was previously reported PASS, but the local platform was not captured. Other GOOS/GOARCH targets remain unverified and cannot be advertised as supported without new evidence.
+
+Pre-decision CI at HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness + paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS, Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Support decision is closed in root `TASKS.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
+
+P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/version approval and branch-protection/release-settings verification. P9-06 is NOT AUTHORIZED. No release/tag, production changes or local stash operations were performed.

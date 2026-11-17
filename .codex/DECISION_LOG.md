@@ -1549,3 +1549,12 @@ This approval authorizes Phase 8 implementation and benchmark execution only. It
 - Phase 8 performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; PERF-004 = NO CHANGE.
 
 The canonical execution checklist is root `TASKS.md`; scope, estimates, dependencies, acceptance criteria and open release questions are in `NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md`.
+
+
+## 62. P9-05 — Go minimum and verified-platform support decision (2026-11-17)
+
+**Owner approved the explicit proposal by replying «آره».** The V1 support baseline is minimum **Go 1.23**, consistent with `go.mod` and Go CI; and **Linux/amd64 on Ubuntu 24.04** as the continuously CI-verified platform. The owner's reported successful local `make verify` using Go 1.27.0 is additional verification, not a claim about an unrecorded GOOS/GOARCH.
+
+Evidence on prior HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness, coverage and paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS; Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Other operating systems and architectures remain unverified and must not be described as officially supported.
+
+**Boundary:** only the P9-05 support baseline subtask is approved. Overall P9-05 remains open pending exact LICENSE holder/year, version/changelog review, and branch protection/release-settings verification. P9-06 release tagging and GitHub Release are not authorized; no frozen public API, wire protocol, defaults, worker limits or production behavior changes are approved by this decision.

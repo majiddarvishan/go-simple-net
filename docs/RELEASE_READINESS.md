@@ -23,7 +23,7 @@
 
 - [x] Paired Client/Server runtime smoke and graceful shutdown pass in CI.
 - [x] Record `go test -cover ./...` output; no minimum percentage has been approved.
-- [ ] Owner approves the proposed Go 1.23 minimum and Linux/amd64 tested-platform statement in [SUPPORT.md](SUPPORT.md).
+- [x] Owner approved Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested support baseline on 2026-11-17; [SUPPORT.md](SUPPORT.md) records the decision. Other platforms remain unverified.
 - [ ] Confirm the intended copyright holder and year. The Apache-2.0 `LICENSE` currently retains the template placeholder `[yyyy] [name]`; do not guess these values.
 - [ ] Review the Unreleased entries in [CHANGELOG.md](../CHANGELOG.md).
 - [ ] Verify main branch protection/ruleset and release settings. The GitHub integration could not read branch protection (HTTP 403); its state is unknown, not confirmed disabled.

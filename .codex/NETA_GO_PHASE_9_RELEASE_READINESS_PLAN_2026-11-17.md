@@ -13,7 +13,7 @@ Phases 0–8 are complete. Phase 8's corrected performance run [44105272003](htt
 
 The root `TASKS.md` is the only implementation checklist. `.codex/TASKS.md` is a pointer to it, not a second checklist.
 
-At the authorization baseline HEAD, the repository had no `examples/` or user-facing `docs/` directory, the root README was only a short project-status page, and package-level `doc.go` was minimal. These gaps are now closed by P9-01..P9-04. The module directive remains Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The final release support baseline still requires owner approval.
+At the authorization baseline HEAD, the repository had no `examples/` or user-facing `docs/` directory, the root README was only a short project-status page, and package-level `doc.go` was minimal. These gaps are now closed by P9-01..P9-04. The module directive remains Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The owner approved the V1 release support baseline on 2026-11-17: minimum Go 1.23 and Ubuntu 24.04/Linux amd64 as the continuously CI-verified platform; other GOOS/GOARCH combinations remain unverified.
 
 ## 2. Authorization and non-negotiable boundaries
 
@@ -45,7 +45,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 | P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | COMPLETE — exported GoDoc, API/configuration/lifecycle docs and README Quick Start verified |
 | P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | COMPLETE — exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
-| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | Examples compile; correctness/compatibility gates pass; coverage and support baseline recorded; changelog/version/release checklist reviewed |
+| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS, support baseline APPROVED; LICENSE, branch-protection and version/changelog gates remain open |
 | P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
 
 ### P9-00 — Documentation and tracker reconciliation
@@ -160,7 +160,7 @@ Completed:
 - Added `CHANGELOG.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
 
 Remaining owner/repository gates:
-- Owner approval of proposed Go 1.23 minimum and Linux/amd64 tested-platform baseline. Go CI currently runs Go 1.23.12 on Ubuntu 24.04/Linux amd64; owner-reported local Go 1.27.0 `make verify` also passed.
+- **CLOSED / OWNER APPROVED 2026-11-17:** minimum Go 1.23 and Ubuntu 24.04/Linux amd64 as CI-tested platform; owner-reported local Go 1.27.0 `make verify` PASS is separate evidence, not a guarantee for other architectures/platforms.
 - Confirm exact copyright holder and year; Apache-2.0 `LICENSE` still contains `[yyyy] [name]`.
 - Review the Unreleased changelog and proposed semantic version `v1.0.0` (not approved).
 - Verify branch protection/ruleset and release settings. The GitHub integration returned HTTP 403; state is unknown.

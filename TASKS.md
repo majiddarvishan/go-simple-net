@@ -7,7 +7,7 @@
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
 **Last verified repository HEAD before P9-00:** `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`  
 **Last verified production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
-**Current phase:** Phase 9 — Documentation, examples and V1 release readiness (**IN PROGRESS; owner-authorized 2026-11-17**). P9-00 is complete; P9-01..P9-05 are authorized. P9-06 (release tag) requires separate explicit owner approval.
+**Current phase:** Phase 9 — Documentation, examples and V1 release readiness (**IN PROGRESS; owner-authorized 2026-11-17**). P9-00..P9-04 are complete; P9-05 remains in progress with support baseline OWNER APPROVED. P9-06 (release tag) requires separate explicit owner approval.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -270,10 +270,10 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Build both examples and run paired Client/Server loopback smoke: Request/Response, SendNoWait event delivery and graceful Client/Server Stop all PASS.
   - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
   - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
-  - [x] Record toolchain/platform evidence and publish a proposed support statement; owner approval remains pending.
+  - [x] Record toolchain/platform evidence and publish the owner-approved V1 support statement.
   - [x] Add an Unreleased `CHANGELOG.md` and a release-readiness checklist; owner review remains pending.
   - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
-  - [ ] Owner confirms the Go 1.23 minimum and Linux/amd64 tested-platform statement in `docs/SUPPORT.md`.
+  - [x] Owner confirms Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested platform; approved 2026-11-17; other platforms remain unverified.
   - [ ] Owner supplies the exact copyright holder/year to replace the Apache-2.0 LICENSE template placeholder `[yyyy] [name]`.
   - [ ] Verify main branch protection/ruleset and GitHub Release settings. The GitHub integration returned HTTP 403 for branch protection; status remains unknown.
   - [ ] Owner reviews the changelog and confirms semantic versioning; `v1.0.0` is only a candidate, not an approved tag.
@@ -303,7 +303,8 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Final Phase 9 evidence artifact: [14344846005](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
 - The first smoke attempt [44118086700](https://github.com/majiddarvishan/neta-go/actions/runs/44118086700) exposed a shell-parameter expansion escape; the script was corrected in `6d2521a` and the final run passed.
 - A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
-- Release review still needs owner approval for the proposed support baseline, exact LICENSE copyright holder/year, branch-protection state and version/tag policy. No V1 tag has been created.
+- Owner approved the V1 support baseline on 2026-11-17: Go 1.23 minimum and Ubuntu 24.04/Linux amd64 as CI-tested. Local Go 1.27.0 verification is additional evidence; other platforms are unverified. This closes only the support approval subtask.
+- Remaining release review: exact LICENSE copyright holder/year, branch-protection state, changelog/version/tag policy. No V1 tag has been created.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---
