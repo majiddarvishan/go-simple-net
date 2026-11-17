@@ -321,18 +321,26 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## PV-02B — Extend V2 SystemID to 20 bytes (owner-authorized 2026-11-18)
 
-- [x] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains 19 bytes + NUL. Go Client validation honors the selected Session protocol version; Encode/Decode reject exceeding lengths. New tests verify V2 accepts 20/rejects 21, V1 accepts 19/rejects 20, Request/Response round-trips and real TCP V2 Bind of 20 bytes. Protected [PR #8](https://github.com/majiddarvishan/neta-go/pull/8): Go [44187040490](https://github.com/majiddarvishan/neta-go/actions/runs/44187040490) **PASS** and Pinex [44187040470](https://github.com/majiddarvishan/neta-go/actions/runs/44187040470) **PASS** on SHA `9e2ede41284684c640897d282b39f36468335424`. Post-merge main evidence and release notes requalification remain PV-02B-R.
-- [ ] **PV-02B-R — Release requalification:** record exact post-merge main CI and obtain owner approval of updated Unreleased release notes. **P9-06 remains NOT AUTHORIZED**; no tag/release.
+**Post-merge requalification audit:** [PV-01 / PV-02A / PV-02B CI and release-notes gate](.codex/NETA_GO_PROTOCOL_V2_POSTMERGE_REQUALIFICATION_2026-11-18.md). CI PASS does **not** imply new release-note approval or release-publication permission.
+
+- [x] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains 19 bytes + NUL. Go Client validation honors the selected Session protocol version; Encode/Decode reject exceeding lengths. New tests verify V2 accepts 20/rejects 21, V1 accepts 19/rejects 20, Request/Response round-trips and real TCP V2 Bind of 20 bytes. Protected [PR #8](https://github.com/majiddarvishan/neta-go/pull/8): Go [44187040490](https://github.com/majiddarvishan/neta-go/actions/runs/44187040490) **PASS** and Pinex [44187040470](https://github.com/majiddarvishan/neta-go/actions/runs/44187040470) **PASS** on SHA `9e2ede41284684c640897d282b39f36468335424`. Post-merge main CI evidence is recorded in PV-02B-R; amended Unreleased notes still require fresh owner approval.
+- [ ] **PV-02B-R — Release requalification:** post-merge CI evidence is recorded and verified; **owner review/approval of the new V2 20-byte SystemID Unreleased release notes remains OPEN**. No owner approval is inferred from earlier V1 notes. **P9-06 remains NOT AUTHORIZED**; no tag/release.
+  - [x] Post-merge protected `main` HEAD `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2` (PR #8): [Go CI 44187548178](https://github.com/majiddarvishan/neta-go/actions/runs/44187548178) **PASS**, including shared correctness, race, coverage and paired-example smoke; [Pinex CI 44187548184](https://github.com/majiddarvishan/neta-go/actions/runs/44187548184) **PASS**, including pinned C++ fixture/golden comparison.
+  - [ ] Owner explicitly approves amended V2 20-byte SystemID release-note wording.
 
 ## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
 
 - [x] **PV-02A — Remove trailing NUL from V2 Bind Request/Response:** Go V2 Client sends NUL-free Bind; default Go V2 Server detects V1/V2 from the first Bind and responds in that format; Go V1-only Server rejects V2; V1 codec and pinned Pinex 1.5.0 fixture unchanged. Codec, real Go loopback, legacy test-fixture, correctness and race checks verified on [PR #7](https://github.com/majiddarvishan/neta-go/pull/7), commit `d456afb2149b5976f560b57674be2e14da0f460a`: [Go CI PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468231) and [Pinex Compatibility PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468234).
-- [ ] **PV-02A-R — Re-review release evidence:** previous P9-05 readiness and PV-01 wire-identity assumptions no longer apply to V2 Bind. CI on final protected main and owner approval of amended Unreleased CHANGELOG are required. P9-06 remains NOT AUTHORIZED.
+- [ ] **PV-02A-R — Re-review release evidence:** previous P9-05 wire-identity claims were superseded for V2 Bind; **post-merge CI is VERIFIED**, while new owner approval of the NUL-free V2 Bind CHANGELOG remains OPEN. P9-06 remains NOT AUTHORIZED.
+  - [x] Go/Pinex post-merge CI on exact `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2` as linked in PV-02B-R, preserving V1 C++ golden compatibility.
+  - [ ] Owner explicitly approves amended NUL-free V2 Bind release-note wording and the requirement for explicit V1 when connecting to legacy Pinex.
 
 ## PV-01 — Go-only Session protocol version (owner authorized 2026-11-18)
 
 - [x] **PV-01 — Go protocol-version configuration:** add `ProtocolVersionV1`/`ProtocolVersionV2`, immutable per-Session local version and `WithProtocolVersion` via existing Client/Server Session options; **default V2**, reject unsupported values and test defaults/overrides. At PV-01 completion both versions sent legacy Pinex bytes; **PV-02A supersedes this for V2 Bind only**. V1 remains Pinex-identical. Check Go/Pinex CI on the protected PR before merging.
-- [ ] **PV-01-R — Pre-release requalification:** the prior P9-05 signoff predates this Go public API/default change; require passing CI for the final main SHA and owner review of the newly amended Unreleased `CHANGELOG.md` before any `v1.0.0` publication. **P9-06 remains NOT AUTHORIZED.**
+- [ ] **PV-01-R — Pre-release requalification:** **post-merge CI is VERIFIED** for the version-option/default change; **owner review/approval of the new V2-default public API CHANGELOG remains OPEN**. This does not close P9-06.
+  - [x] Go correctness/race, coverage, paired examples and Pinex fixture CI PASS on exact protected `main` HEAD `a0db0c5bfbfa364731f6b106f7f5b04de41d5ba2`, linked in PV-02B-R.
+  - [ ] Owner explicitly approves amended Session-version / default-V2 release-note wording.
 
 ## Future protocol evolution — owner-approved architecture, implementation NOT AUTHORIZED
 
