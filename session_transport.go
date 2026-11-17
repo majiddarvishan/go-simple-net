@@ -224,9 +224,6 @@ func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 	switch frame.Header.Command {
 	case wire.CommandStreamRequest:
-		if s.handlers.onRequest == nil {
-			return nil
-		}
 		s.dispatchMu.Lock()
 		s.mu.Lock()
 		currentState := s.state
@@ -239,6 +236,10 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 		if role == sessionRoleClient && currentBindType == wire.BindUniDirectional {
 			s.dispatchMu.Unlock()
 			return ErrProtocol
+		}
+		if s.handlers.onRequest == nil {
+			s.dispatchMu.Unlock()
+			return nil
 		}
 		payload := frame.Body
 		task := callbackTask{

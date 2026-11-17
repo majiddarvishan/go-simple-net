@@ -91,6 +91,24 @@ func (d *testSessionDispatcher) takeCompletion() (callbackTask, bool) {
 	return task, true
 }
 
+func (d *testSessionDispatcher) completionCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.completion)
+}
+
+func waitForCompletionQueued(t *testing.T, dispatcher *testSessionDispatcher) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if dispatcher.completionCount() != 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("Completion callback was not queued")
+}
+
 func (d *testSessionDispatcher) applicationCount() int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -402,6 +420,38 @@ func TestSessionUnbindStopsNewApplicationAdmission(t *testing.T) {
 	waitDone(t, session)
 }
 
+func TestSessionReadsFragmentedHeaderAndBody(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	received := make(chan string, 1)
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{
+		onRequest: func(_ *Session, request Request) { received <- string(request.Payload) },
+	})
+	defer peer.Close()
+
+	frame, err := wire.EncodeStreamRequest(18, []byte("fragmented-payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range frame {
+		if _, err := peer.Write(frame[i : i+1]); err != nil {
+			t.Fatalf("write fragment %d: %v", i, err)
+		}
+	}
+	task := waitForTask(t, dispatcher.takeApplication)
+	task.run()
+	select {
+	case payload := <-received:
+		if payload != "fragmented-payload" {
+			t.Fatalf("payload = %q", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("fragmented Request callback did not run")
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
 func TestSessionFrameAssemblyTimeoutIsAbsolute(t *testing.T) {
 	local, peer := net.Pipe()
 	config := defaultSessionConfig()
@@ -427,6 +477,81 @@ func TestSessionFrameAssemblyTimeoutIsAbsolute(t *testing.T) {
 	<-senderDone
 	if !errors.Is(session.Err(), context.DeadlineExceeded) {
 		t.Fatalf("expected frame assembly deadline, got %v", session.Err())
+	}
+}
+
+func TestSessionServerPreBindTimeout(t *testing.T) {
+	local, peer := net.Pipe()
+	session, err := newServerPreBindSession(local, defaultSessionConfig(), time.Now(), 40*time.Millisecond, &testSessionDispatcher{}, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newServerPreBindSession: %v", err)
+	}
+	defer peer.Close()
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrBindTimeout) {
+		t.Fatalf("expected ErrBindTimeout, got %v", session.Err())
+	}
+}
+
+func TestSessionClientBindTimeout(t *testing.T) {
+	local, peer := net.Pipe()
+	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "client",
+	}, 40*time.Millisecond, &testSessionDispatcher{}, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newClientBindingSession: %v", err)
+	}
+	defer peer.Close()
+	_ = readWireFrame(t, peer)
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrBindTimeout) {
+		t.Fatalf("expected ErrBindTimeout, got %v", session.Err())
+	}
+}
+
+func TestSessionUnbindTimeoutIsAbsolute(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.unbindTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	result := make(chan error, 1)
+	go func() { result <- session.Unbind(context.Background()) }()
+	frame := readWireFrame(t, peer)
+	if frame.Header.Command != wire.CommandUnbindRequest {
+		t.Fatalf("expected Unbind Request, got 0x%x", frame.Header.Command)
+	}
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrUnbindTimeout) {
+		t.Fatalf("expected ErrUnbindTimeout, got %v", session.Err())
+	}
+	select {
+	case err := <-result:
+		if !errors.Is(err, ErrUnbindTimeout) {
+			t.Fatalf("Unbind result = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Unbind caller was not released")
+	}
+}
+
+func TestSessionEnquireLinkResponseTimeout(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 10 * time.Millisecond
+	config.enquireLinkResponseTimeout = 40 * time.Millisecond
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	probe := readWireFrame(t, peer)
+	if probe.Header.Command != wire.CommandEnquireLinkRequest {
+		t.Fatalf("expected EnquireLink Request, got 0x%x", probe.Header.Command)
+	}
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrEnquireLinkTimeout) {
+		t.Fatalf("expected ErrEnquireLinkTimeout, got %v", session.Err())
 	}
 }
 
@@ -724,6 +849,124 @@ func TestSessionWriteTimeoutClosesSession(t *testing.T) {
 	waitDone(t, session)
 	if !errors.Is(session.Err(), ErrWriteTimeout) {
 		t.Fatalf("expected ErrWriteTimeout, got %v", session.Err())
+	}
+}
+
+func TestSessionLateResponseCannotResurrectTimedOutRequest(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.requestTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, config, dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	result := make(chan error, 2)
+	sequence, err := session.SendRequest([]byte("timeout-race"), func(_ Response, err error) {
+		result <- err
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	_ = readWireFrame(t, peer)
+	waitForCompletionQueued(t, dispatcher)
+
+	lateResponse, err := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("too-late"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, lateResponse)
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	select {
+	case err := <-result:
+		if !errors.Is(err, ErrRequestTimeout) {
+			t.Fatalf("Completion error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed-out Completion did not run")
+	}
+	time.Sleep(20 * time.Millisecond)
+	if got := dispatcher.completionCount(); got != 0 {
+		t.Fatalf("late Response created %d duplicate Completion tasks", got)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionForcedCloseCancelsQueuedCompletionCallback(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	called := make(chan struct{}, 1)
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	sequence, err := session.SendRequest([]byte("pending"), func(Response, error) {
+		called <- struct{}{}
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	_ = readWireFrame(t, peer)
+	response, err := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("done"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
+	waitForCompletionQueued(t, dispatcher)
+
+	session.Close()
+	waitDone(t, session)
+	if got := dispatcher.completionCount(); got != 0 {
+		t.Fatalf("queued Completion callbacks after Forced Close = %d", got)
+	}
+	select {
+	case <-called:
+		t.Fatal("unstarted Completion callback ran during Forced Close")
+	default:
+	}
+}
+
+func TestSessionDoneDoesNotWaitForRunningApplicationCallback(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{
+		onRequest: func(*Session, Request) {
+			close(started)
+			<-release
+			close(finished)
+		},
+	})
+	defer peer.Close()
+
+	request, err := wire.EncodeStreamRequest(27, []byte("blocking-callback"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	task := waitForTask(t, dispatcher.takeApplication)
+	go task.run()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("Application callback did not start")
+	}
+
+	session.Close()
+	waitDone(t, session)
+	select {
+	case <-finished:
+		t.Fatal("Session.Done waited for the running user callback")
+	default:
+	}
+	close(release)
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("running callback did not finish after release")
 	}
 }
 

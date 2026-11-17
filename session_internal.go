@@ -286,6 +286,8 @@ func (s *Session) waitBindRequest(ctx context.Context) (bindRequestEvent, error)
 		}
 		return bindRequestEvent{}, ErrClosed
 	case <-ctx.Done():
+		s.beginClose(ctx.Err(), true)
+		<-s.done
 		return bindRequestEvent{}, ctx.Err()
 	}
 }

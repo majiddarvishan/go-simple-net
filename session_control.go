@@ -196,5 +196,6 @@ func (s *Session) clearProbeLocked() {
 	s.enquireLinkQueued = false
 	s.enquireLinkWriting = false
 	s.enquireLinkOutstanding = false
+	s.enquireLinkResponseSeen = false
 	s.enquireLinkDeadline = time.Time{}
 }
