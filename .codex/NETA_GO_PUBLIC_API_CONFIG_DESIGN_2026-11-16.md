@@ -226,3 +226,14 @@ The design-only [Public API / Request Completion draft](NETA_GO_PUBLIC_API_001_D
 - Private transport state machine/Control/Pending/timers/close must progress independently of user callbacks; do not run application functions on critical internal lanes or hold locks during user code.
 - Do not increase unbounded goroutine creation; configure and validate finite count alongside existing API-004 resource knobs. The **waiting** inbound 4 MiB cap and global Server queued-byte cap do not cover all active callback memory/stack retention. A Server-wide active callback limit remains proposed/OPEN.
 - User-facing lifecycle/completion callback dispatch and forced-close cancellation/defer remain under **API-001b OPEN**, separate from the Q-003-R1 approved application callback parallelism. No hot reload.
+
+## 10. Current authority — Architecture Freeze (2026-11-17)
+
+This file is retained as historical design input. All open tables and proposed signatures above are superseded by:
+- API-001 final public surface: NETA_GO_PUBLIC_API_001_DESIGN_2026-11-16.md §21.
+- API-002 final lifecycle/timeouts/reconnect/Stop: NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md §10.
+- API-003 module/package boundary: NETA_GO_API_003_MODULE_PACKAGE_ARCHITECTURE_2026-11-17.md.
+- API-004 immutable typed Functional Options: NETA_GO_API_004_CONFIGURATION_CONTRACT_2026-11-16.md.
+- API-001b, PERF-002/003 and WORKER-001..009C remain closed as recorded in DECISION_LOG.md.
+
+No implementation, go.mod, tests, benchmarks or dependency changes are authorized.
