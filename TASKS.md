@@ -285,7 +285,7 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - Source verification HEAD: `a05a735aa0383d2588b41b1a2258282d734ff72b`.
 - 4 focused Client lifecycle tests.
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
-- Client Connect/Bind and reconnect remain pending the Client SystemID/BindType input decision.
+- At this earlier Client lifecycle checkpoint, Connect/Bind still awaited the owner Bind identity decision; Option B was subsequently approved and implemented. Final evidence is recorded in the completion section below.
 
 
 ### Phase 6 Client Connect/Bind and reconnect implementation — 2026-11-17
@@ -296,7 +296,7 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - Added generation fencing and a single reconnect supervisor using the approved 1s/30s Full-Jitter exponential windows; retries only Dial failures/timeouts and unexpected post-Bound transport failures. Bind rejection/timeout are non-retryable. No Request replay.
 - Every generation reuses the Client-owned resource ledger and callback dispatcher.
 - Uni-directional Client behavior is requester-only and compatible with Pinex 1.5.0.
-- Added Client Bind validation, connect/stop, timeout, rejection, reconnect-generation and uni-directional behavior tests. CI evidence pending.
+- Added Client Bind validation, connect/stop, timeout, rejection, reconnect-generation, uni-directional behavior and Bind-vs-Context race tests. Final Go and Pinex CI evidence is recorded below.
 
 
 ### Phase 6 Client Connect/Bind and reconnect completion evidence — 2026-11-17
