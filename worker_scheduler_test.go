@@ -601,9 +601,21 @@ func TestSessionReaderWriterAndDoneRemainIndependentOfApplicationCallback(t *tes
 	if got := callbacks.Load(); got != 1 {
 		t.Fatalf("Application callbacks executed = %d, want first only; second must be cancelled by Forced Close", got)
 	}
-	usage := resources.snapshot()
-	if usage.retainedApplicationBytes != 0 || usage.queuedApplicationBytes != 0 || usage.queuedApplicationFrames != 0 {
-		t.Fatalf("Application resources leaked after callback return/cancellation: %+v", usage)
+	// The handler closes applicationReturned immediately before returning;
+	// the worker's deferred resource release runs just after that signal.
+	// Wait for that release instead of racing the callback epilogue under -race.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		usage := resources.snapshot()
+		if usage.retainedApplicationBytes == 0 &&
+			usage.queuedApplicationBytes == 0 &&
+			usage.queuedApplicationFrames == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Application resources leaked after callback return/cancellation: %+v", usage)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
