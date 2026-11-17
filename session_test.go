@@ -473,7 +473,7 @@ func TestSessionServerPreBindHandshake(t *testing.T) {
 	dispatcher := &testSessionDispatcher{}
 	var order []string
 	session, err := newServerPreBindSession(wrapped, defaultSessionConfig(), time.Now(), time.Second, dispatcher, sessionHandlers{
-		onBound: func(*Session) { order = append(order, "bound") },
+		onBound:   func(*Session) { order = append(order, "bound") },
 		onRequest: func(*Session, Request) { order = append(order, "request") },
 	})
 	if err != nil {
@@ -539,7 +539,6 @@ func TestSessionServerPreBindHandshake(t *testing.T) {
 	session.Close()
 	waitDone(t, session)
 }
-
 
 func TestSessionPreBindForcedCloseUnblocksHandshake(t *testing.T) {
 	local, peer := net.Pipe()

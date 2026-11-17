@@ -61,15 +61,15 @@ type sessionIdentity struct {
 }
 
 type outboundFrame struct {
-	bytes      []byte
-	control    bool
-	barrier    bool
+	bytes         []byte
+	control       bool
+	barrier       bool
 	requestSeq    uint32
 	controlSeq    uint32
 	bindRequest   bool
 	bindResponse  bool
 	unbindRequest bool
-	afterWrite func()
+	afterWrite    func()
 }
 
 type pendingRequest struct {
