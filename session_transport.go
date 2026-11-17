@@ -86,8 +86,11 @@ func (s *Session) readFrame() (result inboundFrame, readErr error) {
 	state := s.state
 	role := s.role
 	bindType := s.bindType
+	boundAdmissionReady := state == SessionStateBound ||
+		(role == sessionRoleServer && state == SessionStateBinding &&
+			(s.bindResponseWriting || s.bindResponseSent))
 	if header.Command == wire.CommandStreamRequest {
-		if state == SessionStateBound && s.handlers.onRequest != nil {
+		if boundAdmissionReady && s.handlers.onRequest != nil {
 			if role == sessionRoleClient && bindType == wire.BindUniDirectional {
 				s.mu.Unlock()
 				return inboundFrame{}, ErrProtocol
@@ -103,7 +106,7 @@ func (s *Session) readFrame() (result inboundFrame, readErr error) {
 			ignoreRequest = true
 		}
 	} else if header.Command == wire.CommandStreamResponse {
-		if state != SessionStateBound && state != SessionStateUnbinding {
+		if !boundAdmissionReady && state != SessionStateUnbinding {
 			s.mu.Unlock()
 			return inboundFrame{}, ErrProtocol
 		}
