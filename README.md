@@ -8,6 +8,6 @@ The implementation is tracked phase by phase. The root task tracker is the sourc
 
 **[View implementation tasks and progress →](TASKS.md)**
 
-Current phase: **Phase 5 — Bounded callback Worker Scheduler** (authorized / in progress).
+Current phase: **Phase 5 complete / CI pass**. Phase 6 — Client/Server orchestration is next and awaits separate owner authorization.
 
 Architecture decisions and detailed design records are maintained under [`.codex/`](.codex/).

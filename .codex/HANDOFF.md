@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–4 are COMPLETE / CI PASS.** Phase 4 includes per-Session/owner resource admission, Server aggregate queues, reserve-before-allocation, bounded Completion scratch-drain and OnClose credits. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phase 5 Worker Scheduler and Phases 6–9 remain gated.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–5 are COMPLETE / CI PASS.** Phase 5 provides three isolated lazy owner-scoped callback pools with fair scheduling, bounded worker counts and finite idle retirement. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phases 6–9 remain gated.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–4 COMPLETE / CI PASS; PHASE 5 AUTHORIZED / IN PROGRESS; PHASE 6–9 NOT AUTHORIZED  
-**Current work:** Phase 5 Bounded callback Worker Scheduler is OWNER AUTHORIZED / IN PROGRESS (2026-11-17). The canonical task-by-task status is [TASKS.md](../TASKS.md); the binding implementation contract is [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Phases 1–4 remain COMPLETE / CI PASS. Phase 6+ remain gated; live TCP Go↔C++ interoperability remains Phase 7.
+**Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6–9 NOT AUTHORIZED  
+**Current work:** Phase 5 Bounded callback Worker Scheduler is COMPLETE / CI PASS at `c72136693f85e61239bfca42bd04b40e66eddc27`. The canonical task-by-task status is [TASKS.md](../TASKS.md); implementation evidence is [Phase 5 report](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md). Phase 6 Client/Server orchestration is next but NOT AUTHORIZED. Live TCP Go↔C++ interoperability remains Phase 7.
 
 ## 1. Repository state
 
@@ -15,10 +15,11 @@
 - Default branch: main
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - Phase 4 resource-admission source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
+- Phase 5 worker-scheduler source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2, Phase 3 and Phase 4 source/tests are committed and verified by GitHub Actions.
-- Phase 4 resource admission is implemented and CI-green. Phase 5 is authorized and in progress; Phase 6+ remain gated.
+- Phases 4 and 5 are implemented and CI-green. Phase 6+ remain gated.
 
 ## 2. Source inputs
 
@@ -840,3 +841,8 @@ Authorized: implement the frozen WORKER-001..009C worker scheduler: three isolat
 
 Out of scope: Phase 6 Client/Server networking/reconnect, Phase 7 live TCP interoperability, Phase 8 performance optimization/benchmarks and Phase 9 release/deployment. No public API, defaults, wire contract or architecture decision is reopened.
 
+
+
+## Phase 5 implementation evidence — COMPLETE / CI PASS
+
+Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`. See [Phase 5 implementation report](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md) and the canonical [TASKS.md](../TASKS.md). Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) and Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) both PASS. Phase 6+ remain unauthorized.
