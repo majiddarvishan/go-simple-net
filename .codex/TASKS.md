@@ -5,7 +5,7 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Baseline HEAD when this tracker was introduced:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Current phase:** Phase 4 COMPLETE / CI PASS; Phase 5 is next and awaits owner authorization.
+**Current phase:** Phase 5 — Bounded callback Worker Scheduler (**AUTHORIZED / IN PROGRESS**, 2026-11-17).
 
 This is the single, canonical, implementation-facing task list for the repository. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -25,7 +25,7 @@ This is the single, canonical, implementation-facing task list for the repositor
 | 2 | Pinex-compatible Wire Codec | COMPLETE / CI PASS | Complete |
 | 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
-| 5 | Bounded callback Worker Scheduler | NOT STARTED | Not yet authorized |
+| 5 | Bounded callback Worker Scheduler | AUTHORIZED / IN PROGRESS | Owner approved 2026-11-17 |
 | 6 | Client/Server orchestration and reconnect | NOT STARTED | Not yet authorized |
 | 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
@@ -127,11 +127,11 @@ This is the single, canonical, implementation-facing task list for the repositor
 - [x] **P4-10 — Admission verification:** exact/over boundaries, concurrent owner admission, multi-Session aggregate limits, scratch-drain success/timeout, partial reads, cancellation and callback-retention tests.
 - [x] **P4-11 — CI acceptance:** gofmt, go vet ./..., go test ./... and go test -race ./... all PASS on Phase 4 source HEAD.
 
-**Phase 4 exclusions:** no Worker Scheduler implementation (Phase 5), no Client Dial/Server Listen or reconnect orchestration (Phase 6), no live Pinex TCP interoperability campaign (Phase 7), no benchmark/pooling work (Phase 8), and no release/deployment (Phase 9).
+**Phase 4 exclusions:** no Client Dial/Server Listen or reconnect orchestration (Phase 6), no live Pinex TCP interoperability campaign (Phase 7), no benchmark/pooling work (Phase 8), and no release/deployment (Phase 9). Phase 5 is separately authorized below.
 
 ## Phase 5 — Bounded callback Worker Scheduler
 
-<badge color="secondary">NOT STARTED — NOT YET AUTHORIZED</badge>
+<badge color="warning">AUTHORIZED / IN PROGRESS</badge>
 
 - [ ] **P5-01 — Three isolated pools:** independent lazy Application, Completion and OnClose worker pools per Client/Server owner; no shared execution capacity or scheduler lock domain.
 - [ ] **P5-02 — Active permits:** enforce owner-wide class ceilings and per-Session concurrency intersections; old Client generations retain charges until callbacks return.
@@ -229,3 +229,19 @@ This is the single, canonical, implementation-facing task list for the repositor
 - 46 Session tests + 8 owner-ledger tests.
 - Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
 - Phase 5 Worker Scheduler remains NOT AUTHORIZED; do not begin it without owner approval.
+
+
+### Phase 5 implementation authorization — 2026-11-17
+
+The owner explicitly approved Phase 5 by replying «آره» after the request to begin the bounded callback Worker Scheduler.
+
+**Authorized scope:** implement the already-frozen WORKER-001..009C contracts only:
+- Three independent owner-scoped Application, Completion and OnClose pools; lazy creation; no shared scheduling/lock/wakeup domain across classes.
+- Enforce owner active-worker ceilings and per-Session concurrency intersections; preserve owner accounting across Session generations.
+- Per-class FIFO round-robin scheduling with one reusable ready-Session node and one callback per eligible Session turn.
+- Independently configurable 30s idle retirement grace, zero warm-idle floor, worker reuse and enqueue/retirement linearization.
+- Forced Close A cancellation/start linearization; queued Application/Completion cancellation and exact resource release; started callbacks retain permits/credits until return.
+- OnClose only after Done, best-effort/at-most-once, bounded queued+running event credits and permanent skip at saturation.
+- Isolation, fairness, lifecycle, race and churn tests plus gofmt, vet, unit and race CI.
+
+**Not authorized by this approval:** Phase 6 Client/Server networking and reconnect, Phase 7 live Pinex TCP interoperability, Phase 8 benchmark/pooling optimization, Phase 9 examples/release/deployment. No frozen decision, default, public API or wire contract is reopened.

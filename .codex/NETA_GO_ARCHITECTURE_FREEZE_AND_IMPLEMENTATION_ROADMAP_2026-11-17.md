@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1–4 COMPLETE / PHASE 5+ NOT AUTHORIZED  
+**Implementation authorization:** PHASE 1–4 COMPLETE / PHASE 5 AUTHORIZED / IN PROGRESS / PHASE 6+ NOT AUTHORIZED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. Phases 1–4 are COMPLETE / CI PASS. Phase 5+ remain gated by separate owner authorization.
+The architecture is frozen at the design/contract level. Phases 1–4 are COMPLETE / CI PASS. Phase 5 is owner-authorized and in progress; Phases 6+ remain gated.
 
 ## 2. Architecture decision closure
 
@@ -280,3 +280,10 @@ See [canonical task tracker](TASKS.md). No public API, wire contract, defaults o
 - Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS.
 - Live Go↔Pinex TCP interoperability is still Phase 7 and has not been claimed.
 - Phase 5 Worker Scheduler and all later phases remain outside the current authorization.
+
+
+## Phase 5 implementation authorization — 2026-11-17
+
+The owner explicitly authorized implementation of Phase 5 — Bounded callback Worker Scheduler. Implement only the frozen WORKER-001..009C contracts: isolated lazy Application/Completion/OnClose pools, owner and per-Session limits, round-robin fairness, finite idle retirement, Forced Close A cancellation/start linearization, OnClose best-effort semantics, lifecycle/isolation/fairness/race tests and CI.
+
+Phase 6 networking/reconnect, Phase 7 live TCP interoperability, Phase 8 benchmarks/optimization and Phase 9 release remain unauthorized. No frozen design/API/default/wire decision is reopened.

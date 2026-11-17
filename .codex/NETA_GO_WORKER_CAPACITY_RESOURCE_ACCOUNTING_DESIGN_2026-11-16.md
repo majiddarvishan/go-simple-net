@@ -3,7 +3,7 @@
 **Date:** 2026-11-16  
 **Status:** WORKER DESIGN COMPLETE — WORKER-001 through WORKER-009C CLOSED / OWNER APPROVED  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
-**Implementation:** NOT AUTHORIZED. Documentation/design only.
+**Implementation:** Phase 5 authorized / in progress (2026-11-17); historical design-only statements below are superseded only for this phase.
 
 ## 1. Authority and scope
 
@@ -563,3 +563,12 @@ Phase 4 Resource Admission & Accounting is COMPLETE / CI PASS at source HEAD `29
 Evidence: 46 Session tests + 8 owner-ledger tests; Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
 
 This completion does not authorize Phase 5 physical Worker Scheduler or later phases. See [TASKS.md](TASKS.md) for the canonical checklist and [Phase 4 implementation report](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md) for detailed evidence.
+
+
+## Phase 5 implementation authorization addendum — 2026-11-17
+
+The owner explicitly authorized Phase 5 implementation in this conversation. This supersedes historical “Implementation: NOT AUTHORIZED” guardrails only for the Phase 5 Worker Scheduler.
+
+Authorized: implement WORKER-001..009C exactly as frozen in this document, including three physically isolated lazy pools, owner/per-Session active ceilings, round-robin ready-Session scheduling, finite idle retirement, Forced Close A start/cancel linearization, OnClose best-effort event handling, exact lifecycle accounting, tests and CI.
+
+Not authorized: Phase 6 Client/Server orchestration and reconnect; Phase 7 live Pinex TCP interoperability/fault injection; Phase 8 performance benchmarks/pooling; Phase 9 examples/release/deployment. No design decision, default, public API or wire contract is reopened.

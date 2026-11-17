@@ -4,7 +4,7 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Architecture:** Frozen; all fundamental owner decisions closed.  
-**Current implementation status:** Phases 1–4 COMPLETE / CI PASS; Phase 5+ outside current authorization.
+**Current implementation status:** Phases 1–4 COMPLETE / CI PASS; Phase 5 AUTHORIZED / IN PROGRESS; Phases 6–9 outside current authorization.
 
 ## Owner authorization
 
@@ -161,3 +161,19 @@ The Phase 4 scope authorized above is COMPLETE at source HEAD `2935402366603267b
 - Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS.
 - Implementation report: `.codex/NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md`.
 - Phase 5 Worker Scheduler, Phase 6 orchestration/reconnect, Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain NOT AUTHORIZED.
+
+
+## Phase 5 Authorization — Bounded callback Worker Scheduler (2026-11-17)
+
+The owner explicitly authorized Phase 5 by replying «آره» after being asked whether Phase 5 Worker Scheduler could begin.
+
+**Authorized scope:** implement the already owner-approved WORKER-001..009C design:
+- Three isolated lazy owner-scoped worker pools: Application, Completion and OnClose.
+- Owner-wide class ceilings and per-Session concurrency intersections.
+- FIFO round-robin ready-Session scheduling, one callback per eligible Session turn, reusable ready nodes.
+- Per-class finite idle grace (30s defaults), zero warm-idle floor, worker reuse and race-safe retirement.
+- Forced Close A cancellation/start linearization; queued Application/Completion cancellation and exact resource release; started callbacks retain active permits and Request/payload credits through return.
+- OnClose eligible only after Done, best-effort/at-most-once, bounded queued+running event credits, permanent skip on saturation.
+- Tests for class/owner isolation, fairness, concurrency, callback stalls, Done, Forced Close, worker churn/retirement and race safety; gofmt, vet, unit and race CI.
+
+**Explicit exclusions:** Phase 6 Client/Server Dial/Listen/accept/reconnect orchestration; Phase 7 live Pinex TCP interoperability/fault injection; Phase 8 benchmarks/pooling; Phase 9 examples/release/deployment. No architecture decision, numeric default, public API or wire contract is reopened.

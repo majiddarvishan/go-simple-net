@@ -5,8 +5,8 @@
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–4 COMPLETE / CI PASS; PHASE 5+ NOT AUTHORIZED  
-**Current work:** Phase 4 Resource Admission & Accounting is COMPLETE / CI PASS at `2935402366603267ba60c181a057d26cf0e7e9a6`. The canonical task-by-task status is [.codex/TASKS.md](TASKS.md); implementation evidence is [Phase 4 report](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md). Phase 5 Worker Scheduler is next but not yet authorized. Live TCP Go↔C++ interoperability remains Phase 7.
+**Implementation status:** PHASE 1–4 COMPLETE / CI PASS; PHASE 5 AUTHORIZED / IN PROGRESS; PHASE 6–9 NOT AUTHORIZED  
+**Current work:** Phase 5 Bounded callback Worker Scheduler is OWNER AUTHORIZED / IN PROGRESS (2026-11-17). The canonical task-by-task status is [.codex/TASKS.md](TASKS.md); the binding implementation contract is [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Phases 1–4 remain COMPLETE / CI PASS. Phase 6+ remain gated; live TCP Go↔C++ interoperability remains Phase 7.
 
 ## 1. Repository state
 
@@ -18,7 +18,7 @@
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2, Phase 3 and Phase 4 source/tests are committed and verified by GitHub Actions.
-- Phase 4 resource admission is implemented and CI-green; Phase 5+ remain gated.
+- Phase 4 resource admission is implemented and CI-green. Phase 5 is authorized and in progress; Phase 6+ remain gated.
 
 ## 2. Source inputs
 
@@ -829,4 +829,14 @@ The owner explicitly instructed: “اول این رو اضافه کن به مخ
 - Phase 9 examples, release and deployment.
 
 No public API, wire behavior, defaults, resource ceilings or frozen owner decisions were changed.
+
+
+
+## Phase 5 implementation authorization — 2026-11-17
+
+The owner explicitly approved Phase 5 by replying «آره» in this conversation.
+
+Authorized: implement the frozen WORKER-001..009C worker scheduler: three isolated lazy pools; owner-wide worker ceilings; per-Session concurrency; round-robin ready-Session fairness; finite per-class idle retirement; Forced Close A start/cancel linearization; OnClose after Done with bounded best-effort event credits; lifecycle/fairness/isolation/race tests and CI.
+
+Out of scope: Phase 6 Client/Server networking/reconnect, Phase 7 live TCP interoperability, Phase 8 performance optimization/benchmarks and Phase 9 release/deployment. No public API, defaults, wire contract or architecture decision is reopened.
 
