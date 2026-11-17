@@ -55,6 +55,13 @@
 - [ ] Owner review the added Unreleased CHANGELOG entry. The previous approved notes did not contain this new API/default.
 - [ ] Requalify NUL-free V2 Bind Request/Response, legacy V1, mixed-version Go Sessions and unchanged Header; the previous statement that V1/V2 wire bytes match has been superseded for Bind only. Legacy Pinex Servers require a V1 Go Client; actual CI and amended changelog require fresh approval.
 
+## PV-02B release requalification — 20-byte V2 SystemID
+
+- [ ] Confirm V2 20-byte Bind Request/Response round-trip and TCP Bind acceptance, V2 21-byte rejection, and unchanged V1 19-byte maximum through Go CI on the final main SHA.
+- [ ] Confirm pinned Pinex C++ 1.5.0 wire compatibility remains PASS for V1 on that same SHA.
+- [ ] Owner review the amended Unreleased CHANGELOG entry documenting the new V2 SystemID byte limit.
+- [x] Release scope remains separate from Go protocol versioning: no P9-06 authorization, no tag or GitHub Release.
+
 ## Separate P9-06 release gate
 
 - [x] P9-05 engineering review completed with transparent release-time verification limits, recorded in [TASKS.md](../TASKS.md).
