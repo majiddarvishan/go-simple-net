@@ -1708,6 +1708,11 @@ func TestSessionIncomingApplicationChargeTransfersQueueToCallback(t *testing.T) 
 	if got := owner.snapshot(); got.queuedApplicationBytes != 0 || got.queuedApplicationFrames != 0 || got.retainedApplicationBytes != 11 {
 		t.Fatalf("queue-to-active transfer charges = %+v", got)
 	}
+	session.Close()
+	waitDone(t, session)
+	if got := owner.snapshot(); got.retainedApplicationBytes != 11 {
+		t.Fatalf("running callback must retain payload after Done, got %d bytes", got.retainedApplicationBytes)
+	}
 	close(release)
 	select {
 	case <-done:
@@ -1717,8 +1722,6 @@ func TestSessionIncomingApplicationChargeTransfersQueueToCallback(t *testing.T) 
 	if got := owner.snapshot(); got.retainedApplicationBytes != 0 {
 		t.Fatalf("retained Application bytes after callback return = %d", got.retainedApplicationBytes)
 	}
-	session.Close()
-	waitDone(t, session)
 }
 
 func TestSessionIncomingAggregateOverflowClosesOnlyOffendingSession(t *testing.T) {
@@ -1918,5 +1921,158 @@ func TestSessionOnCloseEventCreditIsOwnerScoped(t *testing.T) {
 	task.run()
 	if got := owner.snapshot().onCloseEventCredits; got != 0 {
 		t.Fatalf("OnClose credits after callback return = %d", got)
+	}
+}
+
+
+func TestSessionForcedCloseCancelsQueuedIncomingApplicationCharge(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxRetainedApplicationBytes:         11,
+		hasAggregateApplicationQueue:        true,
+		maxAggregateQueuedApplicationBytes:  11,
+		maxAggregateQueuedApplicationFrames: 1,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	config.maxQueuedIncomingBytes = 11
+	config.maxIncomingApplicationFrames = 1
+	config.maxRetainedApplicationBytes = 11
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestServerBoundSessionWithResources(local, config, dispatcher, sessionHandlers{
+		onRequest: func(*Session, Request) { t.Error("cancelled Application callback ran") },
+	}, owner)
+	defer peer.Close()
+
+	frame, _ := wire.EncodeStreamRequest(91, []byte("x"))
+	writeWireFrame(t, peer, frame)
+	waitForApplicationQueued(t, dispatcher)
+	if got := owner.snapshot(); got.retainedApplicationBytes != 11 || got.queuedApplicationBytes != 11 {
+		t.Fatalf("owner charges before Forced Close = %+v", got)
+	}
+	session.Close()
+	waitDone(t, session)
+	if got := owner.snapshot(); got.retainedApplicationBytes != 0 || got.queuedApplicationBytes != 0 || got.queuedApplicationFrames != 0 {
+		t.Fatalf("owner charges after queued callback cancellation = %+v", got)
+	}
+}
+
+func TestSessionForcedCloseCancelsQueuedCompletionAndReleasesCredits(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxOutstandingRequests:      1,
+		maxRetainedApplicationBytes: 1024,
+		maxRetainedCompletionBytes:  11,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	config.maxRetainedCompletionBytes = 11
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSessionWithResources(local, config, dispatcher, sessionHandlers{}, owner)
+	defer peer.Close()
+
+	sequence, err := session.SendRequest([]byte("q"), func(Response, error) {
+		t.Error("cancelled Completion callback ran")
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	_ = readWireFrame(t, peer)
+	response, _ := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("x"))
+	writeWireFrame(t, peer, response)
+	waitForCompletionQueued(t, dispatcher)
+	if got := owner.snapshot(); got.outstandingRequests != 1 || got.retainedCompletionBytes != 11 {
+		t.Fatalf("owner charges before Forced Close = %+v", got)
+	}
+	session.Close()
+	waitDone(t, session)
+	if got := owner.snapshot(); got.outstandingRequests != 0 || got.retainedCompletionBytes != 0 {
+		t.Fatalf("owner charges after Completion cancellation = %+v", got)
+	}
+}
+
+func TestSessionPartialIncomingApplicationReadReleasesReservations(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxRetainedApplicationBytes:         1024,
+		hasAggregateApplicationQueue:        true,
+		maxAggregateQueuedApplicationBytes:  1024,
+		maxAggregateQueuedApplicationFrames: 4,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	local, peer := net.Pipe()
+	session := newTestServerBoundSessionWithResources(local, config, &testSessionDispatcher{}, sessionHandlers{
+		onRequest: func(*Session, Request) {},
+	}, owner)
+
+	frame, _ := wire.EncodeStreamRequest(92, make([]byte, 128))
+	if _, err := peer.Write(frame[:wire.HeaderSize+1]); err != nil {
+		t.Fatalf("write partial Application Frame: %v", err)
+	}
+	_ = peer.Close()
+	waitDone(t, session)
+	if got := owner.snapshot(); got.retainedApplicationBytes != 0 || got.queuedApplicationBytes != 0 || got.queuedApplicationFrames != 0 {
+		t.Fatalf("owner charges after partial Application read failure = %+v", got)
+	}
+	session.mu.Lock()
+	localQueueBytes, localRetained := session.queuedIncomingBytes, session.retainedApplicationBytes
+	localQueueFrames := session.queuedIncomingFrames
+	session.mu.Unlock()
+	if localQueueBytes != 0 || localQueueFrames != 0 || localRetained != 0 {
+		t.Fatalf("Session charges after partial Application read failure: queueBytes=%d queueFrames=%d retained=%d",
+			localQueueBytes, localQueueFrames, localRetained)
+	}
+}
+
+func TestSessionPartialCompletionReadReleasesReservations(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxOutstandingRequests:      1,
+		maxRetainedApplicationBytes: 1024,
+		maxRetainedCompletionBytes:  1024,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	config.maxRetainedCompletionBytes = 1024
+	local, peer := net.Pipe()
+	session := newTestBoundSessionWithResources(local, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+
+	sequence, err := session.SendRequest(nil, func(Response, error) {
+		t.Error("partial Response must not complete")
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	_ = readWireFrame(t, peer)
+	response, _ := wire.EncodeStreamResponse(sequence, wire.StatusOK, make([]byte, 128))
+	if _, err := peer.Write(response[:wire.HeaderSize+1]); err != nil {
+		t.Fatalf("write partial Response: %v", err)
+	}
+	_ = peer.Close()
+	waitDone(t, session)
+	if got := owner.snapshot(); got.retainedCompletionBytes != 0 || got.outstandingRequests != 0 {
+		t.Fatalf("owner charges after partial Completion read failure = %+v", got)
+	}
+}
+
+func TestSessionOnCloseEventCreditReleasesOnCancellation(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{maxOnCloseEventCredits: 1})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSessionWithResources(local, config, dispatcher, sessionHandlers{
+		onClose: func(*Session, error) { t.Error("cancelled OnClose callback ran") },
+	}, owner)
+	defer peer.Close()
+
+	session.Close()
+	waitDone(t, session)
+	task := waitForTask(t, dispatcher.takeOnClose)
+	if got := owner.snapshot().onCloseEventCredits; got != 1 {
+		t.Fatalf("OnClose credit before cancellation = %d", got)
+	}
+	task.cancel()
+	if got := owner.snapshot().onCloseEventCredits; got != 0 {
+		t.Fatalf("OnClose credit after cancellation = %d", got)
 	}
 }
