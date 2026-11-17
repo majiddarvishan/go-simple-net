@@ -139,7 +139,7 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 	var decision bindDecision
 	select {
 	case decision = <-event.decision:
-	case <-s.done:
+	case <-s.closing:
 		return ErrClosed
 	}
 

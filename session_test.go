@@ -47,7 +47,7 @@ func (d *testSessionDispatcher) cancelUnstarted(session *Session, mask callbackC
 		if !enabled {
 			return tasks
 		}
-		kept := tasks[:0]
+		kept := make([]callbackTask, 0, len(tasks))
 		for _, task := range tasks {
 			if task.session == session {
 				cancelled = append(cancelled, task)
@@ -257,7 +257,18 @@ func TestSessionFrameAssemblyTimeoutIsAbsolute(t *testing.T) {
 	if _, err := peer.Write([]byte{0}); err != nil {
 		t.Fatalf("write first Header byte: %v", err)
 	}
+	senderDone := make(chan struct{})
+	go func() {
+		defer close(senderDone)
+		for i := 0; i < wire.HeaderSize-1; i++ {
+			time.Sleep(20 * time.Millisecond)
+			if _, err := peer.Write([]byte{0}); err != nil {
+				return
+			}
+		}
+	}()
 	waitDone(t, session)
+	<-senderDone
 	if !errors.Is(session.Err(), context.DeadlineExceeded) {
 		t.Fatalf("expected frame assembly deadline, got %v", session.Err())
 	}
@@ -340,6 +351,27 @@ func TestSessionServerPreBindHandshake(t *testing.T) {
 	waitDone(t, session)
 }
 
+func TestSessionPreBindForcedCloseUnblocksHandshake(t *testing.T) {
+	local, peer := net.Pipe()
+	session, err := newServerPreBindSession(local, defaultSessionConfig(), time.Now(), time.Second, &testSessionDispatcher{}, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newServerPreBindSession: %v", err)
+	}
+	defer peer.Close()
+
+	request, err := wire.EncodeBindRequest(17, wire.Bind{Type: wire.BindBiDirectional, SystemID: "peer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	if _, err := session.waitBindRequest(context.Background()); err != nil {
+		t.Fatalf("waitBindRequest: %v", err)
+	}
+
+	session.Close()
+	waitDone(t, session)
+}
+
 func TestSessionForcedCloseCancelsUnstartedApplicationCallback(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
@@ -368,19 +400,38 @@ func TestSessionForcedCloseCancelsUnstartedApplicationCallback(t *testing.T) {
 func TestSessionRequestTimeoutCancelsQueuedFrame(t *testing.T) {
 	local, peer := net.Pipe()
 	config := defaultSessionConfig()
-	config.requestTimeout = 40 * time.Millisecond
+	config.requestTimeout = 250 * time.Millisecond
 	config.enquireLinkIdleInterval = 0
 	dispatcher := &testSessionDispatcher{}
 	session := newTestBoundSession(local, config, dispatcher, sessionHandlers{})
 	defer peer.Close()
 
 	var firstResult, secondResult error
-	if _, err := session.SendRequest([]byte("first"), func(_ Response, err error) { firstResult = err }); err != nil {
+	firstSequence, err := session.SendRequest([]byte("first"), func(_ Response, err error) { firstResult = err })
+	if err != nil {
 		t.Fatalf("first SendRequest: %v", err)
 	}
 	if _, err := session.SendRequest([]byte("second"), func(_ Response, err error) { secondResult = err }); err != nil {
 		t.Fatalf("second SendRequest: %v", err)
 	}
+	writerDeadline := time.Now().Add(100 * time.Millisecond)
+	for time.Now().Before(writerDeadline) {
+		session.mu.Lock()
+		pending := session.pending[firstSequence]
+		claimed := pending != nil && pending.writerClaimed
+		session.mu.Unlock()
+		if claimed {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	claimed := session.pending[firstSequence] != nil && session.pending[firstSequence].writerClaimed
+	session.mu.Unlock()
+	if !claimed {
+		t.Fatal("Writer did not claim the first Request frame")
+	}
+
 	firstTask := waitForTask(t, dispatcher.takeCompletion)
 	secondTask := waitForTask(t, dispatcher.takeCompletion)
 	firstTask.run()
@@ -402,6 +453,89 @@ func TestSessionRequestTimeoutCancelsQueuedFrame(t *testing.T) {
 	}
 	session.Close()
 	waitDone(t, session)
+}
+
+type writeReturnGateConn struct {
+	net.Conn
+	gate <-chan struct{}
+}
+
+func (c writeReturnGateConn) Write(payload []byte) (int, error) {
+	n, err := c.Conn.Write(payload)
+	if err == nil {
+		<-c.gate
+	}
+	return n, err
+}
+
+func TestSessionEnquireLinkResponseMayArriveBeforeWriterReturns(t *testing.T) {
+	local, peer := net.Pipe()
+	gate := make(chan struct{})
+	wrapped := writeReturnGateConn{Conn: local, gate: gate}
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 20 * time.Millisecond
+	config.enquireLinkResponseTimeout = 80 * time.Millisecond
+	dispatcher := &testSessionDispatcher{}
+	session := newBoundSession(wrapped, config, sessionIdentity{
+		role: sessionRoleClient, bindType: wire.BindBiDirectional,
+	}, dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	probe := readWireFrame(t, peer)
+	if probe.Header.Command != wire.CommandEnquireLinkRequest {
+		t.Fatalf("expected EnquireLink Request, got 0x%x", probe.Header.Command)
+	}
+	response, err := wire.EncodeEnquireLinkResponse(probe.Header.Sequence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		seen := session.enquireLinkResponseSeen
+		session.mu.Unlock()
+		if seen {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	seen := session.enquireLinkResponseSeen
+	session.mu.Unlock()
+	if !seen {
+		close(gate)
+		t.Fatal("Reader did not observe the early EnquireLink Response")
+	}
+
+	close(gate)
+	session.mu.Lock()
+	session.config.enquireLinkIdleInterval = 0
+	session.mu.Unlock()
+	time.Sleep(2 * config.enquireLinkResponseTimeout)
+	if session.State() != SessionStateBound {
+		t.Fatalf("Session closed after a matching early response: %v", session.Err())
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionWriteTimeoutClosesSession(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.writeTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("blocked-write")); err != nil {
+		t.Fatalf("SendNoWait: %v", err)
+	}
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrWriteTimeout) {
+		t.Fatalf("expected ErrWriteTimeout, got %v", session.Err())
+	}
 }
 
 func TestSessionSendResponseUsesPeerSequence(t *testing.T) {
