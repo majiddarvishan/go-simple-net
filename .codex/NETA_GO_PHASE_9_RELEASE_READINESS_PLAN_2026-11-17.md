@@ -45,7 +45,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 | P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | COMPLETE — exported GoDoc, API/configuration/lifecycle docs and README Quick Start verified |
 | P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | COMPLETE — exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
-| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS; support/license/version/changelog APPROVED; `main` branch-protection policy OWNER APPROVED but not applied/verified; GitHub Release settings review remains |
+| P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | IN PROGRESS — correctness/Pinex/smoke/coverage PASS; support/license/version/changelog APPROVED; `main` protection ACTIVE with exact two required checks, detailed protection options and GitHub Release settings still pending |
 | P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
 
 ### P9-00 — Documentation and tracker reconciliation
@@ -163,7 +163,7 @@ Remaining owner/repository gates:
 - **CLOSED / OWNER APPROVED 2026-11-17:** minimum Go 1.23 and Ubuntu 24.04/Linux amd64 as CI-tested platform; owner-reported local Go 1.27.0 `make verify` PASS is separate evidence, not a guarantee for other architectures/platforms.
 - **CLOSED / OWNER CONFIRMED 2026-11-17:** copyright holder `Majid Darvishan`, year `2026`; original Apache License 2.0 retained, with commercial use permitted under its terms and its copyright notice updated.
 - **CLOSED / OWNER APPROVED 2026-11-17:** owner accepted the current Unreleased `CHANGELOG.md` as the V1 release-notes draft and semantic version `v1.0.0`; neither the tag nor GitHub Release creation is authorized.
-- **POLICY OWNER APPROVED / NOT APPLIED:** owner approved `main` protection requiring Go job `test` and Pinex job `Verify Go wire codec against pinned Pinex C++ 1.5.0` on 2026-11-17. Both jobs pass and run on pull requests. Branch API still reports `main.protected=false`; rulesets are empty; classic protection read returns HTTP 403 and integration cannot write protection. Operator application/verification steps: [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Tags/Releases remain absent. GitHub Release settings also await admin review.
+- **ACTIVE / REQUIRED CHECKS VERIFIED 2026-11-17:** owner enabled `main` protection in GitHub UI. Branch API now reports `protected=true`, `required_status_checks.enforcement_level=everyone` and mandatory `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0` contexts. Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d`. Strict-up-to-date and admin-bypass settings are not exposed by available branch metadata (classic endpoint HTTP 403); confirm independently, plus GitHub Release settings. Guide: [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Tags and Releases remain absent.
 - Produce final PASS/FAIL/NOT RUN checklist. No release tag is part of this task.
 
 ### P9-06 — V1 release tag

@@ -4,8 +4,8 @@
 **Repository:** `majiddarvishan/neta-go`  
 **Branch:** `main`  
 **Policy decision:** OWNER APPROVED  
-**GitHub enforcement:** NOT YET APPLIED / NOT VERIFIED  
-**Last observed protected flag:** `false` at repository HEAD `b3fad24938dd689cd270b6954a3a98e37f630614`
+**GitHub enforcement:** ACTIVE / REQUIRED CHECKS VERIFIED by branch API 2026-11-17; strict and admin-bypass options NOT independently verified  
+**Last observed protected flag:** `true` at repository HEAD `b992beac7495934ce43111bd3a692ec272c8195d`
 
 ## 1. Exact required GitHub Actions check names
 
@@ -31,9 +31,9 @@ Pre-approval evidence: [Go run 44161319800](https://github.com/majiddarvishan/ne
 
 ## 3. One-time application by an authenticated repository administrator
 
-The connected GitHub integration exposes repository reads and Git data writes but **does not expose branch-protection mutation**. Even the classic protection read endpoint returned `403 Resource not accessible by integration`; therefore this document is NOT evidence that protection was applied.
+The connected GitHub integration does not expose branch-protection mutation. The owner **already applied protection using GitHub's web UI**; repository branch metadata now independently confirms `protected=true` and both mandatory required checks. The classic protection read still returns `403 Resource not accessible by integration`, so strict/admin-bypass details cannot be independently confirmed. **Do not re-run the example PUT command** unless intentionally replacing the current existing rule.
 
-A repository administrator with an authorized `gh` CLI session and branch administration permission may execute the following **once**. The command will update branch protection and should be treated as a repository configuration change. It supplies only the two owner-approved required checks; it does not create tags or releases.
+For historical/reference use only: the owner has already enabled protection in the browser. The following example **overwrites** branch protection settings and must **not** be executed just to check their status. It is kept only as a record of the originally approved API configuration and is NOT necessary now that branch protection is active.
 
 ```bash
 gh api --method PUT \
@@ -68,13 +68,13 @@ gh api repos/majiddarvishan/neta-go/branches/main/protection \
   --jq '{strict: .required_status_checks.strict, contexts: .required_status_checks.contexts, enforce_admins: .enforce_admins.enabled}'
 ```
 
-Expected: `strict=true`, both exact required check strings, `enforce_admins=true`. Additionally confirm that `main` branch metadata reports `protected=true` and a new PR actually shows both checks as required. If GitHub returns an error (including plan/permission restrictions), record it instead of marking the task complete.
+GitHub branch API now **confirms** `main.protected=true`, status-check `enforcement_level=everyone` and two exact required checks (`test`, `Verify Go wire codec against pinned Pinex C++ 1.5.0`). Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d` ([Go](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612), [Pinex](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661)). **Still require independent verification:** `strict=true`, `enforce_admins.enabled=true`, and a real PR showing both checks required. If GitHub denies detailed API access, inspect these flags directly in Settings rather than claiming they were verified.
 
 GitHub Release configuration still needs an owner/admin review. No change to release settings is authorized by this branch protection decision.
 
 ## 5. Scope and release boundary
 
-- Approved **policy** does not mean **applied configuration**. Do not check off the implementation/verification gate until GitHub reports the actual rule.
-- `P9-05`: in progress, pending protection application/verification and release-settings review.
+- Approved policy **is now active**: GitHub branch API reports `protected=true` with both required contexts. The remaining detailed protection options (strict and admin-bypass) require independent owner/admin verification.
+- `P9-05`: in progress, pending those detailed settings, PR enforcement confirmation, and GitHub Release settings review.
 - `P9-06`: NOT AUTHORIZED. Neither this decision nor the one-time command creates a V1 tag, GitHub Release or publication permission.
 - No production Go source, public API, wire protocol, configuration defaults, test suite, workflow or local `stash@{0}` is changed by documenting this operation.

@@ -1142,3 +1142,12 @@ The owner approved the required-CI policy for `main`. Exact GitHub check names: 
 **NOT APPLIED:** branch API currently reports `protected=false`, repository rulesets empty; classic branch-protection endpoint is HTTP 403 and connected GitHub tools have no mutation capability. The approved policy, runnable admin-only `gh api` request and verification steps are in [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Do not mark protection as enabled without real GitHub confirmation.
 
 P9-05 remains IN PROGRESS pending protection application/verification and release-settings admin check. P9-06 V1 tag/Release is not authorized. Owner's local `stash@{0}` remains untouched.
+
+
+## 34. P9-05 — Verified active main protection (2026-11-17)
+
+After the owner reported completing GitHub web configuration («انجام شد»), the live branch API for `main` returned **`protected=true`**. Its public metadata reports `required_status_checks.enforcement_level=everyone` with the **two exact required contexts** `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Both checks completed PASS on `b992beac7495934ce43111bd3a692ec272c8195d`: [Go 44163815612](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612), [Pinex 44163815661](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661).
+
+The actual protection activation and exact required check names are now **VERIFIED**, not merely approved. The integration still receives HTTP 403 for full classic branch protection details, so the `strict` (require up-to-date) and admin-bypass configuration remain unverified. GitHub Release settings review remains open. Do not run the previously supplied PUT command merely to verify settings; it overwrites existing rules.
+
+The release tracker and checklist require a feature branch / pull request to record this post-protection evidence. P9-05 remains IN PROGRESS until outstanding verifications; P9-06 tag/Release remains NOT AUTHORIZED. Local stash unchanged.
