@@ -13,7 +13,7 @@ Options are applied before final validation. The resulting configuration is immu
 | Option | Default | Validation / behavior |
 |---|---:|---|
 | `WithClientAddress` | Required | Valid TCP host:port with a non-empty remote host |
-| `WithClientSystemID` | Required | Non-empty, no NUL, at most 19 bytes |
+| `WithClientSystemID` | Required | Non-empty, no embedded NUL. **V1: 19 bytes maximum** (plus a required terminator); **V2: 20 bytes maximum** (no terminator). Measured in bytes, not Unicode characters. |
 | `WithClientBindType` | `BindTypeBiDirectional` | `BindTypeUniDirectional` or `BindTypeBiDirectional` |
 | `WithConnectTimeout` | 30s | Positive duration; absolute per-Dial-attempt deadline |
 | `WithBindResponseTimeout` | 30s | Positive duration; absolute Bind handshake deadline |
