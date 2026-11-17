@@ -77,6 +77,7 @@ int run_client(const std::string& address)
     asio::steady_timer deadline(io);
     bool completed = false;
     bool timed_out = false;
+    bool failed = false;
     bool outcome_set = false;
     std::string outcome;
     std::shared_ptr<messaging_client> client;
@@ -99,6 +100,7 @@ int run_client(const std::string& address)
         },
         [&](const std::string&, uint32_t, const std::string& body) {
             publish_outcome("TIMEOUT:" + body);
+            failed = true;
             asio::post(io, [&] {
                 if (client)
                     client->stop();
@@ -112,6 +114,7 @@ int run_client(const std::string& address)
                 if (!client || client->send_request("from-cpp") == 0)
                 {
                     publish_outcome("SEND_FAILED");
+                    failed = true;
                     asio::post(io, [&] {
                         if (client)
                             client->stop();
@@ -126,6 +129,7 @@ int run_client(const std::string& address)
         },
         [&](const std::string& error) {
             publish_outcome("ERROR:" + error);
+            failed = true;
             asio::post(io, [&] {
                 if (client)
                     client->stop();
@@ -145,7 +149,25 @@ int run_client(const std::string& address)
         }
     });
 
-    io.run();
+    const auto stop_at = std::chrono::steady_clock::now() + 15s;
+    while (!completed && !timed_out && !failed &&
+           std::chrono::steady_clock::now() < stop_at)
+    {
+        if (io.stopped())
+            io.restart();
+        io.run_one_for(5ms);
+    }
+    if (!completed && !timed_out && !failed)
+    {
+        timed_out = true;
+        if (client)
+            client->stop();
+    }
+    if (failed && client)
+        client->stop();
+    io.poll();
+    io.stop();
+
     if (timed_out || !completed)
     {
         std::cerr << "Pinex Client did not complete the request/Unbind exchange\n";
