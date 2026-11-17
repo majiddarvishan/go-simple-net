@@ -5,8 +5,8 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `f8ce7669d2bbde33d3134d300e3256ae290dc529`  
-**Current phase:** Phase 6 — Client and Server orchestration (**COMPLETE / CI PASS**, owner approval 2026-11-17). Phase 7+ remain gated.
+**Last verified source HEAD:** `be2511ba9701313526fdc03e27e8e51583f4af21`  
+**Current phase:** Phase 7 — Live interoperability and fault-injection verification (**IN PROGRESS**, owner authorized 2026-11-17). Phase 8–9 remain gated.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -28,7 +28,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
-| 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
+| 7 | Live interoperability and fault-injection verification | IN PROGRESS | Owner authorized 2026-11-17 |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
 
@@ -183,16 +183,28 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## Phase 7 — Live interoperability and fault-injection verification
 
-<badge color="secondary">NOT STARTED — NOT YET AUTHORIZED</badge>
+<badge color="warning">IN PROGRESS — OWNER AUTHORIZED 2026-11-17</badge>
 
-- [ ] **P7-01 — Re-pin Pinex:** verify Pinex C++ develop version/HEAD and reconcile any source change from the pinned 1.5.0 baseline.
-- [ ] **P7-02 — Bidirectional TCP interoperability:** Go Client ↔ Pinex C++ Server and Pinex C++ Client ↔ Go Server using real sockets.
-- [ ] **P7-03 — Wire fuzzing:** fuzz Header length, command/status/sequence, Bind body and malformed/oversized Frames.
-- [ ] **P7-04 — Transport faults:** partial reads/writes, slow-trickle, blackhole, EOF, reset, delayed and reordered responses, Bind rejection and timeout races.
-- [ ] **P7-05 — Admission faults:** queue/byte/count/Request/retained-memory exhaustion and scratch-drain timeout; verify offender-only close and no leaked charges.
-- [ ] **P7-06 — Callback faults:** blocked callbacks, Forced Close races, OnClose saturation and old-generation callback retention.
-- [ ] **P7-07 — Long-running soak:** verify bounded goroutine/heap/ledger levels under Session churn, saturation and reconnect.
-- [ ] **P7-08 — Compatibility acceptance:** all golden vectors and both real-socket directions pass.
+**Authorization:** The owner explicitly approved Phase 7 by replying «آره» in this conversation. Scope is P7-01..P7-08 only. No Phase 8 performance optimization or Phase 9 release/deployment work is authorized.
+
+- [x] **P7-01 — Re-pin Pinex:** rechecked majiddarvishan/pinex develop; version remains 1.5.0, exact HEAD f7bd1eb779baff0d10e624f20522df345e6ee747, identical to the frozen compatibility Snapshot. No Wire/API/default change is required.
+- [ ] **P7-02 — Bidirectional TCP interoperability:** real-socket harness added for Go Client ↔ actual Pinex C++ Server and actual Pinex C++ Client ↔ Go Server using Pinex public messaging_client / messaging_server headers. Awaiting the dedicated cross-repository workflow result.
+- [ ] **P7-03 — Wire fuzzing:** five Go fuzz targets added for Header parsing, Frame decoding, Bind Request/Response and Stream Request decoding. Seed-corpus unit execution passed; bounded fuzz campaigns are pending.
+- [ ] **P7-04 — Transport faults:** real-TCP tests added for fragmented Bind Response, out-of-order correlated Responses, absolute slow-trickle Frame Assembly timeout and abrupt TCP RST. Existing real-TCP Client tests cover silent Bind timeout and Bind rejection. Remaining: graceful EOF-specific assertion and privileged kernel-level SYN blackhole injection; do not claim those as verified.
+- [x] **P7-05 — Admission faults:** existing Phase 4 admission matrix was re-run under the Go race CI: queue/byte/count/Request/retained-memory limits, scratch-drain timeout, offender-only close, partial-read release and owner-ledger accounting all pass.
+- [x] **P7-06 — Callback faults:** existing Worker Scheduler matrix was re-run under the Go race CI: blocked callback isolation, Forced Close cancellation/start races, OnClose saturation, fairness and retired-generation permit retention all pass.
+- [ ] **P7-07 — Long-running soak:** bounded reconnect soak harness added. Dedicated workflow will run it for 30 seconds and verify generation churn, worker ceilings and zero owner-resource charges after Stop. Not yet executed.
+- [ ] **P7-08 — Compatibility acceptance:** pending both real-socket directions, fuzz campaign, soak and closure of remaining P7-04 gaps.
+
+### Initial Phase 7 implementation and verification evidence — 2026-11-17
+
+- Implementation source HEAD: be2511ba9701313526fdc03e27e8e51583f4af21.
+- Go CI [44079860986](https://github.com/majiddarvishan/neta-go/actions/runs/44079860986): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex golden compatibility [44079861215](https://github.com/majiddarvishan/neta-go/actions/runs/44079861215): PASS. This remains a golden-frame check, not live socket proof.
+- Dedicated live interoperability workflow is in the Pinex-only test branch test/neta-go-phase7-interop; it verifies the develop ref against the frozen SHA, compiles the real C++ peer, checks out neta-go main, and runs race/fault/soak/fuzz tests. Current run: [44080043667](https://github.com/majiddarvishan/pinex/actions/runs/44080043667).
+- Test sources: test/interop/pinex_peer.cpp, phase7_interop_test.go, phase7_transport_test.go, phase7_soak_test.go, and internal/wire/wire_fuzz_test.go.
+- The Pinex test workflow is isolated on a test branch; Pinex develop and its production source were not modified.
+- No public API, wire format, timeout/reconnect policy, resource ceiling or frozen architecture decision was changed.
 
 ## Phase 8 — Performance baseline and evidence-driven optimization
 

@@ -8,6 +8,6 @@ The implementation is tracked phase by phase. The root task tracker is the sourc
 
 **[View implementation tasks and progress →](TASKS.md)**
 
-Current phase: **Phase 6 — Client/Server orchestration (COMPLETE / CI PASS)**. Client Connect/Bind, generation fencing, reconnect, Server lifecycle/admission and Client shutdown are implemented and verified. Phase 7 live TCP interoperability and Phases 8–9 remain gated pending separate owner authorization.
+Current phase: **Phase 7 — Live interoperability and fault-injection verification (IN PROGRESS)**. Phases 1–6 are complete and CI-verified. Phase 7 is owner-authorized; Phases 8–9 remain gated.
 
 Architecture decisions and detailed design records are maintained under [`.codex/`](.codex/).

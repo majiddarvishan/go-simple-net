@@ -1465,3 +1465,16 @@ The Option B decision in §56 is implemented:
 - Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770): PASS — pinned C++ 1.5.0 golden fixtures.
 
 Phase 6 P6-01..P6-11 is COMPLETE. The existing Worker Scheduler race-test assertion was also hardened to wait for deferred resource release after callback return. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain separately gated and NOT AUTHORIZED.
+
+
+## 58. Phase 7 implementation authorization and verification boundary — 2026-11-17
+
+The owner explicitly authorized Phase 7 — Live Interoperability and Fault-Injection Verification, covering P7-01..P7-08 in the root TASKS.md.
+
+The authorization permits building real-socket interoperability tests against the pinned Pinex C++ 1.5.0 Client/Server, bounded wire fuzzing, TCP/admission/callback fault injection, reconnect soak testing, CI and documentation/evidence updates.
+
+The authorization does not reopen any frozen architecture, public API, Wire Protocol, timeout, reconnect, resource-ceiling or default decision. Phase 8 performance/optimization and Phase 9 examples/release/deployment remain separately gated and are not authorized.
+
+**P7-01 audit result:** Pinex develop was rechecked on 2026-11-17. Its version remains 1.5.0 and its exact HEAD is f7bd1eb779baff0d10e624f20522df345e6ee747, identical to the pinned compatibility Snapshot. No source drift was found.
+
+**Initial implementation evidence:** neta-go source HEAD be2511ba9701313526fdc03e27e8e51583f4af21; Go CI [44079860986](https://github.com/majiddarvishan/neta-go/actions/runs/44079860986) PASS; Pinex Golden Compatibility [44079861215](https://github.com/majiddarvishan/neta-go/actions/runs/44079861215) PASS. These runs do not by themselves prove live Go↔C++ socket interoperability. The dedicated Pinex test-branch workflow [44080043667](https://github.com/majiddarvishan/pinex/actions/runs/44080043667) is the live verification gate.

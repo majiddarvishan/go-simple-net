@@ -912,3 +912,28 @@ Phase 6 is closed. Phase 7 live TCP interoperability, Phase 8 performance and Ph
 
 
 The final Go verification also hardened an existing Worker Scheduler race-test assertion: it now waits for the callback worker's deferred resource release after the callback-return signal, avoiding a false transient 15-byte retained-resource observation. Final Go and Pinex workflows both pass at the source HEAD recorded above.
+
+
+## 20. Phase 7 authorization and implementation handoff — 2026-11-17
+
+**Owner authorization:** The owner explicitly approved Phase 7 by replying «آره» in this conversation. P7-01..P7-08 are authorized. Phase 8 performance work and Phase 9 release/deployment remain outside the authorization.
+
+**Current neta-go source HEAD:** be2511ba9701313526fdc03e27e8e51583f4af21.
+
+**P7-01:** Pinex develop remains version 1.5.0 at exact SHA f7bd1eb779baff0d10e624f20522df345e6ee747; no compatibility baseline drift was found.
+
+**Implemented verification harness:**
+- test/interop/pinex_peer.cpp uses the actual Pinex public high-level C++ Client and Server APIs.
+- phase7_interop_test.go exercises Go Client ↔ Pinex C++ Server and Pinex C++ Client ↔ Go Server over loopback TCP.
+- phase7_transport_test.go covers fragmented Bind Response, out-of-order Stream Responses, slow-trickle absolute Frame Assembly timeout and abrupt TCP reset.
+- internal/wire/wire_fuzz_test.go adds five fuzz targets.
+- phase7_soak_test.go adds an environment-gated bounded reconnect soak.
+
+**CI evidence so far:**
+- Go CI [44079860986](https://github.com/majiddarvishan/neta-go/actions/runs/44079860986): PASS — formatting, vet, unit and race.
+- Pinex Golden Compatibility [44079861215](https://github.com/majiddarvishan/neta-go/actions/runs/44079861215): PASS; this is not live TCP proof.
+- Dedicated Pinex workflow run [44080043667](https://github.com/majiddarvishan/pinex/actions/runs/44080043667) is the cross-repository live verification gate. It builds the peer against Pinex develop, whose exact SHA is asserted against the frozen baseline.
+
+**Task status:** P7-01 complete; P7-05 and P7-06 pass on the race CI; P7-02, P7-03 and P7-07 await the dedicated workflow; P7-04 remains open for graceful EOF and privileged kernel-level SYN blackhole evidence; P7-08 remains open.
+
+No public API, wire format, defaults, resource ceilings or frozen architecture decisions were changed. Continue autonomously within Phase 7. Record each task only after its evidence passes. Do not begin Phase 8 or Phase 9.

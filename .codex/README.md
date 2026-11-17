@@ -20,6 +20,7 @@
 - [طراحی Q-008 و Q-009: Resource Admission و Incoming Backpressure](NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
 - [تصمیم‌های معماری و Bind Validator تأییدشده](DECISION_LOG.md)
 - [وضعیت و Handoff پروژه](HANDOFF.md)
+- [گزارش اجرای Phase 7 — Live Interoperability و Fault Injection](NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md)
 
 ## قاعده اعتبار منابع
 
@@ -31,4 +32,4 @@
 
 ## وضعیت فعلی
 
-وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 5 پیاده‌سازی و CI آن‌ها کامل است؛ Phase 6 به بعد تا دریافت مجوز جداگانه شروع نمی‌شوند.
+وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 6 کامل و CI-verified هستند؛ Phase 7 با مجوز مالک در حال اجراست و Phase 8 و 9 همچنان نیازمند مجوز جداگانه‌اند.
