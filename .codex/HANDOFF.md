@@ -5,13 +5,13 @@
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / GO CI + PINEX C++ GOLDEN CI PASS; PHASE 3 TRANSPORT/RUNTIME NOT AUTHORIZED  
-**Current work:** Phase 2 Wire Codec is COMPLETE. Verified implementation commit: `b026dadd9ad0b33118b05f49477e1412a4255978`. Go CI `44044273742` and Pinex C++ compatibility CI `44044273818` both PASS. The compiled C++ fixture uses pinned production PDU serializer headers; its header writer mirrors the audited Pinex header function. Live TCP Go↔C++ interoperability has not been run. Phase 3 transport/runtime, workers, reconnect, benchmarks, release and deployment remain unauthorized.
+**Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / GO CI + PINEX C++ GOLDEN CI PASS; PHASE 3 SESSION TRANSPORT/LIFECYCLE AUTHORIZED / IN PROGRESS  
+**Current work:** Phase 2 Wire Codec is COMPLETE. Verified implementation commit: `b026dadd9ad0b33118b05f49477e1412a4255978`. Go CI `44044273742` and Pinex C++ compatibility CI `44044273818` both PASS. The compiled C++ fixture uses pinned production PDU serializer headers; its header writer mirrors the audited Pinex header function. Live TCP Go↔C++ interoperability has not been run. **Phase 3 Session Transport & Lifecycle Engine is now owner-authorized (2026-11-17) and in progress.** Phase 4 resource ledgers, Phase 5 worker scheduler, Phase 6 Client/Server orchestration, live socket interoperability, benchmarks, release and deployment remain outside this authorization.
 
 ## 1. Repository state
 
 - Default branch: main
-- Current verified remote HEAD before WORKER-009C documentation synchronization: `20298d7f57635716e63ac868e57f658ad0cd1003`.
+- Verified remote `main` HEAD at Phase 3 authorization: `ebf269dc9ba1a8f5d88922cf1e6ab29c99782a05`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Only documentation under .codex has been added/updated for this planning step.
@@ -743,3 +743,21 @@ Implementation must stay inside `internal/wire`, use only the standard library, 
 The C++ fixture generator uses actual production PDU serializer templates; its Header writer mirrors the audited private `session::serialize_header` implementation. The private Pinex repo cannot be checked out by neta-go Actions without a cross-repository credential, so the exact pinned source headers are snapshotted in this repo. This is compiled C++ golden compatibility, not live TCP/socket interoperability.
 
 **Not authorized:** Phase 3 TCP transport/read/write loops, runtime integration, Session lifecycle, worker scheduler, resource admission runtime, reconnect, live socket interoperability, benchmarks, release and deployment. Obtain separate owner authorization before starting Phase 3.
+
+
+## 20. Phase 3 authorization — Session Transport & Lifecycle Engine (2026-11-17)
+
+The owner explicitly authorized Phase 3 in the continuation of chat pg_07 by replying «اره هست و مجوز داری» to the question asking permission to begin Phase 3.
+
+**Authorized scope:** implement the private Session transport/lifecycle engine against the frozen API and protocol contracts:
+- one Reader and one serialized Writer per Session; no user callback executes inline in either loop;
+- internal Bind/Pre-Bind state transitions and handshake primitives, including the absolute Pre-Bind/Bind deadlines;
+- absolute Frame Assembly and per-Frame Writer deadlines, plus idle-only Enquire Link state and matching response timeout;
+- Request Sequence allocation/correlation, 30s deadline from successful local admission, exactly-once internal settlement, and late-response suppression;
+- Graceful Unbind, Forced Close A, immutable terminal cause, Done publication, and exact internal teardown.
+
+**Implementation boundary:** Phase 3 may use the already-approved per-Session FIFO/queue limits as the minimal bounded transport admission needed by the Writer. It must not implement the full independent queue/count/retained-byte/owner ledgers of Phase 4, the three-class worker scheduler of Phase 5, or Client/Server Dial/Listen/reconnect/session-generation orchestration of Phase 6. Callback dispatch is behind a private interface so Phase 5 can supply the approved isolated bounded workers. No public API expansion, new protocol behavior, third-party dependency, benchmark, release or deployment is authorized.
+
+**Baseline:** remote main HEAD ebf269dc9ba1a8f5d88922cf1e6ab29c99782a05; Phase 1 and Phase 2 remain complete. Pinex compatibility baseline remains version 1.5.0 at f7bd1eb779baff0d10e624f20522df345e6ee747.
+
+**Exit evidence required:** focused net.Pipe transport/lifecycle tests, fragmented and slow-trickle Frame tests, request timeout/late response/close races, partial writes and Writer timeout, Unbind FIFO/timeout, Bind/Pre-Bind handshake tests, gofmt, go vet ./..., go test ./..., and go test -race ./... in GitHub Actions. Live Pinex TCP interoperability remains Phase 7 evidence, not a Phase 3 gate.

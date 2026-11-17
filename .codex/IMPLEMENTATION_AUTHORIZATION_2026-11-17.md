@@ -4,7 +4,7 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Architecture:** Frozen; all fundamental owner decisions closed.  
-**Current implementation status:** Phase 1 COMPLETE; Phase 2 Wire Codec explicitly authorized and COMPLETE; Phase 3+ NOT AUTHORIZED.
+**Current implementation status:** Phase 1 COMPLETE; Phase 2 Wire Codec COMPLETE; Phase 3 Session Transport & Lifecycle explicitly authorized / IN PROGRESS; Phase 4+ outside current authorization.
 
 ## Owner authorization
 
@@ -97,3 +97,25 @@ The owner explicitly authorized Phase 2 Wire Protocol in this conversation by re
 The C++ fixture generator uses actual production PDU serializer templates and a header writer mirroring the audited private `session::serialize_header` function. It is not a live socket-level Go↔C++ test.
 
 **Still not authorized:** TCP transport/read-write loops, runtime integration, Session lifecycle, worker scheduler, resource admission runtime, reconnect, live socket interoperability harness, benchmarks, release and deployment. Obtain separate owner authorization before Phase 3.
+
+
+## Phase 3 Authorization — Session Transport & Lifecycle Engine (2026-11-17)
+
+The owner explicitly authorized Phase 3 in the continuation of chat pg_07 with «اره هست و مجوز داری», approving the previously asked question about beginning Phase 3.
+
+**Authorized scope**
+- Implement one Reader and one serialized Writer per Session. User callbacks must never execute inline in either I/O loop.
+- Implement private Session Bind/Pre-Bind handshake state transitions and primitives, with the approved absolute deadlines.
+- Implement absolute Frame Assembly Timeout, per-Frame Writer Stall Timeout, idle-only Enquire Link and matching response timeout.
+- Implement Request Sequence allocation/correlation, RequestTimeout starting immediately after successful local admission, exactly-once internal settlement and late-response suppression.
+- Implement Graceful Unbind, Forced Close A, immutable terminal cause, Done publication and exact internal teardown.
+
+**Strict boundary**
+- The minimal per-Session bounded FIFO required to operate one Writer may use the already-approved configuration limits. Full independent queue/count/retained-payload/owner ledgers remain Phase 4.
+- Three isolated bounded Application/Completion/OnClose worker pools remain Phase 5. Phase 3 must use a private callback-dispatch interface and must not introduce goroutine-per-callback behavior.
+- Client Dial, Server Listen/accept orchestration, reconnect supervisor, Session-generation fencing, owner registries and full BindValidator/duplicate-SystemID orchestration remain Phase 6. Phase 3 implements the Session-side handshake primitive only.
+- No public API expansion, wire-format change, third-party dependency, benchmark, release or deployment.
+
+**Baseline:** main HEAD ebf269dc9ba1a8f5d88922cf1e6ab29c99782a05 at authorization. Phase 1 and Phase 2 remain COMPLETE. Pinex source baseline remains f7bd1eb779baff0d10e624f20522df345e6ee747.
+
+**Verification:** focused transport/lifecycle and race tests, plus gofmt, vet, unit and race CI. Live Pinex TCP interoperability remains a later verification phase.
