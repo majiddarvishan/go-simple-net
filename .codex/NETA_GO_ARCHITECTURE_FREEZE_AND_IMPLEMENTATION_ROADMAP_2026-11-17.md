@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1 GRANTED / PHASES 2+ NOT GRANTED  
+**Implementation authorization:** PHASE 1 + PHASE 2 WIRE CODEC GRANTED / PHASE 3+ NOT GRANTED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. The owner subsequently granted explicit authorization for Phase 1 only (module skeleton and immutable configuration). Phase 2+ remain unauthorized until a separate approval.
+The architecture is frozen at the design/contract level. The owner explicitly authorized Phase 1 (module/configuration) and subsequently Phase 2 Wire Codec. Phase 1 and Phase 2 are COMPLETE / CI PASS. Phase 3+ (transport/runtime and beyond) remain unauthorized until a separate approval.
 
 ## 2. Architecture decision closure
 
@@ -186,7 +186,7 @@ The owner explicitly authorized Phase 1 implementation in this conversation («�
 - CI run: https://github.com/majiddarvishan/neta-go/actions/runs/44040206052 — PASS.
 - Passed: gofmt, go vet ./..., go test ./..., go test -race ./....
 - Configuration hardening includes TCP endpoint syntax, all Server-side WORKER-009C boundaries, final nested Session Option precedence, nil-option rejection, and checked arithmetic.
-- Authorization is limited to Phase 1. Phase 2 Wire Protocol is in progress under explicit owner authorization; pure-Go codec and unit tests are implemented, with cross-language evidence outstanding. No wire codec or transport implementation has been started.
+- Phase 1 authorization was limited to module/configuration and completed. Phase 2 was subsequently authorized and is now COMPLETE: pure-Go codec, compiled C++ production-serializer golden fixtures, Go compatibility tests and both CI workflows PASS. No TCP transport/runtime implementation has started.
 
 
 ## Phase 2 — Wire Protocol implementation authorization (2026-11-17)
@@ -213,3 +213,19 @@ Implementation must stay inside `internal/wire`, use only the standard library, 
 - Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
 
 **Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.
+
+
+## 12. Phase 2 Wire Codec completion — 2026-11-17
+
+**Status:** COMPLETE within the explicit Phase 2 authorization.
+
+- Current verified main HEAD: `b026dadd9ad0b33118b05f49477e1412a4255978`.
+- Go CI run `44044273742`: PASS (gofmt, vet, unit tests, race tests).
+- C++ golden compatibility run `44044273818`: PASS (compiled pinned Pinex production serializer snapshot, regenerated fixture frames, diffed fixture file and ran Go comparisons).
+- Pinex 1.5.0 source baseline: `f7bd1eb779baff0d10e624f20522df345e6ee747`.
+- Empty Bind Response Body behavior now matches Pinex's `can_be_omitted` default values.
+- Source snapshot provenance is recorded under `testdata/pinex-1.5.0/source/SNAPSHOT.md`.
+
+The fixture proves Go encoding/decoding against compiled C++ PDU serializer output and the source-audited 10-byte Header layout. It does not claim live TCP socket interoperability.
+
+**Boundary:** Phase 3 TCP transport, runtime integration, Session lifecycle, workers, resource admission, reconnect, live socket interop, benchmarks, release and deployment remain NOT AUTHORIZED.

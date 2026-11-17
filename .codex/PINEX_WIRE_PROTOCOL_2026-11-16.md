@@ -2,8 +2,8 @@
 
 **تاریخ بررسی:** 2026-11-17  
 **مرجع:** majiddarvishan/pinex — branch develop — version 1.5.0  
-**وضعیت:** SOURCE-VERIFIED + GO OWNER APPROVED — PROTOCOL-001 OPTION A CLOSED؛ سقف ثابت Maximum Frame برابر 1 MiB total؛ golden frames و cross-language verification هنوز اجرا نشده  
-**پیاده‌سازی:** NOT STARTED
+**وضعیت:** SOURCE-VERIFIED + GO OWNER APPROVED — PROTOCOL-001 OPTION A CLOSED؛ Phase 2 Wire Codec COMPLETE؛ C++ production-serializer golden CI PASS؛ live TCP interoperability اجرا نشده  
+**پیاده‌سازی:** PHASE 2 WIRE CODEC COMPLETE / GO CI + C++ GOLDEN CI PASS
 
 ---
 
@@ -361,3 +361,17 @@ No frozen architecture decision is reopened. Phase 1 remains complete with CI PA
 - Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
 
 **Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.
+
+
+## 17. Phase 2 implementation and C++ golden compatibility evidence (2026-11-17)
+
+Phase 2 pure-Go Wire Codec is COMPLETE within the explicit owner-approved scope. See [Phase 2 Implementation Record](NETA_GO_PHASE_2_WIRE_IMPLEMENTATION_2026-11-17.md).
+
+- Go CI run `44044273742`: PASS (format, vet, tests, race).
+- C++ compatibility CI run `44044273818`: PASS (compile pinned Pinex production PDU serializers, regenerate/diff golden frames, compare Go codec).
+- Pinned Pinex source: `f7bd1eb779baff0d10e624f20522df345e6ee747`.
+- Source snapshot and original Git blob hashes: `testdata/pinex-1.5.0/source/SNAPSHOT.md`.
+- Empty Bind Response Body behavior was corrected to match C++ `can_be_omitted` default values.
+- Go intentionally rejects malformed Bind/control encodings more strictly than legacy C++; valid frame encodings match.
+
+**Not performed:** live TCP Go↔C++ socket interoperability. Transport/runtime and all Phase 3+ work remain unauthorized.

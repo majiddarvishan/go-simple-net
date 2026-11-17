@@ -1288,3 +1288,29 @@ Implementation must stay inside `internal/wire`, use only the standard library, 
 - Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
 
 **Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.
+
+
+## 49. Phase 2 Wire Codec — implementation and C++ golden compatibility COMPLETE (2026-11-17)
+
+**Owner authorization:** Phase 2 was explicitly approved by the owner with «ادامه بده». Scope remains pure-Go `internal/wire`, Pinex 1.5.0 framing/PDU codecs, fixed 1 MiB frame cap, Sequence semantics, unit/golden tests, docs and CI.
+
+**Implementation result:** COMPLETE within that scope.
+
+- Go package: `internal/wire`; standard library only; no dependency on root `neta`.
+- Pinex source baseline: `majiddarvishan/pinex`, develop HEAD `f7bd1eb779baff0d10e624f20522df345e6ee747`, CMake version 1.5.0.
+- Frame: 10-byte header, BE u32 total length, u8 command, u8 status, BE u32 sequence; fixed 1,048,576-byte total maximum.
+- PDU: Bind Request/Response, raw Stream Request/Response, header-only Unbind and Enquire Link Request/Response.
+- Sequence: starts at 1, increments, skips zero on uint32 wraparound.
+- Compatibility correction: Pinex `bind_response` has `can_be_omitted=true`; an empty Body decodes to default `bi_direction` and empty system ID. Go now matches this.
+- Go deliberately rejects malformed Bind encodings (invalid bind_type, missing terminator, embedded NUL/trailing bytes) and nonempty control bodies; this is stricter than legacy C++ deserialization for malformed input only. Valid wire encodings match.
+
+**C++ fixture evidence:** `testdata/pinex-1.5.0/` contains a verbatim, narrowly scoped snapshot of 12 production headers with upstream blob SHA values recorded in `source/SNAPSHOT.md`. The fixture generator calls the actual Pinex 1.5.0 `serialize_to` and `deserialize` PDU templates. Its 10-byte header writer mirrors `session::serialize_header` at the pinned source commit. The private Pinex repository cannot be checked out by neta-go's GitHub Actions runner without a cross-repository credential, so CI compiles the exact pinned source snapshot instead. This is a compiled C++ serializer golden check, not a live socket-level integration test.
+
+**Verification at current implementation revision:**
+
+- Current verified main HEAD: `b026dadd9ad0b33118b05f49477e1412a4255978`.
+- Go CI run `44044273742`: PASS — gofmt, go vet, go test, go test -race.
+- C++ compatibility CI run `44044273818`: PASS — compile pinned C++ serializer fixture generator, regenerate and diff all golden frames, run Go golden compatibility tests.
+- Golden vectors cover Bind Request/Response, empty Bind Response, Stream Request/Response, Unbind Request/Response and Enquire Link Request/Response.
+
+**Explicit exclusions:** no TCP transport, socket read/write loops, Client/Server runtime integration, Session lifecycle, worker scheduler, resource admission runtime, reconnect, live Go↔C++ socket test, benchmarks, release or deployment. These remain Phase 3+ work and require separate owner authorization.
