@@ -450,11 +450,11 @@ func TestServerDoneForOldSessionCannotRemoveReplacementIdentity(t *testing.T) {
 	oldSession := &Session{}
 	newSession := &Session{}
 	server := &Server{
-		sessions:       map[*Session]struct{}{oldSession: {}, newSession: {}},
-		preBind:        make(map[*Session]struct{}),
-		pendingIDs:     make(map[string]*Session),
-		boundIDs:       map[string]*Session{"peer": newSession},
-		sessionIDs:     map[*Session]string{oldSession: "peer", newSession: "peer"},
+		sessions:   map[*Session]struct{}{oldSession: {}, newSession: {}},
+		preBind:    make(map[*Session]struct{}),
+		pendingIDs: make(map[string]*Session),
+		boundIDs:   map[string]*Session{"peer": newSession},
+		sessionIDs: map[*Session]string{oldSession: "peer", newSession: "peer"},
 	}
 
 	server.sessionDone(oldSession, ErrClosed)
