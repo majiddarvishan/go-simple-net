@@ -49,6 +49,12 @@
 
 **P9-05 is COMPLETE as a qualified engineering release-readiness review.** Code correctness, compatibility, examples, post-merge CI, protected-branch/PR enforcement, support, copyright/license and version/changelog approvals are PASS. The exact `strict`/admin bypass toggles and actual GitHub Release creation permission are **not independently verified**; they are mandatory P9-06 prepublication checks, not silently treated as PASS. This closure is NOT permission to publish.
 
+## PV-01 change after the previous P9-05 engineering review
+
+- [ ] Requalify the new Go Session version setting and default V2 against the exact protected main HEAD, including Go/race, examples and Pinex CI.
+- [ ] Owner review the added Unreleased CHANGELOG entry. The previous approved notes did not contain this new API/default.
+- [x] Clearly distinguish local V2 configuration from an actual new V2 wire format: both selections still use the **same 10-byte Header and NUL-terminated Bind Body**. There is no automatic negotiation and no peer capability assertion.
+
 ## Separate P9-06 release gate
 
 - [x] P9-05 engineering review completed with transparent release-time verification limits, recorded in [TASKS.md](../TASKS.md).

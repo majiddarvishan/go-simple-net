@@ -62,7 +62,7 @@ Options are applied before final validation. The resulting configuration is immu
 
 | Option | Default | Validation / behavior |
 |---|---:|---|
-| `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
+| `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`; immutable per Session, configured through Client/Server SessionOptions. Both values use identical Pinex 1.5.0 wire encoding; no version negotiation or removal of the Bind NUL. |\n| `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
 | `WithFrameAssemblyTimeout` | 30s | Positive absolute inbound Frame assembly deadline |
 | `WithUnbindTimeout` | 10s | Positive absolute Graceful Unbind deadline |
 | `WithWriteTimeout` | 30s | Positive absolute per-Frame Writer deadline |

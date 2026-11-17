@@ -1177,3 +1177,12 @@ The owner explicitly instructed **not to change code**, asked about dropping the
 This is a design-only decision. V1 stays default and wire-identical to Pinex C++ 1.5.0: 10-byte header; BindType + `c_octet_str<20>` NUL-terminated SystemID; omitted BindResp body allowed with defaults. The old Pinex C++ decoder explicitly searches for NUL; sending V2 Bind without it to a legacy peer is incompatible. Positive peer capability agreement is required before V2. The selection/handshake mechanism, possible V2 Bind optimization and API contracts remain OPEN — no speculative in-band negotiation, version probing or automatic downgrade allowed.
 
 Formal architecture record: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md); canonical root `TASKS.md` tracks PV-02..PV-05 as future, separately unauthorised tasks. No source/tests/CI/golden fixtures were changed. P9-06 `v1.0.0` release **NOT AUTHORIZED**; local stash untouched.
+
+
+## 38. PV-01 — Go-only Session protocol version API, V2 local default (2026-11-18)
+
+Owner explicitly authorized a **Go-only** protocol version selection and changed the Session default to `ProtocolVersionV2`. Public declarations: `ProtocolVersion`, `ProtocolVersionV1`, `ProtocolVersionV2`, `WithProtocolVersion(version)` (SessionOption), and `(*Session).ProtocolVersion()`. Validation rejects 0 or unsupported values, defaults and overrides tested; Client/Server inherit Session options.
+
+This is a **local version setting only**. Both values continue to use **identical Pinex 1.5.0 wire bytes**, including the 10-byte Header and NUL-terminated Bind SystemID. No wire negotiation or on-wire V2, no NUL removal, no Pinex C++ changes. Future PV-02/PV-03 decide actual V2 wire or negotiation separately.
+
+The previous P9-05 signoff predates this API/default change. PV-01-R now requires fresh protected-main Go/race/example/Pinex CI and owner approval of the amended Unreleased CHANGELOG before any `v1.0.0` release. P9-06 remains NOT AUTHORIZED. Do not create tags/Releases and do not touch the owner's local stash.
