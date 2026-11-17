@@ -376,6 +376,8 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	wg.Wait()
 	b.StopTimer()
 	elapsed := b.Elapsed()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
 	if firstError != nil {
 		b.Fatalf("SendNoWait benchmark failed: %v", firstError)
 	}
@@ -394,7 +396,7 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	for _, client := range env.clients {
 		completionWorkerCount += client.callbacks.completion.snapshot().Workers
 	}
-	phase8ReportRuntime(b, before, elapsed, appSnapshot, completionWorkerCount)
+	phase8ReportRuntime(b, before, after, elapsed, appSnapshot, completionWorkerCount)
 }
 
 func TestPhase8RuntimeMetadata(t *testing.T) {
