@@ -178,7 +178,9 @@ func (s *Session) Unbind(ctx context.Context) error {
 	case <-s.done:
 		return s.Err()
 	case <-ctx.Done():
-		s.beginClose(ctx.Err(), true)
+		// The caller's earlier Context wins the wait, but the Session's
+		// terminal lifecycle classification remains the approved Unbind timeout.
+		s.beginClose(ErrUnbindTimeout, true)
 		<-s.done
 		return ctx.Err()
 	}
@@ -219,7 +221,7 @@ func (s *Session) completeRequest(sequence uint32, response Response, resultErr 
 	s.dispatchMu.Lock()
 	s.mu.Lock()
 	pending := s.pending[sequence]
-	if pending == nil || pending.settled {
+	if pending == nil || pending.settled || !pending.writerClaimed {
 		s.mu.Unlock()
 		s.dispatchMu.Unlock()
 		return

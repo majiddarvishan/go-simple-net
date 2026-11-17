@@ -33,12 +33,17 @@ func (s *Session) readFrame() (wire.Frame, error) {
 	if _, err := io.ReadFull(s.conn, headerBytes[:1]); err != nil {
 		return wire.Frame{}, err
 	}
+	firstByteAt := time.Now()
 
 	s.mu.Lock()
-	bound := s.state == SessionStateBound || s.state == SessionStateUnbinding
+	frameAssemblyApplies := s.state == SessionStateBound || s.state == SessionStateUnbinding ||
+		(s.role == sessionRoleServer && s.state == SessionStateBinding &&
+			(s.bindResponseWriting || s.bindResponseSent))
 	s.mu.Unlock()
-	if bound {
-		if err := s.conn.SetReadDeadline(time.Now().Add(s.config.frameAssemblyTimeout)); err != nil {
+	if frameAssemblyApplies {
+		// Keep the deadline anchored to the first byte, including the small
+		// Binding->Bound race after the server's Bind Response reaches the peer.
+		if err := s.conn.SetReadDeadline(firstByteAt.Add(s.config.frameAssemblyTimeout)); err != nil {
 			return wire.Frame{}, err
 		}
 	}
@@ -79,6 +84,14 @@ func (s *Session) readFrame() (wire.Frame, error) {
 	return wire.Frame{Header: header, Body: body}, nil
 }
 
+func (s *Session) noteActivityLocked() {
+	s.lastActivity = time.Now()
+	if s.state == SessionStateBound && s.enquireLinkQueued && !s.enquireLinkWriting {
+		s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+		s.clearProbeLocked()
+	}
+}
+
 func (s *Session) handleFrame(frame wire.Frame) error {
 	if frame.Header.Sequence == 0 {
 		return ErrProtocol
@@ -86,11 +99,7 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 	s.mu.Lock()
 	state := s.state
 	role := s.role
-	s.lastActivity = time.Now()
-	if state == SessionStateBound && s.enquireLinkQueued && !s.enquireLinkWriting {
-		s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
-		s.clearProbeLocked()
-	}
+	s.noteActivityLocked()
 	s.mu.Unlock()
 	s.signalControl()
 
@@ -377,6 +386,7 @@ func (s *Session) writerLoop() {
 			s.barrierQueue = s.barrierQueue[1:]
 		}
 		s.activeWrite = item
+		writeStartedAt := time.Now()
 		if item.bindRequest {
 			s.bindRequestWriting = true
 		}
@@ -396,7 +406,7 @@ func (s *Session) writerLoop() {
 		}
 		s.mu.Unlock()
 
-		err := writeFullFrame(s.conn, item.bytes, s.config.writeTimeout)
+		err := writeFullFrameUntil(s.conn, item.bytes, writeStartedAt.Add(s.config.writeTimeout))
 
 		s.mu.Lock()
 		s.releaseFrameChargeLocked(item)
@@ -404,7 +414,9 @@ func (s *Session) writerLoop() {
 			s.activeWrite = nil
 		}
 		if err == nil && !s.isClosingLocked() {
-			s.lastActivity = time.Now()
+			// A successfully written frame resets inactivity just like an
+			// inbound frame. Cancel a probe that was queued behind this Write.
+			s.noteActivityLocked()
 			if item.bindRequest {
 				s.bindRequestWriting = false
 				s.bindRequestSent = true
@@ -439,7 +451,14 @@ func writeFullFrame(conn net.Conn, frame []byte, timeout time.Duration) error {
 	if timeout <= 0 {
 		return ErrWriteTimeout
 	}
-	if err := conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+	return writeFullFrameUntil(conn, frame, time.Now().Add(timeout))
+}
+
+func writeFullFrameUntil(conn net.Conn, frame []byte, deadline time.Time) error {
+	if !time.Now().Before(deadline) {
+		return ErrWriteTimeout
+	}
+	if err := conn.SetWriteDeadline(deadline); err != nil {
 		return err
 	}
 	defer conn.SetWriteDeadline(time.Time{})

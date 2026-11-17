@@ -1207,3 +1207,288 @@ func (c shortWriteConn) Write(payload []byte) (int, error) {
 	}
 	return c.Conn.Write(payload)
 }
+
+
+func TestSessionIgnoresResponseBeforeWriterClaimsRequest(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.requestTimeout = 2 * time.Second
+	config.enquireLinkIdleInterval = 0
+	dispatcher := &testSessionDispatcher{}
+	var secondResponse Response
+	var secondErr error
+	secondCalls := 0
+	session := newTestBoundSession(local, config, dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	firstSequence, err := session.SendRequest([]byte("writer-blocker"), func(Response, error) {})
+	if err != nil {
+		t.Fatalf("first SendRequest: %v", err)
+	}
+	secondSequence, err := session.SendRequest([]byte("queued-request"), func(response Response, err error) {
+		secondCalls++
+		secondResponse, secondErr = response, err
+	})
+	if err != nil {
+		t.Fatalf("second SendRequest: %v", err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		first := session.pending[firstSequence]
+		second := session.pending[secondSequence]
+		ready := first != nil && first.writerClaimed && second != nil && !second.writerClaimed
+		session.mu.Unlock()
+		if ready {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	first := session.pending[firstSequence]
+	second := session.pending[secondSequence]
+	ready := first != nil && first.writerClaimed && second != nil && !second.writerClaimed
+	session.mu.Unlock()
+	if !ready {
+		t.Fatal("expected first Request to own Writer while second remains queued")
+	}
+
+	forged, err := wire.EncodeStreamResponse(secondSequence, wire.StatusOK, []byte("forged-before-send"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, forged)
+	time.Sleep(20 * time.Millisecond)
+	if got := dispatcher.completionCount(); got != 0 {
+		t.Fatalf("pre-send Response queued %d Completion callbacks", got)
+	}
+	session.mu.Lock()
+	second = session.pending[secondSequence]
+	stillPending := second != nil && !second.settled && !second.writerClaimed
+	session.mu.Unlock()
+	if !stillPending {
+		t.Fatal("pre-send Response settled or removed the queued Request")
+	}
+
+	firstFrame := readWireFrame(t, peer)
+	secondFrame := readWireFrame(t, peer)
+	if firstFrame.Header.Sequence != firstSequence || secondFrame.Header.Sequence != secondSequence {
+		t.Fatalf("outbound Sequences = %d, %d; want %d, %d",
+			firstFrame.Header.Sequence, secondFrame.Header.Sequence, firstSequence, secondSequence)
+	}
+
+	actual, err := wire.EncodeStreamResponse(secondSequence, wire.StatusOK, []byte("actual-response"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, actual)
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	if secondCalls != 1 || secondErr != nil || string(secondResponse.Payload) != "actual-response" {
+		t.Fatalf("Completion calls=%d response=%+v error=%v", secondCalls, secondResponse, secondErr)
+	}
+	if got := dispatcher.completionCount(); got != 0 {
+		t.Fatalf("unexpected duplicate Completion callbacks: %d", got)
+	}
+
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionCancelsQueuedEnquireLinkAfterOutboundActivity(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 40 * time.Millisecond
+	config.enquireLinkResponseTimeout = 100 * time.Millisecond
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("outbound-activity")); err != nil {
+		t.Fatalf("SendNoWait: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		queued := session.enquireLinkQueued && !session.enquireLinkWriting
+		session.mu.Unlock()
+		if queued {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	queued := session.enquireLinkQueued && !session.enquireLinkWriting
+	session.mu.Unlock()
+	if !queued {
+		t.Fatal("EnquireLink was not queued behind the active Application Write")
+	}
+
+	outbound := readWireFrame(t, peer)
+	if outbound.Header.Command != wire.CommandStreamRequest || string(outbound.Body) != "outbound-activity" {
+		t.Fatalf("unexpected outbound frame: %+v body=%q", outbound.Header, outbound.Body)
+	}
+	session.mu.Lock()
+	session.config.enquireLinkIdleInterval = 0
+	session.mu.Unlock()
+
+	deadline = time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		cancelled := !session.enquireLinkQueued && !session.enquireLinkWriting && !session.enquireLinkOutstanding
+		session.mu.Unlock()
+		if cancelled {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	cancelled := !session.enquireLinkQueued && !session.enquireLinkWriting && !session.enquireLinkOutstanding
+	session.mu.Unlock()
+	if !cancelled {
+		t.Fatal("successful outbound activity did not cancel the queued EnquireLink")
+	}
+
+	_ = peer.SetReadDeadline(time.Now().Add(60 * time.Millisecond))
+	var one [1]byte
+	if _, err := peer.Read(one[:]); err == nil {
+		t.Fatal("queued EnquireLink was transmitted after successful outbound activity")
+	} else if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("unexpected read error: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionServerFirstPostBindFrameUsesAssemblyDeadline(t *testing.T) {
+	local, peer := net.Pipe()
+	gate := make(chan struct{})
+	wrapped := writeReturnGateConn{Conn: local, gate: gate}
+	config := defaultSessionConfig()
+	config.frameAssemblyTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	session, err := newServerPreBindSession(wrapped, config, time.Now(), time.Second, &testSessionDispatcher{}, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newServerPreBindSession: %v", err)
+	}
+	defer peer.Close()
+
+	bindRequest, err := wire.EncodeBindRequest(41, wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "peer",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, bindRequest)
+	event, err := session.waitBindRequest(context.Background())
+	if err != nil {
+		t.Fatalf("waitBindRequest: %v", err)
+	}
+	if err := session.completeBind(event, "server", nil); err != nil {
+		t.Fatalf("completeBind: %v", err)
+	}
+	response := readWireFrame(t, peer)
+	if response.Header.Command != wire.CommandBindResponse {
+		t.Fatalf("expected Bind Response, got 0x%x", response.Header.Command)
+	}
+	session.mu.Lock()
+	responseWriteHeld := session.bindResponseWriting
+	session.mu.Unlock()
+	if !responseWriteHeld {
+		t.Fatal("expected server Bind Response Write to remain in flight")
+	}
+
+	frame, err := wire.EncodeStreamRequest(42, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := peer.Write(frame[:1]); err != nil {
+		t.Fatalf("write first post-Bind Header byte: %v", err)
+	}
+	senderDone := make(chan struct{})
+	go func() {
+		defer close(senderDone)
+		for i := 1; i < len(frame); i++ {
+			time.Sleep(20 * time.Millisecond)
+			if _, err := peer.Write(frame[i : i+1]); err != nil {
+				return
+			}
+		}
+	}()
+
+	deadline := time.Now().Add(150 * time.Millisecond)
+	closing := false
+	for time.Now().Before(deadline) {
+		state := session.State()
+		if state == SessionStateClosing || state == SessionStateClosed {
+			closing = true
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(gate)
+	if !closing {
+		session.Close()
+	}
+	<-senderDone
+	waitDone(t, session)
+	if !closing {
+		t.Fatal("first post-Bind Frame did not receive its absolute assembly deadline")
+	}
+	var operationErr *OperationError
+	if !errors.As(session.Err(), &operationErr) || operationErr.Operation() != "frame assembly" ||
+		!errors.Is(session.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected first post-Bind frame assembly timeout, got %v", session.Err())
+	}
+}
+
+func TestSessionUnbindContextCancellationUsesUnbindTimeoutTerminalCause(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.unbindTimeout = time.Second
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() { result <- session.Unbind(ctx) }()
+	request := readWireFrame(t, peer)
+	if request.Header.Command != wire.CommandUnbindRequest {
+		t.Fatalf("expected Unbind Request, got 0x%x", request.Header.Command)
+	}
+	cancel()
+
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Unbind return error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Unbind did not return after caller Context cancellation")
+	}
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrUnbindTimeout) {
+		t.Fatalf("Session terminal cause = %v, want ErrUnbindTimeout", session.Err())
+	}
+}
+
+func TestSessionIncomingEnquireLinkAnsweredWhenDisabled(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	request, err := wire.EncodeEnquireLinkRequest(77)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	response := readWireFrame(t, peer)
+	if response.Header.Command != wire.CommandEnquireLinkResponse || response.Header.Sequence != 77 {
+		t.Fatalf("unexpected EnquireLink Response: %+v", response.Header)
+	}
+	session.Close()
+	waitDone(t, session)
+}
