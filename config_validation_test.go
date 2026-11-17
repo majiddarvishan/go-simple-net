@@ -210,3 +210,97 @@ func TestOwnerAndSessionBudgetsDoNotImposeProductConstraints(t *testing.T) {
 		t.Fatalf("independent aggregate and Session budgets must not be rejected by product constraints: %v", err)
 	}
 }
+
+
+func TestServerWorker009CHardMaximums(t *testing.T) {
+	cases := []struct {
+		name  string
+		opt   ServerOption
+		field string
+	}{
+		{"application_workers", WithServerApplicationWorkers(513), "application_workers_per_owner"},
+		{"completion_workers", WithServerCompletionWorkers(257), "completion_workers_per_owner"},
+		{"onclose_workers", WithServerOnCloseWorkers(129), "onclose_workers_per_owner"},
+		{"onclose_event_credits", WithServerOnCloseEventCredits(4097), "onclose_event_credits_per_owner"},
+		{"owner_requests", WithServerMaxOutstandingRequests(131073), "max_outstanding_requests_per_owner"},
+		{"owner_application_bytes", WithServerMaxRetainedApplicationBytes((2 << 30) + 1), "max_retained_application_bytes_per_owner"},
+		{"owner_completion_bytes", WithServerMaxRetainedCompletionBytes((1 << 30) + 1), "max_retained_completion_bytes_per_owner"},
+		{"application_idle_grace", WithServerApplicationWorkerIdleGrace(10*time.Minute + 1), "application_worker_idle_grace"},
+		{"completion_idle_grace", WithServerCompletionWorkerIdleGrace(10*time.Minute + 1), "completion_worker_idle_grace"},
+		{"onclose_idle_grace", WithServerOnCloseWorkerIdleGrace(10*time.Minute + 1), "onclose_worker_idle_grace"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewServer(WithServerListenAddress("127.0.0.1:0"), test.opt)
+			requireConfigError(t, err, test.field)
+		})
+	}
+}
+
+func TestServerWorker009CInclusiveMaximums(t *testing.T) {
+	_, err := NewServer(
+		WithServerListenAddress("127.0.0.1:0"),
+		WithServerApplicationWorkers(512),
+		WithServerCompletionWorkers(256),
+		WithServerOnCloseWorkers(128),
+		WithServerApplicationWorkerIdleGrace(10*time.Minute),
+		WithServerCompletionWorkerIdleGrace(10*time.Minute),
+		WithServerOnCloseWorkerIdleGrace(10*time.Minute),
+		WithServerOnCloseEventCredits(4096),
+		WithServerMaxOutstandingRequests(131072),
+		WithServerMaxRetainedApplicationBytes(2<<30),
+		WithServerMaxRetainedCompletionBytes(1<<30),
+		WithServerMaxAggregateQueuedApplicationFrames(262144),
+		WithServerSessionOptions(
+			WithApplicationCallbackConcurrency(32),
+			WithCompletionCallbackConcurrency(32),
+			WithMaxIncomingApplicationFrames(1024),
+			WithMaxOutgoingApplicationFrames(1024),
+			WithMaxOutstandingRequestsPerSession(512),
+			WithMaxRetainedApplicationBytesPerSession(64<<20),
+			WithMaxRetainedCompletionBytesPerSession(64<<20),
+		),
+	)
+	if err != nil {
+		t.Fatalf("all Server-side inclusive hard maxima should be accepted: %v", err)
+	}
+}
+
+func TestServerWorkerIdleGraceAcceptsMinimumForEveryClass(t *testing.T) {
+	cases := []struct {
+		name string
+		opt  ServerOption
+	}{
+		{"application", WithServerApplicationWorkerIdleGrace(time.Millisecond)},
+		{"completion", WithServerCompletionWorkerIdleGrace(time.Millisecond)},
+		{"onclose", WithServerOnCloseWorkerIdleGrace(time.Millisecond)},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := NewServer(WithServerListenAddress(":0"), test.opt); err != nil {
+				t.Fatalf("1ms idle grace must be accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestNestedSessionOptionsUseFinalEffectiveValues(t *testing.T) {
+	client, err := NewClient(
+		WithClientAddress("127.0.0.1:9000"),
+		WithClientSessionOptions(
+			WithRequestTimeout(0),
+			WithApplicationCallbackConcurrency(33),
+		),
+		WithClientSessionOptions(
+			WithRequestTimeout(15*time.Second),
+			WithApplicationCallbackConcurrency(4),
+		),
+	)
+	if err != nil {
+		t.Fatalf("all nested options must be applied before final validation: %v", err)
+	}
+	if client.config.session.requestTimeout != 15*time.Second ||
+		client.config.session.applicationConcurrency != 4 {
+		t.Fatalf("unexpected final Session configuration: %+v", client.config.session)
+	}
+}
