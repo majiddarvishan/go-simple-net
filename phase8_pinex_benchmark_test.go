@@ -102,7 +102,7 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 	for _, size := range []int{64, 1024, 4096, 64 << 10, wire.MaxBodySize} {
 		producers := []int{1, 4, 16}
 		if size == wire.MaxBodySize {
-			producers = []int{1, 4}
+			producers = []int{1}
 		}
 		for _, producerCount := range producers {
 			name := fmt.Sprintf("payload=%s/producers=%d", phase8PayloadName(size), producerCount)

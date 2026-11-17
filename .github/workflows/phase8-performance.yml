@@ -94,7 +94,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: neta-go-phase8-baseline-SOURCE_SHA
+          name: neta-go-phase8-baseline-${{ github.sha }}
           path: artifacts/
           if-no-files-found: warn
           retention-days: 30

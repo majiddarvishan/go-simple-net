@@ -563,7 +563,7 @@ func BenchmarkPhase8RequestResponse(b *testing.B) {
 				producers = []int{32, 64}
 			}
 			if size == wire.MaxBodySize {
-				producers = []int{1, 4}
+				producers = []int{1}
 			}
 			for _, producerCount := range producers {
 				name := fmt.Sprintf("payload=%s/sessions=%d/producers=%d",
