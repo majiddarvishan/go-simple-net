@@ -259,12 +259,12 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] **P9-00 — Documentation and tracker reconciliation:** correct Phase 8/HEAD status; synchronize README, HANDOFF and authorization records; refine Phase 9 acceptance criteria/dependencies; record the owner authorization and release-tag boundary. No production source changed.
 - [x] **P9-01 — Client example:** added `examples/client/main.go` covering configuration, Connect/Bind, SendRequest/Completion, SendNoWait, error handling and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
 - [x] **P9-02 — Server example:** added `examples/server/main.go` covering Start/Addr, BindValidator, OnRequest/SendResponse, OnClose and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
-- [ ] **P9-03 — Public API and usage documentation:**
-  - [ ] Audit GoDoc for every exported type, constant, function, method and Functional Option; document all 56 With... option constructors and callback contracts.
-  - [ ] Document configuration defaults, valid ranges, hard maxima, zero-value semantics, inheritance and independent Client/Server/Session resource budgets.
-  - [ ] Document payload ownership, callback lanes/concurrency/order, admission errors, Request completion semantics, errors.Is/errors.As, timeouts, reconnect and shutdown/Done semantics.
-  - [ ] Expand README with prerequisites, installation, Quick Start, links to the examples and documentation index.
-- [ ] **P9-04 — Pinex compatibility documentation:** document the supported Pinex version/source SHA, wire/frame compatibility, golden-fixture evidence, both real TCP interoperability directions and explicit test limitations.
+- [x] **P9-03 — Public API and usage documentation:** completed GoDoc for exported declarations and all 56 `With...` constructors; added API, Configuration and Lifecycle guides; expanded README with prerequisites, development installation, Quick Start and documentation links.
+  - [x] Audit GoDoc for every exported type, constant, function, method and Functional Option; all exported declarations are documented.
+  - [x] Document configuration defaults, valid ranges, hard maxima, zero-value semantics, inheritance and independent Client/Server/Session resource budgets.
+  - [x] Document payload ownership, callback lanes/concurrency/order, admission errors, Request completion semantics, errors.Is/errors.As, timeouts, reconnect and shutdown/Done semantics.
+  - [x] Expand README with prerequisites, installation, Quick Start, links to the examples and documentation index.
+- [x] **P9-04 — Pinex compatibility documentation:** added `docs/PINEX_COMPATIBILITY.md` with the Pinex 1.5.0 source SHA, wire/frame contract, golden-fixture provenance, both real TCP interoperability directions, fuzz/fault/soak evidence and explicit test limitations.
 - [ ] **P9-05 — Test, CI and release-readiness review:**
   - [ ] Build/test both examples and ensure CI compiles them; run the complete correctness and Pinex compatibility gates.
   - [ ] Record `go test -cover ./...` results for visibility; do not invent or enforce a coverage threshold without owner approval.
@@ -285,6 +285,12 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Final P9-00 Go CI [44114744808](https://github.com/majiddarvishan/neta-go/actions/runs/44114744808): PASS; Pinex Wire Compatibility [44114744875](https://github.com/majiddarvishan/neta-go/actions/runs/44114744875): PASS on HEAD `a43b0e5ca9b50f592ae402d18968b538af5bc128`.
 - P9-01/P9-02 example commit: [04d905f75786542c9b51f48a33228b9bd372b419](https://github.com/majiddarvishan/neta-go/commit/04d905f75786542c9b51f48a33228b9bd372b419).
 - Go correctness CI [44115049164](https://github.com/majiddarvishan/neta-go/actions/runs/44115049164): PASS (`make verify`: formatting, vet, unit and race); `go test ./...` compiles both example packages. Pinex Wire Compatibility [44115049277](https://github.com/majiddarvishan/neta-go/actions/runs/44115049277): PASS.
+- P9-03/P9-04 documentation and GoDoc commits: [119be0adc61d1306c595f7aca6d7dc551c445fce](https://github.com/majiddarvishan/neta-go/commit/119be0adc61d1306c595f7aca6d7dc551c445fce), [631382c97f0702ea822203532f73567eeb594611](https://github.com/majiddarvishan/neta-go/commit/631382c97f0702ea822203532f73567eeb594611), formatting correction [a9ac0f6b530e2246fc73914d9db4ffcf3664db04](https://github.com/majiddarvishan/neta-go/commit/a9ac0f6b530e2246fc73914d9db4ffcf3664db04), and final helper restoration [3adca4f49e8565010344411dfdb0d83976218688](https://github.com/majiddarvishan/neta-go/commit/3adca4f49e8565010344411dfdb0d83976218688).
+- Go correctness CI [44116677209](https://github.com/majiddarvishan/neta-go/actions/runs/44116677209): PASS (`make verify`: gofmt, go vet, unit tests and race tests) on final P9-03/P9-04 HEAD `3adca4f49e8565010344411dfdb0d83976218688`.
+- Pinex Wire Compatibility CI [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS on the same HEAD.
+- GoDoc audit: all exported top-level declarations in the root production package have comments; all 56 exported `With...` constructors are documented. Internal Markdown link audit: PASS.
+- P9-03/04 changed documentation and comments only. The private `newConfigError` helper was restored unchanged; no production behavior/API/protocol/default/resource policy changed.
+- P9-05 still needs a paired Client/Server runtime smoke test, `go test -cover ./...` evidence, supported Go/OS/architecture baseline, changelog/versioning and repository release-setting review.
 - Runtime smoke of the two programs together remains in P9-05; current CI proves compilation and repository correctness, not yet a paired live example run.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 

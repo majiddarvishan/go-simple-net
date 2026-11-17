@@ -36,15 +36,15 @@ Examples may add source under `examples/`; docs, tests and CI harness changes ar
 
 ## 3. Task sequence, estimates and acceptance criteria
 
-Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00, P9-01 and P9-02 are complete; remaining work is approximately **6.5–9.5 hours**, including the separately gated release operation.
+Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00 through P9-04 are complete; remaining work is approximately **2.5–3.5 hours**, including the separately gated release operation.
 
 | Task | Estimate | Dependency | Acceptance |
 |---|---:|---|---|
 | P9-00 Tracker/status reconciliation | 0.5–1 h | None | Complete |
 | P9-01 Client example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
-| P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | Exported API/option GoDoc complete; configuration and lifecycle contracts documented; README Quick Start works |
-| P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | Exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
+| P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | COMPLETE — exported GoDoc, API/configuration/lifecycle docs and README Quick Start verified |
+| P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | COMPLETE — exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
 | P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | Examples compile; correctness/compatibility gates pass; coverage and support baseline recorded; changelog/version/release checklist reviewed |
 | P9-06 V1 tag/release | ~0.5 h | P9-05 + separate approval | Only perform after explicit owner release approval |
 
@@ -57,7 +57,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 - Refined Phase 9 tasks, acceptance criteria, dependencies and the P9-06 release boundary.
 - Recorded the Phase 9 authorization in the decision log and this plan.
 - No production source, tests, public API, wire protocol, defaults or resource limits changed.
-- P9-00 commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450) and [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0).
+- P9-00 commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450), [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0), and final link/evidence correction [a43b0e5ca9b50f592ae402d18968b538af5bc128](https://github.com/majiddarvishan/neta-go/commit/a43b0e5ca9b50f592ae402d18968b538af5bc128).
 - Go correctness CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747) PASS (`make verify`) and Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634) PASS on the final P9-00 commit.
 - A relative Markdown link audit corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; the audited links now resolve.
 
@@ -105,6 +105,18 @@ Acceptance: example compiles, documents how the Client example connects, and is 
 
 ### P9-03 — Public API and usage documentation
 
+**Status: COMPLETE.**
+
+- Added `docs/API.md`, `docs/CONFIGURATION.md` and `docs/LIFECYCLE.md`.
+- Expanded root README with prerequisites, development installation, paired-example Quick Start and documentation links.
+- Expanded package-level `doc.go` and GoDoc for all exported root-package declarations, fields, errors, methods and callback types.
+- All 56 exported `With...` constructors have individual GoDoc comments; a source audit found zero undocumented exported top-level declarations.
+- Internal Markdown link audit passed.
+- Initial Go CI attempts caught formatting and a subsequently exposed missing private `newConfigError` helper; formatting was corrected and the original helper was restored unchanged. Final acceptance is the passing run below.
+- Final Go correctness CI [44116677209](https://github.com/majiddarvishan/neta-go/actions/runs/44116677209): PASS (`make verify`, including gofmt, vet, unit and race). Final Pinex Wire Compatibility [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS on HEAD `3adca4f49e8565010344411dfdb0d83976218688`.
+
+
+
 Required outputs:
 - Complete GoDoc for exported package declarations and all exported methods/types/constants/errors/options. The initial audit found 56 exported `With...` constructors, only 9 with directly adjacent comments; verify every exported declaration rather than assuming this count is the entire public API.
 - Configuration reference: every option, scope (Client/Server/Session), default, valid range/hard maximum, zero-value behavior, inheritance, and cross-field validation.
@@ -118,6 +130,13 @@ Required outputs:
 No documentation may promise delivery merely because a send was admitted, claim that callbacks are joined by Done, or imply that AutoReconnect replays Requests.
 
 ### P9-04 — Pinex compatibility documentation
+
+**Status: COMPLETE.**
+
+- Added `docs/PINEX_COMPATIBILITY.md` with the verified Pinex 1.5.0 source SHA, wire contract, 1 MiB Frame limit, golden provenance, live TCP directions, fuzz/fault/soak evidence and explicit limitations.
+- Latest compatibility workflow [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS.
+
+
 
 Document:
 - Pinex C++ 1.5.0 compatibility target and exact source SHA `f7bd1eb779baff0d10e624f20522df345e6ee747`.
@@ -159,7 +178,7 @@ P9-00
                                                                             └── P9-06 (separate owner approval)
 ```
 
-P9-01, P9-02 and P9-04 may proceed independently after P9-00. P9-03 depends on the examples so Quick Start can refer to verified artifacts. P9-05 depends on all docs/examples and evidence. P9-06 is always separately gated.
+P9-01, P9-02 and P9-04 were completed independently after P9-00. P9-03 followed the examples so Quick Start could refer to verified artifacts. P9-05 is now the remaining authorized work and depends on all docs/examples/evidence. P9-06 is always separately gated.
 
 ## 5. Open release questions (do not guess)
 

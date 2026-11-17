@@ -51,7 +51,7 @@ The Pinex Wire Compatibility workflow:
 2. Regenerates the golden vectors and diffs them against the checked-in fixture file.
 3. Runs Go codec tests against those vectors.
 
-Latest example-era compatibility workflow: [44115049277](https://github.com/majiddarvishan/neta-go/actions/runs/44115049277) PASS. This is a golden-frame check, not a live socket test.
+Latest compatibility workflow after the Phase 9 documentation updates: [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706) PASS. This is a golden-frame check, not a live socket test.
 
 ## Live TCP interoperability
 

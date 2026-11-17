@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 tracker reconciliation, P9-01 Client example and P9-02 Server example are complete. The example packages compile and the Go correctness/Pinex compatibility CI gates pass. Next: complete public API and usage documentation (P9-03), document Pinex compatibility evidence (P9-04), then run paired example smoke and release-readiness review (P9-05). P9-06 release tagging remains separately gated on explicit owner approval.
+**Current work:** P9-00 through P9-04 are complete: tracker reconciliation, Client/Server examples, GoDoc, API/configuration/lifecycle guides, README Quick Start and Pinex compatibility evidence. Go correctness and Pinex compatibility CI pass on final P9-03/P9-04 HEAD `3adca4f49e8565010344411dfdb0d83976218688`. Next: P9-05 paired example runtime smoke, coverage evidence and release-readiness review. P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
@@ -1100,4 +1100,4 @@ Do not apply or drop the stash as part of this review.
 
 ### Next action
 
-P9-00 is committed. Go correctness CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747) and Pinex Wire Compatibility CI [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634) both PASS on final P9-00 HEAD `c6ac25338851edda1630dd6301a8eaf509f994c0`. Next: begin P9-01 and P9-02. Keep all frozen production contracts unchanged.
+P9-01 and P9-02 are complete at commit `04d905f75786542c9b51f48a33228b9bd372b419`. P9-03 and P9-04 are complete at final docs/GoDoc HEAD `3adca4f49e8565010344411dfdb0d83976218688`. Go correctness CI [44116677209](https://github.com/majiddarvishan/neta-go/actions/runs/44116677209) and Pinex Wire Compatibility CI [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706) both PASS. Next: P9-05 paired runtime smoke, coverage evidence and release-readiness review. Keep all frozen production contracts unchanged.
