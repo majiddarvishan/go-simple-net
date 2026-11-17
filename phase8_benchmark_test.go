@@ -20,6 +20,8 @@ import (
 )
 
 type phase8BenchEnv struct {
+	closeOnce sync.Once
+	closeErr  error
 	server   *Server
 	clients  []*Client
 	sessions []*Session
@@ -32,7 +34,7 @@ type phase8CompletionResult struct {
 	err      error
 }
 
-func newPhase8BenchEnv(b *testing.B, sessionCount int, applicationConcurrency, completionConcurrency uint32, respond bool, raiseWorkerCeilings bool) *phase8BenchEnv {
+func newPhase8BenchEnv(b testing.TB, sessionCount int, applicationConcurrency, completionConcurrency uint32, respond bool, raiseWorkerCeilings bool) *phase8BenchEnv {
 	b.Helper()
 	env := &phase8BenchEnv{
 		clients:  make([]*Client, 0, sessionCount),
@@ -75,39 +77,7 @@ func newPhase8BenchEnv(b *testing.B, sessionCount int, applicationConcurrency, c
 	if err := server.Start(); err != nil {
 		b.Fatalf("Server.Start: %v", err)
 	}
-	b.Cleanup(func() {
-		for _, client := range env.clients {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = client.Stop(ctx)
-			cancel()
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = env.server.Stop(ctx)
-		cancel()
-
-		retired := func() bool {
-			if env.server.callbacks.application.snapshot().Workers != 0 ||
-				env.server.callbacks.completion.snapshot().Workers != 0 ||
-				env.server.callbacks.onClose.snapshot().Workers != 0 {
-				return false
-			}
-			for _, client := range env.clients {
-				if client.callbacks.application.snapshot().Workers != 0 ||
-					client.callbacks.completion.snapshot().Workers != 0 ||
-					client.callbacks.onClose.snapshot().Workers != 0 {
-					return false
-				}
-			}
-			return true
-		}
-		deadline := time.Now().Add(2 * time.Second)
-		for !retired() && time.Now().Before(deadline) {
-			time.Sleep(time.Millisecond)
-		}
-		if !retired() {
-			b.Errorf("benchmark cleanup left callback workers alive after idle grace")
-		}
-	})
+	b.Cleanup(func() { env.close(b) })
 
 	for i := 0; i < sessionCount; i++ {
 		options := []ClientOption{
@@ -145,6 +115,51 @@ func newPhase8BenchEnv(b *testing.B, sessionCount int, applicationConcurrency, c
 	return env
 }
 
+
+func (e *phase8BenchEnv) close(t testing.TB) {
+	t.Helper()
+	e.closeOnce.Do(func() {
+		for _, client := range e.clients {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := client.Stop(ctx); err != nil && e.closeErr == nil {
+				e.closeErr = fmt.Errorf("Client.Stop: %w", err)
+			}
+			cancel()
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := e.server.Stop(ctx); err != nil && e.closeErr == nil {
+			e.closeErr = fmt.Errorf("Server.Stop: %w", err)
+		}
+		cancel()
+
+		retired := func() bool {
+			if e.server.callbacks.application.snapshot().Workers != 0 ||
+				e.server.callbacks.completion.snapshot().Workers != 0 ||
+				e.server.callbacks.onClose.snapshot().Workers != 0 {
+				return false
+			}
+			for _, client := range e.clients {
+				if client.callbacks.application.snapshot().Workers != 0 ||
+					client.callbacks.completion.snapshot().Workers != 0 ||
+					client.callbacks.onClose.snapshot().Workers != 0 {
+					return false
+				}
+			}
+			return true
+		}
+		deadline := time.Now().Add(2 * time.Second)
+		for !retired() && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+		}
+		if !retired() && e.closeErr == nil {
+			e.closeErr = errors.New("callback workers remained alive after idle grace")
+		}
+	})
+	if e.closeErr != nil {
+		t.Errorf("Phase 8 benchmark environment cleanup: %v", e.closeErr)
+	}
+}
+
 func (e *phase8BenchEnv) recordError(err error) {
 	if err == nil {
 		return
@@ -155,7 +170,7 @@ func (e *phase8BenchEnv) recordError(err error) {
 	}
 }
 
-func (e *phase8BenchEnv) checkError(b *testing.B) {
+func (e *phase8BenchEnv) checkError(b testing.TB) {
 	b.Helper()
 	select {
 	case err := <-e.errors:
@@ -659,3 +674,151 @@ func BenchmarkPhase8QueueFullAdmission(b *testing.B) {
 		b.ReportMetric(float64(b.N)/elapsed.Seconds(), "rejections/s")
 	}
 }
+
+func BenchmarkScalePhase8Sessions(b *testing.B) {
+	for _, size := range []int{64, 256} {
+		for _, sessionCount := range []int{1, 8, 32, 128, 512} {
+			name := fmt.Sprintf("payload=%s/sessions=%d/producers=%d",
+				phase8PayloadName(size), sessionCount, sessionCount)
+			b.Run(name, func(b *testing.B) {
+				env := newPhase8BenchEnv(b, sessionCount, 1, 1, true, false)
+				phase8RunRequestResponse(b, env, phase8Payload(size), sessionCount)
+			})
+		}
+	}
+}
+
+func TestPhase8MemoryStabilitySoak(t *testing.T) {
+	rawDuration := os.Getenv("NETA_PHASE8_SOAK_SECONDS")
+	if rawDuration == "" {
+		t.Skip("set NETA_PHASE8_SOAK_SECONDS to run the five-minute mixed-payload memory soak")
+	}
+	seconds, err := strconv.Atoi(rawDuration)
+	if err != nil || seconds < 300 || seconds > 600 {
+		t.Fatalf("NETA_PHASE8_SOAK_SECONDS must be between 300 and 600, got %q", rawDuration)
+	}
+
+	env := newPhase8BenchEnv(t, 8, 1, 1, true, false)
+	payloads := [][]byte{
+		phase8Payload(64),
+		phase8Payload(256),
+		phase8Payload(1024),
+		phase8Payload(4096),
+		phase8Payload(64 << 10),
+	}
+	const producers = 4
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds+30)*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, producers)
+	var wg sync.WaitGroup
+	for worker := 0; worker < producers; worker++ {
+		session := env.sessions[worker]
+		done := make(chan phase8CompletionResult, 1)
+		handler := func(response Response, err error) {
+			done <- phase8CompletionResult{response: response, err: err}
+		}
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for operation := 0; ; operation++ {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				payload := payloads[(worker+operation)%len(payloads)]
+				if _, err := session.SendRequest(payload, handler); err != nil {
+					select {
+					case errCh <- fmt.Errorf("producer %d SendRequest: %w", worker, err):
+					default:
+					}
+					return
+				}
+				select {
+				case result := <-done:
+					if result.err != nil {
+						select {
+						case errCh <- fmt.Errorf("producer %d Completion: %w", worker, result.err):
+						default:
+						}
+						return
+					}
+					if !phase8ResponseMatches(result.response, payload) {
+						select {
+						case errCh <- fmt.Errorf("producer %d response payload mismatch", worker):
+						default:
+						}
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		}(worker)
+	}
+
+	runtime.GC()
+	var baseline runtime.MemStats
+	runtime.ReadMemStats(&baseline)
+	started := time.Now()
+	deadline := time.NewTimer(time.Duration(seconds) * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
+	defer deadline.Stop()
+	defer ticker.Stop()
+	var maxHeapInuse uint64
+	for {
+		select {
+		case err := <-errCh:
+			cancel()
+			wg.Wait()
+			env.close(t)
+			t.Fatalf("memory soak failed: %v", err)
+		case <-ticker.C:
+			var stats runtime.MemStats
+			runtime.ReadMemStats(&stats)
+			if stats.HeapInuse > maxHeapInuse {
+				maxHeapInuse = stats.HeapInuse
+			}
+			serverUsage := env.server.resources.snapshot()
+			t.Logf("elapsed=%s heap_alloc=%d heap_inuse=%d total_alloc=%d num_gc=%d goroutines=%d server_retained_app=%d server_queued_app=%d",
+				time.Since(started).Round(time.Second), stats.HeapAlloc, stats.HeapInuse,
+				stats.TotalAlloc, stats.NumGC, runtime.NumGoroutine(),
+				serverUsage.retainedApplicationBytes, serverUsage.queuedApplicationBytes)
+		case <-deadline.C:
+			goto soakComplete
+		case <-ctx.Done():
+			t.Fatalf("memory soak context ended early: %v", ctx.Err())
+		}
+	}
+
+soakComplete:
+	cancel()
+	wg.Wait()
+	env.close(t)
+	env.checkError(t)
+
+	for i, client := range env.clients {
+		usage := client.resources.snapshot()
+		if usage.outstandingRequests != 0 || usage.retainedApplicationBytes != 0 ||
+			usage.retainedCompletionBytes != 0 || usage.onCloseEventCredits != 0 {
+			t.Errorf("Client %d resource leak after soak: %+v", i, usage)
+		}
+	}
+	serverUsage := env.server.resources.snapshot()
+	if serverUsage.outstandingRequests != 0 || serverUsage.retainedApplicationBytes != 0 ||
+		serverUsage.retainedCompletionBytes != 0 || serverUsage.onCloseEventCredits != 0 ||
+		serverUsage.queuedApplicationBytes != 0 || serverUsage.queuedApplicationFrames != 0 {
+		t.Errorf("Server resource leak after soak: %+v", serverUsage)
+	}
+
+	runtime.GC()
+	var final runtime.MemStats
+	runtime.ReadMemStats(&final)
+	t.Logf("soak complete: duration=%s baseline_heap=%d final_heap=%d max_heap_inuse=%d total_alloc=%d gc_cycles=%d goroutines=%d",
+		time.Since(started).Round(time.Second), baseline.HeapAlloc, final.HeapAlloc,
+		maxHeapInuse, final.TotalAlloc-baseline.TotalAlloc, final.NumGC-baseline.NumGC,
+		runtime.NumGoroutine())
+}
+
