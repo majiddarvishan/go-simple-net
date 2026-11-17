@@ -361,7 +361,6 @@ func TestServerConcurrentDuplicateBindsHaveSingleWinner(t *testing.T) {
 	waitServerBoundCount(t, server, 1)
 }
 
-
 func TestServerBoundTransitionCommitsReservedIdentityBySession(t *testing.T) {
 	session := &Session{systemID: "peer"}
 	server := &Server{
