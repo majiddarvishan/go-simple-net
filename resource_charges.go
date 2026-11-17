@@ -112,3 +112,8 @@ func (c *onCloseEventCharge) release() {
 		_ = c.owner.releaseOnCloseEvent()
 	})
 }
+
+func (f inboundFrame) releaseAll() {
+	f.applicationCharge.releaseAll()
+	f.completionCharge.release()
+}
