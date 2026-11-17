@@ -350,7 +350,6 @@ func validateServerConfig(c serverConfig) error {
 	return validateOwnerConfig(c.owner)
 }
 
-
 func validateTCPAddress(field, address string, requireHost bool) error {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil || port == "" {
