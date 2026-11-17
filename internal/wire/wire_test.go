@@ -5,9 +5,133 @@ import (
 	"encoding/hex"
 	"errors"
 	"math"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 )
+
+func loadPinexGoldenFrames(t *testing.T) map[string][]byte {
+	t.Helper()
+	data, err := os.ReadFile("../../testdata/pinex-1.5.0/golden.txt")
+	if err != nil {
+		t.Fatalf("read Pinex golden fixtures: %v", err)
+	}
+	frames := make(map[string][]byte)
+	for lineNo, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		name, encoded, ok := strings.Cut(line, "=")
+		if !ok {
+			t.Fatalf("golden fixture line %d has no '=' separator", lineNo+1)
+		}
+		frame, err := hex.DecodeString(encoded)
+		if err != nil {
+			t.Fatalf("decode golden fixture %q: %v", name, err)
+		}
+		if _, exists := frames[name]; exists {
+			t.Fatalf("duplicate golden fixture %q", name)
+		}
+		frames[name] = frame
+	}
+	return frames
+}
+
+func TestPinex150CPPGeneratedGoldenFrames(t *testing.T) {
+	golden := loadPinexGoldenFrames(t)
+
+	bindRequest, err := EncodeBindRequest(7, Bind{Type: BindBiDirectional, SystemID: "node"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindResponse, err := EncodeBindResponse(7, StatusFailed, Bind{Type: BindUniDirectional, SystemID: "srv"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	streamRequest, err := EncodeStreamRequest(0x01020304, []byte{0xaa, 0xbb})
+	if err != nil {
+		t.Fatal(err)
+	}
+	streamResponse, err := EncodeStreamResponse(42, StatusFailed, []byte{0x00, 0x01, 0x02, 0xfe, 0xff})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unbindRequest, err := EncodeUnbindRequest(0x12345678)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unbindResponse, err := EncodeUnbindResponse(0x12345678)
+	if err != nil {
+		t.Fatal(err)
+	}
+	enquireRequest, err := EncodeEnquireLinkRequest(0x12345678)
+	if err != nil {
+		t.Fatal(err)
+	}
+	enquireResponse, err := EncodeEnquireLinkResponse(0x12345678)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := map[string][]byte{
+		"bind_request":          bindRequest,
+		"bind_response":         bindResponse,
+		"stream_request":        streamRequest,
+		"stream_response":       streamResponse,
+		"unbind_request":        unbindRequest,
+		"unbind_response":       unbindResponse,
+		"enquire_link_request":  enquireRequest,
+		"enquire_link_response": enquireResponse,
+	}
+	for name, got := range actual {
+		want, ok := golden[name]
+		if !ok {
+			t.Errorf("missing C++ golden fixture %q", name)
+			continue
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s = %x, C++ Pinex 1.5.0 fixture = %x", name, got, want)
+		}
+	}
+
+	// Decode the C++-generated frames as well as comparing Go output.
+	bindFrame, err := DecodeFrame(golden["bind_request"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodedBind, err := DecodeBindRequest(bindFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decodedBind != (Bind{Type: BindBiDirectional, SystemID: "node"}) {
+		t.Fatalf("C++ Bind Request decoded as %+v", decodedBind)
+	}
+
+	omittedBindFrame, err := DecodeFrame(golden["bind_response_empty"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	omittedBind, err := DecodeBindResponse(omittedBindFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if omittedBind != (Bind{Type: BindBiDirectional}) {
+		t.Fatalf("C++ omitted Bind Response decoded as %+v", omittedBind)
+	}
+
+	streamFrame, err := DecodeFrame(golden["stream_response"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodedStream, err := DecodeStreamResponse(streamFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(decodedStream, []byte{0x00, 0x01, 0x02, 0xfe, 0xff}) {
+		t.Fatalf("C++ Stream Response decoded as %x", decodedStream)
+	}
+}
 
 func TestHeaderGoldenVector(t *testing.T) {
 	got, err := EncodeFrame(CommandStreamRequest, StatusOK, 0x01020304, []byte{0xaa, 0xbb})
