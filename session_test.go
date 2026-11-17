@@ -588,7 +588,8 @@ func TestSessionRejectsZeroSequence(t *testing.T) {
 
 	header := make([]byte, wire.HeaderSize)
 	binary.BigEndian.PutUint32(header[0:4], uint32(wire.HeaderSize))
-	binary.BigEndian.PutUint16(header[4:6], uint16(wire.CommandStreamRequest))
+	header[4] = byte(wire.CommandStreamRequest)
+	header[5] = 0
 	binary.BigEndian.PutUint32(header[6:10], 0)
 	writeWireFrame(t, peer, header)
 	waitDone(t, session)
