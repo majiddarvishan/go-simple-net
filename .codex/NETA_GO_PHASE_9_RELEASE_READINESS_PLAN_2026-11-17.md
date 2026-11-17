@@ -164,7 +164,7 @@ Remaining owner/repository gates:
 - **CLOSED / OWNER CONFIRMED 2026-11-17:** copyright holder `Majid Darvishan`, year `2026`; original Apache License 2.0 retained, with commercial use permitted under its terms and its copyright notice updated.
 - **CLOSED / OWNER APPROVED 2026-11-17:** owner accepted the current Unreleased `CHANGELOG.md` as the V1 release-notes draft and semantic version `v1.0.0`; neither the tag nor GitHub Release creation is authorized.
 - **ACTIVE / REQUIRED CHECKS VERIFIED 2026-11-17:** owner enabled `main` protection in GitHub UI. Branch API now reports `protected=true`, `required_status_checks.enforcement_level=everyone` and mandatory `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0` contexts. Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d`. Strict-up-to-date and admin-bypass settings are not exposed by available branch metadata (classic endpoint HTTP 403); confirm independently, plus GitHub Release settings. Guide: [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Tags and Releases remain absent.
-- Produce final PASS/FAIL/NOT RUN checklist. No release tag is part of this task.
+- **DONE — PARTIAL/NOT VERIFIED EXCEPTIONS RECORDED:** P9-05 `docs/RELEASE_READINESS.md` contains a PASS/PARTIAL/NOT VERIFIED/NOT AUTHORIZED matrix. The real PR #2 and its post-merge CI both pass on `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`. Protection strict/admin details and release-creation permission remain unavailable through current integration and are recorded as outstanding. No release tag is part of this task.
 
 ### P9-06 — V1 release tag
 

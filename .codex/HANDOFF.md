@@ -1151,3 +1151,11 @@ After the owner reported completing GitHub web configuration («انجام شد�
 The actual protection activation and exact required check names are now **VERIFIED**, not merely approved. The integration still receives HTTP 403 for full classic branch protection details, so the `strict` (require up-to-date) and admin-bypass configuration remain unverified. GitHub Release settings review remains open. Do not run the previously supplied PUT command merely to verify settings; it overwrites existing rules.
 
 The release tracker and checklist require a feature branch / pull request to record this post-protection evidence. P9-05 remains IN PROGRESS until outstanding verifications; P9-06 tag/Release remains NOT AUTHORIZED. Local stash unchanged.
+
+
+## 35. P9-05 — Post-merge CI and real PR enforcement acceptance (2026-11-17)
+
+- Protected `main` HEAD `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`: Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) **PASS**, Pinex Compatibility [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) **PASS**. Required check contexts `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0` both completed successfully.
+- Live [PR #2](https://github.com/majiddarvishan/neta-go/pull/2): `mergeable_state=blocked` while check runs in progress, later `clean` with successful checks, and squash-merged. Actual required-check gating is demonstrated, not just configured.
+- GitHub repository: public, no tags, no Releases; release listing accessible. Connected integration has no release publication or full branch protection settings-read action. Therefore strict up-to-date, exact administrator bypass settings and release-creation permissions remain **NOT INDEPENDENTLY VERIFIED**. Owner reported completing browser configuration; this report does not substitute for seeing private admin configuration.
+- Root `TASKS.md`, `docs/RELEASE_READINESS.md`, branch guide and Phase 9 plan updated with verifiable evidence and unresolved gate. **P9-05 remains IN PROGRESS**; **P9-06 still NOT AUTHORIZED**; `CHANGELOG.md` remains Unreleased. Local stash untouched.
