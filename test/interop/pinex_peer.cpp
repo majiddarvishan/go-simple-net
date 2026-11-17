@@ -10,7 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
+#include <utility>
 #include <vector>
 
 namespace asio = boost::asio;
@@ -197,8 +197,6 @@ int run_client_bench(const std::string& address, int target, int payload_size)
     asio::io_context io;
     asio::steady_timer deadline(io);
     std::shared_ptr<messaging_client> client;
-    std::thread gate_thread;
-    std::atomic<bool> gate_done{false};
     bool completed = false;
     bool timed_out = false;
     bool failed = false;
@@ -264,24 +262,19 @@ int run_client_bench(const std::string& address, int target, int payload_size)
             if (state == session_stat::bind)
             {
                 std::cout << "READY\n" << std::flush;
-                gate_thread = std::thread([&] {
-                    std::string token;
-                    std::getline(std::cin, token);
-                    gate_done.store(true);
-                    asio::post(io, [&, token = std::move(token)] {
-                        if (token == "GO")
-                        {
-                            started = std::chrono::steady_clock::now();
-                            send_next();
-                        }
-                        else
-                        {
-                            failed = true;
-                            if (client)
-                                client->stop();
-                        }
-                    });
-                });
+                std::string token;
+                std::getline(std::cin, token);
+                if (token == "GO")
+                {
+                    started = std::chrono::steady_clock::now();
+                    send_next();
+                }
+                else
+                {
+                    failed = true;
+                    if (client)
+                        client->stop();
+                }
             }
             else if (state == session_stat::close)
             {
@@ -328,14 +321,6 @@ int run_client_bench(const std::string& address, int target, int payload_size)
         client->stop();
     io.poll();
     io.stop();
-
-    if (gate_thread.joinable())
-    {
-        if (gate_done.load())
-            gate_thread.join();
-        else
-            gate_thread.detach();
-    }
 
     if (failed || timed_out || !completed || responses != target ||
         latencies.size() != static_cast<std::size_t>(target) || total_elapsed_ns <= 0)
