@@ -65,11 +65,11 @@ type outboundFrame struct {
 	control    bool
 	barrier    bool
 	requestSeq uint32
+	controlSeq uint32
 	afterWrite func()
 }
 
 type pendingRequest struct {
-	sequence      uint32
 	completion    CompletionHandler
 	deadline      time.Time
 	settled       bool
@@ -467,6 +467,21 @@ func (s *Session) releaseFrameChargeLocked(item *outboundFrame) {
 	}
 }
 
+func (s *Session) removeQueuedControlSequenceLocked(sequence uint32) bool {
+	for i, item := range s.controlQueue {
+		if item.controlSeq != sequence {
+			continue
+		}
+		s.releaseFrameChargeLocked(item)
+		copy(s.controlQueue[i:], s.controlQueue[i+1:])
+		s.controlQueue[len(s.controlQueue)-1] = nil
+		s.controlQueue = s.controlQueue[:len(s.controlQueue)-1]
+		s.cond.Broadcast()
+		return true
+	}
+	return false
+}
+
 func (s *Session) removeQueuedRequestLocked(sequence uint32) bool {
 	for i, item := range s.appQueue {
 		if item.requestSeq != sequence {
@@ -484,13 +499,6 @@ func (s *Session) removeQueuedRequestLocked(sequence uint32) bool {
 
 func (s *Session) isClosingLocked() bool {
 	return s.state >= SessionStateClosing
-}
-
-func (s *Session) closeErrorLocked() error {
-	if s.closeCause != nil {
-		return s.closeCause
-	}
-	return ErrClosed
 }
 
 func (s *Session) beginClose(cause error, forced bool) {
@@ -536,6 +544,7 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.bindDeadline = time.Time{}
 		s.unbindDeadline = time.Time{}
 		s.enquireLinkDeadline = time.Time{}
+		s.clearProbeLocked()
 		s.pendingBind = nil
 		s.cond.Broadcast()
 		conn := s.conn

@@ -37,7 +37,7 @@ func (s *Session) controlLoop() {
 		if closeCause == nil && !s.unbindDeadline.IsZero() && !now.Before(s.unbindDeadline) && s.state == SessionStateUnbinding {
 			closeCause, forcedClose = ErrUnbindTimeout, true
 		}
-		if closeCause == nil && s.enquireLinkOutstanding && !s.enquireLinkDeadline.IsZero() && !now.Before(s.enquireLinkDeadline) {
+		if closeCause == nil && s.state == SessionStateBound && s.enquireLinkOutstanding && !s.enquireLinkDeadline.IsZero() && !now.Before(s.enquireLinkDeadline) {
 			closeCause, forcedClose = newOperationError("enquire_link", context.DeadlineExceeded), true
 		}
 
@@ -69,8 +69,9 @@ func (s *Session) controlLoop() {
 					s.enquireLinkSequence = sequence
 					s.enquireLinkQueued = true
 					item := &outboundFrame{
-						bytes:   frame,
-						control: true,
+						bytes:      frame,
+						control:    true,
+						controlSeq: sequence,
 						afterWrite: func() {
 							s.mu.Lock()
 							if s.state == SessionStateBound && s.enquireLinkQueued {
@@ -151,7 +152,7 @@ func (s *Session) nextDeadlineLocked() time.Time {
 	if s.state == SessionStateUnbinding {
 		consider(s.unbindDeadline)
 	}
-	if s.enquireLinkOutstanding {
+	if s.state == SessionStateBound && s.enquireLinkOutstanding {
 		consider(s.enquireLinkDeadline)
 	}
 	for _, pending := range s.pending {
@@ -178,30 +179,6 @@ func (s *Session) isSequenceInUseLocked(sequence uint32) bool {
 	}
 	return s.enquireLinkQueued && s.enquireLinkSequence == sequence ||
 		s.enquireLinkOutstanding && s.enquireLinkSequence == sequence
-}
-
-func (s *Session) settleAllPendingLocked(resultErr error) []callbackTask {
-	var tasks []callbackTask
-	for sequence, pending := range s.pending {
-		if pending.settled {
-			continue
-		}
-		pending.settled = true
-		tasks = append(tasks, s.completionTaskLocked(sequence, pending, Response{Sequence: sequence}, resultErr))
-	}
-	return tasks
-}
-
-func (s *Session) failPendingWithCause(cause error) {
-	if cause == nil {
-		cause = ErrClosed
-	}
-	s.mu.Lock()
-	tasks := s.settleAllPendingLocked(cause)
-	s.mu.Unlock()
-	for _, task := range tasks {
-		s.enqueueCallback(callbackCompletion, task)
-	}
 }
 
 func (s *Session) clearProbeLocked() {

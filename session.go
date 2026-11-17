@@ -42,7 +42,6 @@ func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uin
 	}
 	binary.BigEndian.PutUint32(frame[6:10], sequence)
 	pending := &pendingRequest{
-		sequence:   sequence,
 		completion: completion,
 		deadline:   time.Now().Add(s.config.requestTimeout),
 	}
@@ -91,6 +90,9 @@ func (s *Session) SendNoWait(payload []byte) (uint32, error) {
 // SendResponse admits a Stream Response using the original peer Request
 // Sequence. Payload is snapshotted before the method returns successfully.
 func (s *Session) SendResponse(sequence uint32, payload []byte, status uint8) error {
+	if sequence == 0 {
+		return ErrProtocol
+	}
 	frame, err := buildStreamFrame(wire.CommandStreamResponse, wire.CommandStatus(status), sequence, payload)
 	if err != nil {
 		return err
@@ -141,6 +143,8 @@ func (s *Session) Unbind(ctx context.Context) error {
 			break
 		}
 		s.state = SessionStateUnbinding
+		s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+		s.clearProbeLocked()
 		s.unbindSequence = sequence
 		s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
 		admissionErr = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true})

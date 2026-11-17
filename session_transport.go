@@ -80,6 +80,9 @@ func (s *Session) readFrame() (wire.Frame, error) {
 }
 
 func (s *Session) handleFrame(frame wire.Frame) error {
+	if frame.Header.Sequence == 0 {
+		return ErrProtocol
+	}
 	s.mu.Lock()
 	state := s.state
 	role := s.role
@@ -146,7 +149,7 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 	cause := error(nil)
 	if decision.err != nil {
 		status = wire.StatusFailed
-		cause = ErrBindRejected
+		cause = fmt.Errorf("%w: %v", ErrBindRejected, decision.err)
 	}
 
 	response, err := wire.EncodeBindResponse(frame.Header.Sequence, status, wire.Bind{
@@ -289,6 +292,9 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 		}
 		if s.state == SessionStateBound {
 			s.state = SessionStateUnbinding
+			s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
+			s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+			s.clearProbeLocked()
 		}
 		err = s.enqueueControlLocked(&outboundFrame{
 			bytes:      response,
