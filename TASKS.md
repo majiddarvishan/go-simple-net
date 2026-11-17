@@ -5,8 +5,8 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `a05a735aa0383d2588b41b1a2258282d734ff72b`  
-**Current phase:** Phase 6 — Client and Server orchestration (**AUTHORIZED / IN PROGRESS**, owner approval 2026-11-17). Phase 5 is COMPLETE / CI PASS.
+**Last verified source HEAD:** `1484f26437cb509a56b377e0efe68ea32b175c3d`  
+**Current phase:** Phase 6 — Client and Server orchestration (**COMPLETE / CI PASS**, owner approval 2026-11-17). Phase 7+ remain gated.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -27,7 +27,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
-| 6 | Client/Server orchestration and reconnect | AUTHORIZED / IN PROGRESS — Server + Client lifecycle slices CI PASS | Owner approved 2026-11-17 |
+| 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
@@ -154,7 +154,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## Phase 6 — Client and Server orchestration
 
-<badge color="warning">AUTHORIZED / IN PROGRESS — 2026-11-17</badge>
+<badge color="success">COMPLETE / CI PASS — 2026-11-17</badge>
 
 **Authorization:** Owner replied «ادامه بده» after the explicit Phase 6 authorization question. Scope is limited to P6-01..P6-11. Phase 7+ remain gated.
 
@@ -170,7 +170,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] **P6-08 — Server Stop:** terminal/idempotent Stop; close listener and Pre-Bind Sessions, concurrently Graceful-Unbind Bound Sessions, force remaining Sessions on caller Context expiry.
 - [x] **P6-09 — Owner integration:** Server Sessions share the Server resource ledger and worker owner; every Client generation reuses the Client resource ledger and callback dispatcher.
 - [x] **P6-10 — Lifecycle tests:** Server lifecycle/admission, Client Stop/CurrentSession, Connect/Bind, timeout/rejection, reconnect generation replacement and uni-directional requester-only tests are implemented.
-- [ ] **P6-11 — CI acceptance:** Server and Client Connect/Bind/reconnect slices must pass gofmt, vet, unit, race and Pinex golden CI; final Phase 6 closure is pending the current verification run.
+- [x] **P6-11 — CI acceptance:** gofmt, go vet ./..., go test ./..., go test -race ./... and pinned Pinex C++ 1.5.0 Golden Compatibility all PASS at source HEAD 1484f26437cb509a56b377e0efe68ea32b175c3d.
 
 ### Phase 6 Server implementation evidence — 2026-11-17
 
@@ -179,7 +179,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - P6-04 through P6-08 complete; P6-02 is partially complete (Client CurrentSession/Stop); P6-09 and P6-10 are partially complete across Server and Client lifecycle slices.
 - 11 focused Server lifecycle/admission tests.
 - Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
-- Client Connect/Bind and reconnect remain blocked by the missing Client SystemID/BindType input decision. Client CurrentSession/Stop are implemented; Phase 7+ remain gated.
+- At this historical checkpoint, Client Connect/Bind remained blocked by the missing Bind identity input. The owner later approved Option B; Client Connect/Bind and reconnect are now complete. See the Client implementation evidence below.
 
 ## Phase 7 — Live interoperability and fault-injection verification
 
@@ -225,6 +225,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 2026-11-17 | `c98f731fef89519d62d95248982538f25a36db82` | Documentation/handoff | Go [44058276200](https://github.com/majiddarvishan/neta-go/actions/runs/44058276200) PASS; C++ golden [44058274150](https://github.com/majiddarvishan/neta-go/actions/runs/44058274150) PASS |
 | 2026-11-17 | `8eead509c6817722d6b7c6f5e5a17e1734749911` | Phase 6 Server lifecycle/admission | Go [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS |
 | 2026-11-17 | `a05a735aa0383d2588b41b1a2258282d734ff72b` | Phase 6 Client CurrentSession/Stop lifecycle | Go [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS |
+| 2026-11-17 | `1484f26437cb509a56b377e0efe68ea32b175c3d` | Phase 6 Client Connect/Bind, reconnect and final acceptance | Go [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877) PASS; Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981) PASS |
 
 ## Canonical references
 
@@ -296,3 +297,13 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - Every generation reuses the Client-owned resource ledger and callback dispatcher.
 - Uni-directional Client behavior is requester-only and compatible with Pinex 1.5.0.
 - Added Client Bind validation, connect/stop, timeout, rejection, reconnect-generation and uni-directional behavior tests. CI evidence pending.
+
+
+### Phase 6 Client Connect/Bind and reconnect completion evidence — 2026-11-17
+
+- Report: [.codex/NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md](.codex/NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md).
+- Owner decision: Option B, DECISION_LOG.md §56.
+- Final verified source HEAD: 1484f26437cb509a56b377e0efe68ea32b175c3d.
+- Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877) PASS: gofmt, vet, unit tests and race tests.
+- Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981) PASS: pinned C++ 1.5.0 golden fixtures.
+- Phase 6 P6-01..P6-11 are COMPLETE. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain NOT AUTHORIZED.

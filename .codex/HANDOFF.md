@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–5 are COMPLETE / CI PASS. Phase 6 is OWNER AUTHORIZED / IN PROGRESS; Server lifecycle/admission and Client CurrentSession/Stop are implemented.** The owner approved Client Bind Option B; Client Connect/Bind, generation fencing and reconnect implementation plus focused tests are now prepared and awaiting CI verification. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phases 7–9 remain gated.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–6 are COMPLETE / CI PASS.** Phase 6 Client Connect/Bind, generation fencing, Full-Jitter reconnect and Server lifecycle/admission are implemented and verified. Final source HEAD: `1484f26437cb509a56b377e0efe68ea32b175c3d`. Go and pinned Pinex C++ 1.5.0 Golden Compatibility workflows pass. Phase 7 live TCP interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6 AUTHORIZED / IN PROGRESS; PHASE 7–9 NOT AUTHORIZED  
-**Current work:** Phase 6 is AUTHORIZED / IN PROGRESS. The Server listener, bounded Pre-Bind/Bound admission, BindValidator, duplicate-ID registry and terminal Stop are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`; see [Phase 6 Server report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md). The canonical task list is [TASKS.md](../TASKS.md). Client CurrentSession/Stop are COMPLETE / CI PASS at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b` (4 tests; [Client lifecycle report](NETA_GO_PHASE_6_CLIENT_STOP_IMPLEMENTATION_2026-11-17.md)); Client Connect/Bind and reconnect remain pending the owner decision on the missing Client SystemID/BindType input. Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
+**Implementation status:** PHASE 1–6 COMPLETE / CI PASS; PHASE 7–9 NOT AUTHORIZED
+**Current work:** Phase 6 is COMPLETE / CI PASS at source HEAD `1484f26437cb509a56b377e0efe68ea32b175c3d`. Server lifecycle/admission, Client CurrentSession/Stop, Client Connect/Bind, generation fencing, owner resource integration and reconnect supervisor are implemented. Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877) and Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981) PASS. See [Phase 6 Client Connect report](NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md) and root [TASKS.md](../TASKS.md). Phase 7 live TCP interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 ## 1. Repository state
 
@@ -99,7 +99,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next action:** Server lifecycle/admission and Client CurrentSession/Stop are implemented and CI-green. Before implementing Client.Connect, ask the owner how Client Bind identity is configured: the frozen ClientOption/clientConfig has no SystemID or BindType input, and no default is approved. Do not invent an API/default. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated. See root `TASKS.md`.
+**Next action:** Phase 6 is complete. Do not begin Phase 7 live Go↔Pinex TCP interoperability, Phase 8 performance benchmarking/optimization or Phase 9 examples/release without separate owner authorization. Keep root `TASKS.md` as the canonical tracker.
 
 ## 9. Approved Go library name
 
@@ -871,7 +871,7 @@ Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`. See [Phase
 - Source verification HEAD: `a05a735aa0383d2588b41b1a2258282d734ff72b`.
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633): PASS — gofmt, vet, unit and race.
 - Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
-- Client Connect/Bind and reconnect remain pending the Client SystemID/BindType input decision.
+- Client Connect/Bind and reconnect were subsequently implemented after the owner approved Option B; final CI is PASS at HEAD `1484f26437cb509a56b377e0efe68ea32b175c3d`.
 
 
 ## 18. Client Bind identity decision and implementation handoff (2026-11-17)
@@ -891,3 +891,21 @@ The Phase 6 Client implementation now includes:
 - Stop cancels Dial/Bind/reconnect and waits for supervisor/internal Session Done without joining user callbacks.
 
 Implementation commit and CI evidence are to be appended after verification. Phase 7–9 remain gated.
+
+
+## 19. Phase 6 completion — Client Connect/Bind and reconnect (2026-11-17)
+
+**Status:** COMPLETE / CI PASS  
+**Final verified source HEAD:** 1484f26437cb509a56b377e0efe68ea32b175c3d
+
+- Owner-approved Option B is implemented: mandatory WithClientSystemID(string), optional WithClientBindType(BindType), bi-directional default, uni-directional supported.
+- Client.Connect(ctx) performs TCP Dial + Bind with independent absolute timeouts and caller Context precedence.
+- Monotonic generation fencing publishes only the active Bound Session; all generations share Client-owned resource and callback infrastructure.
+- One opt-in reconnect supervisor applies exponential Full Jitter (1s base, 30s cap, reset after 30s continuously Bound); Bind rejection/timeout are non-retryable and Requests are never replayed.
+- Uni-directional Client semantics match Pinex 1.5.0 requester-only behavior.
+- A Bind-vs-Context cancellation race is covered: completed Bind wins over a later Context cancellation.
+- New tests cover configuration validation, Bind/Unbind, Bind timeout/rejection, reconnect generation replacement, uni-directional behavior and the Context race.
+- Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981): PASS — pinned C++ 1.5.0 golden fixtures.
+
+Phase 6 is closed. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated pending separate owner authorization.

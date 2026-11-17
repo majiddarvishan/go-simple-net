@@ -1,6 +1,6 @@
 # Phase 6 — Client and Server Orchestration Implementation Plan
 
-**Status:** AUTHORIZED / IN PROGRESS — 2026-11-17  
+**Status:** COMPLETE / CI PASS — 2026-11-17  
 **Repository:** `github.com/majiddarvishan/neta-go`  
 **Branch:** `main`  
 **Phase 5 source baseline:** `c72136693f85e61239bfca42bd04b40e66eddc27`  
@@ -42,7 +42,7 @@ The owner approved Option B on 2026-11-17:
 - Client.Connect(ctx) signature remains unchanged.
 - Uni-directional Client is requester-only: outgoing Requests are permitted, incoming peer Requests are drained/ignored, and SendResponse is rejected.
 
-The previous contract gap is closed. Implementation is in progress within the existing Phase 6 authorization; no API-001/API-002 decision or wire layout is reopened.
+The previous contract gap is closed. Implementation is complete within the existing Phase 6 authorization; no API-001/API-002 decision or wire layout was reopened.
 
 ## Phase boundaries
 
@@ -61,7 +61,7 @@ P6-04 through P6-08 are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c
 - Terminal/idempotent Server Stop: close Listener first, close Pre-Bind, concurrently Unbind Bound Sessions, force on caller Context expiry, wait only for internal Done.
 - 11 focused tests; Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
 
-P6-01 Client Connect/Bind and P6-03 reconnect remain pending. P6-02 CurrentSession/Stop is implemented; generation publication and reconnect-disable integration remain pending. Client-side P6-09/P6-10 and full P6-11 remain pending. The single blocker before Client Bind is the missing SystemID/BindType input in the frozen ClientOption surface.
+At this historical Server-only checkpoint, Client Connect/Bind remained pending. The owner subsequently approved Option B; all Client Connect/Bind and reconnect tasks are now complete. See the final Phase 6 evidence below.
 
 
 ## Client CurrentSession/Stop implementation result — 2026-11-17
@@ -72,11 +72,11 @@ Client lifecycle sub-scope implemented at source HEAD `a05a735aa0383d2588b41b1a2
 - 4 focused Client lifecycle tests.
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
 
-Client Connect/Bind and reconnect remain blocked by the missing SystemID/BindType input in the frozen ClientOption surface.
+The previous blocker was resolved by owner-approved Option B; Client Connect/Bind and reconnect are complete.
 
 
 ## Client Connect/Bind and reconnect implementation result — 2026-11-17
 
 The owner approved Option B for Bind identity. The Client slice now includes mandatory SystemID and configurable BindType, absolute Dial/Bind deadlines with caller Context precedence, Bound-only generation publication, owner-ledger/dispatcher reuse, and a single optional Full-Jitter reconnect supervisor. Bind rejection/timeout are not retried; no Request replay is introduced. Focused tests cover configuration, Bind, graceful Stop, Bind timeout/rejection, reconnect generation replacement and uni-directional requester-only behavior.
 
-CI evidence and the resulting source HEAD will be appended after verification. Phase 7–9 remain gated.
+Final verification: source HEAD 1484f26437cb509a56b377e0efe68ea32b175c3d. Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877) PASS (gofmt, vet, unit and race); Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981) PASS. Phase 6 P6-01..P6-11 is COMPLETE / CI PASS. Phase 7–9 remain gated.

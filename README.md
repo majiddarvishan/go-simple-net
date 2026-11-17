@@ -8,6 +8,6 @@ The implementation is tracked phase by phase. The root task tracker is the sourc
 
 **[View implementation tasks and progress →](TASKS.md)**
 
-Current phase: **Phase 6 — Client/Server orchestration (authorized / in progress)**. Server lifecycle/admission and Client CurrentSession/Stop are CI-green. Client Connect/Bind and reconnect are implemented against the owner-approved Bind identity contract and are awaiting the current CI verification. Phase 7+ remain gated.
+Current phase: **Phase 6 — Client/Server orchestration (COMPLETE / CI PASS)**. Client Connect/Bind, generation fencing, reconnect, Server lifecycle/admission and Client shutdown are implemented and verified. Phase 7 live TCP interoperability and Phases 8–9 remain gated pending separate owner authorization.
 
 Architecture decisions and detailed design records are maintained under [`.codex/`](.codex/).

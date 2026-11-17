@@ -1442,3 +1442,26 @@ The owner selected **Option B** for the missing Client Bind identity input befor
 - No wire format or API-001/API-002 decision is reopened. The existing Client owner resource ledger and callback dispatcher are shared across all Session generations.
 
 This decision unblocks the remaining owner-authorized Phase 6 Client Connect/Bind and reconnect implementation. Phase 7 live TCP interoperability, Phase 8 performance work and Phase 9 release work remain separately gated.
+
+
+## 57. Phase 6 Client Connect/Bind and reconnect — implementation evidence (2026-11-17)
+
+**Status:** COMPLETE / CI PASS  
+**Verified source HEAD:** 1484f26437cb509a56b377e0efe68ea32b175c3d  
+**Implementation report:** NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md
+
+The Option B decision in §56 is implemented:
+- mandatory SystemID and optional BindType configuration, bi-directional default;
+- TCP Dial + Bind with separate absolute ConnectTimeout and BindResponseTimeout;
+- caller Context precedence, including a regression guard that a completed Bind wins over later Context cancellation;
+- monotonic Client Session generations and Bound-only CurrentSession publication;
+- Client-owned resource ledger and callback dispatcher reused across generations;
+- one opt-in reconnect supervisor with approved exponential Full Jitter (1s base, 30s cap, reset after 30s continuously Bound);
+- retry only transient Dial failures/timeouts and unexpected post-Bound transport failures; Bind rejection/timeout are non-retryable; no Request replay;
+- Pinex-compatible uni-directional requester-only Client semantics.
+
+**Verification:**
+- Go CI [44077921877](https://github.com/majiddarvishan/neta-go/actions/runs/44077921877): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44077921981](https://github.com/majiddarvishan/neta-go/actions/runs/44077921981): PASS — pinned C++ 1.5.0 golden fixtures.
+
+Phase 6 P6-01..P6-11 is COMPLETE. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain separately gated and NOT AUTHORIZED.

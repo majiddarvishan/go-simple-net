@@ -468,3 +468,12 @@ The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including
 - API remains callback-first; no synchronous Context-first Request API is added to V1.
 
 **Decision:** API-001 is CLOSED / OWNER APPROVED / OPTION A. The exact API surface is design-frozen; source implementation and go.mod creation remain unauthorized.
+
+
+### Client Bind identity — owner-approved final surface (2026-11-17)
+
+- NewClient requires WithClientSystemID(string); accepted values are non-empty, contain no NUL and are at most 19 bytes to fit Pinex c_octet_str<20>.
+- WithClientBindType(BindType) is optional. BindTypeBiDirectional is the default; BindTypeUniDirectional is supported.
+- Client.Connect(ctx) retains the frozen signature and performs Dial + Bind.
+- Uni-directional Client is requester-only: it may send Stream Requests, drains/ignores incoming peer Requests and rejects SendResponse with ErrProtocol.
+- Implementation and CI evidence are recorded in DECISION_LOG.md §57 and NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md.
