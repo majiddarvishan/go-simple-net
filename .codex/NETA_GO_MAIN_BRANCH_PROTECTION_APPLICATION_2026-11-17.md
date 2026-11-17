@@ -68,13 +68,13 @@ gh api repos/majiddarvishan/neta-go/branches/main/protection \
   --jq '{strict: .required_status_checks.strict, contexts: .required_status_checks.contexts, enforce_admins: .enforce_admins.enabled}'
 ```
 
-GitHub branch API now **confirms** `main.protected=true`, status-check `enforcement_level=everyone` and two exact required checks (`test`, `Verify Go wire codec against pinned Pinex C++ 1.5.0`). Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d` ([Go](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612), [Pinex](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661)). **Still require independent verification:** `strict=true`, `enforce_admins.enabled=true`, and a real PR showing both checks required. If GitHub denies detailed API access, inspect these flags directly in Settings rather than claiming they were verified.
+GitHub branch API now **confirms** `main.protected=true`, status-check `enforcement_level=everyone` and two exact required checks (`test`, `Verify Go wire codec against pinned Pinex C++ 1.5.0`). Both CI jobs PASS on `b992beac7495934ce43111bd3a692ec272c8195d` ([Go](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612), [Pinex](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661)). **End-to-end PR enforcement is now independently VERIFIED:** [PR #2](https://github.com/majiddarvishan/neta-go/pull/2) showed `mergeable_state=blocked` when required checks were in progress, then `mergeable_state=clean` after both checks passed; squash merge succeeded to `main` as `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`. Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) and Pinex [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) post-merge CI both PASS on that SHA. **Still not independently verifiable from the current connector:** exact `strict=true` and administrator bypass flags; owner/admin should inspect their GitHub UI settings. `enforcement_level=everyone` is reported for required status checks.
 
 GitHub Release configuration still needs an owner/admin review. No change to release settings is authorized by this branch protection decision.
 
 ## 5. Scope and release boundary
 
 - Approved policy **is now active**: GitHub branch API reports `protected=true` with both required contexts. The remaining detailed protection options (strict and admin-bypass) require independent owner/admin verification.
-- `P9-05`: in progress, pending those detailed settings, PR enforcement confirmation, and GitHub Release settings review.
+- `P9-05`: in progress, pending only detailed strict/admin settings and GitHub Release publication settings review; real PR enforcement verified via merged PR #2.
 - `P9-06`: NOT AUTHORIZED. Neither this decision nor the one-time command creates a V1 tag, GitHub Release or publication permission.
 - No production Go source, public API, wire protocol, configuration defaults, test suite, workflow or local `stash@{0}` is changed by documenting this operation.
