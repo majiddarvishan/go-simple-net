@@ -503,6 +503,7 @@ func (s *Session) isClosingLocked() bool {
 
 func (s *Session) beginClose(cause error, forced bool) {
 	s.closeOnce.Do(func() {
+		s.dispatchMu.Lock()
 		s.mu.Lock()
 		s.state = SessionStateClosing
 		s.closeCause = cause
@@ -553,19 +554,14 @@ func (s *Session) beginClose(cause error, forced bool) {
 		if conn != nil {
 			_ = conn.Close()
 		}
-		s.signalControl()
-
 		if forced && s.dispatcher != nil {
-			s.dispatchMu.Lock()
 			s.dispatcher.cancelUnstarted(s, callbackMaskApplication|callbackMaskCompletion)
-			s.dispatchMu.Unlock()
 		}
 		for _, task := range gracefulTasks {
-			if !s.enqueueCallback(callbackCompletion, task) {
-				// The task's cancellation hook has already released its internal
-				// Request entry. The terminal engine must still finish teardown.
-			}
+			s.enqueueCallbackWithDispatchLock(callbackCompletion, task)
 		}
+		s.dispatchMu.Unlock()
+		s.signalControl()
 		go s.finishClose()
 	})
 }

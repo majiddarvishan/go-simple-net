@@ -18,6 +18,8 @@ func (s *Session) controlLoop() {
 	for {
 		now := time.Now()
 		var completionTasks []callbackTask
+		dispatchFailed := false
+		s.dispatchMu.Lock()
 		var closeCause error
 		var forcedClose bool
 
@@ -101,10 +103,15 @@ func (s *Session) controlLoop() {
 		s.mu.Unlock()
 
 		for _, task := range completionTasks {
-			if !s.enqueueCallback(callbackCompletion, task) {
-				s.beginClose(ErrCapacity, true)
-				return
+			if !s.enqueueCallbackWithDispatchLock(callbackCompletion, task) {
+				dispatchFailed = true
+				break
 			}
+		}
+		s.dispatchMu.Unlock()
+		if dispatchFailed {
+			s.beginClose(ErrCapacity, true)
+			return
 		}
 		if closeCause != nil {
 			s.beginClose(closeCause, forcedClose)

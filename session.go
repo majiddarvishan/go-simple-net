@@ -214,18 +214,24 @@ func (s *Session) SystemID() string {
 func (s *Session) RemoteAddr() net.Addr { return s.remoteAddr }
 
 func (s *Session) completeRequest(sequence uint32, response Response, resultErr error) {
+	s.dispatchMu.Lock()
 	s.mu.Lock()
 	pending := s.pending[sequence]
 	if pending == nil || pending.settled {
 		s.mu.Unlock()
+		s.dispatchMu.Unlock()
 		return
 	}
 	pending.settled = true
-	s.removeQueuedRequestLocked(sequence)
+	if !pending.writerClaimed {
+		s.removeQueuedRequestLocked(sequence)
+	}
 	task := s.completionTaskLocked(sequence, pending, response, resultErr)
 	s.mu.Unlock()
 
-	if !s.enqueueCallback(callbackCompletion, task) {
+	accepted := s.enqueueCallbackWithDispatchLock(callbackCompletion, task)
+	s.dispatchMu.Unlock()
+	if !accepted {
 		s.beginClose(ErrCapacity, true)
 	}
 	s.signalControl()
