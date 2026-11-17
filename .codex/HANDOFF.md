@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / GO CI + PINEX C++ GOLDEN CI PASS; PHASE 3 TRANSPORT/RUNTIME NOT AUTHORIZED  
-**Current work:** ARCHITECTURE FREEZE COMPLETE; PHASE 1 MODULE & CONFIGURATION COMPLETE WITH CI PASS. Phase 2 Wire Protocol has explicit owner authorization and its initial pure-Go codec is implemented with CI PASS. Cross-language proof remains pending; transport/runtime phases remain unauthorized. API-002-01..08, API-001, API-003, PROTOCOL-001, API-004, PERF-002/003 and WORKER-001..009C are CLOSED / OWNER APPROVED. No fundamental owner architecture decision remains open; golden-frame/interoperability validation, tests, benchmarks and PERF-004 are implementation/evidence tasks. Implementation remains NOT AUTHORIZED. The three callback-class pools are isolated and lazy; idle workers retire after finite class-configurable grace periods with zero warm-idle floor; fair dispatch uses per-class round-robin; Application queues have per-Session incoming/outgoing count limits and one aggregate Server count. WORKER-009A, WORKER-009B1, WORKER-009B2 and WORKER-009B3 are CLOSED / OWNER APPROVED. B1 defaults: Application and Completion callback concurrency=1 per Session; Application, Completion and OnClose idle grace=30s independently. B2 defaults: OnClose credits=1,024 per owner; incoming/outgoing Application frames=256 per Session; aggregate Server Application frames=65,536; outstanding Requests=128 per Session and 32,768 per owner. B3 defaults: Application retained bytes=16 MiB per Session / 512 MiB per owner; Completion retained bytes=16 MiB per Session / 256 MiB per owner. WORKER-009C is CLOSED / OWNER APPROVED / OPTION A; its limits and validation contract are synchronized across the design records. WORKER-008 Completion-byte exhaustion behavior is resolved under Option A. Remaining architecture work: API-002-04..08 lifecycle decisions, API-003 package architecture, final API-001 public surface, and golden-frame / socket-level Go↔C++ confirmation against the pinned Pinex baseline. Maximum Frame Size is source-verified. No implementation is authorized.
+**Current work:** Phase 2 Wire Codec is COMPLETE. Verified implementation commit: `b026dadd9ad0b33118b05f49477e1412a4255978`. Go CI `44044273742` and Pinex C++ compatibility CI `44044273818` both PASS. The compiled C++ fixture uses pinned production PDU serializer headers; its header writer mirrors the audited Pinex header function. Live TCP Go↔C++ interoperability has not been run. Phase 3 transport/runtime, workers, reconnect, benchmarks, release and deployment remain unauthorized.
 
 ## 1. Repository state
 
@@ -728,14 +728,18 @@ Owner approval was explicitly granted in this conversation by replying «ادا�
 Implementation must stay inside `internal/wire`, use only the standard library, and must not import root package `neta`. Root `neta` may depend on `internal/wire`.
 
 
-## Phase 2 implementation progress — 2026-11-17
 
-**Wire codec implementation:** initial pure-Go implementation committed and CI verified.
+## Phase 2 implementation evidence — 2026-11-17
 
-- Source commit containing current wire implementation and focused tests: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
-- Current verified branch HEAD at the time of this record: `6e7b9fbb1cddc79d8199ae390a48f7de5d7f282c`.
-- GitHub Actions run `44042140607`: PASS — gofmt, go vet, go test, go test -race.
-- Implementation: 10-byte Header codec, complete-frame encode/decode, 1 MiB hard cap, Bind Request/Response, raw Stream Request/Response, empty Unbind/Enquire Link PDU encoders, nonzero wrapping Sequence generator.
-- Tests: header golden vector, Bind golden vectors, raw Stream round-trip, control PDU shape/sequence, max/oversize frame boundaries, malformed/truncated/extra bytes, invalid Bind fields, Sequence wraparound and concurrent uniqueness.
+**Phase 2 Wire Codec: COMPLETE** within the explicitly owner-authorized scope.
 
-**Remaining before calling Phase 2 fully complete:** deeper source-level compatibility review and a captured C++ Pinex 1.5.0 golden fixture / socket-level Go↔C++ interoperability proof. No C++ process was built or run in this phase. No TCP transport or runtime integration was started. Phase 3 and later remain unauthorized.
+- Verified implementation commit and code/test baseline: `b026dadd9ad0b33118b05f49477e1412a4255978`.
+- Go CI run `44044273742`: PASS — gofmt, go vet, go test, go test -race.
+- C++ compatibility CI run `44044273818`: PASS — compile pinned C++ PDU serializer snapshot, regenerate/diff golden frames, run Go golden tests.
+- Pinned Pinex source: version 1.5.0, commit `f7bd1eb779baff0d10e624f20522df345e6ee747`.
+- Corrected Pinex's omitted/empty Bind Response Body semantics; Go now returns default `bi_direction` and empty system ID.
+- Source snapshot provenance and original Git blob hashes: `testdata/pinex-1.5.0/source/SNAPSHOT.md`.
+
+The C++ fixture generator uses actual production PDU serializer templates; its Header writer mirrors the audited private `session::serialize_header` implementation. The private Pinex repo cannot be checked out by neta-go Actions without a cross-repository credential, so the exact pinned source headers are snapshotted in this repo. This is compiled C++ golden compatibility, not live TCP/socket interoperability.
+
+**Not authorized:** Phase 3 TCP transport/read/write loops, runtime integration, Session lifecycle, worker scheduler, resource admission runtime, reconnect, live socket interoperability, benchmarks, release and deployment. Obtain separate owner authorization before starting Phase 3.
