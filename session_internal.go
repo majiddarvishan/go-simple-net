@@ -68,22 +68,22 @@ type outboundFrame struct {
 	bytes              []byte
 	applicationCharged bool
 	control            bool
-	barrier       bool
-	requestSeq    uint32
-	controlSeq    uint32
-	bindRequest   bool
-	bindResponse  bool
-	unbindRequest bool
-	afterWrite    func()
+	barrier            bool
+	requestSeq         uint32
+	controlSeq         uint32
+	bindRequest        bool
+	bindResponse       bool
+	unbindRequest      bool
+	afterWrite         func()
 }
 
 type pendingRequest struct {
-	completion      CompletionHandler
-	deadline        time.Time
-	settled         bool
-	writerClaimed   bool
-	requestCredit   bool
-	creditReleased  bool
+	completion     CompletionHandler
+	deadline       time.Time
+	settled        bool
+	writerClaimed  bool
+	requestCredit  bool
+	creditReleased bool
 }
 
 type bindDecision struct {
@@ -119,16 +119,16 @@ type Session struct {
 	appQueue                []*outboundFrame
 	controlQueue            []*outboundFrame
 	barrierQueue            []*outboundFrame
-	queuedAppBytes             uint64
-	queuedAppFrames            uint32
-	retainedApplicationBytes   uint64
-	retainedCompletionBytes    uint64
-	queuedIncomingBytes        uint64
-	queuedIncomingFrames       uint32
-	outstandingRequestCredits  uint32
-	admissionCount             uint32
+	queuedAppBytes            uint64
+	queuedAppFrames           uint32
+	retainedApplicationBytes  uint64
+	retainedCompletionBytes   uint64
+	queuedIncomingBytes       uint64
+	queuedIncomingFrames      uint32
+	outstandingRequestCredits uint32
+	admissionCount            uint32
 	resourceAccountingFailed  bool
-	queuedControlBytes         uint64
+	queuedControlBytes        uint64
 	activeWrite                *outboundFrame
 	lastActivity               time.Time
 	preBindDeadline            time.Time
