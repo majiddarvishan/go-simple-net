@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1–4 COMPLETE / PHASE 5 AUTHORIZED / IN PROGRESS / PHASE 6+ NOT AUTHORIZED  
+**Implementation authorization:** PHASE 1–5 COMPLETE / CI PASS / PHASE 6+ NOT AUTHORIZED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. Phases 1–4 are COMPLETE / CI PASS. Phase 5 is owner-authorized and in progress; Phases 6+ remain gated.
+The architecture is frozen at the design/contract level. Phases 1–5 are COMPLETE / CI PASS. Phase 6+ remain gated.
 
 ## 2. Architecture decision closure
 
@@ -131,11 +131,11 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 - [x] Pass exact/over boundary, multi-Session, owner isolation, concurrent admission, partial I/O, scratch-drain and race-detector tests.
 - [x] Pass gofmt, go vet ./..., go test ./... and go test -race ./... in CI.
 
-**Phase 5 — Worker scheduler**
-- Implement three isolated lazy worker classes: Application, Completion and OnClose.
-- Enforce owner-wide ceilings, per-Session concurrency, fair per-Session scheduling, FIFO start order and finite idle retirement with zero warm-idle floor.
-- Ensure callbacks already running after Done/reconnect keep their permits/credits until return; never spawn a goroutine per event.
-- Test blocked callbacks without blocking internal Reader/Writer, Done or Stop.
+**Phase 5 — Worker scheduler (COMPLETE / CI PASS, 2026-11-17)**
+- [x] Implement three isolated lazy worker classes: Application, Completion and OnClose.
+- [x] Enforce owner-wide ceilings, per-Session concurrency, fair per-Session scheduling, FIFO callback-start selection and finite idle retirement with zero warm-idle floor.
+- [x] Ensure callbacks already running after Done/reconnect keep their permits/credits until return; no goroutine per event.
+- [x] Test blocked callbacks without blocking internal Reader/Writer or Done; verify Forced Close cancellation, owner-generation permit retention, queued + running OnClose event credits, fairness, idle retirement and race/churn behavior.
 
 **Phase 6 — Client and Server orchestration**
 - Implement Client Dial/Bind/optional reconnect supervisor and Session-generation fencing.
@@ -287,3 +287,13 @@ See [canonical task tracker](TASKS.md). No public API, wire contract, defaults o
 The owner explicitly authorized implementation of Phase 5 — Bounded callback Worker Scheduler. Implement only the frozen WORKER-001..009C contracts: isolated lazy Application/Completion/OnClose pools, owner and per-Session limits, round-robin fairness, finite idle retirement, Forced Close A cancellation/start linearization, OnClose best-effort semantics, lifecycle/isolation/fairness/race tests and CI.
 
 Phase 6 networking/reconnect, Phase 7 live TCP interoperability, Phase 8 benchmarks/optimization and Phase 9 release remain unauthorized. No frozen design/API/default/wire decision is reopened.
+
+
+## Phase 5 completion evidence — 2026-11-17
+
+- Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
+- 16 Worker Scheduler tests; 46 Session tests and 8 owner-ledger tests.
+- Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353): PASS — gofmt, vet, unit and race.
+- Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291): PASS.
+- Live Go↔Pinex TCP interoperability remains Phase 7.
+- Phase 6 Client/Server orchestration and later phases remain NOT AUTHORIZED.

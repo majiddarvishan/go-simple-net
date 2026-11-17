@@ -1359,3 +1359,22 @@ This entry records implementation of previously owner-approved resource policies
 - Pinex Wire Compatibility `44062568425`: PASS — pinned C++ 1.5.0 golden-frame workflow.
 
 **Strict boundary:** Phase 5 physical Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability/fault-injection campaign, Phase 8 performance and Phase 9 release remain outside this authorization. No public API, wire contract, default or resource limit was changed.
+
+
+## 52. Phase 5 Bounded callback Worker Scheduler — implementation COMPLETE (2026-11-17)
+
+This entry records implementation of frozen WORKER-001..009C contracts; it does not add or reopen an architecture decision.
+
+**Result:** COMPLETE / CI PASS at source HEAD `c72136693f85e61239bfca42bd04b40e66eddc27`.
+
+- Client and Server each own an independent dispatcher containing three physically isolated lazy pools: Application, Completion and OnClose.
+- Owner/class worker ceilings and per-Session concurrency are enforced; the same owner dispatcher is designed to be reused across Client generations and all Server Sessions.
+- Per-class round-robin ready-Session scheduling uses one reusable ready node per Session/class and preserves per-Session FIFO callback selection.
+- Worker goroutine creation is lazy and bounded by the owner/class ceiling; idle workers are reused during the approved grace and retire to a zero warm-idle floor. Running callbacks are never retired.
+- Session.dispatchMu establishes the single callback-start / Forced Close A cancellation boundary. Queued Application/Completion callbacks cancel once; started callbacks retain active capacity and existing Request/payload charges until return.
+- OnClose remains eligible only after Done, uses the existing bounded owner event credit and is permanently skipped when queued + running event credits reach the owner limit.
+- No user callback runs under a Session or pool lock; the internal Reader/Writer/control engine does not wait for callback completion.
+
+**Verification:** 16 Worker Scheduler tests; 46 Session/transport tests; 8 owner-ledger tests. Go CI `44066876353` PASS (gofmt, vet, unit, race). Pinex Wire Compatibility `44066876291` PASS (golden frames only).
+
+**Strict boundary:** Client Dial/Server Listen/accept and Session-generation/reconnect orchestration remain Phase 6; live Go↔Pinex TCP interoperability remains Phase 7; performance benchmarks/pooling remain Phase 8; examples/release/deployment remain Phase 9. No public API, default, wire contract or approved design decision changed.

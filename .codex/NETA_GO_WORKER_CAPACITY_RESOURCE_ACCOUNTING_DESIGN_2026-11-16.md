@@ -3,7 +3,7 @@
 **Date:** 2026-11-16  
 **Status:** WORKER DESIGN COMPLETE — WORKER-001 through WORKER-009C CLOSED / OWNER APPROVED  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
-**Implementation:** Phase 5 authorized / in progress (2026-11-17); historical design-only statements below are superseded only for this phase.
+**Implementation:** Phase 5 COMPLETE / CI PASS at `c72136693f85e61239bfca42bd04b40e66eddc27`; historical design-only statements below are superseded only for this phase.
 
 ## 1. Authority and scope
 
@@ -572,3 +572,18 @@ The owner explicitly authorized Phase 5 implementation in this conversation. Thi
 Authorized: implement WORKER-001..009C exactly as frozen in this document, including three physically isolated lazy pools, owner/per-Session active ceilings, round-robin ready-Session scheduling, finite idle retirement, Forced Close A start/cancel linearization, OnClose best-effort event handling, exact lifecycle accounting, tests and CI.
 
 Not authorized: Phase 6 Client/Server orchestration and reconnect; Phase 7 live Pinex TCP interoperability/fault injection; Phase 8 performance benchmarks/pooling; Phase 9 examples/release/deployment. No design decision, default, public API or wire contract is reopened.
+
+
+## Phase 5 implementation completion evidence — 2026-11-17
+
+Phase 5 Worker Scheduler is COMPLETE / CI PASS at source HEAD `c72136693f85e61239bfca42bd04b40e66eddc27`.
+
+- Three isolated owner-scoped lazy pools, each with independent queue/ready/idle/wakeup/lock domains.
+- Owner worker ceilings and per-Session concurrency intersections.
+- Per-class round-robin ready-Session scheduling with reusable nodes and per-Session FIFO.
+- Finite class-specific idle retirement, reusable timers and zero warm-idle floor.
+- Forced Close A start/cancel linearization; started callback resource lifetimes; OnClose after Done; queued + running owner event-credit saturation.
+- 16 dedicated worker tests plus real Session Reader/Writer/Done integration tests.
+- Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) PASS; Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) PASS.
+
+The Client/Server owner dispatcher objects are now present, but Session-generation construction through Dial/Listen/accept and reconnect remains Phase 6. Live Go↔Pinex TCP interoperability remains Phase 7. No public API, default, wire contract or approved design decision changed.
