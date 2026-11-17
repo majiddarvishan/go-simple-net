@@ -300,18 +300,22 @@ func (s *Session) Err() error {
 	return s.closeCause
 }
 
+// State returns the Session's current lifecycle state.
 func (s *Session) State() SessionState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.state
 }
 
+// SystemID returns the peer identity accepted during Bind, or an empty string
+// before that identity has been published.
 func (s *Session) SystemID() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.systemID
 }
 
+// RemoteAddr returns the peer's TCP address.
 func (s *Session) RemoteAddr() net.Addr { return s.remoteAddr }
 
 func (s *Session) completeRequest(sequence uint32, response Response, resultErr error) {

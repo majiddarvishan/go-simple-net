@@ -20,30 +20,51 @@ const (
 // Request is an inbound Application Request delivered to a Server handler.
 // Payload is an owned snapshot and may be retained after the handler returns.
 type Request struct {
+	// Sequence is the peer-assigned Stream Request sequence.
 	Sequence uint32
-	Payload  []byte
+	// Payload is an owned snapshot and may be retained after the handler returns.
+	Payload []byte
 }
 
 // Response is the matching response delivered to a Request Completion handler.
 // Payload ownership follows the same owned-snapshot contract as Request.Payload.
 type Response struct {
+	// Sequence is the sequence of the matching Stream Request.
 	Sequence uint32
-	Status   uint8
-	Payload  []byte
+	// Status is the raw Pinex command status returned by the peer.
+	Status uint8
+	// Payload is an owned snapshot and may be retained after the Completion callback returns.
+	Payload []byte
 }
 
 // BindInfo contains the peer identity and transport address presented to a
 // Server BindValidator.
 type BindInfo struct {
-	SystemID   string
-	BindType   uint8
+	// SystemID is the identity presented in the peer's Bind Request.
+	SystemID string
+	// BindType is the raw Pinex Bind type: 0 for uni-directional and 1 for bi-directional.
+	BindType uint8
+	// RemoteAddr is the peer's TCP address.
 	RemoteAddr net.Addr
 }
 
+// CompletionHandler receives the terminal result of one accepted SendRequest.
+// A queued Completion callback may be cancelled if Forced Close wins before it starts.
 type CompletionHandler func(Response, error)
+
+// OnBoundHandler receives a Session after its Bind has succeeded.
 type OnBoundHandler func(*Session)
+
+// OnRequestHandler receives an inbound Application Request. Calls for one Session
+// are FIFO-started and may overlap when Application callback concurrency exceeds one.
 type OnRequestHandler func(*Session, Request)
+
+// OnCloseHandler receives the terminal cause after Session.Done. Delivery is
+// best-effort and may be skipped when the owner's OnClose event budget is full.
 type OnCloseHandler func(*Session, error)
+
+// BindValidator validates the peer identity and transport details before the
+// Server accepts a Bind. A nil validator accepts otherwise valid unique identities.
 type BindValidator func(BindInfo) error
 
 // Client owns a configured TCP connection lifecycle and its Session generations.

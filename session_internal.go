@@ -110,6 +110,8 @@ type inboundFrame struct {
 
 // Session owns exactly one Reader and one serialized Writer for one TCP
 // connection. All mutable protocol state is protected by mu.
+// Session is one bound or binding TCP connection with one Reader and one
+// serialized Writer. Its exported methods are safe for concurrent use.
 type Session struct {
 	config     sessionConfig
 	conn       net.Conn

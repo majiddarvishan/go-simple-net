@@ -6,20 +6,34 @@ import (
 )
 
 var (
-	ErrInvalidConfig  = errors.New("neta: invalid configuration")
-	ErrNotBound       = errors.New("neta: session is not bound")
-	ErrClosing        = errors.New("neta: session is closing")
-	ErrClosed         = errors.New("neta: session is closed")
-	ErrQueueFull      = errors.New("neta: application queue is full")
-	ErrCapacity       = errors.New("neta: resource capacity exhausted")
-	ErrFrameTooLarge  = errors.New("neta: frame exceeds the protocol maximum")
+	// ErrInvalidConfig indicates that an effective Client, Server or Session configuration is invalid.
+	ErrInvalidConfig = errors.New("neta: invalid configuration")
+	// ErrNotBound indicates that an operation requires a Bound Session.
+	ErrNotBound = errors.New("neta: session is not bound")
+	// ErrClosing indicates that the Session is closing and no longer accepts new Application work.
+	ErrClosing = errors.New("neta: session is closing")
+	// ErrClosed indicates that the Client, Server or Session is terminally closed.
+	ErrClosed = errors.New("neta: session is closed")
+	// ErrQueueFull indicates that the per-Session outgoing Application FIFO cannot admit the frame.
+	ErrQueueFull = errors.New("neta: application queue is full")
+	// ErrCapacity indicates that a configured resource or admission budget is exhausted.
+	ErrCapacity = errors.New("neta: resource capacity exhausted")
+	// ErrFrameTooLarge indicates that a Frame exceeds the fixed Pinex-compatible 1 MiB total size.
+	ErrFrameTooLarge = errors.New("neta: frame exceeds the protocol maximum")
+	// ErrRequestTimeout indicates that an admitted Request did not receive its matching Response in time.
 	ErrRequestTimeout = errors.New("neta: request timed out")
+	// ErrConnectTimeout indicates that a Client Dial attempt exceeded ConnectTimeout.
 	ErrConnectTimeout = errors.New("neta: connect timed out")
-	ErrBindTimeout    = errors.New("neta: bind timed out")
-	ErrWriteTimeout   = errors.New("neta: frame write timed out")
-	ErrUnbindTimeout  = errors.New("neta: unbind timed out")
-	ErrBindRejected   = errors.New("neta: bind rejected")
-	ErrProtocol       = errors.New("neta: protocol error")
+	// ErrBindTimeout indicates that the Client Bind handshake exceeded BindResponseTimeout.
+	ErrBindTimeout = errors.New("neta: bind timed out")
+	// ErrWriteTimeout indicates that writing a Frame exceeded WriteTimeout.
+	ErrWriteTimeout = errors.New("neta: frame write timed out")
+	// ErrUnbindTimeout indicates that graceful Unbind exceeded its approved deadline.
+	ErrUnbindTimeout = errors.New("neta: unbind timed out")
+	// ErrBindRejected indicates that the peer rejected the Bind Request.
+	ErrBindRejected = errors.New("neta: bind rejected")
+	// ErrProtocol indicates a malformed or directionally invalid protocol operation.
+	ErrProtocol = errors.New("neta: protocol error")
 )
 
 // ConfigError describes one invalid effective configuration field.
@@ -30,10 +44,7 @@ type ConfigError struct {
 	constraint string
 }
 
-func newConfigError(field, value, constraint string) *ConfigError {
-	return &ConfigError{field: field, value: value, constraint: constraint}
-}
-
+// Error returns the diagnostic configuration error string.
 func (e *ConfigError) Error() string {
 	if e == nil {
 		return ErrInvalidConfig.Error()
@@ -41,6 +52,7 @@ func (e *ConfigError) Error() string {
 	return fmt.Sprintf("%v: %s=%q; %s", ErrInvalidConfig, e.field, e.value, e.constraint)
 }
 
+// Unwrap returns ErrInvalidConfig for errors.Is and errors.As inspection.
 func (e *ConfigError) Unwrap() error { return ErrInvalidConfig }
 
 // Field returns the configuration field that failed validation.
@@ -77,6 +89,7 @@ func newOperationError(operation string, cause error) *OperationError {
 	return &OperationError{operation: operation, cause: cause}
 }
 
+// Error returns the operation and underlying cause.
 func (e *OperationError) Error() string {
 	if e == nil {
 		return ""
@@ -87,6 +100,7 @@ func (e *OperationError) Error() string {
 	return fmt.Sprintf("%s: %v", e.operation, e.cause)
 }
 
+// Unwrap returns the underlying cause for errors.Is/errors.As.
 func (e *OperationError) Unwrap() error {
 	if e == nil {
 		return nil
