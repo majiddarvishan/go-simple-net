@@ -42,6 +42,72 @@ func EncodeBindResponse(sequence uint32, status CommandStatus, bind Bind) ([]byt
 	return EncodeFrame(CommandBindResponse, status, sequence, body)
 }
 
+// EncodeBindRequestV2 writes a Bind without the legacy SystemID NUL.
+// The fixed 10-byte Frame Header is unchanged.
+func EncodeBindRequestV2(sequence uint32, bind Bind) ([]byte, error) {
+	body, err := encodeBindBodyV2(bind)
+	if err != nil {
+		return nil, err
+	}
+	return EncodeFrame(CommandBindRequest, StatusOK, sequence, body)
+}
+
+// EncodeBindResponseV2 writes a Bind Response without the SystemID NUL.
+func EncodeBindResponseV2(sequence uint32, status CommandStatus, bind Bind) ([]byte, error) {
+	body, err := encodeBindBodyV2(bind)
+	if err != nil {
+		return nil, err
+	}
+	return EncodeFrame(CommandBindResponse, status, sequence, body)
+}
+
+// DecodeBindRequestV2 expects a NUL-free Bind Body.
+func DecodeBindRequestV2(frame Frame) (Bind, error) {
+	if frame.Header.Command != CommandBindRequest {
+		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
+	}
+	return decodeBindBodyV2(frame.Body)
+}
+
+// DecodeBindResponseV2 expects a NUL-free Body if present. An omitted
+// Bind Response Body retains the Pinex default-value compatibility case.
+func DecodeBindResponseV2(frame Frame) (Bind, error) {
+	if frame.Header.Command != CommandBindResponse {
+		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
+	}
+	if len(frame.Body) == 0 {
+		return Bind{Type: BindBiDirectional}, nil
+	}
+	return decodeBindBodyV2(frame.Body)
+}
+
+func encodeBindBodyV2(bind Bind) ([]byte, error) {
+	if bind.Type != BindUniDirectional && bind.Type != BindBiDirectional {
+		return nil, fmt.Errorf("%w: %d", ErrInvalidBindType, bind.Type)
+	}
+	if len(bind.SystemID) > MaxSystemIDLength || bytes.IndexByte([]byte(bind.SystemID), 0) >= 0 {
+		return nil, fmt.Errorf("%w: length must be 0..%d bytes and contain no NUL", ErrInvalidSystemID, MaxSystemIDLength)
+	}
+	body := make([]byte, 1, 1+len(bind.SystemID))
+	body[0] = byte(bind.Type)
+	return append(body, bind.SystemID...), nil
+}
+
+func decodeBindBodyV2(body []byte) (Bind, error) {
+	if len(body) < 1 {
+		return Bind{}, ErrMalformedBindBody
+	}
+	bindType := BindType(body[0])
+	if bindType != BindUniDirectional && bindType != BindBiDirectional {
+		return Bind{}, fmt.Errorf("%w: %d", ErrInvalidBindType, bindType)
+	}
+	systemIDBytes := body[1:]
+	if len(systemIDBytes) > MaxSystemIDLength || bytes.IndexByte(systemIDBytes, 0) >= 0 {
+		return Bind{}, ErrInvalidSystemID
+	}
+	return Bind{Type: bindType, SystemID: string(systemIDBytes)}, nil
+}
+
 func DecodeBindRequest(frame Frame) (Bind, error) {
 	if frame.Header.Command != CommandBindRequest {
 		return Bind{}, fmt.Errorf("%w: got command 0x%02x", ErrMalformedBindBody, uint8(frame.Header.Command))
