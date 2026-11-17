@@ -29,8 +29,8 @@ func TestOwnerResourceLedgerRequestCreditsAreBoundedAndReleased(t *testing.T) {
 
 func TestOwnerResourceLedgerRetainedByteClassesAreIndependent(t *testing.T) {
 	ledger := newOwnerResourceLedger(ownerResourceLimits{
-		maxRetainedApplicationBytes:  100,
-		maxRetainedCompletionBytes: 50,
+		maxRetainedApplicationBytes: 100,
+		maxRetainedCompletionBytes:  50,
 	})
 	if !ledger.reserveRetainedApplication(100) {
 		t.Fatal("exact Application byte limit should be admitted")

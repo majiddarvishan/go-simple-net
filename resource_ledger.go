@@ -16,12 +16,12 @@ type ownerResourceLimits struct {
 }
 
 type ownerResourceUsage struct {
-	outstandingRequests       uint32
-	retainedApplicationBytes  uint64
-	retainedCompletionBytes   uint64
-	onCloseEventCredits       uint32
-	queuedApplicationBytes    uint64
-	queuedApplicationFrames   uint32
+	outstandingRequests      uint32
+	retainedApplicationBytes uint64
+	retainedCompletionBytes  uint64
+	onCloseEventCredits      uint32
+	queuedApplicationBytes   uint64
+	queuedApplicationFrames  uint32
 }
 
 // ownerResourceLedger is shared by every Session belonging to one Client or
