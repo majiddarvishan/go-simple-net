@@ -36,13 +36,13 @@ Examples may add source under `examples/`; docs, tests and CI harness changes ar
 
 ## 3. Task sequence, estimates and acceptance criteria
 
-Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00 is complete; remaining work is approximately **8.5–13.5 hours**.
+Estimates are engineering effort, not calendar promises. The initial total is approximately **9–15 hours** including review and CI iteration. P9-00, P9-01 and P9-02 are complete; remaining work is approximately **6.5–9.5 hours**, including the separately gated release operation.
 
 | Task | Estimate | Dependency | Acceptance |
 |---|---:|---|---|
 | P9-00 Tracker/status reconciliation | 0.5–1 h | None | Complete |
-| P9-01 Client example | 1–2 h | P9-00 | Runnable/buildable example uses only public API and demonstrates lifecycle, Request/Completion, SendNoWait and errors |
-| P9-02 Server example | 1–2 h | P9-00 | Runnable/buildable example uses only public API and demonstrates validation, Request/Response and graceful shutdown |
+| P9-01 Client example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
+| P9-02 Server example | 1–2 h | P9-00 | COMPLETE — public-API example compiles and Go correctness CI passes; paired runtime smoke remains P9-05 |
 | P9-03 Public API/usage docs | 3–4.5 h | P9-01, P9-02 | Exported API/option GoDoc complete; configuration and lifecycle contracts documented; README Quick Start works |
 | P9-04 Pinex compatibility docs | 1–1.5 h | P9-00 | Exact compatibility version/source SHA, golden and live TCP evidence, and limitations documented |
 | P9-05 Test/CI and release review | 2–3 h | P9-01..P9-04 | Examples compile; correctness/compatibility gates pass; coverage and support baseline recorded; changelog/version/release checklist reviewed |
@@ -90,6 +90,18 @@ Must demonstrate:
 - Use only the public root package and standard library.
 
 Acceptance: example compiles, documents how the Client example connects, and is exercised by the example verification path.
+
+### P9-01/P9-02 — Example implementation and build verification
+
+**Status: COMPLETE for source implementation and compile/correctness gates.** Paired runtime smoke remains part of P9-05.
+
+- Client: [`examples/client/main.go`](../examples/client/main.go). Uses Connect/Bind, CurrentSession, SendRequest/Completion, SendNoWait, OnBound/OnClose and deferred bounded Client.Stop.
+- Server: [`examples/server/main.go`](../examples/server/main.go). Uses Start/Addr, BindValidator, OnBound/OnRequest/OnClose, SendResponse and bounded graceful Server.Stop.
+- Both examples import only the public root package and Go standard library; no `internal/` imports or new dependencies.
+- Commit: [04d905f75786542c9b51f48a33228b9bd372b419](https://github.com/majiddarvishan/neta-go/commit/04d905f75786542c9b51f48a33228b9bd372b419).
+- Go correctness CI [44115049164](https://github.com/majiddarvishan/neta-go/actions/runs/44115049164): PASS. The workflow runs `make verify`, including gofmt, vet, uncached unit tests and race tests; `go test ./...` compiles the example packages.
+- Pinex Wire Compatibility CI [44115049277](https://github.com/majiddarvishan/neta-go/actions/runs/44115049277): PASS.
+- The examples are designed to work together: the Client sends a Request expecting an echo Response and a one-way `event:` payload for which the Server intentionally sends no Response.
 
 ### P9-03 — Public API and usage documentation
 

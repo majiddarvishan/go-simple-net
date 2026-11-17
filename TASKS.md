@@ -257,8 +257,8 @@ This root-level file is the single, canonical, implementation-facing task list f
 **Authorization boundary:** P9-00 through P9-05 are authorized. P9-06 may create a V1 release tag only after all release gates pass and the owner gives separate explicit release approval. This Phase 9 authorization does not reopen the frozen production API, wire protocol, configuration defaults, timeout/reconnect policy, worker topology, resource ceilings or payload-ownership contracts.
 
 - [x] **P9-00 — Documentation and tracker reconciliation:** correct Phase 8/HEAD status; synchronize README, HANDOFF and authorization records; refine Phase 9 acceptance criteria/dependencies; record the owner authorization and release-tag boundary. No production source changed.
-- [ ] **P9-01 — Client example:** add a self-contained, buildable Client example covering configuration, Connect/Bind, SendRequest/Completion, SendNoWait, error handling and graceful Stop. Use only the frozen public API.
-- [ ] **P9-02 — Server example:** add a self-contained, buildable Server example covering Start/Addr, BindValidator, OnRequest/SendResponse, OnClose and graceful Stop. Use only the frozen public API.
+- [x] **P9-01 — Client example:** added `examples/client/main.go` covering configuration, Connect/Bind, SendRequest/Completion, SendNoWait, error handling and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
+- [x] **P9-02 — Server example:** added `examples/server/main.go` covering Start/Addr, BindValidator, OnRequest/SendResponse, OnClose and graceful Stop. Uses only the frozen public API; compiled and passed Go correctness CI.
 - [ ] **P9-03 — Public API and usage documentation:**
   - [ ] Audit GoDoc for every exported type, constant, function, method and Functional Option; document all 56 With... option constructors and callback contracts.
   - [ ] Document configuration defaults, valid ranges, hard maxima, zero-value semantics, inheritance and independent Client/Server/Session resource budgets.
@@ -279,9 +279,13 @@ This root-level file is the single, canonical, implementation-facing task list f
 - P9-00 baseline HEAD: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`; the production source remains at `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
 - Final pre-Phase-9 Go CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) both PASS on the baseline HEAD.
 - P9-00 changes only project documentation/tracking/authorization records; no production source, tests, API, protocol or defaults are changed.
-- P9-00 documentation commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450) and [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0).
+- P9-00 documentation commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450), [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0), and final link/evidence correction [a43b0e5ca9b50f592ae402d18968b538af5bc128](https://github.com/majiddarvishan/neta-go/commit/a43b0e5ca9b50f592ae402d18968b538af5bc128).
 - Final P9-00 Go CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747): PASS (`make verify`); Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634): PASS, both on HEAD `c6ac25338851edda1630dd6301a8eaf509f994c0`.
 - Internal Markdown link audit found and corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; all audited relative links now resolve.
+- Final P9-00 Go CI [44114744808](https://github.com/majiddarvishan/neta-go/actions/runs/44114744808): PASS; Pinex Wire Compatibility [44114744875](https://github.com/majiddarvishan/neta-go/actions/runs/44114744875): PASS on HEAD `a43b0e5ca9b50f592ae402d18968b538af5bc128`.
+- P9-01/P9-02 example commit: [04d905f75786542c9b51f48a33228b9bd372b419](https://github.com/majiddarvishan/neta-go/commit/04d905f75786542c9b51f48a33228b9bd372b419).
+- Go correctness CI [44115049164](https://github.com/majiddarvishan/neta-go/actions/runs/44115049164): PASS (`make verify`: formatting, vet, unit and race); `go test ./...` compiles both example packages. Pinex Wire Compatibility [44115049277](https://github.com/majiddarvishan/neta-go/actions/runs/44115049277): PASS.
+- Runtime smoke of the two programs together remains in P9-05; current CI proves compilation and repository correctness, not yet a paired live example run.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---

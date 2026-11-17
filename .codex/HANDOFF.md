@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 documentation/tracker reconciliation is complete. Next: Client example (P9-01) and Server example (P9-02), then public API/usage docs (P9-03), Pinex compatibility docs (P9-04), and test/CI plus release-readiness review (P9-05). P9-06 release tagging is not authorized yet. No production source/API/protocol/default change is part of P9-00.
+**Current work:** P9-00 tracker reconciliation, P9-01 Client example and P9-02 Server example are complete. The example packages compile and the Go correctness/Pinex compatibility CI gates pass. Next: complete public API and usage documentation (P9-03), document Pinex compatibility evidence (P9-04), then run paired example smoke and release-readiness review (P9-05). P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
