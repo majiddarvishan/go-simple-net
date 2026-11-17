@@ -147,7 +147,7 @@ func (s *Session) Unbind(ctx context.Context) error {
 		s.clearProbeLocked()
 		s.unbindSequence = sequence
 		s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
-		admissionErr = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true})
+		admissionErr = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true, unbindRequest: true})
 	case SessionStateUnbinding:
 		// Join the existing graceful Unbind operation.
 	case SessionStateClosing, SessionStateClosed:

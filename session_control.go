@@ -81,6 +81,7 @@ func (s *Session) controlLoop() {
 							s.mu.Lock()
 							if s.state == SessionStateBound && s.enquireLinkQueued {
 								s.enquireLinkQueued = false
+								s.enquireLinkWriting = false
 								if s.enquireLinkResponseSeen {
 									s.enquireLinkResponseSeen = false
 									s.enquireLinkOutstanding = false
@@ -193,6 +194,7 @@ func (s *Session) isSequenceInUseLocked(sequence uint32) bool {
 
 func (s *Session) clearProbeLocked() {
 	s.enquireLinkQueued = false
+	s.enquireLinkWriting = false
 	s.enquireLinkOutstanding = false
 	s.enquireLinkDeadline = time.Time{}
 }

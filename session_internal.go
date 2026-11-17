@@ -64,8 +64,11 @@ type outboundFrame struct {
 	bytes      []byte
 	control    bool
 	barrier    bool
-	requestSeq uint32
-	controlSeq uint32
+	requestSeq    uint32
+	controlSeq    uint32
+	bindRequest   bool
+	bindResponse  bool
+	unbindRequest bool
 	afterWrite func()
 }
 
@@ -120,6 +123,13 @@ type Session struct {
 	bindSequence            uint32
 	unbindSequence          uint32
 	enquireLinkSequence     uint32
+	bindRequestWriting      bool
+	bindRequestSent         bool
+	bindResponseWriting     bool
+	bindResponseSent        bool
+	unbindRequestWriting    bool
+	unbindRequestSent       bool
+	enquireLinkWriting      bool
 	enquireLinkQueued       bool
 	enquireLinkOutstanding  bool
 	enquireLinkResponseSeen bool
@@ -546,6 +556,12 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.unbindDeadline = time.Time{}
 		s.enquireLinkDeadline = time.Time{}
 		s.clearProbeLocked()
+		s.bindRequestWriting = false
+		s.bindRequestSent = false
+		s.bindResponseWriting = false
+		s.bindResponseSent = false
+		s.unbindRequestWriting = false
+		s.unbindRequestSent = false
 		s.pendingBind = nil
 		s.cond.Broadcast()
 		conn := s.conn

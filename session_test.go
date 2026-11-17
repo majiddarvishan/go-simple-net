@@ -216,7 +216,7 @@ func TestSessionOnBoundIsQueuedBeforeApplicationRequest(t *testing.T) {
 	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
 		Type: wire.BindBiDirectional, SystemID: "client",
 	}, time.Second, dispatcher, sessionHandlers{
-		onBound: func(*Session) { order = append(order, "bound") },
+		onBound:   func(*Session) { order = append(order, "bound") },
 		onRequest: func(*Session, Request) { order = append(order, "request") },
 	})
 	if err != nil {
@@ -468,8 +468,14 @@ func TestSessionClientBindHandshake(t *testing.T) {
 
 func TestSessionServerPreBindHandshake(t *testing.T) {
 	local, peer := net.Pipe()
+	gate := make(chan struct{})
+	wrapped := writeReturnGateConn{Conn: local, gate: gate}
 	dispatcher := &testSessionDispatcher{}
-	session, err := newServerPreBindSession(local, defaultSessionConfig(), time.Now(), time.Second, dispatcher, sessionHandlers{})
+	var order []string
+	session, err := newServerPreBindSession(wrapped, defaultSessionConfig(), time.Now(), time.Second, dispatcher, sessionHandlers{
+		onBound: func(*Session) { order = append(order, "bound") },
+		onRequest: func(*Session, Request) { order = append(order, "request") },
+	})
 	if err != nil {
 		t.Fatalf("newServerPreBindSession: %v", err)
 	}
@@ -500,12 +506,40 @@ func TestSessionServerPreBindHandshake(t *testing.T) {
 	if response.Header.Sequence != 41 || bind.SystemID != "server" {
 		t.Fatalf("unexpected Bind Response: header=%+v bind=%+v", response.Header, bind)
 	}
+
+	firstFrame, err := wire.EncodeStreamRequest(42, []byte("first-after-bind"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, firstFrame)
+	if dispatcher.applicationCount() != 0 {
+		t.Fatal("post-Bind Application callback escaped before Session became Bound")
+	}
+	close(gate)
 	if err := session.waitBound(context.Background()); err != nil {
 		t.Fatalf("waitBound: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) && dispatcher.applicationCount() < 2 {
+		time.Sleep(time.Millisecond)
+	}
+	first, ok := dispatcher.takeApplication()
+	if !ok {
+		t.Fatal("OnBound callback was not queued")
+	}
+	second, ok := dispatcher.takeApplication()
+	if !ok {
+		t.Fatal("post-Bind OnRequest callback was not queued")
+	}
+	first.run()
+	second.run()
+	if len(order) != 2 || order[0] != "bound" || order[1] != "request" {
+		t.Fatalf("callback order = %v", order)
 	}
 	session.Close()
 	waitDone(t, session)
 }
+
 
 func TestSessionPreBindForcedCloseUnblocksHandshake(t *testing.T) {
 	local, peer := net.Pipe()

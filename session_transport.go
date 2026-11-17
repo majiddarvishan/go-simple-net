@@ -97,10 +97,24 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 		}
 		return s.handlePreBindRequest(frame)
 	case SessionStateBinding:
-		if role != sessionRoleClient || frame.Header.Command != wire.CommandBindResponse {
-			return ErrProtocol
+		if role == sessionRoleClient && frame.Header.Command == wire.CommandBindResponse {
+			return s.handleClientBindResponse(frame)
 		}
-		return s.handleClientBindResponse(frame)
+		if role == sessionRoleServer {
+			s.mu.Lock()
+			responseStarted := s.bindResponseWriting || s.bindResponseSent
+			s.mu.Unlock()
+			if !responseStarted {
+				return ErrProtocol
+			}
+			select {
+			case <-s.bound:
+				return s.handleBoundFrame(frame, role)
+			case <-s.closing:
+				return ErrClosed
+			}
+		}
+		return ErrProtocol
 	case SessionStateBound, SessionStateUnbinding:
 		return s.handleBoundFrame(frame, role)
 	default:
@@ -189,8 +203,9 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 	s.mu.Lock()
 	sequence := s.bindSequence
+	requestStarted := s.bindRequestWriting || s.bindRequestSent
 	s.mu.Unlock()
-	if frame.Header.Sequence != sequence {
+	if frame.Header.Sequence != sequence || !requestStarted {
 		return ErrProtocol
 	}
 	if frame.Header.Status != wire.StatusOK {
@@ -267,7 +282,7 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 	case wire.CommandEnquireLinkResponse:
 		s.mu.Lock()
 		if frame.Header.Sequence == s.enquireLinkSequence {
-			if s.enquireLinkQueued {
+			if s.enquireLinkWriting {
 				s.enquireLinkResponseSeen = true
 			} else if s.enquireLinkOutstanding {
 				s.enquireLinkOutstanding = false
@@ -312,7 +327,7 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 
 	case wire.CommandUnbindResponse:
 		s.mu.Lock()
-		matches := s.state == SessionStateUnbinding && frame.Header.Sequence == s.unbindSequence
+		matches := s.state == SessionStateUnbinding && frame.Header.Sequence == s.unbindSequence && (s.unbindRequestWriting || s.unbindRequestSent)
 		s.mu.Unlock()
 		if matches {
 			s.beginClose(nil, false)
@@ -354,6 +369,18 @@ func (s *Session) writerLoop() {
 			s.barrierQueue = s.barrierQueue[1:]
 		}
 		s.activeWrite = item
+		if item.bindRequest {
+			s.bindRequestWriting = true
+		}
+		if item.bindResponse {
+			s.bindResponseWriting = true
+		}
+		if item.unbindRequest {
+			s.unbindRequestWriting = true
+		}
+		if item.controlSeq != 0 && item.controlSeq == s.enquireLinkSequence && s.enquireLinkQueued {
+			s.enquireLinkWriting = true
+		}
 		if item.requestSeq != 0 {
 			if pending := s.pending[item.requestSeq]; pending != nil {
 				pending.writerClaimed = true
@@ -370,6 +397,18 @@ func (s *Session) writerLoop() {
 		}
 		if err == nil {
 			s.lastActivity = time.Now()
+			if item.bindRequest {
+				s.bindRequestWriting = false
+				s.bindRequestSent = true
+			}
+			if item.bindResponse {
+				s.bindResponseWriting = false
+				s.bindResponseSent = true
+			}
+			if item.unbindRequest {
+				s.unbindRequestWriting = false
+				s.unbindRequestSent = true
+			}
 		}
 		s.mu.Unlock()
 		s.signalControl()
