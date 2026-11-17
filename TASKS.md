@@ -321,7 +321,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## PV-02B — Extend V2 SystemID to 20 bytes (owner-authorized 2026-11-18)
 
-- [ ] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains at 19 bytes + NUL. Client validation uses the selected Session protocol version; both codecs enforce their own limits. Test acceptance at 19/20, rejection at 21 for V2 and 20 for V1, request/response round-trips and a real Go V2 TCP Bind with a 20-byte identity. Requires protected PR Go and Pinex 1.5.0 compatibility CI PASS before closure.
+- [x] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains 19 bytes + NUL. Go Client validation honors the selected Session protocol version; Encode/Decode reject exceeding lengths. New tests verify V2 accepts 20/rejects 21, V1 accepts 19/rejects 20, Request/Response round-trips and real TCP V2 Bind of 20 bytes. Protected [PR #8](https://github.com/majiddarvishan/neta-go/pull/8): Go [44187040490](https://github.com/majiddarvishan/neta-go/actions/runs/44187040490) **PASS** and Pinex [44187040470](https://github.com/majiddarvishan/neta-go/actions/runs/44187040470) **PASS** on SHA `9e2ede41284684c640897d282b39f36468335424`. Post-merge main evidence and release notes requalification remain PV-02B-R.
 - [ ] **PV-02B-R — Release requalification:** record exact post-merge main CI and obtain owner approval of updated Unreleased release notes. **P9-06 remains NOT AUTHORIZED**; no tag/release.
 
 ## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
