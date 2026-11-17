@@ -17,6 +17,18 @@ const (
 	BindTypeBiDirectional
 )
 
+// ProtocolVersion identifies the locally configured protocol generation for a
+// Session. V1 and V2 currently use identical Pinex 1.5.0 wire bytes: this
+// value does not represent an on-wire capability negotiation.
+type ProtocolVersion uint8
+
+const (
+	// ProtocolVersionV1 selects the legacy-compatible protocol generation.
+	ProtocolVersionV1 ProtocolVersion = 1
+	// ProtocolVersionV2 is the default; it currently uses the same wire format.
+	ProtocolVersionV2 ProtocolVersion = 2
+)
+
 // Request is an inbound Application Request delivered to a Server handler.
 // Payload is an owned snapshot and may be retained after the handler returns.
 type Request struct {
