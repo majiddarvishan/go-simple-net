@@ -1,0 +1,83 @@
+name: Phase 8 Performance Baseline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'phase8_benchmark_test.go'
+      - '.github/workflows/phase8-performance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Reproducible loopback benchmarks and profiles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+
+      - name: Capture runner and toolchain metadata
+        run: |
+          mkdir -p artifacts
+          {
+            echo "UTC=$(date -u +%FT%TZ)"
+            echo "SOURCE_SHA=$(git rev-parse HEAD)"
+            echo "GO_VERSION=$(go version)"
+            echo "GO_ENV:"
+            go env
+            echo "UNAME:"
+            uname -a
+            echo "CPU:"
+            lscpu
+            echo "MEMORY:"
+            free -h
+            echo "CGROUP:"
+            for f in /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpuset.cpus.effective; do
+              if [ -r "$f" ]; then echo "$f=$(cat "$f")"; fi
+            done
+            echo "ULIMIT:"
+            ulimit -a
+          } > artifacts/environment.txt
+          go test -run '^TestPhase8RuntimeMetadata$' -v | tee artifacts/runtime-metadata.txt
+
+      - name: Run benchmark matrix
+        run: |
+          go test -run '^$' -bench '^BenchmarkPhase8' -benchmem \
+            -benchtime=250ms -count=3 -cpu=1,4 -timeout=35m \
+            | tee artifacts/benchmark-matrix.txt
+
+      - name: Capture representative CPU, heap, mutex and block profiles
+        run: |
+          /usr/bin/time -v -o artifacts/profile-time.txt \
+            go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' \
+              -benchmem -benchtime=10s -count=1 -cpu=4 \
+              -cpuprofile=artifacts/cpu.pprof \
+              -memprofile=artifacts/heap.pprof \
+              -mutexprofile=artifacts/mutex.pprof \
+              -blockprofile=artifacts/block.pprof \
+              | tee artifacts/profile-run.txt
+          go tool pprof -top -nodecount=40 artifacts/cpu.pprof > artifacts/cpu-top.txt
+          go tool pprof -top -nodecount=40 artifacts/heap.pprof > artifacts/heap-top.txt
+          go tool pprof -top -nodecount=40 artifacts/mutex.pprof > artifacts/mutex-top.txt
+          go tool pprof -top -nodecount=40 artifacts/block.pprof > artifacts/block-top.txt
+
+      - name: Upload benchmark and profile artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neta-go-phase8-baseline-\${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
