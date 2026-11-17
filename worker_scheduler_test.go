@@ -681,8 +681,20 @@ func TestSessionCompletionWorkerDoesNotBlockReaderWriterOrDone(t *testing.T) {
 
 	close(releaseCompletion)
 	waitForWorkerSignal(t, completionReturned, "running Completion callback return")
-	if got := resources.snapshot(); got.outstandingRequests != 0 || got.retainedCompletionBytes != 0 {
-		t.Fatalf("Completion resources leaked after callback return: %+v", got)
+	// The callback closes completionReturned immediately before returning.
+	// Request and retained Completion credits are released by the worker's
+	// deferred callback epilogue, so wait for that release instead of racing
+	// the epilogue under -race.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		usage := resources.snapshot()
+		if usage.outstandingRequests == 0 && usage.retainedCompletionBytes == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Completion resources leaked after callback return: %+v", usage)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
