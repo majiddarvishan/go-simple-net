@@ -6,7 +6,7 @@ A high-performance, Pinex-compatible TCP messaging library written in Go.
 
 Phases 1–8 are complete. The Phase 8 performance baseline and evidence review closed with **PERF-004 = NO CHANGE**; no production optimization or public-contract change was accepted.
 
-**Phase 9 — documentation, examples and V1 release readiness — is owner-authorized and in progress.** Tasks P9-00..P9-05 are complete, including an engineering release-readiness review with documented release-time verification limits. Examples, correctness/compatibility CI, paired runtime smoke and protected-branch CI checks pass. The V1 release/tag task P9-06 remains separately gated on explicit owner approval and final admin settings / release permission preflight. No V1 release tag has been created or authorized.
+**Phase 9 — documentation, examples and V1 release readiness — is owner-authorized and in progress.** Tasks P9-00..P9-05 were complete on the earlier API baseline; a subsequent owner-authorized Go-only protocol version option (V2 default) requires fresh release-readiness requalification. Examples, correctness/compatibility CI, paired runtime smoke and protected-branch CI checks pass. The V1 release/tag task P9-06 remains separately gated on explicit owner approval and final admin settings / release permission preflight. No V1 release tag has been created or authorized.
 
 - **[Implementation tasks and live progress](TASKS.md)**
 - **[Phase 9 execution plan and acceptance criteria](.codex/NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)**
@@ -38,6 +38,23 @@ go run ./examples/client -addr 127.0.0.1:2775 -system-id neta-example-client
 The Client sends one Request and prints the echo Completion. It also sends a one-way `event:` message; the Server logs it without sending a Response. Press Ctrl-C in either process to exercise graceful shutdown.
 
 The examples demonstrate API usage, not production authentication policy. The sample BindValidator accepts any non-empty SystemID; production applications must implement their own identity/authentication policy.
+
+## Session protocol version (Go)
+
+The locally configured Session version defaults to **V2**. To select V1 explicitly:
+
+```go
+client, err := neta.NewClient(
+    neta.WithClientAddress("127.0.0.1:2775"),
+    neta.WithClientSystemID("my-client"),
+    neta.WithClientSessionOptions(neta.WithProtocolVersion(neta.ProtocolVersionV1)),
+)
+```
+
+For a Server, use `WithServerSessionOptions(WithProtocolVersion(...))`.
+`session.ProtocolVersion()` returns the immutable **local** version.
+
+**V1 and V2 currently use the exact same Pinex 1.5.0 wire format**, including the NUL byte after Bind SystemID. No version byte was added to the Header; there is no wire-level negotiation or automatic downgrade. The protocol generation V2 is independent of the Go library's intended semantic release version `v1.0.0`.
 
 ## Installing the development version
 
