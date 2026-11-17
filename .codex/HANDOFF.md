@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (LICENSE copyright holder/year, changelog/version approval and branch-protection verification). The Go/platform support baseline was OWNER APPROVED on 2026-11-17: minimum Go 1.23, Ubuntu 24.04/Linux amd64 CI-tested. P9-06 release tagging remains separately gated on explicit owner approval.
+**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (changelog/version approval and branch-protection verification). Copyright holder/year (`Majid Darvishan`, `2026`) and commercial use under existing Apache-2.0 were explicitly confirmed by owner on 2026-11-17; LICENSE notice updated. Go/platform support remains approved (Go 1.23 minimum; Ubuntu 24.04/Linux amd64 CI-tested). P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
@@ -1110,3 +1110,15 @@ P9-05 implementation commit `c038fa60ffafd1f895e133db6d8cca08e7a2cc49` added the
 Pre-decision CI at HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness + paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS, Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Support decision is closed in root `TASKS.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
 
 P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/version approval and branch-protection/release-settings verification. P9-06 is NOT AUTHORIZED. No release/tag, production changes or local stash operations were performed.
+
+
+## 31. P9-05 — Copyright notice and commercial-use permission (2026-11-17)
+
+**Status: OWNER CONFIRMED / COMPLETE.** The owner supplied the exact copyright holder **Majid Darvishan**, year **2026**, and stated that others may use neta-go commercially.
+
+- Retained the existing Apache License, Version 2.0, including its full terms and conditions (Sections 1–9).
+- Updated the copyright notice in the `LICENSE` appendix from its placeholder to `Copyright 2026 Majid Darvishan`.
+- README explains that commercial and proprietary use, modification and redistribution are permitted subject to Apache-2.0 conditions, including applicable license and attribution notices. No additional restriction on commercial use was imposed.
+- Closed only the copyright/licensing subtask in the canonical tracker and release checklist; P9-05 remains IN PROGRESS.
+- Remaining: verify GitHub classic branch protection/release settings (integration lacks the required administration scope), owner review of changelog/versioning. P9-06 tag and GitHub Release still need separate explicit owner approval.
+- No production source, public API, protocol, defaults, CI automation, tests or local `stash@{0}` were changed.

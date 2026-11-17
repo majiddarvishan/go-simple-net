@@ -1558,3 +1558,15 @@ The canonical execution checklist is root `TASKS.md`; scope, estimates, dependen
 Evidence on prior HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctness, coverage and paired-example smoke [44119456370](https://github.com/majiddarvishan/neta-go/actions/runs/44119456370) PASS; Pinex Wire Compatibility [44119455809](https://github.com/majiddarvishan/neta-go/actions/runs/44119455809) PASS. Other operating systems and architectures remain unverified and must not be described as officially supported.
 
 **Boundary:** only the P9-05 support baseline subtask is approved. Overall P9-05 remains open pending exact LICENSE holder/year, version/changelog review, and branch protection/release-settings verification. P9-06 release tagging and GitHub Release are not authorized; no frozen public API, wire protocol, defaults, worker limits or production behavior changes are approved by this decision.
+
+
+## 63. P9-05 — Copyright holder, year and commercial license policy (2026-11-17)
+
+**Owner decision:** Copyright holder is **Majid Darvishan** and copyright year is **2026**. The owner explicitly has no objection to others using neta-go commercially.
+
+- Preserve the repository's existing **Apache License 2.0**. It is a permissive license allowing commercial and proprietary use, reproduction, modification and distribution under its terms. No new non-commercial restriction or license switch is required or approved.
+- Replace the placeholder copyright notice in the LICENSE appendix with `Copyright 2026 Majid Darvishan` while preserving the full Apache-2.0 legal terms.
+- README must accurately state that commercial use is permitted **subject to the license's conditions**, including retaining applicable copyright/license notices and satisfying required notices for redistribution.
+- Mark the copyright/licensing checkbox complete in root `TASKS.md` and `docs/RELEASE_READINESS.md`.
+
+**Boundary:** This is a copyright/license attribution decision within P9-05. It does not approve a version, release notes, V1 tag, GitHub Release or any production API/wire/default behavior change. Branch protection and version/changelog review remain open.

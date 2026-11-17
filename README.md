@@ -55,3 +55,11 @@ This follows the moving development branch. For reproducible builds, pin an exac
 - [Configuration reference](docs/CONFIGURATION.md)
 - [Lifecycle, callbacks, payload ownership and errors](docs/LIFECYCLE.md)
 - [Pinex compatibility and verification evidence](docs/PINEX_COMPATIBILITY.md)
+
+## License
+
+**Apache License 2.0** — Copyright 2026 Majid Darvishan.
+
+You may use neta-go in **commercial or proprietary projects**, and may modify and redistribute it, subject to the conditions of the Apache-2.0 license. In particular, redistribution must comply with applicable license, copyright and attribution notice requirements. The license does not require you to publish your proprietary application's source code merely because it uses this library.
+
+See [LICENSE](LICENSE) for the full terms. No separate non-commercial restriction applies.

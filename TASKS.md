@@ -274,7 +274,7 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Add an Unreleased `CHANGELOG.md` and a release-readiness checklist; owner review remains pending.
   - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
   - [x] Owner confirms Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested platform; approved 2026-11-17; other platforms remain unverified.
-  - [ ] Owner supplies the exact copyright holder/year to replace the Apache-2.0 LICENSE template placeholder `[yyyy] [name]`.
+  - [x] Owner approved copyright holder **Majid Darvishan** and year **2026**, confirmed commercial use is permitted, and the Apache-2.0 `LICENSE` notice was updated on 2026-11-17.
   - [ ] Verify main branch protection/ruleset and GitHub Release settings. The GitHub integration returned HTTP 403 for branch protection; status remains unknown.
   - [ ] Owner reviews the changelog and confirms semantic versioning; `v1.0.0` is only a candidate, not an approved tag.
 - [ ] **P9-06 — V1 release tag:** create the agreed V1 tag/release only after P9-05 passes and the owner explicitly approves the release operation. No release tag is authorized by the general Phase 9 approval.
@@ -304,7 +304,8 @@ This root-level file is the single, canonical, implementation-facing task list f
 - The first smoke attempt [44118086700](https://github.com/majiddarvishan/neta-go/actions/runs/44118086700) exposed a shell-parameter expansion escape; the script was corrected in `6d2521a` and the final run passed.
 - A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
 - Owner approved the V1 support baseline on 2026-11-17: Go 1.23 minimum and Ubuntu 24.04/Linux amd64 as CI-tested. Local Go 1.27.0 verification is additional evidence; other platforms are unverified. This closes only the support approval subtask.
-- Remaining release review: exact LICENSE copyright holder/year, branch-protection state, changelog/version/tag policy. No V1 tag has been created.
+- Copyright/licensing decision CLOSED on 2026-11-17: owner specified `Majid Darvishan`, `2026` and explicitly permits commercial use. Existing Apache-2.0 license retained (including its conditions); copyright notice filled in. No extra non-commercial restriction or alternative license introduced.
+- Remaining release review: branch-protection verification and owner approval of changelog/version/tag policy. No V1 tag has been created.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---

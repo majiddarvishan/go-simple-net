@@ -24,7 +24,7 @@
 - [x] Paired Client/Server runtime smoke and graceful shutdown pass in CI.
 - [x] Record `go test -cover ./...` output; no minimum percentage has been approved.
 - [x] Owner approved Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested support baseline on 2026-11-17; [SUPPORT.md](SUPPORT.md) records the decision. Other platforms remain unverified.
-- [ ] Confirm the intended copyright holder and year. The Apache-2.0 `LICENSE` currently retains the template placeholder `[yyyy] [name]`; do not guess these values.
+- [x] Copyright holder **Majid Darvishan** and year **2026** confirmed by the owner on 2026-11-17; Apache-2.0 `LICENSE` copyright notice updated. The owner explicitly permits commercial use under Apache-2.0; no non-commercial restriction was added.
 - [ ] Review the Unreleased entries in [CHANGELOG.md](../CHANGELOG.md).
 - [ ] Verify main branch protection/ruleset and release settings. The GitHub integration could not read branch protection (HTTP 403); its state is unknown, not confirmed disabled.
 - [ ] Confirm the intended semantic version and final release notes. `v1.0.0` is a candidate only, not an approved tag.
