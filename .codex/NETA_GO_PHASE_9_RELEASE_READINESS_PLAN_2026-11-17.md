@@ -154,9 +154,9 @@ Document:
 Completed:
 - Added `scripts/phase9-release-check.sh` and `make phase9`. The script records coverage, builds both examples, starts the Server on an ephemeral loopback port, runs the Client, verifies Request/Response and one-way event delivery, and gracefully stops both processes.
 - Updated Go CI to run `make verify` followed by `make phase9`, then upload correctness and Phase 9 artifacts.
-- Final Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS on `6d2521a22a476ee24f90dee364249e137357b756`. Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS.
-- Coverage from `go test -count=1 -cover ./...`: `neta` 79.6%; `internal/wire` 90.3%; `examples/client` and `examples/server` 0.0% because they have no package-local tests. No minimum coverage threshold is approved.
-- Runtime smoke PASS: Client Request/Response, SendNoWait event observed by Server, graceful Client Stop and graceful Server Stop.
+- Initial final-gate Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS. A later race-test timing assertion was hardened in test-only commit [958601ee55dd6229021e36135a017527dfa8f778](https://github.com/majiddarvishan/neta-go/commit/958601ee55dd6229021e36135a017527dfa8f778); final Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS on that HEAD. Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS.
+- Coverage from `go test -count=1 -cover ./...`: `neta` 79.7%; `internal/wire` 90.3%; `examples/client` and `examples/server` 0.0% because they have no package-local tests. No minimum coverage threshold is approved.
+- Runtime smoke PASS: Client Request/Response, SendNoWait event observed by Server, graceful Client Stop and graceful Server Stop. Final evidence artifact [14344846005](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
 - Added `CHANGELOG.md`, `docs/SUPPORT.md` and `docs/RELEASE_READINESS.md`.
 
 Remaining owner/repository gates:

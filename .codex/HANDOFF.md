@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Next: close owner-dependent release review (Go/platform support approval, LICENSE copyright holder/year, changelog/version approval and branch-protection verification). P9-06 release tagging remains separately gated on explicit owner approval.
+**Current work:** P9-00 through P9-04 are complete. P9-05 automated checks now pass on test-hardened HEAD `958601ee55dd6229021e36135a017527dfa8f778`: `make verify`, coverage capture, both example builds, paired loopback Request/Response + SendNoWait, graceful Client/Server Stop, and Pinex compatibility. Remaining: owner-dependent release review (Go/platform support approval, LICENSE copyright holder/year, changelog/version approval and branch-protection verification). P9-06 release tagging remains separately gated on explicit owner approval.
 
 ## 1. Repository state
 
@@ -1100,4 +1100,4 @@ Do not apply or drop the stash as part of this review.
 
 ### Next action
 
-P9-05 implementation commit `c038fa60ffafd1f895e133db6d8cca08e7a2cc49` added the coverage and paired-example CI gate; script fix commit `6d2521a22a476ee24f90dee364249e137357b756` corrected shell expansion. Final Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345) and Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291) both PASS. Coverage: neta 79.6%, internal/wire 90.3%, examples 0% (no package-local tests). Paired runtime and graceful shutdown smoke PASS. Next: owner-dependent release review. Keep all frozen production contracts unchanged.
+P9-05 implementation commit `c038fa60ffafd1f895e133db6d8cca08e7a2cc49` added the coverage and paired-example CI gate; script fix commit `6d2521a22a476ee24f90dee364249e137357b756` corrected shell expansion. Final Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169) and Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078) both PASS. Coverage: neta 79.7%, internal/wire 90.3%, examples 0% (no package-local tests). Paired runtime and graceful shutdown smoke PASS. Next: owner-dependent release review. Keep all frozen production contracts unchanged.

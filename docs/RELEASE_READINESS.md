@@ -14,10 +14,10 @@
 
 ## P9-05 evidence
 
-- Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS; Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS on commit `6d2521a22a476ee24f90dee364249e137357b756`.
-- `neta`: 79.6% statement coverage; `internal/wire`: 90.3%; examples: 0.0% package-local coverage (no tests in those main packages). No threshold is approved.
+- Final Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS; Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS on test-hardened commit `958601ee55dd6229021e36135a017527dfa8f778`.
+- `neta`: 79.7% statement coverage; `internal/wire`: 90.3%; examples: 0.0% package-local coverage (no tests in those main packages). No threshold is approved.
 - Loopback smoke verified Request/Response, one-way event reception and graceful shutdown of both programs. Both example binaries built.
-- Artifact: [Phase 9 coverage and smoke evidence](https://github.com/github/actions/runs/44118324345/artifacts/14343193350).
+- Artifact: [Final Phase 9 coverage and smoke evidence](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
 
 ## P9-05 gates still to close
 

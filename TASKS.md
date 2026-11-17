@@ -268,7 +268,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [ ] **P9-05 — Test, CI and release-readiness review (IN PROGRESS):**
   - [x] Add `make phase9` and a CI gate after `make verify`; preserve coverage and example-smoke logs as artifacts.
   - [x] Build both examples and run paired Client/Server loopback smoke: Request/Response, SendNoWait event delivery and graceful Client/Server Stop all PASS.
-  - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.6%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
+  - [x] Record `go test -count=1 -cover ./...`: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% because they have no package-local unit tests. No minimum coverage threshold is approved.
   - [x] Run the complete Go correctness gate and Pinex compatibility gate on the P9-05 CI commit.
   - [x] Record toolchain/platform evidence and publish a proposed support statement; owner approval remains pending.
   - [x] Add an Unreleased `CHANGELOG.md` and a release-readiness checklist; owner review remains pending.
@@ -296,11 +296,11 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Pinex Wire Compatibility CI [44116675706](https://github.com/majiddarvishan/neta-go/actions/runs/44116675706): PASS on the same HEAD.
 - GoDoc audit: all exported top-level declarations in the root production package have comments; all 56 exported `With...` constructors are documented. Internal Markdown link audit: PASS.
 - P9-03/04 changed documentation and comments only. The private `newConfigError` helper was restored unchanged; no production behavior/API/protocol/default/resource policy changed.
-- P9-05 implementation commit: [c038fa60ffafd1f895e133db6d8cca08e7a2cc49](https://github.com/majiddarvishan/neta-go/commit/c038fa60ffafd1f895e133db6d8cca08e7a2cc49); shell expansion fix: [6d2521a22a476ee24f90dee364249e137357b756](https://github.com/majiddarvishan/neta-go/commit/6d2521a22a476ee24f90dee364249e137357b756).
-- Final P9-05 Go CI [44118324345](https://github.com/majiddarvishan/neta-go/actions/runs/44118324345): PASS on HEAD `6d2521a22a476ee24f90dee364249e137357b756`; includes `make verify` and `make phase9`. Pinex Wire Compatibility [44118324291](https://github.com/majiddarvishan/neta-go/actions/runs/44118324291): PASS.
-- Coverage: root `neta` 79.6%; `internal/wire` 90.3%; example main packages 0.0% (no package-local tests). These are visibility metrics only; no coverage threshold is approved.
+- P9-05 implementation commit: [c038fa60ffafd1f895e133db6d8cca08e7a2cc49](https://github.com/majiddarvishan/neta-go/commit/c038fa60ffafd1f895e133db6d8cca08e7a2cc49); shell expansion fix: [6d2521a22a476ee24f90dee364249e137357b756](https://github.com/majiddarvishan/neta-go/commit/6d2521a22a476ee24f90dee364249e137357b756); test-only deferred-credit assertion fix: [958601ee55dd6229021e36135a017527dfa8f778](https://github.com/majiddarvishan/neta-go/commit/958601ee55dd6229021e36135a017527dfa8f778).
+- Final P9-05 Go CI [44119107169](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169): PASS on HEAD `958601ee55dd6229021e36135a017527dfa8f778`; includes `make verify` and `make phase9`. Pinex Wire Compatibility [44119107078](https://github.com/majiddarvishan/neta-go/actions/runs/44119107078): PASS.
+- Coverage: root `neta` 79.7%; `internal/wire` 90.3%; example main packages 0.0% (no package-local tests). These are visibility metrics only; no coverage threshold is approved.
 - Runtime smoke: ephemeral loopback TCP, Client Request/Response, SendNoWait event observed by Server, and graceful Client/Server shutdown all PASS. Both example binaries built successfully.
-- Phase 9 evidence artifact: [14343193350](https://github.com/github/actions/runs/44118324345/artifacts/14343193350).
+- Final Phase 9 evidence artifact: [14344846005](https://github.com/majiddarvishan/neta-go/actions/runs/44119107169/artifacts/14344846005).
 - The first smoke attempt [44118086700](https://github.com/majiddarvishan/neta-go/actions/runs/44118086700) exposed a shell-parameter expansion escape; the script was corrected in `6d2521a` and the final run passed.
 - A Phase 8 Performance workflow [44118086752](https://github.com/majiddarvishan/neta-go/actions/runs/44118086752) was automatically triggered because the Phase 9 commit changed `Makefile`, which is in its path filter. It is an extra verification run; Phase 8 remains COMPLETE and no P8 task was reopened.
 - Release review still needs owner approval for the proposed support baseline, exact LICENSE copyright holder/year, branch-protection state and version/tag policy. No V1 tag has been created.
