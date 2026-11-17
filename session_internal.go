@@ -186,22 +186,22 @@ func newSessionWithResources(conn net.Conn, config sessionConfig, identity sessi
 		resources = newClientResourceLedger(defaultOwnerConfig())
 	}
 	s := &Session{
-		config:       config,
-		conn:         conn,
-		role:         identity.role,
-		resources:    resources,
-		dispatcher:   dispatcher,
-		handlers:     handlers,
-		state:        SessionStateNew,
-		systemID:     identity.systemID,
-		bindType:     identity.bindType,
+		config:          config,
+		conn:            conn,
+		role:            identity.role,
+		resources:       resources,
+		dispatcher:      dispatcher,
+		handlers:        handlers,
+		state:           SessionStateNew,
+		systemID:        identity.systemID,
+		bindType:        identity.bindType,
 		protocolVersion: config.protocolVersion,
-		pending:      make(map[uint32]*pendingRequest),
-		bindRequests: make(chan bindRequestEvent, 1),
-		wake:         make(chan struct{}, 1),
-		bound:        make(chan struct{}),
-		done:         make(chan struct{}),
-		closing:      make(chan struct{}),
+		pending:         make(map[uint32]*pendingRequest),
+		bindRequests:    make(chan bindRequestEvent, 1),
+		wake:            make(chan struct{}, 1),
+		bound:           make(chan struct{}),
+		done:            make(chan struct{}),
+		closing:         make(chan struct{}),
 	}
 	if conn != nil {
 		s.remoteAddr = conn.RemoteAddr()
