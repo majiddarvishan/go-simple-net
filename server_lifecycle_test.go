@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 	"time"
+	"sync/atomic"
 
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
@@ -409,4 +410,39 @@ func TestServerDoneReleasesPendingIdentityBeforeSessionIdentityIsPublished(t *te
 	if server.pendingSockets != 0 || len(server.sessionIDs) != 0 {
 		t.Fatalf("Session identity/accounting leaked: pending=%d sessionIDs=%d", server.pendingSockets, len(server.sessionIDs))
 	}
+}
+
+
+func TestServerBindValidatorReceivesPeerAndCanRejectWithoutReservingID(t *testing.T) {
+	var calls atomic.Uint32
+	infos := make(chan BindInfo, 2)
+	bound := make(chan *Session, 1)
+	server := newLifecycleTestServer(t,
+		WithBindValidator(func(info BindInfo) error {
+			infos <- info
+			if calls.Add(1) == 1 {
+				return errors.New("test policy rejection")
+			}
+			return nil
+		}),
+		WithServerOnBoundHandler(func(session *Session) { bound <- session }),
+	)
+
+	firstConn, firstResponse := bindLifecyclePeer(t, server.Addr().String(), "validated-peer")
+	defer firstConn.Close()
+	if firstResponse.Header.Status != wire.StatusFailed {
+		t.Fatalf("first Bind status = 0x%x, want rfail from validator", firstResponse.Header.Status)
+	}
+	firstInfo := <-infos
+	if firstInfo.SystemID != "validated-peer" || firstInfo.BindType != uint8(wire.BindBiDirectional) || firstInfo.RemoteAddr == nil {
+		t.Fatalf("BindValidator received incomplete peer info: %+v", firstInfo)
+	}
+
+	secondConn, secondResponse := bindLifecyclePeer(t, server.Addr().String(), "validated-peer")
+	defer secondConn.Close()
+	if secondResponse.Header.Status != wire.StatusOK {
+		t.Fatalf("second Bind status = 0x%x, want success after validator accepts", secondResponse.Header.Status)
+	}
+	_ = receiveBoundSession(t, bound)
+	waitServerBoundCount(t, server, 1)
 }
