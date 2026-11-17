@@ -982,3 +982,20 @@ No public API, wire format, defaults, resource ceilings or frozen architecture d
 **P8 tasks:** P8-01 benchmark suite and environment capture; P8-02 latency/throughput/allocation/CPU/heap/GC/goroutine/RSS/contention metrics; P8-03 CPU/heap/mutex/block profiling; P8-04 evidence-based PERF-004 evaluation; P8-05 correctness/interop/performance regression gate.
 
 Initial work must remain test/benchmark/CI/documentation-only. Do not begin Phase 9. Record exact source HEAD and runner details for every result.
+
+
+## 23. Phase 8 — Repeatable local/CI automation (2026-11-17)
+
+**Repository HEAD before automation commit:** 58abc598bb62cd9e86eee7849a959ded80dbc2a7
+
+The owner asked that the Phase 8 correctness/performance tests be repeatable automatically and that local requests be reduced to short scripts only where machine-local execution is necessary.
+
+Added repository automation:
+- `Makefile`: `check`, `race`, `verify`, `perf-smoke`, `soak`, `phase8`.
+- `scripts/ci-check.sh`: gofmt, vet, uncached unit and race checks.
+- `scripts/phase8-benchmark.sh`: smoke, soak and full benchmark/profile modes.
+- `.gitignore`: ignore generated `artifacts/`.
+- GitHub Go and Phase 8 workflows invoke the same Makefile targets as local runs.
+- Artifacts capture source SHA, worktree state, Go toolchain/environment, logs, explicit PASS/FAIL status, benchmark output and profiles.
+
+**Validation status at handoff:** repository changes committed; the new GitHub Actions runs must be inspected before declaring automation validated. The Phase 8 performance baseline remains IN PROGRESS. Do not start Phase 9 or change production behavior.

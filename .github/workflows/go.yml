@@ -11,24 +11,30 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
           cache: false
-      - name: Check formatting
-        run: |
-          files="$(gofmt -l .)"
-          if [ -n "$files" ]; then
-            echo "$files"
-            gofmt -d $files
-            exit 1
-          fi
-      - name: Vet
-        run: go vet ./...
-      - name: Test
-        run: go test ./...
-      - name: Race test
-        run: go test -race ./...
+
+      - name: Run shared correctness checks
+        env:
+          ARTIFACT_DIR: artifacts/ci
+        run: make verify
+
+      - name: Upload correctness logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neta-go-correctness-${{ github.sha }}
+          path: artifacts/ci/
+          if-no-files-found: warn
+          retention-days: 14

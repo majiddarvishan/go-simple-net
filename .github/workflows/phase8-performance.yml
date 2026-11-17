@@ -5,21 +5,26 @@ on:
     branches: [main]
     paths:
       - 'phase8_benchmark_test.go'
+      - 'Makefile'
+      - 'scripts/phase8-benchmark.sh'
       - '.github/workflows/phase8-performance.yml'
+      - 'go.mod'
   workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
   group: phase8-performance-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   benchmark:
-    name: Reproducible loopback benchmarks and profiles
+    name: Reproducible Phase 8 performance suite
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 100
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -32,69 +37,17 @@ jobs:
           go-version: '1.23.x'
           cache: false
 
-      - name: Capture runner and toolchain metadata
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          {
-            echo "UTC=$(date -u +%FT%TZ)"
-            echo "${{ github.sha }}=$(git rev-parse HEAD)"
-            echo "GO_VERSION=$(go version)"
-            echo "GO_ENV:"
-            go env
-            echo "UNAME:"
-            uname -a
-            echo "CPU:"
-            lscpu
-            echo "MEMORY:"
-            free -h
-            echo "CGROUP:"
-            for f in /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpuset.cpus.effective; do
-              if [ -r "$f" ]; then echo "$f=$(cat "$f")"; fi
-            done
-            echo "ULIMIT:"
-            ulimit -a
-          } > artifacts/environment.txt
-          go test -run '^TestPhase8RuntimeMetadata$' -v | tee artifacts/runtime-metadata.txt
-
-      - name: Run benchmark matrix
-        run: |
-          set -euo pipefail
-          go test -run '^$' -bench '^BenchmarkPhase8' -benchmem -benchtime=250ms -count=3 -cpu=1,4 -timeout=35m | tee artifacts/benchmark-matrix.txt
-
-      - name: Measure 1 to 512 Session scaling
-        run: |
-          set -euo pipefail
-          go test -run '^$' -bench '^BenchmarkScalePhase8Sessions$' -benchmem -benchtime=1s -count=1 -cpu=4 -timeout=15m | tee artifacts/session-scale.txt
-
-      - name: Run five-minute mixed-payload memory stability soak
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/memory-soak-time.txt env NETA_PHASE8_SOAK_SECONDS=300 go test -run '^TestPhase8MemoryStabilitySoak$' -count=1 -timeout=7m | tee artifacts/memory-soak.txt
-
-      - name: Capture small-payload CPU, heap, mutex and block profiles
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' -benchmem -benchtime=10s -count=1 -cpu=4 -cpuprofile=artifacts/cpu.pprof -memprofile=artifacts/heap.pprof -mutexprofile=artifacts/mutex.pprof -blockprofile=artifacts/block.pprof | tee artifacts/profile-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu.pprof | tee artifacts/cpu-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap.pprof | tee artifacts/heap-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex.pprof | tee artifacts/mutex-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block.pprof | tee artifacts/block-top.txt
-
-      - name: Capture large-payload CPU, heap, mutex and block profiles
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-large-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileLargeBaseline$' -benchmem -benchtime=5s -count=1 -cpu=4 -cpuprofile=artifacts/cpu-large.pprof -memprofile=artifacts/heap-large.pprof -mutexprofile=artifacts/mutex-large.pprof -blockprofile=artifacts/block-large.pprof | tee artifacts/profile-large-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu-large.pprof | tee artifacts/cpu-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap-large.pprof | tee artifacts/heap-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex-large.pprof | tee artifacts/mutex-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block-large.pprof | tee artifacts/block-large-top.txt
+      - name: Run complete Phase 8 suite
+        env:
+          ARTIFACT_DIR: artifacts/phase8
+          NETA_PHASE8_SOAK_SECONDS: '300'
+        run: make phase8
 
       - name: Upload benchmark and profile artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: neta-go-phase8-baseline-${{ github.sha }}
-          path: artifacts/
+          name: neta-go-phase8-${{ github.sha }}
+          path: artifacts/phase8/
           if-no-files-found: warn
           retention-days: 30

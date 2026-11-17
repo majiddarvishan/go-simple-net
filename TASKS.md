@@ -221,6 +221,15 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [ ] **P8-04 — PERF-004 decisions:** evaluate private outbound frame pooling, batching or other candidates only when the profile identifies a material bottleneck. Never pool user-owned inbound payloads; preserve PERF-002 A ownership and all admission/accounting semantics. If no safe material win is proven, record NO CHANGE.
 - [ ] **P8-05 — Regression gate:** after each accepted optimization rerun gofmt, vet, unit, race, Pinex golden and live TCP interoperability plus the benchmark suite. Report before/after on the same runner/methodology; reject regressions in tail latency, fairness, memory bounds or correctness.
 
+### Phase 8 repeatable automation — 2026-11-17
+
+- [x] Add a shared Makefile entry point for correctness and Phase 8 workloads.
+- [x] Add child-process scripts with uncached correctness tests, metadata, per-run logs and explicit PASS/FAIL status.
+- [x] Make GitHub Actions invoke the same scripts used locally.
+- [x] Store generated logs/profiles under ignored `artifacts/` and upload them from CI.
+- [ ] Validate the new automation on GitHub Actions and inspect the resulting artifacts.
+- [ ] Provide the owner a short local invocation and confirm local execution on their machine.
+
 ### Phase 8 baseline implementation plan — 2026-11-17
 
 - Existing approved performance contract and workload matrix are in .codex/NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md; PERF-002 A and all resource/worker limits remain binding.

@@ -81,3 +81,22 @@ The first implementation is test/benchmark/CI/documentation-only. No production 
 ## 8. Results
 
 Pending initial benchmark harness and dedicated CI run.
+
+
+## 9. Repeatable local and CI automation — 2026-11-17
+
+The repository now exposes the same entry points locally and in GitHub Actions:
+
+- `make verify`: gofmt, go vet, uncached unit tests and uncached race tests.
+- `make perf-smoke`: short benchmark smoke test.
+- `make soak`: mixed-payload memory soak; 300 seconds by default, configurable from 300 to 600 seconds.
+- `make phase8`: benchmark matrix, 1–512 Session scaling, five-minute soak, small/large CPU/heap/mutex/block profiles and pprof summaries.
+
+Implementation details:
+- `scripts/ci-check.sh` and `scripts/phase8-benchmark.sh` are child-process scripts. They do not modify the caller's interactive shell.
+- Each invocation creates a unique run directory below `artifacts/ci/` or `artifacts/phase8/`, captures `run.log`, environment/source metadata and `status.txt`.
+- Performance profiles and resource timing are preserved. The root `artifacts/` directory is ignored by Git.
+- GitHub Actions calls `make verify` and `make phase8`, rather than maintaining separate inline command sequences.
+- CI uses Go 1.23.x as configured by the project workflows; local execution records its actual toolchain version.
+
+**Validation:** implementation committed; GitHub Actions validation and artifact review pending. P8-01 remains IN PROGRESS. No production code, public API, protocol, defaults, worker limits or resource limits were changed.
