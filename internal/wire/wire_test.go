@@ -11,11 +11,11 @@ import (
 	"testing"
 )
 
-func loadPinexGoldenFrames(t *testing.T) map[string][]byte {
+func loadNetaCPPGoldenFrames(t *testing.T) map[string][]byte {
 	t.Helper()
-	data, err := os.ReadFile("../../testdata/pinex-1.5.0/golden.txt")
+	data, err := os.ReadFile("../../testdata/neta-cpp-1.5.0/golden.txt")
 	if err != nil {
-		t.Fatalf("read Pinex golden fixtures: %v", err)
+		t.Fatalf("read neta-c++ golden fixtures: %v", err)
 	}
 	frames := make(map[string][]byte)
 	for lineNo, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
@@ -38,8 +38,8 @@ func loadPinexGoldenFrames(t *testing.T) map[string][]byte {
 	return frames
 }
 
-func TestPinex150CPPGeneratedGoldenFrames(t *testing.T) {
-	golden := loadPinexGoldenFrames(t)
+func TestNetaCPP150GeneratedGoldenFrames(t *testing.T) {
+	golden := loadNetaCPPGoldenFrames(t)
 
 	bindRequest, err := EncodeBindRequest(7, Bind{Type: BindBiDirectional, SystemID: "node"})
 	if err != nil {
@@ -91,7 +91,7 @@ func TestPinex150CPPGeneratedGoldenFrames(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(got, want) {
-			t.Errorf("%s = %x, C++ Pinex 1.5.0 fixture = %x", name, got, want)
+			t.Errorf("%s = %x, C++ neta-c++ 1.5.0 fixture = %x", name, got, want)
 		}
 	}
 
@@ -181,7 +181,7 @@ func TestBindGoldenVectors(t *testing.T) {
 	}
 }
 
-func TestBindResponseAllowsOmittedBodyLikePinex(t *testing.T) {
+func TestBindResponseAllowsOmittedBody(t *testing.T) {
 	frameBytes := []byte{
 		0x00, 0x00, 0x00, 0x0a,
 		byte(CommandBindResponse), byte(StatusFailed),
@@ -196,7 +196,7 @@ func TestBindResponseAllowsOmittedBodyLikePinex(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bind.Type != BindBiDirectional || bind.SystemID != "" {
-		t.Fatalf("omitted Bind Response decoded as %+v, want Pinex defaults", bind)
+		t.Fatalf("omitted Bind Response decoded as %+v, want neta-c++ defaults", bind)
 	}
 }
 

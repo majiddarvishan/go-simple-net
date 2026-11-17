@@ -22,7 +22,7 @@ type clientReconnectEvent struct {
 	dialFailure   bool
 }
 
-// Connect performs one TCP Dial and Pinex Bind attempt. It returns only after
+// Connect performs one TCP Dial and neta-c++ Bind attempt. It returns only after
 // the Client is Bound or the attempt fails. Context cancellation after a
 // successful return does not affect the Session.
 func (c *Client) Connect(ctx context.Context) error {

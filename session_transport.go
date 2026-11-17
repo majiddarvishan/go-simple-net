@@ -91,7 +91,7 @@ func (s *Session) readFrame() (result inboundFrame, readErr error) {
 			(s.bindResponseWriting || s.bindResponseSent))
 	if header.Command == wire.CommandStreamRequest {
 		if boundAdmissionReady && role == sessionRoleClient && bindType == wire.BindUniDirectional {
-			// Pinex uni-directional Client semantics are requester-only:
+			// neta-c++ uni-directional Client semantics are requester-only:
 			// peer Requests are drained and ignored, not dispatched or fatal.
 			ignoreRequest = true
 		} else if boundAdmissionReady && s.handlers.onRequest != nil {

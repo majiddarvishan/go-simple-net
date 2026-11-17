@@ -18,14 +18,14 @@ const (
 )
 
 // ProtocolVersion identifies the locally configured protocol generation for a
-// Session. V1 and V2 currently use identical Pinex 1.5.0 wire bytes: this
-// value does not represent an on-wire capability negotiation.
+// Session. V1 uses NUL-terminated Bind; V2 omits that terminator.
+// The value does not represent a capability negotiation on the wire.
 type ProtocolVersion uint8
 
 const (
 	// ProtocolVersionV1 selects the legacy-compatible protocol generation.
 	ProtocolVersionV1 ProtocolVersion = 1
-	// ProtocolVersionV2 is the default; it currently uses the same wire format.
+	// ProtocolVersionV2 is the default and uses a NUL-free Bind body.
 	ProtocolVersionV2 ProtocolVersion = 2
 )
 
@@ -43,7 +43,7 @@ type Request struct {
 type Response struct {
 	// Sequence is the sequence of the matching Stream Request.
 	Sequence uint32
-	// Status is the raw Pinex command status returned by the peer.
+	// Status is the raw neta-c++ command status returned by the peer.
 	Status uint8
 	// Payload is an owned snapshot and may be retained after the Completion callback returns.
 	Payload []byte
@@ -54,7 +54,7 @@ type Response struct {
 type BindInfo struct {
 	// SystemID is the identity presented in the peer's Bind Request.
 	SystemID string
-	// BindType is the raw Pinex Bind type: 0 for uni-directional and 1 for bi-directional.
+	// BindType is the raw neta-c++ Bind type: 0 for uni-directional and 1 for bi-directional.
 	BindType uint8
 	// RemoteAddr is the peer's TCP address.
 	RemoteAddr net.Addr
