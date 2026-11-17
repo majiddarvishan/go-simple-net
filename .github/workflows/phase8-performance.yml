@@ -19,7 +19,7 @@ jobs:
   benchmark:
     name: Reproducible loopback benchmarks and profiles
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -65,90 +65,12 @@ jobs:
       - name: Measure 1 to 512 Session scaling
         run: |
           set -euo pipefail
-          go test -run '^
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' -benchmem -benchtime=10s -count=1 -cpu=4 -cpuprofile=artifacts/cpu.pprof -memprofile=artifacts/heap.pprof -mutexprofile=artifacts/mutex.pprof -blockprofile=artifacts/block.pprof | tee artifacts/profile-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu.pprof | tee artifacts/cpu-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap.pprof | tee artifacts/heap-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex.pprof | tee artifacts/mutex-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block.pprof | tee artifacts/block-top.txt
-
-      - name: Capture large-payload CPU, heap, mutex and block profiles
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-large-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileLargeBaseline$' -benchmem -benchtime=5s -count=1 -cpu=4 -cpuprofile=artifacts/cpu-large.pprof -memprofile=artifacts/heap-large.pprof -mutexprofile=artifacts/mutex-large.pprof -blockprofile=artifacts/block-large.pprof | tee artifacts/profile-large-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu-large.pprof | tee artifacts/cpu-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap-large.pprof | tee artifacts/heap-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex-large.pprof | tee artifacts/mutex-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block-large.pprof | tee artifacts/block-large-top.txt
-
-      - name: Upload benchmark and profile artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: neta-go-phase8-baseline-SOURCE_SHA
-          path: artifacts/
-          if-no-files-found: warn
-          retention-days: 30
- -bench '^BenchmarkScalePhase8Sessions
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' -benchmem -benchtime=10s -count=1 -cpu=4 -cpuprofile=artifacts/cpu.pprof -memprofile=artifacts/heap.pprof -mutexprofile=artifacts/mutex.pprof -blockprofile=artifacts/block.pprof | tee artifacts/profile-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu.pprof | tee artifacts/cpu-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap.pprof | tee artifacts/heap-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex.pprof | tee artifacts/mutex-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block.pprof | tee artifacts/block-top.txt
-
-      - name: Capture large-payload CPU, heap, mutex and block profiles
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-large-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileLargeBaseline$' -benchmem -benchtime=5s -count=1 -cpu=4 -cpuprofile=artifacts/cpu-large.pprof -memprofile=artifacts/heap-large.pprof -mutexprofile=artifacts/mutex-large.pprof -blockprofile=artifacts/block-large.pprof | tee artifacts/profile-large-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu-large.pprof | tee artifacts/cpu-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap-large.pprof | tee artifacts/heap-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex-large.pprof | tee artifacts/mutex-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block-large.pprof | tee artifacts/block-large-top.txt
-
-      - name: Upload benchmark and profile artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: neta-go-phase8-baseline-SOURCE_SHA
-          path: artifacts/
-          if-no-files-found: warn
-          retention-days: 30
- -benchmem -benchtime=1s -count=1 -cpu=4 -timeout=15m | tee artifacts/session-scale.txt
+          go test -run '^$' -bench '^BenchmarkScalePhase8Sessions$' -benchmem -benchtime=1s -count=1 -cpu=4 -timeout=15m | tee artifacts/session-scale.txt
 
       - name: Run five-minute mixed-payload memory stability soak
         run: |
           set -euo pipefail
-          /usr/bin/time -v -o artifacts/memory-soak-time.txt env NETA_PHASE8_SOAK_SECONDS=300 go test -run '^TestPhase8MemoryStabilitySoak
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' -benchmem -benchtime=10s -count=1 -cpu=4 -cpuprofile=artifacts/cpu.pprof -memprofile=artifacts/heap.pprof -mutexprofile=artifacts/mutex.pprof -blockprofile=artifacts/block.pprof | tee artifacts/profile-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu.pprof | tee artifacts/cpu-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap.pprof | tee artifacts/heap-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex.pprof | tee artifacts/mutex-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block.pprof | tee artifacts/block-top.txt
-
-      - name: Capture large-payload CPU, heap, mutex and block profiles
-        run: |
-          set -euo pipefail
-          /usr/bin/time -v -o artifacts/profile-large-time.txt go test -run '^$' -bench '^BenchmarkPhase8ProfileLargeBaseline$' -benchmem -benchtime=5s -count=1 -cpu=4 -cpuprofile=artifacts/cpu-large.pprof -memprofile=artifacts/heap-large.pprof -mutexprofile=artifacts/mutex-large.pprof -blockprofile=artifacts/block-large.pprof | tee artifacts/profile-large-run.txt
-          go tool pprof -top -nodecount=40 artifacts/cpu-large.pprof | tee artifacts/cpu-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/heap-large.pprof | tee artifacts/heap-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/mutex-large.pprof | tee artifacts/mutex-large-top.txt
-          go tool pprof -top -nodecount=40 artifacts/block-large.pprof | tee artifacts/block-large-top.txt
-
-      - name: Upload benchmark and profile artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: neta-go-phase8-baseline-SOURCE_SHA
-          path: artifacts/
-          if-no-files-found: warn
-          retention-days: 30
- -count=1 -timeout=7m | tee artifacts/memory-soak.txt
+          /usr/bin/time -v -o artifacts/memory-soak-time.txt env NETA_PHASE8_SOAK_SECONDS=300 go test -run '^TestPhase8MemoryStabilitySoak$' -count=1 -timeout=7m | tee artifacts/memory-soak.txt
 
       - name: Capture small-payload CPU, heap, mutex and block profiles
         run: |
