@@ -1336,3 +1336,26 @@ The C++ fixture generator uses actual production PDU serializer templates; its H
 - Pinex Wire Compatibility run `44057820405`: PASS — pinned C++ 1.5.0 production serializer fixture build, golden comparison and Go wire tests.
 
 **Strict boundary:** Phase 4 full resource admission/owner ledgers, Phase 5 bounded worker scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability/fault-injection, Phase 8 performance and Phase 9 release remain outside Phase 3 and are not authorized by this entry. No architecture, public API or wire contract was reopened.
+
+
+## 51. Phase 4 Resource Admission & Accounting — implementation COMPLETE (2026-11-17)
+
+This entry records implementation of previously owner-approved resource policies; it does not introduce or reopen a design decision.
+
+**Result:** COMPLETE / CI PASS at source HEAD `2935402366603267ba60c181a057d26cf0e7e9a6`.
+
+- Independent Client/Server owner ledgers: Request credits, retained Application/Completion bytes, OnClose event credits; Server aggregate incoming+outgoing Application queue bytes/frames.
+- Per-Session outgoing/incoming queue bytes/counts and retained payload bytes.
+- Outgoing reserve-before-copy and Request-credit admission; no Sequence/Pending publication on rejected capacity.
+- Incoming Header reservation before Body allocation; incoming overload closes only the offending Session.
+- Matched Completion reserve-before-allocation; capacity exhaustion drains using a fixed 4 KiB scratch buffer under the original absolute Frame Assembly deadline, then reports no-payload `ErrCapacity` Completion if the Request remains live.
+- Queue-only Application charges release at callback start; retained payload charges follow callback ownership through callback return even after Session.Done.
+- OnClose owner credits are best-effort, skipped at capacity and released on callback return/cancellation.
+- Partial read, scratch-drain timeout, Forced Close A, queued callback cancellation, owner isolation, exact boundary, concurrent admission and race tests.
+- `session_test.go`: 46 tests; `resource_ledger_test.go`: 8 tests.
+
+**Verification:**
+- Go Actions `44062568415`: PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility `44062568425`: PASS — pinned C++ 1.5.0 golden-frame workflow.
+
+**Strict boundary:** Phase 5 physical Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability/fault-injection campaign, Phase 8 performance and Phase 9 release remain outside this authorization. No public API, wire contract, default or resource limit was changed.

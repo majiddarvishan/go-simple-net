@@ -554,3 +554,12 @@ Authorized: implement the already-approved limits and ownership/accounting rules
 Not authorized by this addendum: Phase 5 physical Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability campaign, Phase 8 benchmark/pooling work, or Phase 9 release/deployment. No frozen decision/default/public API/wire contract is changed.
 
 Canonical implementation checklist: [TASKS.md](TASKS.md).
+
+
+## Phase 4 implementation completion addendum — 2026-11-17
+
+Phase 4 Resource Admission & Accounting is COMPLETE / CI PASS at source HEAD `2935402366603267ba60c181a057d26cf0e7e9a6`. The approved limits and ownership rules in this design have been implemented and tested, including per-Session/owner ledgers, Server aggregate queued Application budget, reserve-before-allocation, Request/OnClose credits, Completion fixed-scratch drain, and exact lifecycle transfer/release.
+
+Evidence: 46 Session tests + 8 owner-ledger tests; Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
+
+This completion does not authorize Phase 5 physical Worker Scheduler or later phases. See [TASKS.md](TASKS.md) for the canonical checklist and [Phase 4 implementation report](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md) for detailed evidence.
