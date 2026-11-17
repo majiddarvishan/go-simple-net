@@ -94,7 +94,8 @@ func TestFrameSizeBoundaries(t *testing.T) {
 		t.Fatalf("oversize frame error = %v", err)
 	}
 	header := make([]byte, HeaderSize)
-	header[3] = 0x10
+	header[1] = 0x10
+	header[3] = 0x01
 	header[4] = byte(CommandStreamRequest)
 	if _, err := ParseHeader(header); !errors.Is(err, ErrFrameTooLarge) {
 		t.Fatalf("oversize header error = %v", err)
