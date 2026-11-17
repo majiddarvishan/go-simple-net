@@ -1613,3 +1613,15 @@ This is an **engineering review acceptance**, not a new owner authorization for 
 **Important evidence boundaries:** owner reported completing the GitHub UI instructions for strict and no-bypass settings; visible branch metadata independently verifies `protected=true`, two mandatory contexts and `enforcement_level=everyone`. However the integration receives HTTP 403 reading complete classic protection settings and therefore cannot independently assert the exact `strict` or admin bypass toggles. Repository is public with owner-account admin metadata, zero tags and zero Releases, but actual release publication rights were **not tested** because creating a release is not authorized. The P9-05 review is complete with those limits expressly documented. They remain **mandatory checks before any P9-06 publication**, not fabricated PASS claims.
 
 **Boundary:** Phase 9 remains IN PROGRESS since P9-06 is **NOT AUTHORIZED**. No `v1.0.0` tag, GitHub Release, production code change, CI workflow mutation or local stash operation. Publication requires final approved target SHA, passing required checks, admin policy and release-creation permissions review, and fresh explicit owner authorization.
+
+
+## 68. PROTOCOL-VERSION-001 — Version selected once per Session (2026-11-18)
+
+**Owner approved:** choose the protocol version **once for the entire Session** rather than adding a version byte to every Frame. The request was design-only, with an explicit instruction not to change any code.
+
+- Existing V1 stays byte-for-byte compatible with Pinex C++ 1.5.0 and remains the default: 10-byte Frame header, one-byte BindType, NUL-terminated SystemID (max 19 bytes), unchanged command/status/Sequence behavior, and allowed omitted Bind Response Body. The NUL after SystemID is a required legacy terminator, not padding.
+- The future version must be known to **both sides** before use and immutable for the Session lifetime. Old↔new must always use the unchanged V1 format; new↔new may use a later format only by positive agreement.
+- Whether to use explicit peer configuration, a separate endpoint or a proven legacy-safe in-band handshake is **NOT DECIDED**. Never probe old peers with an unrecognized V2 header/command/Bind tail; a failed Bind does not prove support for an alternative protocol version. The V2 Body/Header specification and possible NUL elimination are also NOT DECIDED.
+- Existing 10-byte V1 header and frozen `v1.0.0` API/wire contract **must not change**. Per-Frame version overhead is not added. Future V2 may be separately specified and explicitly authorized, but no code/test/CI/fixture change is permitted by this decision.
+
+Design and deferred tasks: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md) and root `TASKS.md` PV-02..PV-05. This **does not authorize or block** P9-06 release tagging. No Tag/GitHub Release or code change was performed.

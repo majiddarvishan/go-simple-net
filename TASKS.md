@@ -319,6 +319,17 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ---
 
+## Future protocol evolution — owner-approved architecture, implementation NOT AUTHORIZED
+
+- [x] **PROTOCOL-VERSION-001 — Session-scoped version selection (DESIGN ONLY):** owner approved selecting the effective protocol version **once per Session**, with no extra version byte in each Frame. V1 / Pinex 1.5.0 remains the default and unchanged; no version is switched mid-Session. [Architecture decision](.codex/NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md).
+- [ ] **PV-02 — Select a safe version-selection / negotiation mechanism:** out-of-band peer/endpoint configuration is a candidate; safe in-band negotiation is **not established** for legacy Pinex. Separate design/owner approval is required.
+- [ ] **PV-03 — Design optional V2 Bind format and compatibility gates:** removing the trailing SystemID NUL is only a potential V2 optimization, **not authorized** in V1. No change to existing Bind Request/Response encodings, Pinex golden frames or the 10-byte V1 header.
+- [ ] **PV-04/PV-05 — Public configuration/API and cross-version test plan:** deferred until the version-selection mechanism and V2 wire contract are explicitly approved. No implementation authorization.
+
+**Release boundary:** The future-version design tasks do not reopen V1 or change the separate P9-06 `v1.0.0` release approval requirement. No code or CI changes were requested or performed.
+
+---
+
 ## Verification and update log
 
 | Date | HEAD / Commit | Scope | Evidence |
