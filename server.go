@@ -19,5 +19,6 @@ func NewServer(options ...ServerOption) (*Server, error) {
 	return &Server{
 		config:    config,
 		resources: newServerResourceLedger(config.owner, config),
+		callbacks: newOwnerCallbackDispatcher(config.owner),
 	}, nil
 }

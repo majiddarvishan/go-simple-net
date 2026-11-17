@@ -39,7 +39,7 @@ type callbackTask struct {
 }
 
 // sessionCallbackDispatcher is deliberately private. Implementations must only
-// enqueue work and must never invoke user code inline. Phase 5 supplies the
+// enqueue work and must never invoke user code inline. Owner dispatchers use
 // bounded, owner-scoped worker pools.
 // sessionCallbackDispatcher must provide nonblocking enqueue operations. Enqueue
 // must never execute task.run inline and must preserve per-Session FIFO order

@@ -36,6 +36,7 @@ type BindValidator func(BindInfo) error
 type Client struct {
 	config    clientConfig
 	resources *ownerResourceLedger
+	callbacks *ownerCallbackDispatcher
 }
 
 // Server is a configured messaging server. Network lifecycle methods are
@@ -43,4 +44,5 @@ type Client struct {
 type Server struct {
 	config    serverConfig
 	resources *ownerResourceLedger
+	callbacks *ownerCallbackDispatcher
 }

@@ -19,5 +19,6 @@ func NewClient(options ...ClientOption) (*Client, error) {
 	return &Client{
 		config:    config,
 		resources: newClientResourceLedger(config.owner),
+		callbacks: newOwnerCallbackDispatcher(config.owner),
 	}, nil
 }
