@@ -97,11 +97,11 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 - Re-check Pinex develop HEAD and version; re-audit any change from f7bd1eb779baff0d10e624f20522df345e6ee747.
 - Record Go toolchain and supported platform baseline; do not add dependencies by default.
 
-**Phase 1 — Module skeleton and immutable configuration**
-- Create go.mod with the approved module path and root package neta.
-- Define ClientOption, ServerOption, SessionOption, complete defaults and immutable effective config snapshots.
+**Phase 1 — Module skeleton and immutable configuration (COMPLETE / CI PASS, 2026-11-17)**
+- [x] Create go.mod with the approved module path and root package neta.
+- [x] Define ClientOption, ServerOption, SessionOption, complete defaults and immutable effective config snapshots.
 - Implement validation after all options and before any Socket/Goroutine creation; enforce all WORKER-009C ranges, cross-field rules and overflow checks.
-- Add public typed error categories and state enums. Keep API surface exactly within API-001.
+- [x] Add public typed error categories and state enums. Keep API surface exactly within API-001.
 
 **Phase 2 — Wire protocol core**
 - Implement pure-Go internal/wire: 10-byte Header, command/status validation, Bind/Stream/Unbind/Enquire Link codecs, Sequence handling and 1 MiB total-frame ceiling.
@@ -176,3 +176,14 @@ The owner explicitly authorized Phase 1 implementation in this conversation («�
 **Baseline at authorization:** main HEAD f3f525e5f36f65235a4c8e023cfafb4bfd6b5737. The authorization is also recorded in HANDOFF.md and IMPLEMENTATION_AUTHORIZATION_2026-11-17.md.
 
 **Boundary:** Phase 2 Wire Protocol and all later runtime/transport/worker/reconnect/interoperability/benchmark/release/deployment work remain NOT AUTHORIZED and require separate owner approval. No frozen architecture decision is reopened.
+
+
+## 11. Phase 1 completion record — 2026-11-17
+
+**Result:** Phase 1 is COMPLETE / CI PASS.
+
+- Verified final Phase 1 commit: cb3bdbc2964c1a0444cd40684117e1987f4cf092.
+- CI run: https://github.com/majiddarvishan/neta-go/actions/runs/44040206052 — PASS.
+- Passed: gofmt, go vet ./..., go test ./..., go test -race ./....
+- Configuration hardening includes TCP endpoint syntax, all Server-side WORKER-009C boundaries, final nested Session Option precedence, nil-option rejection, and checked arithmetic.
+- Authorization is limited to Phase 1. Phase 2 Wire Protocol is the next planned phase but is not authorized. No wire codec or transport implementation has been started.
