@@ -132,7 +132,7 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 
 	select {
 	case s.bindRequests <- event:
-	case <-s.done:
+	case <-s.closing:
 		return ErrClosed
 	}
 
@@ -167,7 +167,7 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 	s.bindType = bind.Type
 	s.systemID = bind.SystemID
 	err = s.enqueueControlLocked(&outboundFrame{
-		bytes: response,
+		bytes:   response,
 		control: true,
 		afterWrite: func() {
 			if cause != nil {
@@ -274,9 +274,9 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 			s.state = SessionStateUnbinding
 		}
 		err = s.enqueueControlLocked(&outboundFrame{
-			bytes: response,
-			control: true,
-			barrier: true,
+			bytes:      response,
+			control:    true,
+			barrier:    true,
 			afterWrite: func() { s.beginClose(nil, false) },
 		})
 		s.mu.Unlock()
@@ -408,4 +408,3 @@ func (s *Session) waitForClose(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
-

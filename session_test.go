@@ -1,0 +1,468 @@
+package neta
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/majiddarvishan/neta-go/internal/wire"
+)
+
+type testSessionDispatcher struct {
+	mu          sync.Mutex
+	application []callbackTask
+	completion  []callbackTask
+	onClose     []callbackTask
+}
+
+func (d *testSessionDispatcher) enqueueApplication(task callbackTask) bool {
+	d.mu.Lock()
+	d.application = append(d.application, task)
+	d.mu.Unlock()
+	return true
+}
+
+func (d *testSessionDispatcher) enqueueCompletion(task callbackTask) bool {
+	d.mu.Lock()
+	d.completion = append(d.completion, task)
+	d.mu.Unlock()
+	return true
+}
+
+func (d *testSessionDispatcher) enqueueOnClose(task callbackTask) bool {
+	d.mu.Lock()
+	d.onClose = append(d.onClose, task)
+	d.mu.Unlock()
+	return true
+}
+
+func (d *testSessionDispatcher) cancelUnstarted(session *Session, mask callbackClassMask) {
+	d.mu.Lock()
+	var cancelled []callbackTask
+	filter := func(tasks []callbackTask, enabled bool) []callbackTask {
+		if !enabled {
+			return tasks
+		}
+		kept := tasks[:0]
+		for _, task := range tasks {
+			if task.session == session {
+				cancelled = append(cancelled, task)
+			} else {
+				kept = append(kept, task)
+			}
+		}
+		return kept
+	}
+	d.application = filter(d.application, mask&callbackMaskApplication != 0)
+	d.completion = filter(d.completion, mask&callbackMaskCompletion != 0)
+	d.mu.Unlock()
+	for _, task := range cancelled {
+		if task.cancel != nil {
+			task.cancel()
+		}
+	}
+}
+
+func (d *testSessionDispatcher) takeApplication() (callbackTask, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.application) == 0 {
+		return callbackTask{}, false
+	}
+	task := d.application[0]
+	d.application[0] = callbackTask{}
+	d.application = d.application[1:]
+	return task, true
+}
+
+func (d *testSessionDispatcher) takeCompletion() (callbackTask, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.completion) == 0 {
+		return callbackTask{}, false
+	}
+	task := d.completion[0]
+	d.completion[0] = callbackTask{}
+	d.completion = d.completion[1:]
+	return task, true
+}
+
+func (d *testSessionDispatcher) applicationCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.application)
+}
+
+func waitForTask(t *testing.T, take func() (callbackTask, bool)) callbackTask {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if task, ok := take(); ok {
+			return task
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("callback task was not enqueued")
+	return callbackTask{}
+}
+
+func waitForApplicationQueued(t *testing.T, dispatcher *testSessionDispatcher) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if dispatcher.applicationCount() != 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("Application callback was not queued")
+}
+
+func readWireFrame(t *testing.T, conn net.Conn) wire.Frame {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var headerBytes [wire.HeaderSize]byte
+	if _, err := io.ReadFull(conn, headerBytes[:]); err != nil {
+		t.Fatalf("read frame header: %v", err)
+	}
+	header, err := wire.ParseHeader(headerBytes[:])
+	if err != nil {
+		t.Fatalf("parse frame header: %v", err)
+	}
+	body := make([]byte, int(header.Length)-wire.HeaderSize)
+	if _, err := io.ReadFull(conn, body); err != nil {
+		t.Fatalf("read frame body: %v", err)
+	}
+	_ = conn.SetReadDeadline(time.Time{})
+	return wire.Frame{Header: header, Body: body}
+}
+
+func writeWireFrame(t *testing.T, conn net.Conn, frame []byte) {
+	t.Helper()
+	if err := writeFullFrame(conn, frame, 2*time.Second); err != nil {
+		t.Fatalf("write frame: %v", err)
+	}
+}
+
+func newTestBoundSession(local net.Conn, config sessionConfig, dispatcher *testSessionDispatcher, handlers sessionHandlers) *Session {
+	return newBoundSession(local, config, sessionIdentity{
+		role: sessionRoleClient, bindType: wire.BindBiDirectional,
+	}, dispatcher, handlers)
+}
+
+func waitDone(t *testing.T, session *Session) {
+	t.Helper()
+	select {
+	case <-session.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("Session.Done did not close")
+	}
+}
+
+func TestSessionSendRequestCorrelatesResponse(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	result := make(chan struct {
+		response Response
+		err      error
+	}, 1)
+	sequence, err := session.SendRequest([]byte("request"), func(response Response, err error) {
+		result <- struct {
+			response Response
+			err      error
+		}{response: response, err: err}
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	outbound := readWireFrame(t, peer)
+	if outbound.Header.Command != wire.CommandStreamRequest || outbound.Header.Sequence != sequence {
+		t.Fatalf("unexpected outbound frame: %+v", outbound.Header)
+	}
+	responseFrame, err := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("response"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, responseFrame)
+
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	select {
+	case got := <-result:
+		if got.err != nil {
+			t.Fatalf("Completion error: %v", got.err)
+		}
+		if string(got.response.Payload) != "response" || got.response.Sequence != sequence {
+			t.Fatalf("unexpected response: %+v", got.response)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Completion callback did not run")
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionUnbindDrainsApplicationFIFO(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("before-unbind")); err != nil {
+		t.Fatalf("SendNoWait: %v", err)
+	}
+	unbindResult := make(chan error, 1)
+	go func() { unbindResult <- session.Unbind(context.Background()) }()
+
+	first := readWireFrame(t, peer)
+	if first.Header.Command != wire.CommandStreamRequest || string(first.Body) != "before-unbind" {
+		t.Fatalf("Application FIFO frame was not first: %+v", first.Header)
+	}
+	second := readWireFrame(t, peer)
+	if second.Header.Command != wire.CommandUnbindRequest {
+		t.Fatalf("Unbind did not follow the Application FIFO: %+v", second.Header)
+	}
+	response, err := wire.EncodeUnbindResponse(second.Header.Sequence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
+
+	select {
+	case err := <-unbindResult:
+		if err != nil {
+			t.Fatalf("Unbind: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Unbind did not complete")
+	}
+	waitDone(t, session)
+}
+
+func TestSessionFrameAssemblyTimeoutIsAbsolute(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.frameAssemblyTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := peer.Write([]byte{0}); err != nil {
+		t.Fatalf("write first Header byte: %v", err)
+	}
+	waitDone(t, session)
+	if !errors.Is(session.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected frame assembly deadline, got %v", session.Err())
+	}
+}
+
+func TestSessionClientBindHandshake(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "client",
+	}, time.Second, dispatcher, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newClientBindingSession: %v", err)
+	}
+	defer peer.Close()
+
+	request := readWireFrame(t, peer)
+	bind, err := wire.DecodeBindRequest(request)
+	if err != nil {
+		t.Fatalf("DecodeBindRequest: %v", err)
+	}
+	if bind.SystemID != "client" || bind.Type != wire.BindBiDirectional {
+		t.Fatalf("unexpected Bind Request: %+v", bind)
+	}
+	response, err := wire.EncodeBindResponse(request.Header.Sequence, wire.StatusOK, wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "server",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
+	if err := session.waitBound(context.Background()); err != nil {
+		t.Fatalf("waitBound: %v", err)
+	}
+	if got := session.SystemID(); got != "server" {
+		t.Fatalf("SystemID = %q, want server", got)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionServerPreBindHandshake(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session, err := newServerPreBindSession(local, defaultSessionConfig(), time.Now(), time.Second, dispatcher, sessionHandlers{})
+	if err != nil {
+		t.Fatalf("newServerPreBindSession: %v", err)
+	}
+	defer peer.Close()
+
+	request, err := wire.EncodeBindRequest(41, wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "peer",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	event, err := session.waitBindRequest(context.Background())
+	if err != nil {
+		t.Fatalf("waitBindRequest: %v", err)
+	}
+	if event.info.SystemID != "peer" || event.sequence != 41 {
+		t.Fatalf("unexpected BindInfo: %+v", event.info)
+	}
+	if err := session.completeBind(event, "server", nil); err != nil {
+		t.Fatalf("completeBind: %v", err)
+	}
+	response := readWireFrame(t, peer)
+	bind, err := wire.DecodeBindResponse(response)
+	if err != nil {
+		t.Fatalf("DecodeBindResponse: %v", err)
+	}
+	if response.Header.Sequence != 41 || bind.SystemID != "server" {
+		t.Fatalf("unexpected Bind Response: header=%+v bind=%+v", response.Header, bind)
+	}
+	if err := session.waitBound(context.Background()); err != nil {
+		t.Fatalf("waitBound: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionForcedCloseCancelsUnstartedApplicationCallback(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	var called bool
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{
+		onRequest: func(*Session, Request) { called = true },
+	})
+	defer peer.Close()
+
+	request, err := wire.EncodeStreamRequest(7, []byte("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	waitForApplicationQueued(t, dispatcher)
+	session.Close()
+	waitDone(t, session)
+	if called {
+		t.Fatal("unstarted Application callback ran during Forced Close")
+	}
+	if dispatcher.applicationCount() != 0 {
+		t.Fatal("unstarted Application callback was not cancelled")
+	}
+}
+
+func TestSessionRequestTimeoutCancelsQueuedFrame(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.requestTimeout = 40 * time.Millisecond
+	config.enquireLinkIdleInterval = 0
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, config, dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	var firstResult, secondResult error
+	if _, err := session.SendRequest([]byte("first"), func(_ Response, err error) { firstResult = err }); err != nil {
+		t.Fatalf("first SendRequest: %v", err)
+	}
+	if _, err := session.SendRequest([]byte("second"), func(_ Response, err error) { secondResult = err }); err != nil {
+		t.Fatalf("second SendRequest: %v", err)
+	}
+	firstTask := waitForTask(t, dispatcher.takeCompletion)
+	secondTask := waitForTask(t, dispatcher.takeCompletion)
+	firstTask.run()
+	secondTask.run()
+	if !errors.Is(firstResult, ErrRequestTimeout) || !errors.Is(secondResult, ErrRequestTimeout) {
+		t.Fatalf("request timeout results = %v, %v", firstResult, secondResult)
+	}
+
+	firstFrame := readWireFrame(t, peer)
+	if firstFrame.Header.Command != wire.CommandStreamRequest || string(firstFrame.Body) != "first" {
+		t.Fatalf("unexpected writer-owned frame: %+v", firstFrame.Header)
+	}
+	_ = peer.SetReadDeadline(time.Now().Add(60 * time.Millisecond))
+	var extra [1]byte
+	if _, err := peer.Read(extra[:]); err == nil {
+		t.Fatal("timed-out queued Request was transmitted")
+	} else if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("unexpected read error after first frame: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionSendResponseUsesPeerSequence(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newBoundSession(local, defaultSessionConfig(), sessionIdentity{
+		role: sessionRoleServer, bindType: wire.BindBiDirectional,
+	}, dispatcher, sessionHandlers{
+		onRequest: func(s *Session, request Request) {
+			if err := s.SendResponse(request.Sequence, []byte("ack"), 0); err != nil {
+				t.Errorf("SendResponse: %v", err)
+			}
+		},
+	})
+	defer peer.Close()
+
+	request, err := wire.EncodeStreamRequest(99, []byte("incoming"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+	task := waitForTask(t, dispatcher.takeApplication)
+	task.run()
+	response := readWireFrame(t, peer)
+	if response.Header.Command != wire.CommandStreamResponse || response.Header.Sequence != 99 || string(response.Body) != "ack" {
+		t.Fatalf("unexpected Stream Response: %+v body=%q", response.Header, response.Body)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestWriteFullFrameHandlesShortWrites(t *testing.T) {
+	local, peer := net.Pipe()
+	writer := shortWriteConn{Conn: local, maxWrite: 2}
+	payload := []byte("0123456789abcdef")
+	result := make(chan error, 1)
+	go func() { result <- writeFullFrame(writer, payload, time.Second) }()
+
+	got := make([]byte, len(payload))
+	_ = peer.SetReadDeadline(time.Now().Add(time.Second))
+	if _, err := io.ReadFull(peer, got); err != nil {
+		t.Fatalf("read short-written payload: %v", err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("writeFullFrame: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Fatalf("payload = %q, want %q", got, payload)
+	}
+	_ = local.Close()
+	_ = peer.Close()
+}
+
+type shortWriteConn struct {
+	net.Conn
+	maxWrite int
+}
+
+func (c shortWriteConn) Write(payload []byte) (int, error) {
+	if len(payload) > c.maxWrite {
+		payload = payload[:c.maxWrite]
+	}
+	return c.Conn.Write(payload)
+}

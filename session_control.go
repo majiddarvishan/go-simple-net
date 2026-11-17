@@ -69,7 +69,7 @@ func (s *Session) controlLoop() {
 					s.enquireLinkSequence = sequence
 					s.enquireLinkQueued = true
 					item := &outboundFrame{
-						bytes: frame,
+						bytes:   frame,
 						control: true,
 						afterWrite: func() {
 							s.mu.Lock()
@@ -209,4 +209,3 @@ func (s *Session) clearProbeLocked() {
 	s.enquireLinkOutstanding = false
 	s.enquireLinkDeadline = time.Time{}
 }
-

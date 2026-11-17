@@ -69,10 +69,10 @@ type outboundFrame struct {
 }
 
 type pendingRequest struct {
-	sequence   uint32
-	completion CompletionHandler
-	deadline   time.Time
-	settled    bool
+	sequence      uint32
+	completion    CompletionHandler
+	deadline      time.Time
+	settled       bool
 	writerClaimed bool
 }
 
@@ -97,42 +97,43 @@ type Session struct {
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
 
-	mu                  sync.Mutex
-	dispatchMu          sync.Mutex
-	cond                *sync.Cond
-	state               SessionState
-	systemID            string
-	bindType            wire.BindType
-	sequence            wire.SequenceGenerator
-	pending             map[uint32]*pendingRequest
-	appQueue            []*outboundFrame
-	controlQueue        []*outboundFrame
-	barrierQueue        []*outboundFrame
-	queuedAppBytes      uint64
-	queuedAppFrames     uint32
-	queuedControlBytes  uint64
-	activeWrite         *outboundFrame
-	lastActivity        time.Time
-	preBindDeadline     time.Time
-	bindDeadline        time.Time
-	unbindDeadline      time.Time
-	enquireLinkDeadline time.Time
-	bindSequence        uint32
-	unbindSequence      uint32
-	enquireLinkSequence uint32
-	enquireLinkQueued   bool
-	enquireLinkOutstanding bool
+	mu                      sync.Mutex
+	dispatchMu              sync.Mutex
+	cond                    *sync.Cond
+	state                   SessionState
+	systemID                string
+	bindType                wire.BindType
+	sequence                wire.SequenceGenerator
+	pending                 map[uint32]*pendingRequest
+	appQueue                []*outboundFrame
+	controlQueue            []*outboundFrame
+	barrierQueue            []*outboundFrame
+	queuedAppBytes          uint64
+	queuedAppFrames         uint32
+	queuedControlBytes      uint64
+	activeWrite             *outboundFrame
+	lastActivity            time.Time
+	preBindDeadline         time.Time
+	bindDeadline            time.Time
+	unbindDeadline          time.Time
+	enquireLinkDeadline     time.Time
+	bindSequence            uint32
+	unbindSequence          uint32
+	enquireLinkSequence     uint32
+	enquireLinkQueued       bool
+	enquireLinkOutstanding  bool
 	enquireLinkResponseSeen bool
-	pendingBind         *bindRequestEvent
-	bindRequests        chan bindRequestEvent
-	closeCause          error
-	closeForced         bool
-	started             bool
+	pendingBind             *bindRequestEvent
+	bindRequests            chan bindRequestEvent
+	closeCause              error
+	closeForced             bool
+	started                 bool
 
 	wake      chan struct{}
 	bound     chan struct{}
 	boundOnce sync.Once
 	done      chan struct{}
+	closing   chan struct{}
 	closeOnce sync.Once
 	wg        sync.WaitGroup
 }
@@ -152,6 +153,7 @@ func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, d
 		wake:         make(chan struct{}, 1),
 		bound:        make(chan struct{}),
 		done:         make(chan struct{}),
+		closing:      make(chan struct{}),
 	}
 	if conn != nil {
 		s.remoteAddr = conn.RemoteAddr()
@@ -268,8 +270,11 @@ func (s *Session) waitBindRequest(ctx context.Context) (bindRequestEvent, error)
 	select {
 	case event := <-s.bindRequests:
 		return event, nil
-	case <-s.done:
-		return bindRequestEvent{}, s.Err()
+	case <-s.closing:
+		if err := s.Err(); err != nil {
+			return bindRequestEvent{}, err
+		}
+		return bindRequestEvent{}, ErrClosed
 	case <-ctx.Done():
 		return bindRequestEvent{}, ctx.Err()
 	}
@@ -283,13 +288,18 @@ func (s *Session) completeBind(event bindRequestEvent, serverSystemID string, ad
 		s.mu.Unlock()
 		return ErrClosing
 	}
+	if !s.preBindDeadline.IsZero() && !time.Now().Before(s.preBindDeadline) {
+		s.mu.Unlock()
+		s.beginClose(ErrBindTimeout, true)
+		return ErrBindTimeout
+	}
 	s.pendingBind = nil
 	s.mu.Unlock()
 
 	select {
 	case event.decision <- bindDecision{serverSystemID: serverSystemID, err: admissionErr}:
 		return nil
-	case <-s.done:
+	case <-s.closing:
 		return ErrClosed
 	}
 }
@@ -470,6 +480,7 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.state = SessionStateClosing
 		s.closeCause = cause
 		s.closeForced = forced
+		close(s.closing)
 
 		var gracefulTasks []callbackTask
 		if forced {
@@ -490,9 +501,15 @@ func (s *Session) beginClose(cause error, forced bool) {
 			}
 		}
 
-		for _, item := range s.appQueue { s.releaseFrameChargeLocked(item) }
-		for _, item := range s.controlQueue { s.releaseFrameChargeLocked(item) }
-		for _, item := range s.barrierQueue { s.releaseFrameChargeLocked(item) }
+		for _, item := range s.appQueue {
+			s.releaseFrameChargeLocked(item)
+		}
+		for _, item := range s.controlQueue {
+			s.releaseFrameChargeLocked(item)
+		}
+		for _, item := range s.barrierQueue {
+			s.releaseFrameChargeLocked(item)
+		}
 		s.appQueue = nil
 		s.controlQueue = nil
 		s.barrierQueue = nil
