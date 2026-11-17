@@ -20,5 +20,9 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		config:    config,
 		resources: newServerResourceLedger(config.owner, config),
 		callbacks: newOwnerCallbackDispatcher(config.owner),
+		sessions:  make(map[*Session]struct{}),
+		preBind:   make(map[*Session]struct{}),
+		pendingIDs: make(map[string]*Session),
+		boundIDs:  make(map[string]*Session),
 	}, nil
 }

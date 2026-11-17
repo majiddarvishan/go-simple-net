@@ -1,6 +1,9 @@
 package neta
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
 // Request is an inbound Application Request delivered to a Server handler.
 // Payload is an owned snapshot and may be retained after the handler returns.
@@ -45,4 +48,21 @@ type Server struct {
 	config    serverConfig
 	resources *ownerResourceLedger
 	callbacks *ownerCallbackDispatcher
+
+	startMu sync.Mutex
+	mu      sync.Mutex
+
+	listener   net.Listener
+	addr       net.Addr
+	started    bool
+	stopping   bool
+	acceptDone chan struct{}
+	stopDone   chan struct{}
+	stopErr    error
+
+	sessions      map[*Session]struct{}
+	preBind       map[*Session]struct{}
+	pendingSockets uint32
+	pendingIDs    map[string]*Session
+	boundIDs      map[string]*Session
 }

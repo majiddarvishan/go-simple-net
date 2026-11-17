@@ -53,9 +53,11 @@ type sessionCallbackDispatcher interface {
 }
 
 type sessionHandlers struct {
-	onBound   OnBoundHandler
-	onRequest OnRequestHandler
-	onClose   OnCloseHandler
+	onBound         OnBoundHandler
+	onRequest       OnRequestHandler
+	onClose         OnCloseHandler
+	onBoundInternal func(*Session)
+	onDoneInternal  func(*Session, error)
 }
 
 type sessionIdentity struct {
@@ -262,6 +264,23 @@ func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind
 }
 
 func newServerPreBindSession(conn net.Conn, config sessionConfig, acceptedAt time.Time, preBindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) (*Session, error) {
+	resources := newServerResourceLedger(defaultOwnerConfig(), defaultServerConfig())
+	return newServerPreBindSessionWithResources(conn, config, acceptedAt, preBindTimeout, dispatcher, handlers, resources)
+}
+
+func newServerPreBindSessionWithResources(conn net.Conn, config sessionConfig, acceptedAt time.Time, preBindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers, resources *ownerResourceLedger) (*Session, error) {
+	s, err := newServerPreBindSessionUnstarted(conn, config, acceptedAt, preBindTimeout, dispatcher, handlers, resources)
+	if err != nil {
+		return nil, err
+	}
+	s.start()
+	s.signalControl()
+	return s, nil
+}
+
+// newServerPreBindSessionUnstarted prepares a Pre-Bind Session without starting
+// its Reader/Writer/Control goroutines. Server registers ownership before start.
+func newServerPreBindSessionUnstarted(conn net.Conn, config sessionConfig, acceptedAt time.Time, preBindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers, resources *ownerResourceLedger) (*Session, error) {
 	if conn == nil {
 		return nil, newConfigError("connection", "<nil>", "must be non-nil")
 	}
@@ -271,10 +290,8 @@ func newServerPreBindSession(conn net.Conn, config sessionConfig, acceptedAt tim
 	if acceptedAt.IsZero() {
 		acceptedAt = time.Now()
 	}
-	s := newSession(conn, config, sessionIdentity{role: sessionRoleServer}, dispatcher, handlers)
+	s := newSessionWithResources(conn, config, sessionIdentity{role: sessionRoleServer}, dispatcher, handlers, resources)
 	s.preBindDeadline = acceptedAt.Add(preBindTimeout)
-	s.start()
-	s.signalControl()
 	return s, nil
 }
 
@@ -368,6 +385,9 @@ func (s *Session) markBound(systemID string, bindType wire.BindType) {
 	s.bindDeadline = time.Time{}
 	s.mu.Unlock()
 
+	if s.handlers.onBoundInternal != nil {
+		s.handlers.onBoundInternal(s)
+	}
 	s.boundOnce.Do(func() { close(s.bound) })
 	accepted := true
 	if s.handlers.onBound != nil {
@@ -767,6 +787,9 @@ func (s *Session) finishClose() {
 	s.activeWrite = nil
 	s.mu.Unlock()
 
+	if s.handlers.onDoneInternal != nil {
+		s.handlers.onDoneInternal(s, cause)
+	}
 	close(s.done)
 	if s.handlers.onClose != nil && s.resources != nil && s.resources.reserveOnCloseEvent() {
 		credit := &onCloseEventCharge{owner: s.resources}
