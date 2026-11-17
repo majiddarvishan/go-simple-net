@@ -1,10 +1,13 @@
 package neta
 
 import (
+	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
 func workerTestOwnerConfig(application, completion, onClose uint32, grace time.Duration) ownerConfig {
@@ -535,5 +538,139 @@ func TestWorkerConcurrentEnqueueAndForcedCloseSettlesEachTaskOnce(t *testing.T) 
 	}
 	if got := duplicates.Load(); got != 0 {
 		t.Fatalf("callbacks run/cancelled more than once: %d", got)
+	}
+}
+
+
+func TestSessionReaderWriterAndDoneRemainIndependentOfApplicationCallback(t *testing.T) {
+	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	resources := newClientResourceLedger(defaultOwnerConfig())
+	local, peer := net.Pipe()
+	defer peer.Close()
+
+	applicationStarted := make(chan struct{})
+	releaseApplication := make(chan struct{})
+	applicationReturned := make(chan struct{})
+	var callbacks atomic.Int32
+	session := newBoundSessionWithResources(local, config, sessionIdentity{
+		role: sessionRoleServer, bindType: wire.BindBiDirectional,
+	}, dispatcher, sessionHandlers{
+		onRequest: func(_ *Session, request Request) {
+			callbacks.Add(1)
+			if string(request.Payload) == "first" {
+				close(applicationStarted)
+				<-releaseApplication
+				close(applicationReturned)
+			}
+		},
+	}, resources)
+
+	first, err := wire.EncodeStreamRequest(101, []byte("first"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, first)
+	waitForWorkerSignal(t, applicationStarted, "first inbound Application callback")
+
+	second, err := wire.EncodeStreamRequest(102, []byte("second"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, second)
+	probe, err := wire.EncodeEnquireLinkRequest(103)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, probe)
+	probeResponse := readWireFrame(t, peer)
+	if probeResponse.Header.Command != wire.CommandEnquireLinkResponse || probeResponse.Header.Sequence != 103 {
+		t.Fatalf("Reader/Writer did not process control traffic while Application callback blocked: %+v", probeResponse.Header)
+	}
+
+	session.Close()
+	waitDone(t, session)
+	select {
+	case <-applicationReturned:
+		t.Fatal("Session Done waited for the running Application callback")
+	default:
+	}
+	close(releaseApplication)
+	waitForWorkerSignal(t, applicationReturned, "running Application callback return")
+
+	if got := callbacks.Load(); got != 1 {
+		t.Fatalf("Application callbacks executed = %d, want first only; second must be cancelled by Forced Close", got)
+	}
+	usage := resources.snapshot()
+	if usage.retainedApplicationBytes != 0 || usage.queuedApplicationBytes != 0 || usage.queuedApplicationFrames != 0 {
+		t.Fatalf("Application resources leaked after callback return/cancellation: %+v", usage)
+	}
+}
+
+func TestSessionCompletionWorkerDoesNotBlockReaderWriterOrDone(t *testing.T) {
+	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	ownerConfig := defaultOwnerConfig()
+	resources := newClientResourceLedger(ownerConfig)
+	local, peer := net.Pipe()
+	defer peer.Close()
+
+	completionStarted := make(chan struct{})
+	releaseCompletion := make(chan struct{})
+	completionReturned := make(chan struct{})
+	session := newBoundSessionWithResources(local, config, sessionIdentity{
+		role: sessionRoleClient, bindType: wire.BindBiDirectional,
+	}, dispatcher, sessionHandlers{}, resources)
+
+	sequence, err := session.SendRequest([]byte("request"), func(Response, error) {
+		close(completionStarted)
+		<-releaseCompletion
+		close(completionReturned)
+	})
+	if err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	outbound := readWireFrame(t, peer)
+	if outbound.Header.Command != wire.CommandStreamRequest || outbound.Header.Sequence != sequence {
+		t.Fatalf("unexpected outbound Request: %+v", outbound.Header)
+	}
+	response, err := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("response"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
+	waitForWorkerSignal(t, completionStarted, "Completion callback")
+
+	if got := resources.snapshot(); got.outstandingRequests != 1 || got.retainedCompletionBytes == 0 {
+		t.Fatalf("running Completion must retain Request and payload charges: %+v", got)
+	}
+
+	probe, err := wire.EncodeEnquireLinkRequest(104)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, probe)
+	probeResponse := readWireFrame(t, peer)
+	if probeResponse.Header.Command != wire.CommandEnquireLinkResponse || probeResponse.Header.Sequence != 104 {
+		t.Fatalf("Reader/Writer did not progress while Completion callback blocked: %+v", probeResponse.Header)
+	}
+
+	session.Close()
+	waitDone(t, session)
+	select {
+	case <-completionReturned:
+		t.Fatal("Session Done waited for the running Completion callback")
+	default:
+	}
+	if got := resources.snapshot().outstandingRequests; got != 1 {
+		t.Fatalf("Forced Close released a started Completion Request credit early: %+v", resources.snapshot())
+	}
+
+	close(releaseCompletion)
+	waitForWorkerSignal(t, completionReturned, "running Completion callback return")
+	if got := resources.snapshot(); got.outstandingRequests != 0 || got.retainedCompletionBytes != 0 {
+		t.Fatalf("Completion resources leaked after callback return: %+v", got)
 	}
 }
