@@ -550,8 +550,9 @@ func TestSessionEnquireLinkResponseTimeout(t *testing.T) {
 		t.Fatalf("expected EnquireLink Request, got 0x%x", probe.Header.Command)
 	}
 	waitDone(t, session)
-	if !errors.Is(session.Err(), ErrEnquireLinkTimeout) {
-		t.Fatalf("expected ErrEnquireLinkTimeout, got %v", session.Err())
+	var operationErr *OperationError
+	if !errors.As(session.Err(), &operationErr) || operationErr.Operation() != "enquire_link" || !errors.Is(session.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected enquire_link deadline OperationError, got %v", session.Err())
 	}
 }
 
