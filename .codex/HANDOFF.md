@@ -15,7 +15,6 @@
 - Default branch: main
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - Phase 4 resource-admission source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
-- Latest verified remote `main` HEAD at this handoff update: `d963527e688289a1fd4dbb52db3d3e3b65469bbf`.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2, Phase 3 and Phase 4 source/tests are committed and verified by GitHub Actions.
