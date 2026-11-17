@@ -1133,3 +1133,12 @@ P9-05 remains IN PROGRESS pending LICENSE copyright holder/year, changelog/versi
 - Repository tags: none. Published GitHub Releases: none. GitHub Release settings require owner/admin inspection.
 - `docs/RELEASE_READINESS.md` now has a PASS / NOT VERIFIED / NOT AUTHORIZED matrix. Root `TASKS.md` and Phase 9 plan record version/changelog decision as COMPLETE.
 - **P9-05 stays IN PROGRESS:** branch protection / release settings still need owner/admin review or explicit risk acceptance. **P9-06 is NOT AUTHORIZED**; no tag, release, production code change or local stash operation was performed.
+
+
+## 33. P9-05 — Owner-approved main protection; application still pending (2026-11-17)
+
+The owner approved the required-CI policy for `main`. Exact GitHub check names: `test` (Go) and `Verify Go wire codec against pinned Pinex C++ 1.5.0` (Pinex). Both completed PASS on commit `b3fad24938dd689cd270b6954a3a98e37f630614`; both workflows run on `pull_request` and `push`.
+
+**NOT APPLIED:** branch API currently reports `protected=false`, repository rulesets empty; classic branch-protection endpoint is HTTP 403 and connected GitHub tools have no mutation capability. The approved policy, runnable admin-only `gh api` request and verification steps are in [NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md](NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md). Do not mark protection as enabled without real GitHub confirmation.
+
+P9-05 remains IN PROGRESS pending protection application/verification and release-settings admin check. P9-06 V1 tag/Release is not authorized. Owner's local `stash@{0}` remains untouched.

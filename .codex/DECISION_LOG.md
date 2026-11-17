@@ -1582,3 +1582,18 @@ Evidence on prior HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctnes
 - Repository `main` branch metadata reports `protected=false`, repository rulesets list is empty, classic branch protection detailed read is denied with HTTP 403; tags and Releases are absent. The owner/admin must verify or consciously accept the branch-protection and release-settings risk before closing P9-05.
 
 **Boundary:** Only the owner-review subtask for version/changelog is closed. Overall P9-05 remains **IN PROGRESS**. P9-06 is still **NOT AUTHORIZED** and requires an explicit separate owner decision immediately before any release/tag operation. No production code, Go API, wire protocol or default configuration decision changes.
+
+
+## 65. P9-05 — Required CI and main branch protection policy (2026-11-17)
+
+**Owner decision: APPROVED.** The owner answered «آره» to the proposal to protect `main` and require successful Go CI and Pinex Compatibility checks before accepting future changes.
+
+**Exact verified required check-run/job names** (not the workflow display names):
+- `test` — `.github/workflows/go.yml`; Go correctness, race and Phase 9 example smoke.
+- `Verify Go wire codec against pinned Pinex C++ 1.5.0` — `.github/workflows/pinex-wire-compat.yml`.
+
+Both check runs are SUCCESS on commit `b3fad24938dd689cd270b6954a3a98e37f630614` ([Go](https://github.com/majiddarvishan/neta-go/actions/runs/44161319800), [Pinex](https://github.com/majiddarvishan/neta-go/actions/runs/44161319863)); both workflows support `pull_request`. Intended policy is strict status checks, including admins, without imposing new mandatory reviewer approvals or additional checks. The application guide explicitly documents that this may require PR-based changes instead of direct pushes.
+
+**Crucial distinction: POLICY APPROVED ≠ ENFORCEMENT APPLIED.** GitHub branch metadata reports `protected=false`, and repository rulesets are empty. The GitHub integration does not expose branch-protection mutation and cannot read classic protection details (HTTP 403). A repository administrator must apply and verify the rule. Exact command/check names and verification criteria are recorded in `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`. The actual protection implementation gate remains UNCHECKED.
+
+P9-05 remains IN PROGRESS pending enforcement verification and GitHub Release settings review. P9-06 tag/Release remains NOT AUTHORIZED. No production API, wire, defaults, test or CI workflow changes approved.

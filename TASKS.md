@@ -275,7 +275,8 @@ This root-level file is the single, canonical, implementation-facing task list f
   - [x] Review dependency footprint: no third-party Go modules are declared and no `go.sum` is present.
   - [x] Owner confirms Go 1.23 minimum and Linux/amd64 (Ubuntu 24.04) CI-tested platform; approved 2026-11-17; other platforms remain unverified.
   - [x] Owner approved copyright holder **Majid Darvishan** and year **2026**, confirmed commercial use is permitted, and the Apache-2.0 `LICENSE` notice was updated on 2026-11-17.
-  - [ ] Complete branch-protection/release-settings review: main branch API reports `protected=false` and no repository rulesets; full classic branch protection settings return HTTP 403. No tags/releases exist. Owner must review any protection policy and GitHub Release settings; no protected-branch guarantee is claimed.
+  - [x] Owner approved protecting `main` with two mandatory GitHub Actions checks on 2026-11-17: `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Verified their exact names, success and `pull_request` triggers; see `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`.
+  - [ ] **Apply and verify** owner-approved `main` branch protection and review GitHub Release settings. Latest branch API still reports `protected=false` (rulesets `[]`); full protection read returned HTTP 403 and the connected GitHub integration has no protection-write action. Admin must apply rule and confirm both required checks; do **not** mark completed from owner approval alone.
   - [x] Owner APPROVED current `CHANGELOG.md` (Unreleased draft) and semantic version **`v1.0.0`** for the intended initial release on 2026-11-17. This approval is **not** authorization to create a tag or GitHub Release.
 - [ ] **P9-06 — V1 release tag:** create the agreed V1 tag/release only after P9-05 passes and the owner explicitly approves the release operation. No release tag is authorized by the general Phase 9 approval.
 
@@ -307,7 +308,8 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Copyright/licensing decision CLOSED on 2026-11-17: owner specified `Majid Darvishan`, `2026` and explicitly permits commercial use. Existing Apache-2.0 license retained (including its conditions); copyright notice filled in. No extra non-commercial restriction or alternative license introduced.
 - Changelog/version review CLOSED on 2026-11-17: the owner approved the existing Unreleased changelog content and the intended semantic version `v1.0.0` for V1. The changelog remains Unreleased until a separately authorized publication.
 - Repository metadata check: `main` reports `protected=false` and the repository ruleset list is empty; classic branch-protection details are not readable through the integration (HTTP 403). Tags: 0; GitHub Releases: 0. This is a visible release-readiness risk, not evidence of enforced branch protection. GitHub Release settings still require owner/admin verification.
-- Remaining P9-05: branch protection and GitHub Release settings owner/admin review. P9-06 remains NOT AUTHORIZED; no tag/release has been created.
+- 2026-11-17: owner approved protecting `main` and requiring the exact Go `test` and Pinex `Verify Go wire codec against pinned Pinex C++ 1.5.0` status checks. GitHub verified that both jobs pass on `b3fad24938dd689cd270b6954a3a98e37f630614`, and both workflows trigger on pull requests. No protection-write action is offered by the GitHub integration; an admin application/verification guide was committed to `.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md`.
+- Remaining P9-05: **apply/verify** protection (do not conflate approval with enforcement) and confirm GitHub Release settings. P9-06 remains NOT AUTHORIZED; no tag/release has been created.
 - The exact content of the owner's local `stash@{0}` cannot be read through GitHub. The stash remains untouched; its patch review is still a local follow-up.
 
 ---
