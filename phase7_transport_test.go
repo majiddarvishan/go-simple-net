@@ -247,9 +247,10 @@ func TestPhase7SlowTrickleCannotExtendFrameAssemblyDeadline(t *testing.T) {
 		if err != nil {
 			return
 		}
-		_ = writePhase7Full(conn, response[:5])
+		// Frame Assembly timing starts after the complete Header is available.
+		_ = writePhase7Full(conn, response[:wire.HeaderSize+2])
 		time.Sleep(150 * time.Millisecond)
-		_ = writePhase7Full(conn, response[5:])
+		_ = writePhase7Full(conn, response[wire.HeaderSize+2:])
 	}()
 
 	client, err := NewClient(
