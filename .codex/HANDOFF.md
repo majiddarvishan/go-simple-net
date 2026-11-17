@@ -1186,3 +1186,12 @@ Owner explicitly authorized a **Go-only** protocol version selection and changed
 This is a **local version setting only**. Both values continue to use **identical Pinex 1.5.0 wire bytes**, including the 10-byte Header and NUL-terminated Bind SystemID. No wire negotiation or on-wire V2, no NUL removal, no Pinex C++ changes. Future PV-02/PV-03 decide actual V2 wire or negotiation separately.
 
 The previous P9-05 signoff predates this API/default change. PV-01-R now requires fresh protected-main Go/race/example/Pinex CI and owner approval of the amended Unreleased CHANGELOG before any `v1.0.0` release. P9-06 remains NOT AUTHORIZED. Do not create tags/Releases and do not touch the owner's local stash.
+
+
+## 39. PV-02A — Go V2 NUL-free Bind; reconnect to GitHub (2026-11-18)
+
+The owner approved removing the trailing NUL only for V2. GitHub writes were temporarily unavailable, then recovered; implementation was staged on feature branch `feature/v2-nul-free-bind-2026-11-18` after rereading protected main `bd7cb466a4e4e7c3ae5013f5a9c99bbd7c3884ea`.
+
+Actual behavior: V1 codec remains unchanged. V2 Bind Request/Response omit the terminator; new Go Server (V2 default) detects legacy/V2 Bind format and responds using the same version. Selected protocol version is stored in Session under mu. A Go Client defaults to V2 and must set `WithProtocolVersion(ProtocolVersionV1)` to bind to Pinex C++ 1.5.0. No automatic negotiation/downgrade or new Header bytes. Codec and Go loopback tests added.
+
+Review release-boundary carefully: PV-02A and PV-02A-R tasks in `TASKS.md` require real PR/Go/Pinex CI evidence before closure; no prior CI results imply V2-wire validation. P9-06 remains NOT AUTHORIZED; no tag or release.
