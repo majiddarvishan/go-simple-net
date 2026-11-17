@@ -9,6 +9,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -176,3 +178,166 @@ func BenchmarkPhase8PinexServer(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkPhase8PinexClient(b *testing.B) {
+	binary := os.Getenv("NETA_PINEX_PEER_BIN")
+	if binary == "" {
+		b.Skip("set NETA_PINEX_PEER_BIN to benchmark the Pinex C++ Client against the Go Server")
+	}
+	if _, err := os.Stat(binary); err != nil {
+		b.Fatalf("Pinex peer binary %q: %v", binary, err)
+	}
+
+	for _, size := range []int{64, 1024, 4096, 64 << 10, wire.MaxBodySize} {
+		name := fmt.Sprintf("payload=%s", phase8PayloadName(size))
+		b.Run(name, func(b *testing.B) {
+			serverErrors := make(chan error, 1)
+			server, err := NewServer(
+				WithServerListenAddress("127.0.0.1:0"),
+				WithServerApplicationWorkerIdleGrace(10*time.Millisecond),
+				WithServerCompletionWorkerIdleGrace(10*time.Millisecond),
+				WithServerOnCloseWorkerIdleGrace(10*time.Millisecond),
+				WithServerOnRequestHandler(func(session *Session, request Request) {
+					if err := session.SendResponse(request.Payload); err != nil {
+						select {
+						case serverErrors <- err:
+						default:
+						}
+					}
+				}),
+			)
+			if err != nil {
+				b.Fatalf("NewServer: %v", err)
+			}
+			if err := server.Start(); err != nil {
+				b.Fatalf("Server.Start: %v", err)
+			}
+
+			var cmd *exec.Cmd
+			var stdin io.WriteCloser
+			var stdout *bufio.Reader
+			b.Cleanup(func() {
+				if cmd != nil && cmd.Process != nil {
+					_ = cmd.Process.Kill()
+					_ = cmd.Wait()
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = server.Stop(ctx)
+				cancel()
+			})
+
+			cmd = exec.Command(binary, "client-bench", server.Addr().String(),
+				strconv.Itoa(b.N), strconv.Itoa(size))
+			cmd.Stderr = io.Discard
+			stdin, err = cmd.StdinPipe()
+			if err != nil {
+				b.Fatalf("Pinex C++ Client stdin: %v", err)
+			}
+			stdoutPipe, err := cmd.StdoutPipe()
+			if err != nil {
+				b.Fatalf("Pinex C++ Client stdout: %v", err)
+			}
+			stdout = bufio.NewReader(stdoutPipe)
+			if err := cmd.Start(); err != nil {
+				b.Fatalf("start Pinex C++ Client: %v", err)
+			}
+
+			type lineResult struct {
+				line string
+				err  error
+			}
+			readyCh := make(chan lineResult, 1)
+			go func() {
+				line, err := stdout.ReadString('\n')
+				readyCh <- lineResult{line: line, err: err}
+			}()
+			select {
+			case ready := <-readyCh:
+				if ready.err != nil || strings.TrimSpace(ready.line) != "READY" {
+					b.Fatalf("Pinex C++ Client readiness = %q, error=%v", ready.line, ready.err)
+				}
+			case <-time.After(10 * time.Second):
+				b.Fatal("Pinex C++ Client did not Bind within 10 seconds")
+			}
+
+			var before runtime.MemStats
+			runtime.ReadMemStats(&before)
+			b.ReportAllocs()
+			b.SetBytes(int64(size))
+			b.ResetTimer()
+			if _, err := fmt.Fprintln(stdin, "GO"); err != nil {
+				b.Fatalf("release Pinex C++ Client benchmark gate: %v", err)
+			}
+
+			resultCh := make(chan lineResult, 1)
+			go func() {
+				line, err := stdout.ReadString('\n')
+				resultCh <- lineResult{line: line, err: err}
+			}()
+			var result lineResult
+			select {
+			case result = <-resultCh:
+			case <-time.After(30 * time.Second):
+				b.StopTimer()
+				b.Fatal("Pinex C++ Client benchmark did not finish within 30 seconds")
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed()
+			if result.err != nil {
+				b.Fatalf("read Pinex C++ Client benchmark result: %v", result.err)
+			}
+
+			fields := strings.Fields(result.line)
+			if len(fields) != 6 || fields[0] != "PASS" {
+				b.Fatalf("unexpected Pinex C++ Client benchmark result: %q", result.line)
+			}
+			count, err1 := strconv.Atoi(fields[1])
+			totalNS, err2 := strconv.ParseInt(fields[2], 10, 64)
+			p50, err3 := strconv.ParseInt(fields[3], 10, 64)
+			p95, err4 := strconv.ParseInt(fields[4], 10, 64)
+			p99, err5 := strconv.ParseInt(fields[5], 10, 64)
+			if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {
+				b.Fatalf("parse Pinex C++ Client benchmark result: %q", result.line)
+			}
+			if count != b.N || totalNS <= 0 {
+				b.Fatalf("Pinex C++ Client completed %d requests, expected %d; elapsed=%d", count, b.N, totalNS)
+			}
+			b.ReportMetric(float64(count)*1e9/float64(totalNS), "peer-ops/s")
+			b.ReportMetric(float64(totalNS)/float64(count), "peer-ns/op")
+			b.ReportMetric(float64(p50), "p50-ns")
+			b.ReportMetric(float64(p95), "p95-ns")
+			b.ReportMetric(float64(p99), "p99-ns")
+
+			var after runtime.MemStats
+			runtime.ReadMemStats(&after)
+			appSnapshot := server.callbacks.application.snapshot()
+			goroutines := runtime.NumGoroutine()
+			phase8ReportRuntime(b, before, after, elapsed, goroutines, appSnapshot, 0)
+
+			select {
+			case serverErr := <-serverErrors:
+				b.Fatalf("Go Server callback: %v", serverErr)
+			default:
+			}
+			waitCh := make(chan error, 1)
+			go func() { waitCh <- cmd.Wait() }()
+			select {
+			case err := <-waitCh:
+				if err != nil {
+					b.Fatalf("Pinex C++ Client process: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				_ = cmd.Process.Kill()
+				b.Fatal("Pinex C++ Client process did not exit after Unbind")
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := server.Stop(ctx); err != nil {
+				cancel()
+				b.Fatalf("Go Server Stop: %v", err)
+			}
+			cancel()
+		})
+	}
+}
+
