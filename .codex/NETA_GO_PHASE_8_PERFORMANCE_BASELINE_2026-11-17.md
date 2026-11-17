@@ -185,3 +185,77 @@ The full script completed successfully in about 9m22s of job execution. All work
 Added `phase8_delivery_test.go` to validate the benchmark's real TCP routing independently of the long benchmark matrix. Eight concurrent producers send one-way Requests over two Sessions; each Session begins with overlapping sequence values, and every delivery must reach the tracker for the correct TCP peer and sequence. The test also exercises delivery racing ahead of waiter registration.
 
 This is test-only and runs in ordinary and race CI. It does not alter the production API or implementation.
+
+
+## 14. Final corrected Phase 8 run — 2026-11-17
+
+**Status:** PASS — corrected full benchmark and profile suite completed.  
+**Workflow:** [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003)  
+**Artifact:** [neta-go-phase8-c5ebca4d3d0b7f1d36270501add0b059525df2c2.zip](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627)  
+**Artifact ID:** `14338552627`  
+**Benchmark/test harness SHA:** `c5ebca4d3d0b7f1d36270501add0b059525df2c2`  
+**Latest repository HEAD after adding the separate routing integration test:** `8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc`  
+**Runner:** Ubuntu 24.04, Go 1.23.12, Linux/amd64, Intel Xeon 6975P-C, 4 vCPU; benchmark CPU modes 1 and 4.  
+**Production source:** unchanged from Phase 7 source HEAD `209c24a7dbc5a5aa3db95ec63705915406acacb6`.
+
+The complete benchmark matrix, 1–512 Session scaling, corrected SendNoWait correlation, five-minute soak and small/large CPU/heap/mutex/block profiles all completed successfully. Artifacts contain environment metadata, logs, benchmark output, pprof files and summaries, time/RSS reports, and explicit PASS status.
+
+### 14.1 Representative measurements
+
+| Workload | Throughput | p50 | p95 | p99 | Allocation |
+|---|---:|---:|---:|---:|---:|
+| Request/Response 64 B, 1 Session/1 producer, 1 CPU | 71,778 ops/s | 13.5 µs | 14.7 µs | 23.2 µs | 960 B, 21 allocs/op |
+| Request/Response 64 B, 1 Session/16 producers, 1 CPU | 99,885 ops/s | 156.9 µs | 170.6 µs | 226.3 µs | 900 B, 16 allocs/op |
+| SendNoWait 64 B, 1 Session/1 producer, 1 CPU | 113,184 ops/s | 8.87 µs | 9.57 µs | 16.65 µs | 584 B, 14 allocs/op |
+| SendNoWait 64 B, 1 Session/16 producers, 1 CPU | 178,617 ops/s | 87.5 µs | 98.7 µs | 121.4 µs | 554 B, 11 allocs/op |
+
+- 512 Sessions, Request/Response 64 B: 123,864 ops/s, p95 6.57 ms, p99 9.58 ms, Session p95 max/min ratio 1.352.
+- 512 Sessions, Request/Response 256 B: 116,244 ops/s, p95 8.84 ms, p99 11.97 ms, Session p95 max/min ratio 1.319.
+- Queue Full admission: median 16.65 ns/op, 0 B/op and 0 allocs/op.
+- Pure wire codec, 64 B: Encode 33.72 ns/op / 80 B / 1 alloc; DecodeFrame 32.83 ns/op / 64 B / 1 alloc; DecodeStreamRequest 62.73 ns/op / 128 B / 2 allocs.
+
+These are GitHub-hosted loopback runner measurements, not production hardware guarantees or approved SLAs. The two independent full runs showed normal hosted-runner variation; no numeric pass/fail thresholds are inferred.
+
+### 14.2 Corrected five-minute soak
+
+- Baseline heap: 335,696 bytes; final heap: 308,088 bytes.
+- Maximum HeapInuse: 4,374,528 bytes.
+- Maximum RSS: 91,348 KiB.
+- Total allocated during soak: 13,289,700,184 bytes; 4,549 GC cycles.
+- Goroutines after cleanup: 2.
+- Periodic samples kept server retained and queued Application bytes at zero.
+- Result: PASS; no retained-memory growth observed in this bounded workload.
+
+### 14.3 Profile findings
+
+**Small-payload profile**
+- Allocation space: `buildStreamFrame` 32.80%; `Session.readFrame` 28.82%; completion-task creation 7.42%; inbound dispatch 7.07%; SendRequest 5.96%; callback queue append 4.59%.
+- CPU: `internal/runtime/syscall.Syscall6` 34.87% flat; `runtime.selectgo` 10.13% cumulative.
+- Mutex sampled delay: 709.36 ms over the profile; no single application lock emerged as a dominant hot spot.
+- Block profile is dominated by normal select/channel/condition-variable waits.
+
+**Large-payload profile**
+- Allocation space: `Session.readFrame` 50.07%; `buildStreamFrame` 49.88%.
+- CPU: `Syscall6` 35.03%, `runtime.memclrNoHeapPointers` 20.14%, `runtime.memmove` 6.40%.
+- Mutex sampled delay: 96.41 ms; no case for lock redesign.
+
+### 14.4 PERF-004 final decision — NO CHANGE
+
+No production optimization is accepted in Phase 8.
+
+- `Session.readFrame` allocation represents the owned inbound payload. The application may retain it; PERF-002 A forbids recycling/pooling after handoff. It remains unchanged.
+- `buildStreamFrame` is a significant outbound allocation site. Reuse could reduce allocation volume, but safe reuse requires hard-bounded retained memory and exact return/discard handling across successful writes, failed writes, Session close, queue cancellation and admission races.
+- A generic `sync.Pool` does not provide the hard retained-memory bound required by this design. A per-Session pool introduces a new retained-memory allowance and owner resource-accounting implications.
+- Profiles do not prove a material throughput or tail-latency win from such a pool. The soak is stable, no numeric SLA exists, and no owner production workload distribution has yet been supplied for threshold setting.
+
+Batching also has no measured case that justifies changing the single-Writer/FIFO behavior. Therefore **PERF-004 = NO CHANGE** is the evidence-based result, not an unfinished implementation.
+
+### 14.5 P8-05 gate and Phase 8 closure
+
+- Shared Go correctness CI on latest repository HEAD [44107389341](https://github.com/majiddarvishan/neta-go/actions/runs/44107389341): PASS — gofmt, vet, uncached unit and race.
+- Pinex Wire Compatibility on latest repository HEAD [44107389316](https://github.com/majiddarvishan/neta-go/actions/runs/44107389316): PASS.
+- Phase 7 live bidirectional Pinex interoperability remains PASS at [44081220680](https://github.com/majiddarvishan/pinex/actions/runs/44081220680); production source was not changed in Phase 8.
+- Corrected Phase 8 full benchmark/profile workflow [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; artifact retained for future comparisons.
+- Weekly scheduled runs continue to collect comparable evidence. Numeric regression thresholds are intentionally not enforced until the owner reviews production workload distributions and approves targets.
+
+**Phase 8 P8-01..P8-05: COMPLETE.** No production source, public API, wire format, defaults, timeout/reconnect policy, worker ceiling or resource limit changed. Phase 9 remains NOT AUTHORIZED.

@@ -5,8 +5,9 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
-**Current phase:** Phase 8 — Performance baseline and evidence-driven optimization (**IN PROGRESS**, owner authorized 2026-11-17). Phase 9 remains gated.
+**Last verified repository HEAD:** `8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc`  
+**Last verified production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
+**Current phase:** Phase 8 — Performance baseline and evidence-driven optimization (**COMPLETE**, 2026-11-17; PERF-004 = NO CHANGE). Phase 9 remains gated and NOT AUTHORIZED.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -209,17 +210,17 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## Phase 8 — Performance baseline and evidence-driven optimization
 
-<badge color="warning">IN PROGRESS — OWNER AUTHORIZED 2026-11-17</badge>
+<badge color="success">COMPLETE — 2026-11-17</badge>
 
 **Authorization:** The owner approved the complete Phase 8 scope by replying «ادامه بده» after the explicit Phase 8 approval question. P8-01..P8-05 are authorized. Phase 9 examples, documentation polish, release readiness and deployment remain outside scope.
 
 **Guardrails:** measure before optimizing. No public API, Wire Protocol, default, timeout/reconnect policy, resource ceiling, callback-ordering contract or frozen architecture decision may be changed in this phase. PERF-004 pooling/batching remains a measured engineering choice, not an assumed optimization. Do not create numeric performance SLAs before the reproducible baseline and owner workload review.
 
-- [ ] **P8-01 — Reproducible baseline:** build a repeatable loopback TCP benchmark suite covering Pinex wire codec, Request/Response, SendNoWait, payload sizes 64 B/256 B/1 KiB/4 KiB/near 1 MiB, 1/8/32 Sessions, producer contention, callback concurrency and controlled queue saturation. Record Go version, OS/architecture, CPU model/count, GOMAXPROCS, runner limits and exact source SHA.
-- [ ] **P8-02 — Record metrics:** collect throughput, p50/p95/p99 end-to-end completion latency, submission latency, allocs/op, bytes/op, CPU, heap/GC, goroutine count, worker snapshots, RSS and contention. Keep -race correctness runs separate from performance numbers.
-- [ ] **P8-03 — Profile hot paths:** capture CPU, heap, mutex and block profiles for representative small-payload/high-throughput and larger-payload scenarios; inspect top cumulative/self costs and allocation/copy sites before proposing changes.
-- [ ] **P8-04 — PERF-004 decisions:** evaluate private outbound frame pooling, batching or other candidates only when the profile identifies a material bottleneck. Never pool user-owned inbound payloads; preserve PERF-002 A ownership and all admission/accounting semantics. If no safe material win is proven, record NO CHANGE.
-- [ ] **P8-05 — Regression gate:** after each accepted optimization rerun gofmt, vet, unit, race, Pinex golden and live TCP interoperability plus the benchmark suite. Report before/after on the same runner/methodology; reject regressions in tail latency, fairness, memory bounds or correctness.
+- [x] **P8-01 — Reproducible baseline:** full loopback TCP benchmark matrix PASS; Go 1.23.12, Ubuntu 24.04/Linux amd64, Intel Xeon 6975P-C, 4 vCPU, exact source SHA and artifacts recorded. See Phase 8 report §14.
+- [x] **P8-02 — Record metrics:** throughput, p50/p95/p99, submission latency, allocations, bytes/op, CPU profiles, heap/GC, goroutines, worker snapshots, RSS, mutex and block profiles captured. Race runs remained separate.
+- [x] **P8-03 — Profile hot paths:** small- and large-payload CPU/heap/mutex/block profiles captured and reviewed. Allocation hotspots and expected ownership costs documented.
+- [x] **P8-04 — PERF-004 decision: NO CHANGE.** Outbound frame reuse is a potential allocation candidate but no safe material throughput/tail-latency win was proven. A generic `sync.Pool` lacks the hard retained-memory bound; per-Session pooling adds retained memory and complex writer/close/admission recycling. PERF-002 A inbound ownership remains unchanged; no inbound pooling.
+- [x] **P8-05 — Regression/verification gate:** shared correctness and Pinex compatibility CI PASS; corrected full benchmark/profile workflow PASS and artifacts archived. No production optimization was accepted, so no before/after optimization comparison was applicable. Numeric performance regression thresholds remain intentionally unset pending owner workload/SLA review.
 
 ### Phase 8 repeatable automation — 2026-11-17
 
@@ -227,7 +228,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] Add child-process scripts with uncached correctness tests, metadata, per-run logs and explicit PASS/FAIL status.
 - [x] Make GitHub Actions invoke the same scripts used locally.
 - [x] Store generated logs/profiles under ignored `artifacts/` and upload them from CI.
-- [ ] Validate the complete Phase 8 performance workflow and inspect its benchmark/profile artifacts (workflow currently running).
+- [x] Validate the complete Phase 8 performance workflow and inspect its benchmark/profile artifacts — corrected run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003), artifact [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627).
 - [x] Provide the owner a short local invocation and confirm local execution on their machine — local `make verify` PASS on 2026-11-17.
 
 ### Phase 8 baseline implementation plan — 2026-11-17
@@ -237,6 +238,17 @@ This root-level file is the single, canonical, implementation-facing task list f
 - The first baseline is loopback Go↔Go and pure-Go wire codec. The Phase 7 actual Pinex C++ peer is retained as the cross-language correctness gate; any direct performance comparison to C++ must use a separately matched benchmark harness and disclose language/runtime differences.
 - The initial runner baseline is an Ubuntu 24.04 GitHub-hosted runner. Results are environment-specific and are not production hardware guarantees.
 - Detailed measurements, profile analysis, benchmark commands, artifact links and decisions will be appended to .codex/NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md.
+
+### Phase 8 completion evidence — 2026-11-17
+
+- Corrected full Phase 8 workflow [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; artifact [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627); benchmark harness SHA `c5ebca4d3d0b7f1d36270501add0b059525df2c2`.
+- Latest repository HEAD `8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc`: Go correctness [44107389341](https://github.com/majiddarvishan/neta-go/actions/runs/44107389341) PASS; Pinex Wire Compatibility [44107389316](https://github.com/majiddarvishan/neta-go/actions/runs/44107389316) PASS.
+- Owner's local `make verify` on 2026-11-17: PASS (gofmt, vet, uncached unit and race). The prior local stash remains preserved as `stash@{0}`; it has not been applied or dropped.
+- Five-minute soak: PASS; baseline/final heap 335,696/308,088 bytes; max HeapInuse 4,374,528 bytes; max RSS 91,348 KiB; 4,549 GC cycles; two goroutines after cleanup; retained/queued Application bytes stayed zero.
+- 512-Session Request/Response: 64 B at 123,864 ops/s (p95 6.57 ms, p99 9.58 ms, fairness ratio 1.352); 256 B at 116,244 ops/s (p95 8.84 ms, p99 11.97 ms, fairness ratio 1.319).
+- SendNoWait delivery correlation is now per TCP peer and per-Session sequence; concurrent routing integration test [phase8_delivery_test.go](phase8_delivery_test.go) passes ordinary and race CI.
+- PERF-004 closed as **NO CHANGE**. No production code, public API, Pinex wire protocol, defaults, timeouts, worker ceilings or resource limits changed.
+- Phase 9 remains NOT AUTHORIZED. Numeric performance regression thresholds are not set; the workflow archives weekly evidence, not hard SLA enforcement.
 
 ## Phase 9 — Documentation, examples and V1 release readiness
 

@@ -1038,3 +1038,23 @@ Profile review identifies outbound `buildStreamFrame` as a possible allocation o
 ## 27. Phase 8 — End-to-end SendNoWait routing test (2026-11-17)
 
 Added `phase8_delivery_test.go`: eight concurrent producers send one-way Requests over two live TCP Sessions. It verifies per-connection sequence routing, overlapping sequence values across Sessions, and early/out-of-order delivery notification. This runs under normal and race CI; no production code changed.
+
+
+## 28. Phase 8 COMPLETE — corrected baseline, profiles and PERF-004 closure (2026-11-17)
+
+**Latest repository HEAD before this documentation update:** `8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc`  
+**Production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6` (unchanged throughout Phase 8).  
+**Corrected full Phase 8 workflow:** [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003) PASS.  
+**Artifact:** [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627), benchmark harness SHA `c5ebca4d3d0b7f1d36270501add0b059525df2c2`.
+
+P8-01..P8-05 are COMPLETE:
+- Reproducible loopback benchmark matrix and environment metadata captured.
+- Throughput, latency percentiles, submission latency, allocation, heap/GC, goroutine, worker, RSS and contention metrics recorded.
+- Small/large CPU, heap, mutex and block profiles reviewed.
+- PERF-004 = **NO CHANGE**. Inbound payload pooling is forbidden by PERF-002 A; outbound pooling lacks a proven material performance win and would add hard-bounded retention/lifecycle/accounting complexity.
+- Correctness/Pinex compatibility CI PASS on latest repository HEAD [8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc](https://github.com/majiddarvishan/neta-go/actions/runs/44107389341) and [44107389316](https://github.com/majiddarvishan/neta-go/actions/runs/44107389316). The eight-producer/two-Session SendNoWait delivery-routing integration test is included in these gates.
+- Owner's local `make verify` passed on the earlier automation HEAD; local stash `stash@{0}` remains preserved and has not been applied or dropped.
+
+The five-minute soak completed with heap 335,696 → 308,088 bytes, max HeapInuse 4,374,528 bytes, max RSS 91,348 KiB, 4,549 GC cycles and two goroutines after cleanup. Server retained/queued Application bytes stayed zero in periodic samples.
+
+No production code, public API, wire format, default, timeout/reconnect policy, worker ceiling or resource limit changed. Numeric performance thresholds remain intentionally unset pending owner workload review. Phase 9 remains NOT AUTHORIZED.
