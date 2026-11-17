@@ -360,3 +360,54 @@ func TestServerConcurrentDuplicateBindsHaveSingleWinner(t *testing.T) {
 	_ = receiveBoundSession(t, bound)
 	waitServerBoundCount(t, server, 1)
 }
+
+
+func TestServerBoundTransitionCommitsReservedIdentityBySession(t *testing.T) {
+	session := &Session{systemID: "peer"}
+	server := &Server{
+		sessions:       map[*Session]struct{}{session: {}},
+		preBind:        map[*Session]struct{}{session: {}},
+		pendingSockets: 1,
+		pendingIDs:     map[string]*Session{"peer": session},
+		boundIDs:       make(map[string]*Session),
+		sessionIDs:     map[*Session]string{session: "peer"},
+	}
+
+	server.sessionBecameBound(session)
+
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if server.pendingIDs["peer"] != nil || server.boundIDs["peer"] != session {
+		t.Fatalf("reserved identity was not committed to Bound registry: pending=%v bound=%v", server.pendingIDs["peer"], server.boundIDs["peer"])
+	}
+	if _, exists := server.preBind[session]; exists || server.pendingSockets != 0 {
+		t.Fatalf("Pre-Bind accounting was not released: preBind=%t pending=%d", exists, server.pendingSockets)
+	}
+}
+
+func TestServerDoneReleasesPendingIdentityBeforeSessionIdentityIsPublished(t *testing.T) {
+	session := &Session{}
+	server := &Server{
+		sessions:       map[*Session]struct{}{session: {}},
+		preBind:        map[*Session]struct{}{session: {}},
+		pendingSockets: 1,
+		pendingIDs:     map[string]*Session{"peer": session},
+		boundIDs:       make(map[string]*Session),
+		sessionIDs:     map[*Session]string{session: "peer"},
+	}
+
+	// The Session's public SystemID is still empty here: a close can win after
+	// Bind admission reserves the peer identity but before the Reader publishes
+	// the Bind state. Cleanup must use the reserved Session identity, not
+	// Session.SystemID().
+	server.sessionDone(session, ErrClosed)
+
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if len(server.sessions) != 0 || len(server.preBind) != 0 || len(server.pendingIDs) != 0 || len(server.boundIDs) != 0 {
+		t.Fatalf("Session registry leaked entries: sessions=%d preBind=%d pendingIDs=%d boundIDs=%d", len(server.sessions), len(server.preBind), len(server.pendingIDs), len(server.boundIDs))
+	}
+	if server.pendingSockets != 0 || len(server.sessionIDs) != 0 {
+		t.Fatalf("Session identity/accounting leaked: pending=%d sessionIDs=%d", server.pendingSockets, len(server.sessionIDs))
+	}
+}
