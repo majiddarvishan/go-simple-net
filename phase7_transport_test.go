@@ -365,3 +365,87 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 		t.Fatal("TCP peer did not finish reset")
 	}
 }
+
+
+func TestPhase7GracefulEOFClosesBoundGeneration(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	releaseEOF := make(chan struct{})
+	peerDone := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			peerDone <- err
+			return
+		}
+		defer conn.Close()
+		_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+		request, err := readPhase7Frame(conn)
+		if err != nil {
+			peerDone <- err
+			return
+		}
+		bind, err := wire.DecodeBindRequest(request)
+		if err != nil {
+			peerDone <- err
+			return
+		}
+		response, err := wire.EncodeBindResponse(request.Header.Sequence, wire.StatusOK, wire.Bind{
+			Type: bind.Type, SystemID: "eof-peer",
+		})
+		if err == nil {
+			err = writePhase7Full(conn, response)
+		}
+		if err != nil {
+			peerDone <- err
+			return
+		}
+
+		<-releaseEOF
+		peerDone <- nil
+	}()
+
+	closed := make(chan error, 1)
+	client, err := NewClient(
+		WithClientAddress(listener.Addr().String()),
+		WithClientSystemID("eof-client"),
+		WithClientOnCloseHandler(func(_ *Session, cause error) {
+			closed <- cause
+		}),
+	)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	close(releaseEOF)
+
+	select {
+	case cause := <-closed:
+		if cause == nil {
+			t.Fatal("graceful TCP EOF close notification had no terminal cause")
+		}
+	case <-ctx.Done():
+		t.Fatal("Client did not observe graceful TCP EOF")
+	}
+	if _, ok := client.CurrentSession(); ok {
+		t.Fatal("EOF-closed generation remained CurrentSession")
+	}
+	_ = client.Stop(ctx)
+	select {
+	case err := <-peerDone:
+		if err != nil {
+			t.Fatalf("TCP peer: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("TCP peer did not finish EOF scenario")
+	}
+}
