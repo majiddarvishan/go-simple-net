@@ -180,9 +180,13 @@ func writeWireFrame(t *testing.T, conn net.Conn, frame []byte) {
 }
 
 func newTestBoundSession(local net.Conn, config sessionConfig, dispatcher *testSessionDispatcher, handlers sessionHandlers) *Session {
-	return newBoundSession(local, config, sessionIdentity{
+	return newTestBoundSessionWithResources(local, config, dispatcher, handlers, newClientResourceLedger(defaultOwnerConfig()))
+}
+
+func newTestBoundSessionWithResources(local net.Conn, config sessionConfig, dispatcher *testSessionDispatcher, handlers sessionHandlers, resources *ownerResourceLedger) *Session {
+	return newBoundSessionWithResources(local, config, sessionIdentity{
 		role: sessionRoleClient, bindType: wire.BindBiDirectional,
-	}, dispatcher, handlers)
+	}, dispatcher, handlers, resources)
 }
 
 func waitDone(t *testing.T, session *Session) {
@@ -1490,4 +1494,158 @@ func TestSessionIncomingEnquireLinkAnsweredWhenDisabled(t *testing.T) {
 	}
 	session.Close()
 	waitDone(t, session)
+}
+
+
+func TestSessionServerAggregateOutgoingQueueIncludesWriterOwnedFrame(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxRetainedApplicationBytes:         64,
+		hasAggregateApplicationQueue:        true,
+		maxAggregateQueuedApplicationBytes:  11,
+		maxAggregateQueuedApplicationFrames: 1,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	local1, peer1 := net.Pipe()
+	local2, peer2 := net.Pipe()
+	first := newTestBoundSessionWithResources(local1, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+	second := newTestBoundSessionWithResources(local2, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+	defer peer1.Close()
+	defer peer2.Close()
+
+	if _, err := first.SendNoWait([]byte("x")); err != nil {
+		t.Fatalf("first SendNoWait: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if got := owner.snapshot(); got.queuedApplicationFrames == 1 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := owner.snapshot(); got.queuedApplicationBytes != 11 || got.queuedApplicationFrames != 1 {
+		t.Fatalf("first Writer-owned Frame charge = %+v", got)
+	}
+	if _, err := second.SendNoWait([]byte("x")); !errors.Is(err, ErrQueueFull) {
+		t.Fatalf("second SendNoWait error = %v, want ErrQueueFull", err)
+	}
+	if second.State() != SessionStateBound {
+		t.Fatalf("aggregate outgoing Queue Full changed second Session state to %v", second.State())
+	}
+
+	outbound := readWireFrame(t, peer1)
+	if outbound.Header.Command != wire.CommandStreamRequest || string(outbound.Body) != "x" {
+		t.Fatalf("unexpected first Frame: %+v body=%q", outbound.Header, outbound.Body)
+	}
+	deadline = time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if got := owner.snapshot(); got.queuedApplicationFrames == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := owner.snapshot(); got.queuedApplicationBytes != 0 || got.queuedApplicationFrames != 0 || got.retainedApplicationBytes != 0 {
+		t.Fatalf("owner charges after full Write = %+v", got)
+	}
+	first.Close()
+	second.Close()
+	waitDone(t, first)
+	waitDone(t, second)
+}
+
+func TestSessionOutgoingRetainedApplicationBudgetIncludesWriterOwnedFrame(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxRetainedApplicationBytes:         11,
+		hasAggregateApplicationQueue:        true,
+		maxAggregateQueuedApplicationBytes:  1024,
+		maxAggregateQueuedApplicationFrames: 8,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	sessionConn, peer := net.Pipe()
+	session := newTestBoundSessionWithResources(sessionConn, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("x")); err != nil {
+		t.Fatalf("first SendNoWait: %v", err)
+	}
+	if got := owner.snapshot().retainedApplicationBytes; got != 11 {
+		t.Fatalf("retained Application bytes = %d, want 11", got)
+	}
+	if _, err := session.SendNoWait([]byte("y")); !errors.Is(err, ErrCapacity) {
+		t.Fatalf("second SendNoWait error = %v, want ErrCapacity", err)
+	}
+	if session.State() != SessionStateBound {
+		t.Fatalf("retained-byte capacity failure changed Session state to %v", session.State())
+	}
+	_ = readWireFrame(t, peer)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if owner.snapshot().retainedApplicationBytes == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := owner.snapshot().retainedApplicationBytes; got != 0 {
+		t.Fatalf("retained Application bytes after full Write = %d", got)
+	}
+	if _, err := session.SendNoWait([]byte("y")); err != nil {
+		t.Fatalf("SendNoWait after release: %v", err)
+	}
+	_ = readWireFrame(t, peer)
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionRequestCreditIsOwnerScopedAndHeldThroughCompletionReturn(t *testing.T) {
+	owner := newOwnerResourceLedger(ownerResourceLimits{
+		maxOutstandingRequests:      1,
+		maxRetainedApplicationBytes: 1024,
+	})
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	local1, peer1 := net.Pipe()
+	local2, peer2 := net.Pipe()
+	dispatcher1 := &testSessionDispatcher{}
+	first := newTestBoundSessionWithResources(local1, config, dispatcher1, sessionHandlers{}, owner)
+	second := newTestBoundSessionWithResources(local2, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+	defer peer1.Close()
+	defer peer2.Close()
+
+	sequence, err := first.SendRequest([]byte("request"), func(Response, error) {})
+	if err != nil {
+		t.Fatalf("first SendRequest: %v", err)
+	}
+	outbound := readWireFrame(t, peer1)
+	if outbound.Header.Sequence != sequence {
+		t.Fatalf("outbound Sequence = %d, want %d", outbound.Header.Sequence, sequence)
+	}
+	if _, err := second.SendRequest([]byte("blocked"), func(Response, error) {}); !errors.Is(err, ErrCapacity) {
+		t.Fatalf("second SendRequest error = %v, want ErrCapacity", err)
+	}
+	if got := owner.snapshot().outstandingRequests; got != 1 {
+		t.Fatalf("owner Request credits = %d, want 1", got)
+	}
+
+	response, err := wire.EncodeStreamResponse(sequence, wire.StatusOK, []byte("ok"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer1, response)
+	task := waitForTask(t, dispatcher1.takeCompletion)
+	if got := owner.snapshot().outstandingRequests; got != 1 {
+		t.Fatalf("Request credit released before Completion callback return: %d", got)
+	}
+	task.run()
+	if got := owner.snapshot().outstandingRequests; got != 0 {
+		t.Fatalf("Request credits after Completion return = %d, want 0", got)
+	}
+	if _, err := second.SendRequest([]byte("now-admitted"), func(Response, error) {}); err != nil {
+		t.Fatalf("SendRequest after credit release: %v", err)
+	}
+	_ = readWireFrame(t, peer2)
+	first.Close()
+	second.Close()
+	waitDone(t, first)
+	waitDone(t, second)
 }

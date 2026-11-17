@@ -65,8 +65,9 @@ type sessionIdentity struct {
 }
 
 type outboundFrame struct {
-	bytes         []byte
-	control       bool
+	bytes              []byte
+	applicationCharged bool
+	control            bool
 	barrier       bool
 	requestSeq    uint32
 	controlSeq    uint32
@@ -77,10 +78,12 @@ type outboundFrame struct {
 }
 
 type pendingRequest struct {
-	completion    CompletionHandler
-	deadline      time.Time
-	settled       bool
-	writerClaimed bool
+	completion      CompletionHandler
+	deadline        time.Time
+	settled         bool
+	writerClaimed   bool
+	requestCredit   bool
+	creditReleased  bool
 }
 
 type bindDecision struct {
@@ -101,6 +104,7 @@ type Session struct {
 	conn       net.Conn
 	remoteAddr net.Addr
 	role       sessionRole
+	resources  *ownerResourceLedger
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
 
@@ -115,9 +119,16 @@ type Session struct {
 	appQueue                []*outboundFrame
 	controlQueue            []*outboundFrame
 	barrierQueue            []*outboundFrame
-	queuedAppBytes          uint64
-	queuedAppFrames         uint32
-	queuedControlBytes      uint64
+	queuedAppBytes             uint64
+	queuedAppFrames            uint32
+	retainedApplicationBytes   uint64
+	retainedCompletionBytes    uint64
+	queuedIncomingBytes        uint64
+	queuedIncomingFrames       uint32
+	outstandingRequestCredits  uint32
+	admissionCount             uint32
+	resourceAccountingFailed  bool
+	queuedControlBytes         uint64
 	activeWrite             *outboundFrame
 	lastActivity            time.Time
 	preBindDeadline         time.Time
@@ -153,10 +164,18 @@ type Session struct {
 }
 
 func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) *Session {
+	return newSessionWithResources(conn, config, identity, dispatcher, handlers, newClientResourceLedger(defaultOwnerConfig()))
+}
+
+func newSessionWithResources(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers, resources *ownerResourceLedger) *Session {
+	if resources == nil {
+		resources = newClientResourceLedger(defaultOwnerConfig())
+	}
 	s := &Session{
 		config:       config,
 		conn:         conn,
 		role:         identity.role,
+		resources:    resources,
 		dispatcher:   dispatcher,
 		handlers:     handlers,
 		state:        SessionStateNew,
@@ -181,10 +200,14 @@ func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, d
 }
 
 func newBoundSession(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) *Session {
+	return newBoundSessionWithResources(conn, config, identity, dispatcher, handlers, newClientResourceLedger(defaultOwnerConfig()))
+}
+
+func newBoundSessionWithResources(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers, resources *ownerResourceLedger) *Session {
 	if conn == nil {
 		return nil
 	}
-	s := newSession(conn, config, identity, dispatcher, handlers)
+	s := newSessionWithResources(conn, config, identity, dispatcher, handlers, resources)
 	s.mu.Lock()
 	s.state = SessionStateBound
 	s.lastActivity = time.Now()
@@ -443,19 +466,64 @@ func (s *Session) enqueueControlLocked(item *outboundFrame) error {
 	return nil
 }
 
-func (s *Session) enqueueApplicationLocked(item *outboundFrame) error {
-	if item == nil || item.control || len(item.bytes) == 0 {
+func (s *Session) reserveOutgoingApplicationLocked(frameBytes uint64) error {
+	if frameBytes == 0 {
 		return ErrProtocol
 	}
 	if s.queuedAppFrames >= s.config.maxOutgoingApplicationFrames {
 		return ErrQueueFull
 	}
-	next, ok := checkedAddUint64(s.queuedAppBytes, uint64(len(item.bytes)))
-	if !ok || next > s.config.maxQueuedOutgoingBytes {
+	nextQueueBytes, ok := checkedAddUint64(s.queuedAppBytes, frameBytes)
+	if !ok || nextQueueBytes > s.config.maxQueuedOutgoingBytes {
 		return ErrQueueFull
 	}
-	s.queuedAppBytes = next
+	nextRetainedBytes, ok := checkedAddUint64(s.retainedApplicationBytes, frameBytes)
+	if !ok || nextRetainedBytes > s.config.maxRetainedApplicationBytes {
+		return ErrCapacity
+	}
+	if s.resources == nil {
+		return ErrCapacity
+	}
+	if err := s.resources.reserveApplicationFrame(frameBytes); err != nil {
+		return err
+	}
+	s.queuedAppBytes = nextQueueBytes
 	s.queuedAppFrames++
+	s.retainedApplicationBytes = nextRetainedBytes
+	return nil
+}
+
+// releaseOutgoingApplicationReservationLocked releases a reservation that has
+// not yet been transferred to an outboundFrame.
+func (s *Session) releaseOutgoingApplicationReservationLocked(frameBytes uint64) {
+	if frameBytes == 0 {
+		return
+	}
+	if next, ok := checkedSubUint64(s.queuedAppBytes, frameBytes); ok {
+		s.queuedAppBytes = next
+	} else {
+		s.resourceAccountingFailed = true
+	}
+	if s.queuedAppFrames > 0 {
+		s.queuedAppFrames--
+	} else {
+		s.resourceAccountingFailed = true
+	}
+	if next, ok := checkedSubUint64(s.retainedApplicationBytes, frameBytes); ok {
+		s.retainedApplicationBytes = next
+	} else {
+		s.resourceAccountingFailed = true
+	}
+	if s.resources == nil || !s.resources.releaseQueuedApplication(frameBytes, 1) ||
+		!s.resources.releaseRetainedApplication(frameBytes) {
+		s.resourceAccountingFailed = true
+	}
+}
+
+func (s *Session) enqueueApplicationLocked(item *outboundFrame) error {
+	if item == nil || item.control || len(item.bytes) == 0 || !item.applicationCharged {
+		return ErrProtocol
+	}
 	s.appQueue = append(s.appQueue, item)
 	s.cond.Signal()
 	return nil
@@ -469,18 +537,54 @@ func (s *Session) releaseFrameChargeLocked(item *outboundFrame) {
 		if next, ok := checkedSubUint64(s.queuedControlBytes, uint64(len(item.bytes))); ok {
 			s.queuedControlBytes = next
 		} else {
-			s.queuedControlBytes = 0
+			s.resourceAccountingFailed = true
 		}
 		return
 	}
-	if next, ok := checkedSubUint64(s.queuedAppBytes, uint64(len(item.bytes))); ok {
-		s.queuedAppBytes = next
+	if !item.applicationCharged {
+		return
+	}
+	s.releaseOutgoingApplicationReservationLocked(uint64(len(item.bytes)))
+	item.applicationCharged = false
+}
+
+func (s *Session) reserveRequestCreditLocked() error {
+	if s.outstandingRequestCredits >= s.config.maxOutstandingRequests {
+		return ErrCapacity
+	}
+	if s.resources == nil || !s.resources.reserveRequest() {
+		return ErrCapacity
+	}
+	s.outstandingRequestCredits++
+	return nil
+}
+
+func (s *Session) releaseRequestAdmissionLocked() {
+	if s.outstandingRequestCredits > 0 {
+		s.outstandingRequestCredits--
 	} else {
-		s.queuedAppBytes = 0
+		s.resourceAccountingFailed = true
 	}
-	if s.queuedAppFrames > 0 {
-		s.queuedAppFrames--
+	if s.resources == nil || !s.resources.releaseRequest() {
+		s.resourceAccountingFailed = true
 	}
+}
+
+func (s *Session) releaseRequestCreditLocked(pending *pendingRequest) {
+	if pending == nil || !pending.requestCredit || pending.creditReleased {
+		return
+	}
+	pending.creditReleased = true
+	s.releaseRequestAdmissionLocked()
+}
+
+func (s *Session) finishAdmissionLocked() {
+	if s.admissionCount == 0 {
+		s.resourceAccountingFailed = true
+		return
+	}
+	s.admissionCount--
+	s.cond.Broadcast()
 }
 
 func (s *Session) removeQueuedControlSequenceLocked(sequence uint32) bool {
@@ -532,7 +636,10 @@ func (s *Session) beginClose(cause error, forced bool) {
 		var gracefulTasks []callbackTask
 		if forced {
 			for _, pending := range s.pending {
-				pending.settled = true
+				if !pending.settled {
+					pending.settled = true
+					s.releaseRequestCreditLocked(pending)
+				}
 			}
 		} else {
 			terminalErr := cause
@@ -594,6 +701,9 @@ func (s *Session) beginClose(cause error, forced bool) {
 func (s *Session) finishClose() {
 	s.wg.Wait()
 	s.mu.Lock()
+	for s.admissionCount != 0 {
+		s.cond.Wait()
+	}
 	s.state = SessionStateClosed
 	cause := s.closeCause
 	s.pending = make(map[uint32]*pendingRequest)

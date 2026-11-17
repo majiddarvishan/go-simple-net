@@ -17,7 +17,7 @@ func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uin
 	if completion == nil {
 		return 0, fmt.Errorf("neta: SendRequest requires a non-nil CompletionHandler")
 	}
-	frame, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload)
+	frameBytes, err := streamFrameSize(payload)
 	if err != nil {
 		return 0, err
 	}
@@ -31,25 +31,60 @@ func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uin
 		s.mu.Unlock()
 		return 0, ErrProtocol
 	}
-	if uint32(len(s.pending)) >= s.config.maxOutstandingRequests {
+	if err := s.reserveOutgoingApplicationLocked(frameBytes); err != nil {
 		s.mu.Unlock()
-		return 0, ErrCapacity
+		return 0, err
+	}
+	if err := s.reserveRequestCreditLocked(); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.mu.Unlock()
+		return 0, err
+	}
+	s.admissionCount++
+	s.mu.Unlock()
+
+	// Resource reservations precede allocation/copy. The in-flight admission
+	// count keeps Done behind this operation if Close races the snapshot.
+	frame, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload)
+
+	s.mu.Lock()
+	if err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.releaseRequestAdmissionLocked()
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return 0, err
+	}
+	if err := s.applicationSendErrorLocked(); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.releaseRequestAdmissionLocked()
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return 0, err
 	}
 	sequence := s.nextSequenceLocked()
 	if sequence == 0 {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.releaseRequestAdmissionLocked()
+		s.finishAdmissionLocked()
 		s.mu.Unlock()
 		return 0, ErrCapacity
 	}
 	binary.BigEndian.PutUint32(frame[6:10], sequence)
-	pending := &pendingRequest{completion: completion}
-	item := &outboundFrame{bytes: frame, requestSeq: sequence}
+	pending := &pendingRequest{completion: completion, requestCredit: true}
+	item := &outboundFrame{bytes: frame, requestSeq: sequence, applicationCharged: true}
 	if err := s.enqueueApplicationLocked(item); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.releaseRequestAdmissionLocked()
+		s.finishAdmissionLocked()
 		s.mu.Unlock()
 		return 0, err
 	}
-	// The admission linearization point is the successful FIFO insertion above.
+	// RequestTimeout starts at successful FIFO admission, not before the
+	// payload snapshot or while capacity is still being reserved.
 	pending.deadline = time.Now().Add(s.config.requestTimeout)
 	s.pending[sequence] = pending
+	s.finishAdmissionLocked()
 	s.mu.Unlock()
 
 	s.signalControl()
@@ -59,7 +94,7 @@ func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uin
 // SendNoWait admits a one-way Stream Request without creating pending response
 // state or a Completion callback.
 func (s *Session) SendNoWait(payload []byte) (uint32, error) {
-	frame, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload)
+	frameBytes, err := streamFrameSize(payload)
 	if err != nil {
 		return 0, err
 	}
@@ -72,17 +107,46 @@ func (s *Session) SendNoWait(payload []byte) (uint32, error) {
 		s.mu.Unlock()
 		return 0, ErrProtocol
 	}
+	if err := s.reserveOutgoingApplicationLocked(frameBytes); err != nil {
+		s.mu.Unlock()
+		return 0, err
+	}
+	s.admissionCount++
+	s.mu.Unlock()
+
+	frame, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload)
+
+	s.mu.Lock()
+	if err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return 0, err
+	}
+	if err := s.applicationSendErrorLocked(); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return 0, err
+	}
 	sequence := s.nextSequenceLocked()
 	if sequence == 0 {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
 		s.mu.Unlock()
 		return 0, ErrCapacity
 	}
 	binary.BigEndian.PutUint32(frame[6:10], sequence)
-	if err := s.enqueueApplicationLocked(&outboundFrame{bytes: frame}); err != nil {
+	item := &outboundFrame{bytes: frame, applicationCharged: true}
+	if err := s.enqueueApplicationLocked(item); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
 		s.mu.Unlock()
 		return 0, err
 	}
+	s.finishAdmissionLocked()
 	s.mu.Unlock()
+	s.signalControl()
 	return sequence, nil
 }
 
@@ -92,7 +156,7 @@ func (s *Session) SendResponse(sequence uint32, payload []byte, status uint8) er
 	if sequence == 0 {
 		return ErrProtocol
 	}
-	frame, err := buildStreamFrame(wire.CommandStreamResponse, wire.CommandStatus(status), sequence, payload)
+	frameBytes, err := streamFrameSize(payload)
 	if err != nil {
 		return err
 	}
@@ -101,9 +165,39 @@ func (s *Session) SendResponse(sequence uint32, payload []byte, status uint8) er
 		s.mu.Unlock()
 		return err
 	}
-	err = s.enqueueApplicationLocked(&outboundFrame{bytes: frame})
+	if err := s.reserveOutgoingApplicationLocked(frameBytes); err != nil {
+		s.mu.Unlock()
+		return err
+	}
+	s.admissionCount++
 	s.mu.Unlock()
-	return err
+
+	frame, err := buildStreamFrame(wire.CommandStreamResponse, wire.CommandStatus(status), sequence, payload)
+
+	s.mu.Lock()
+	if err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return err
+	}
+	if err := s.applicationSendErrorLocked(); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return err
+	}
+	item := &outboundFrame{bytes: frame, applicationCharged: true}
+	if err := s.enqueueApplicationLocked(item); err != nil {
+		s.releaseOutgoingApplicationReservationLocked(frameBytes)
+		s.finishAdmissionLocked()
+		s.mu.Unlock()
+		return err
+	}
+	s.finishAdmissionLocked()
+	s.mu.Unlock()
+	s.signalControl()
+	return nil
 }
 
 func (s *Session) applicationSendErrorLocked() error {
@@ -244,18 +338,28 @@ func (s *Session) completionTaskLocked(sequence uint32, pending *pendingRequest,
 	return callbackTask{
 		session: s,
 		run: func() {
-			defer s.releasePending(sequence)
+			defer s.releasePending(sequence, pending)
 			pending.completion(response, resultErr)
 		},
-		cancel: func() { s.releasePending(sequence) },
+		cancel: func() { s.releasePending(sequence, pending) },
 	}
 }
 
-func (s *Session) releasePending(sequence uint32) {
+func (s *Session) releasePending(sequence uint32, pending *pendingRequest) {
 	s.mu.Lock()
-	delete(s.pending, sequence)
+	if current := s.pending[sequence]; current == pending {
+		delete(s.pending, sequence)
+	}
+	s.releaseRequestCreditLocked(pending)
 	s.mu.Unlock()
 	s.signalControl()
+}
+
+func streamFrameSize(payload []byte) (uint64, error) {
+	if len(payload) > wire.MaxBodySize {
+		return 0, ErrFrameTooLarge
+	}
+	return uint64(wire.HeaderSize) + uint64(len(payload)), nil
 }
 
 func buildStreamFrame(command wire.CommandID, status wire.CommandStatus, sequence uint32, payload []byte) ([]byte, error) {

@@ -86,6 +86,42 @@ func (l *ownerResourceLedger) releaseRequest() bool {
 	return true
 }
 
+// reserveApplicationFrame reserves retained Application ownership and, for a
+// Server owner, the combined queued-Application byte/frame budget in one owner
+// transaction. Queue exhaustion remains distinct from retained-byte exhaustion.
+func (l *ownerResourceLedger) reserveApplicationFrame(bytes uint64) error {
+	if l == nil || bytes == 0 {
+		return ErrCapacity
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	nextRetained, ok := checkedAddUint64(l.used.retainedApplicationBytes, bytes)
+	if !ok || nextRetained > l.limits.maxRetainedApplicationBytes {
+		return ErrCapacity
+	}
+
+	var nextQueued uint64
+	var nextFrames uint64
+	if l.limits.hasAggregateApplicationQueue {
+		nextQueued, ok = checkedAddUint64(l.used.queuedApplicationBytes, bytes)
+		if !ok || nextQueued > l.limits.maxAggregateQueuedApplicationBytes {
+			return ErrQueueFull
+		}
+		nextFrames = uint64(l.used.queuedApplicationFrames) + 1
+		if nextFrames > uint64(l.limits.maxAggregateQueuedApplicationFrames) {
+			return ErrQueueFull
+		}
+	}
+
+	l.used.retainedApplicationBytes = nextRetained
+	if l.limits.hasAggregateApplicationQueue {
+		l.used.queuedApplicationBytes = nextQueued
+		l.used.queuedApplicationFrames = uint32(nextFrames)
+	}
+	return nil
+}
+
 func (l *ownerResourceLedger) reserveRetainedApplication(bytes uint64) bool {
 	if l == nil || bytes == 0 {
 		return false
