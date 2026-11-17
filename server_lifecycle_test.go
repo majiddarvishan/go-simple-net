@@ -446,7 +446,6 @@ func TestServerBindValidatorReceivesPeerAndCanRejectWithoutReservingID(t *testin
 	waitServerBoundCount(t, server, 1)
 }
 
-
 func TestServerDoneForOldSessionCannotRemoveReplacementIdentity(t *testing.T) {
 	oldSession := &Session{}
 	newSession := &Session{}
