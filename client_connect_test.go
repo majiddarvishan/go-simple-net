@@ -397,7 +397,6 @@ func TestUniDirectionalClientDrainsAndIgnoresPeerRequests(t *testing.T) {
 	waitDone(t, session)
 }
 
-
 func TestWaitBoundPreservesBindThatWonBeforeContextCancellation(t *testing.T) {
 	session := newSession(nil, defaultSessionConfig(), sessionIdentity{
 		role: sessionRoleClient,
