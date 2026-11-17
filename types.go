@@ -1,6 +1,7 @@
 package neta
 
 import (
+	"context"
 	"net"
 	"sync"
 )
@@ -39,6 +40,16 @@ type Client struct {
 	config    clientConfig
 	resources *ownerResourceLedger
 	callbacks *ownerCallbackDispatcher
+
+	mu              sync.Mutex
+	stopped         bool
+	stopDone        chan struct{}
+	stopErr         error
+	current         *Session
+	generation      uint64
+	connectCancel   context.CancelFunc
+	connectDone     chan struct{}
+	reconnectCancel context.CancelFunc
 }
 
 // Server owns a TCP listener, accepted Sessions and their shared resource budgets.
