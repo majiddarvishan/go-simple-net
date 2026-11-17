@@ -365,6 +365,17 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 
 **Naming/CI handoff:** [Repository cleanup report](NETA_GO_REPOSITORY_HYGIENE_2026-11-18.md). Historic `.codex/` phase records are archived evidence and may mention superseded paths.
 
+## neta-c++ naming consolidation — 2026-11-18
+
+- [x] Rename maintained Go/C++ interoperability helpers, test identifiers, test logs and C++ peer executable source to use `neta-c++` in text and `NetaCPP` / `neta_cpp` in legal source identifiers.
+- [x] Replace the interoperability binary setting with `NETA_CPP_PEER_BIN`.
+- [x] Move pinned C++ compatibility fixture directory to `testdata/neta-cpp-1.5.0/` and retain byte-identical third-party header snapshots for reproducibility.
+- [x] Rename the workflow file to `.github/workflows/neta-cpp-wire-compat.yml` and its display name to `neta-c++ Wire Compatibility`.
+- [ ] **GitHub protection prerequisite:** the required status context currently remains `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Change that protected-`main` required check in GitHub settings before renaming the actual job label. Retain its current name meanwhile to avoid breaking merges.
+- [ ] Verify protected-PR and post-merge Go/wire CI on this naming-only change.
+
+Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/pinex` retain factual source provenance. They are not the project-facing branding or public neta-go API.
+
 ## Verification and update log
 
 | Date | HEAD / Commit | Scope | Evidence |

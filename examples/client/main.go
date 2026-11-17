@@ -31,7 +31,7 @@ func main() {
 
 func run() error {
 	address := flag.String("addr", "127.0.0.1:2775", "Server TCP address")
-	systemID := flag.String("system-id", "neta-example-client", "Pinex Bind System ID")
+	systemID := flag.String("system-id", "neta-example-client", "Client Bind System ID")
 	flag.Parse()
 
 	processCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)

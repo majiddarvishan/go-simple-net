@@ -40,3 +40,9 @@ The earlier `.codex/` records retain historical phase naming as audit history; t
 - [ ] Owner explicitly authorizes a `v1.0.0` tag and GitHub Release separately.
 
 No release/tag is authorized by this housekeeping PR.
+
+## Subsequent C++ harness naming (2026-11-18)
+
+The project-facing C++ peer name is now `neta-c++`. Maintained Go test names, C++ harness filename, fixture directory and workflow filename use `neta-c++` / `neta_cpp` spellings. The environment variable is `NETA_CPP_PEER_BIN`.
+
+The bundled headers originate from the pinned third-party source and preserve `pa/pinex` includes and namespace without edits; their recorded commit and SHA-1 provenance remain accurate. The historical protected-branch check context `Verify Go wire codec against pinned Pinex C++ 1.5.0` cannot be renamed safely until the GitHub administrator updates branch protection. Current workflow identity changes do not change that job context.

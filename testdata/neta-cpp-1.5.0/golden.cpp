@@ -1,8 +1,8 @@
-// This executable uses the production Pinex 1.5.0 PDU serializers to
+// This executable uses the pinned C++ peer PDU serializers to
 // generate cross-language golden frames consumed by internal/wire tests.
 //
 // The 10-byte header writer below mirrors session::serialize_header in
-// include/pa/pinex/net/session.hpp at Pinex commit
+// the original include/pa/pinex/net/session.hpp at source commit
 // f7bd1eb779baff0d10e624f20522df345e6ee747. Control PDUs are emitted by
 // session::send_command using the same header writer and have no Body.
 #include <pa/pinex/common.hpp>
@@ -97,7 +97,7 @@ int run()
                 make_frame(command_id::stream_resp, command_status::rfail,
                            42, stream_resp_body));
 
-    // Pinex's bind_response specialization permits an omitted/empty Body
+    // The pinned C++ peer's bind_response specialization permits an omitted/empty Body
     // and returns the struct's default values.
     const std::vector<uint8_t> empty_body;
     const auto omitted_bind_resp = deserialize<bind_response>(empty_body);
