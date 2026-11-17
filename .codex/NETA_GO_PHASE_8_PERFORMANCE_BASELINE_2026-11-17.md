@@ -100,3 +100,25 @@ Implementation details:
 - CI uses Go 1.23.x as configured by the project workflows; local execution records its actual toolchain version.
 
 **Validation:** implementation committed; GitHub Actions validation and artifact review pending. P8-01 remains IN PROGRESS. No production code, public API, protocol, defaults, worker limits or resource limits were changed.
+
+
+## 10. Correctness automation verification — 2026-11-17
+
+The new shared correctness entry point has now been exercised both locally by the owner and in GitHub Actions.
+
+**Owner's local run**
+- Command: `make verify` after a safe `git stash push -u`, `git fetch origin` and `git pull --ff-only origin main`.
+- Local repository synchronized to `708d5776e389dd04f0b60b347fa8cd15d42d40bc`; worktree reported clean and aligned with `origin/main`.
+- gofmt: PASS.
+- go vet: PASS.
+- uncached unit tests: PASS for root and `internal/wire`.
+- uncached race tests: PASS for root and `internal/wire`.
+- Local output directory: `artifacts/ci/20261117T143242Z-708d5776e389-verify-3664856`.
+- The pre-existing local changes were preserved in `stash@{0}`; they have not been applied or dropped.
+
+**GitHub Actions on the same source SHA**
+- Go correctness workflow [44103718615](https://github.com/majiddarvishan/neta-go/actions/runs/44103718615): PASS. Shared `make verify` completed all four checks and uploaded artifact `neta-go-correctness-708d5776e389dd04f0b60b347fa8cd15d42d40bc`.
+- Pinex Wire Compatibility workflow [44103718477](https://github.com/majiddarvishan/neta-go/actions/runs/44103718477): PASS.
+- Full Phase 8 performance workflow [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627): IN PROGRESS at the time of this update. It has completed checkout and Go setup and is executing the full suite. No performance baseline or P8-01 completion is claimed until the run succeeds and artifacts are reviewed.
+
+The local and GitHub correctness evidence agrees. No production source, public API, wire protocol, defaults or resource limits were changed for this automation.

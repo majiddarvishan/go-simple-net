@@ -227,8 +227,8 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] Add child-process scripts with uncached correctness tests, metadata, per-run logs and explicit PASS/FAIL status.
 - [x] Make GitHub Actions invoke the same scripts used locally.
 - [x] Store generated logs/profiles under ignored `artifacts/` and upload them from CI.
-- [ ] Validate the new automation on GitHub Actions and inspect the resulting artifacts.
-- [ ] Provide the owner a short local invocation and confirm local execution on their machine.
+- [ ] Validate the complete Phase 8 performance workflow and inspect its benchmark/profile artifacts (workflow currently running).
+- [x] Provide the owner a short local invocation and confirm local execution on their machine — local `make verify` PASS on 2026-11-17.
 
 ### Phase 8 baseline implementation plan — 2026-11-17
 

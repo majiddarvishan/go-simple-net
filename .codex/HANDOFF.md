@@ -999,3 +999,17 @@ Added repository automation:
 - Artifacts capture source SHA, worktree state, Go toolchain/environment, logs, explicit PASS/FAIL status, benchmark output and profiles.
 
 **Validation status at handoff:** repository changes committed; the new GitHub Actions runs must be inspected before declaring automation validated. The Phase 8 performance baseline remains IN PROGRESS. Do not start Phase 9 or change production behavior.
+
+
+## 24. Phase 8 — Correctness automation verified locally and in GitHub (2026-11-17)
+
+Owner executed `make verify` on source HEAD `708d5776e389dd04f0b60b347fa8cd15d42d40bc` after safely stashing prior local work and fast-forwarding to `origin/main`.
+
+- Local gofmt, vet, uncached unit tests and uncached race tests: PASS.
+- Local worktree: clean and aligned with `origin/main`.
+- Original local modifications remain preserved in `stash@{0}`; do not drop or apply until reviewed.
+- Go CI [44103718615](https://github.com/majiddarvishan/neta-go/actions/runs/44103718615): PASS; shared Makefile/script path exercised and artifact uploaded.
+- Pinex Wire Compatibility [44103718477](https://github.com/majiddarvishan/neta-go/actions/runs/44103718477): PASS.
+- Phase 8 full performance run [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627): still running at this handoff update; do not mark P8-01 or full automation validation complete until artifacts are reviewed.
+
+No production code or frozen contract changed.
