@@ -38,6 +38,8 @@ The maximum total Frame is **1,048,576 bytes** including the Header; maximum Bod
 
 Pinex status values include `rok=0x00` and `rfail=0xFF`. The Go Header codec preserves other raw status bytes.
 
+The Go Session configuration now defaults to `ProtocolVersionV2` and allows `ProtocolVersionV1` through `WithProtocolVersion`. **Both selections currently use the same verified V1/Pinex bytes.** The locally configured version is not negotiated or transmitted in a Header, and V2 has no separate wire format yet. A future NUL-free Bind requires another explicit protocol design and compatibility gate.
+
 Bind Body is a BindType byte followed by a NUL-terminated SystemID. BindType is 0 for uni-directional and 1 for bi-directional. The Pinex `c_octet_str<20>` field permits at most 19 SystemID bytes before the terminator. Stream Body is raw application bytes; no mandatory Protobuf envelope is added. Unbind and Enquire Link are header-only. Responses reuse the Request Sequence.
 
 An empty Bind Response Body is permitted by Pinex's `can_be_omitted` behavior; neta-go applies the C++ default values (bi-directional and empty SystemID).
