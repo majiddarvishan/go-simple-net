@@ -211,7 +211,7 @@ func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind
 		s.state = SessionStateBinding
 		s.bindSequence = sequence
 		s.bindDeadline = time.Now().Add(bindTimeout)
-		err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true})
+		err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, bindRequest: true})
 	}
 	s.mu.Unlock()
 	if err != nil {
