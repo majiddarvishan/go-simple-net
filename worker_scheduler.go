@@ -75,8 +75,8 @@ type callbackWorkerPool struct {
 type callbackSessionQueue struct {
 	session *Session
 
-	tasks []callbackTask
-	head  int
+	tasks  []callbackTask
+	head   int
 	active uint32
 
 	dispatching bool
