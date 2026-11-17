@@ -198,7 +198,7 @@ func BenchmarkPhase8PinexClient(b *testing.B) {
 				WithServerCompletionWorkerIdleGrace(10*time.Millisecond),
 				WithServerOnCloseWorkerIdleGrace(10*time.Millisecond),
 				WithServerOnRequestHandler(func(session *Session, request Request) {
-					if err := session.SendResponse(request.Payload); err != nil {
+					if err := session.SendResponse(request.Sequence, request.Payload, 0); err != nil {
 						select {
 						case serverErrors <- err:
 						default:
