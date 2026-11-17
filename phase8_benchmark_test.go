@@ -229,13 +229,13 @@ func phase8ReportSamples(b *testing.B, samples []int64, prefix string) {
 	b.ReportMetric(phase8Percentile(samples, 0.99), prefix+"p99-ns")
 }
 
-func phase8ReportRuntime(b *testing.B, before, after runtime.MemStats, elapsed time.Duration, appWorkers callbackWorkerPoolSnapshot, completionWorkers uint32) {
+func phase8ReportRuntime(b *testing.B, before, after runtime.MemStats, elapsed time.Duration, goroutines int, appWorkers callbackWorkerPoolSnapshot, completionWorkers uint32) {
 	if b.N > 0 {
 		b.ReportMetric(float64(after.TotalAlloc-before.TotalAlloc)/float64(b.N), "heap-alloc-B/op")
 	}
 	b.ReportMetric(float64(after.HeapAlloc), "heap-live-B")
 	b.ReportMetric(float64(after.NumGC-before.NumGC), "gc-cycles")
-	b.ReportMetric(float64(runtime.NumGoroutine()), "goroutines")
+	b.ReportMetric(float64(goroutines), "goroutines")
 	b.ReportMetric(float64(appWorkers.Workers), "server-app-workers")
 	b.ReportMetric(float64(appWorkers.ActiveCallbacks), "server-app-active")
 	b.ReportMetric(float64(completionWorkers), "client-completion-workers")
@@ -347,6 +347,12 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	wg.Wait()
 	b.StopTimer()
 	elapsed := b.Elapsed()
+	appSnapshot := env.server.callbacks.application.snapshot()
+	var completionWorkerCount uint32
+	for _, client := range env.clients {
+		completionWorkerCount += client.callbacks.completion.snapshot().Workers
+	}
+	goroutineCount := runtime.NumGoroutine()
 	var after runtime.MemStats
 	runtime.ReadMemStats(&after)
 	if firstError != nil {
@@ -366,12 +372,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	phase8ReportSamples(b, submitLatencies, "submit-")
 	phase8ReportSamples(b, latencies, "")
 	phase8ReportSessionFairness(b, perSession)
-	appSnapshot := env.server.callbacks.application.snapshot()
-	var completionWorkerCount uint32
-	for _, client := range env.clients {
-		completionWorkerCount += client.callbacks.completion.snapshot().Workers
-	}
-	phase8ReportRuntime(b, before, after, elapsed, appSnapshot, completionWorkerCount)
+	phase8ReportRuntime(b, before, after, elapsed, goroutineCount, appSnapshot, completionWorkerCount)
 }
 
 func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, producers int) {
@@ -441,6 +442,12 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	wg.Wait()
 	b.StopTimer()
 	elapsed := b.Elapsed()
+	appSnapshot := env.server.callbacks.application.snapshot()
+	var completionWorkerCount uint32
+	for _, client := range env.clients {
+		completionWorkerCount += client.callbacks.completion.snapshot().Workers
+	}
+	goroutineCount := runtime.NumGoroutine()
 	var after runtime.MemStats
 	runtime.ReadMemStats(&after)
 	if firstError != nil {
@@ -460,12 +467,7 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	phase8ReportSamples(b, submitLatencies, "submit-")
 	phase8ReportSamples(b, deliveryLatencies, "delivery-")
 	phase8ReportSessionFairness(b, perSession)
-	appSnapshot := env.server.callbacks.application.snapshot()
-	var completionWorkerCount uint32
-	for _, client := range env.clients {
-		completionWorkerCount += client.callbacks.completion.snapshot().Workers
-	}
-	phase8ReportRuntime(b, before, after, elapsed, appSnapshot, completionWorkerCount)
+	phase8ReportRuntime(b, before, after, elapsed, goroutineCount, appSnapshot, completionWorkerCount)
 }
 
 func TestPhase8RuntimeMetadata(t *testing.T) {
