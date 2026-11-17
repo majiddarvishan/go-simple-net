@@ -56,3 +56,14 @@ P6-04 through P6-08 are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c
 - 11 focused tests; Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
 
 P6-01..P6-03 (Client Connect/Bind, lifecycle and reconnect), Client-side P6-09/P6-10, and full P6-11 remain pending. The single blocker before Client Bind is the missing SystemID/BindType input in the frozen ClientOption surface.
+
+
+## Client CurrentSession/Stop implementation result — 2026-11-17
+
+Client lifecycle sub-scope implemented at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b`:
+- `CurrentSession() (*Session, bool)` exposes only the current Bound generation.
+- `Stop(ctx)` is terminal/idempotent, cancels active Connect/reconnect contexts when present, Gracefully Unbinds the current Bound Session, forces on Context expiry and waits for internal Done only.
+- 4 focused Client lifecycle tests.
+- Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
+
+Client Connect/Bind and reconnect remain blocked by the missing SystemID/BindType input in the frozen ClientOption surface.

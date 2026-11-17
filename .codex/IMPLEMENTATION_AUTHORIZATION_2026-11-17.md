@@ -250,3 +250,16 @@ Server sub-scope P6-04..P6-08 is COMPLETE / CI PASS at source HEAD `8eead509c681
 - Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706): PASS.
 
 Phase 6 remains IN PROGRESS. Client Connect/Bind, CurrentSession, Client Stop, reconnect supervisor and generation fencing remain pending the owner decision on Client Bind SystemID/BindType input. Phase 7+ remain excluded.
+
+
+## Phase 6 Client CurrentSession/Stop lifecycle evidence — 2026-11-17
+
+Client CurrentSession/Stop sub-scope is COMPLETE / CI PASS at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b`.
+
+- `CurrentSession() (*Session, bool)` returns only a Bound generation.
+- `Stop(ctx)` is terminal/idempotent, cancels active Connect/reconnect contexts when present, Gracefully Unbinds Bound Sessions, forces on Context expiry and waits for internal Done, not callbacks.
+- 4 focused tests.
+- Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633): PASS.
+- Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
+
+Client Connect/Bind and reconnect remain pending the owner decision on the missing SystemID/BindType configuration.

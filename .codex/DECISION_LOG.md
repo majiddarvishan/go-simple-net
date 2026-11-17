@@ -1410,3 +1410,21 @@ This entry records implementation evidence for the owner-authorized Phase 6 Serv
 - Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706): PASS.
 
 **Remaining Phase 6:** Client Connect/Bind, CurrentSession, Client Stop, reconnect supervisor, generation fencing and Client lifecycle tests. The frozen ClientOption/clientConfig has no SystemID or BindType input; no default is approved. Ask the owner before adding that public configuration.
+
+
+## 55. Phase 6 Client CurrentSession/Stop lifecycle implementation progress — 2026-11-17
+
+This entry records implementation evidence within the owner-authorized Phase 6 scope; it does not add a new API decision.
+
+**Result:** Client CurrentSession/Stop sub-scope COMPLETE / CI PASS at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b`.
+
+- `Client.CurrentSession() (*Session, bool)` returns only the current Bound generation and hides disconnected/stopped states.
+- `Client.Stop(ctx)` is terminal/idempotent, cancels active Connect/reconnect contexts when present, Gracefully Unbinds Bound Sessions, forces on Context expiry and waits for internal Done only.
+- Concurrent/repeated Stop shares one terminal shutdown; no second Unbind is issued.
+- 4 focused tests in `client_lifecycle_test.go`.
+
+**Verification:**
+- Go Actions [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633): PASS — gofmt, vet, unit and race.
+- Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
+
+Client Connect/Bind and reconnect remain pending the missing Client SystemID/BindType input decision.
