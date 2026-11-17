@@ -27,7 +27,7 @@ func (c *Client) CurrentSession() (*Session, bool)
 func (c *Client) Stop(ctx context.Context) error
 ```
 
-- `Connect` performs TCP Dial followed by Pinex Bind and returns only after the Client is Bound or the attempt fails. Cancellation of the supplied Context after successful return does not close the Session.
+- `Connect` performs TCP Dial followed by the neta-go Bind handshake and returns only after the Client is Bound or the attempt fails. Cancellation of the supplied Context after successful return does not close the Session.
 - `CurrentSession` returns only the active Bound generation. It returns `(nil, false)` while disconnected, connecting, unbinding or stopped.
 - `Stop` is terminal and idempotent. It cancels Connect/reconnect, gracefully Unbinds the current Bound Session and waits for internal teardown. It does not join arbitrary user callbacks.
 - Automatic reconnect is disabled by default. When enabled, the Client uses the approved bounded Full-Jitter policy and never replays or resends an accepted Request.
@@ -57,6 +57,7 @@ func (s *Session) Close()
 func (s *Session) Done() <-chan struct{}
 func (s *Session) Err() error
 func (s *Session) State() SessionState
+func (s *Session) ProtocolVersion() ProtocolVersion
 func (s *Session) SystemID() string
 func (s *Session) RemoteAddr() net.Addr
 ```
@@ -74,7 +75,7 @@ func (s *Session) RemoteAddr() net.Addr
 - `Close` initiates immediate Forced Close and returns without waiting for teardown.
 - `Done` closes after transport loops, timers and internal Session state have been torn down and the terminal cause is immutable. It is not a user-callback join.
 - `Err` returns the terminal cause and is immutable after Done. A clean graceful Unbind may have a nil cause.
-- `State`, `SystemID` and `RemoteAddr` expose the current Session state and peer identity/address.
+- `State`, `ProtocolVersion`, `SystemID` and `RemoteAddr` expose Session state, selected wire version and peer identity/address.
 
 ## Public data and callback types
 

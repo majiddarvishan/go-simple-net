@@ -1,29 +1,24 @@
 # neta-go
 
-A high-performance, Pinex-compatible TCP messaging library written in Go.
+**neta-go** is a Go library for TCP messaging with asynchronous callbacks, bounded queues, request/response correlation and configurable per-Session concurrency.
 
-## Project status
+It provides Client, Server and Session APIs without requiring applications to manage framing, connection readers/writers or callback worker pools.
 
-Phases 1–8 are complete. The Phase 8 performance baseline and evidence review closed with **PERF-004 = NO CHANGE**; no production optimization or public-contract change was accepted.
+## Features
 
-**Phase 9 — documentation, examples and V1 release readiness — is owner-authorized and in progress.** Tasks P9-00..P9-05 were complete on the earlier API baseline; a subsequent owner-authorized Go-only protocol version option (V2 default) requires fresh release-readiness requalification. Examples, correctness/compatibility CI, paired runtime smoke and protected-branch CI checks pass. The V1 release/tag task P9-06 remains separately gated on explicit owner approval and final admin settings / release permission preflight. No V1 release tag has been created or authorized.
+- TCP Client and Server with a Bind handshake, graceful Unbind and explicit Close.
+- Request/Response and one-way messages using raw byte payloads.
+- Nonblocking queue admission with configurable Session and owner resource budgets.
+- Separate bounded Application, Completion and OnClose callback workers.
+- Optional Client reconnect without automatic message replay.
+- Configurable idle-only Enquire Link and operation deadlines.
+- Immutable, Session-scoped V1/V2 wire selection; **V2 is the default**.
 
-- **[Implementation tasks and live progress](TASKS.md)**
-- **[Phase 9 execution plan and acceptance criteria](.codex/NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)**
-- [Client example](examples/client/main.go)
-- [Server example](examples/server/main.go)
-- [Documentation index](docs/README.md)
-- [Approved Go and platform support baseline](docs/SUPPORT.md)
-- [V1 release-readiness checklist](docs/RELEASE_READINESS.md)
-- [Changelog](CHANGELOG.md)
-- [Phase 8 performance baseline and evidence](.codex/NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
-- [Test and performance automation](.codex/NETA_GO_TEST_AUTOMATION_2026-11-17.md)
+## Quick start
 
-## Quick Start
+Requires Go **1.23+**. CI currently verifies Linux/amd64 on Ubuntu 24.04.
 
-The owner-approved V1 minimum is **Go 1.23**. The continuously CI-verified platform is **Ubuntu 24.04 / Linux amd64**. Other platforms and architectures remain unverified; see [Support](docs/SUPPORT.md).
-
-From a checkout of this repository, start the Server in one terminal:
+Start the Server:
 
 ```bash
 go run ./examples/server -listen 127.0.0.1:2775
@@ -35,48 +30,57 @@ Then start the Client in another terminal:
 go run ./examples/client -addr 127.0.0.1:2775 -system-id neta-example-client
 ```
 
-The Client sends one Request and prints the echo Completion. It also sends a one-way `event:` message; the Server logs it without sending a Response. Press Ctrl-C in either process to exercise graceful shutdown.
+The Client sends a Request, receives an asynchronous Completion and submits a one-way event. Both examples support graceful shutdown with Ctrl-C. The sample BindValidator is intentionally minimal; a production application must provide its own identity policy.
 
-The examples demonstrate API usage, not production authentication policy. The sample BindValidator accepts any non-empty SystemID; production applications must implement their own identity/authentication policy.
+## Session protocol versions
 
-## Session protocol version (Go)
+Both versions use the same 10-byte Frame Header and Stream payload representation. Each Session fixes its version once.
 
-The locally configured Session version defaults to **V2**. To select V1 explicitly:
+| | V1 | V2 (default) |
+|---|---|---|
+| Bind body | BindType + SystemID + terminating NUL | BindType + SystemID, no terminator |
+| Maximum SystemID | 19 bytes | 20 bytes |
+| Header / Stream | Unchanged | Unchanged |
+
+Choose V1 explicitly when connecting to a V1-only peer:
 
 ```go
 client, err := neta.NewClient(
     neta.WithClientAddress("127.0.0.1:2775"),
-    neta.WithClientSystemID("my-client"),
+    neta.WithClientSystemID("example"),
     neta.WithClientSessionOptions(neta.WithProtocolVersion(neta.ProtocolVersionV1)),
 )
 ```
 
-For a Server, use `WithServerSessionOptions(WithProtocolVersion(...))`.
-`session.ProtocolVersion()` returns the immutable **local** version.
+A default V2 Server accepts V1 or V2 Bind requests and replies using the detected version. A V1-only Server rejects V2. There is no automatic fallback or version-negotiation exchange. `Session.ProtocolVersion()` returns the effective version.
 
-**V2 now omits the trailing `0x00` in Bind Request/Response** and permits a **20-byte `SystemID`**; V1 remains limited to 19 `SystemID` bytes plus the NUL, byte-for-byte compatible with Pinex C++ 1.5.0. The limits are byte counts, not Unicode character counts. The 10-byte Frame Header and Stream format are unchanged. A Go V2 Server accepts legacy V1 Bind and answers in V1; a V1-only Server rejects V2. To reach a legacy Pinex Server, explicitly configure the Go Client for V1. No automatic fallback or version-negotiation Frame is sent. The protocol version is distinct from the library's proposed semantic release `v1.0.0`.
+See the [wire protocol reference](docs/PROTOCOL.md) for the full Frame structure, commands, boundaries and version semantics.
 
-## Installing the development version
-
-There is not yet a V1 release tag. To experiment with the current development branch from another Go module:
+## Development
 
 ```bash
-go get github.com/majiddarvishan/neta-go@main
+make verify       # format, vet, unit tests and race detector
+make smoke        # coverage and paired Client/Server example smoke
+make perf-smoke   # short benchmark
+make benchmark    # full benchmarks, profiling and memory soak
+make soak         # memory stability soak (NETA_SOAK_SECONDS=300..600)
 ```
 
-This follows the moving development branch. For reproducible builds, pin an exact commit until a versioned release is published.
+Generated logs and profiles live in ignored `artifacts/` directories.
 
 ## Documentation
 
-- [Public API reference](docs/API.md)
-- [Configuration reference](docs/CONFIGURATION.md)
-- [Lifecycle, callbacks, payload ownership and errors](docs/LIFECYCLE.md)
-- [Pinex compatibility and verification evidence](docs/PINEX_COMPATIBILITY.md)
+- [Public API](docs/API.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Lifecycle and callbacks](docs/LIFECYCLE.md)
+- [Wire protocol](docs/PROTOCOL.md)
+- [Go and platform support](docs/SUPPORT.md)
+- [Release readiness](docs/RELEASE_READINESS.md)
+- [Changelog](CHANGELOG.md)
+- [Implementation tasks](TASKS.md)
 
-## License
+## Status and license
 
-**Apache License 2.0** — Copyright 2026 Majid Darvishan.
+The library is under active development; `v1.0.0` is **not** tagged or published. Until a release exists, consumers can use `go get github.com/majiddarvishan/neta-go@main`; pin an exact commit for reproducible builds.
 
-You may use neta-go in **commercial or proprietary projects**, and may modify and redistribute it, subject to the conditions of the Apache-2.0 license. In particular, redistribution must comply with applicable license, copyright and attribution notice requirements. The license does not require you to publish your proprietary application's source code merely because it uses this library.
-
-See [LICENSE](LICENSE) for the full terms. No separate non-commercial restriction applies.
+Licensed under [Apache-2.0](LICENSE), Copyright 2026 Majid Darvishan. Commercial and proprietary use is permitted subject to the license conditions.

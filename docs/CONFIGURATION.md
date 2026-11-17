@@ -62,7 +62,7 @@ Options are applied before final validation. The resulting configuration is immu
 
 | Option | Default | Validation / behavior |
 |---|---:|---|
-| `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`. V1 uses NUL-terminated Bind; V2 omits the NUL in Bind Request/Response. A new Go V2 Server accepts both and replies in kind; a V1-only Server rejects V2. Clients must explicitly choose V1 for legacy Pinex Servers. No automatic fallback. |
+| `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`. V1 uses NUL-terminated Bind; V2 omits the NUL in Bind Request/Response. A new Go V2 Server accepts both and replies in kind; a V1-only Server rejects V2. Clients must explicitly choose V1 for V1-only peers. No automatic fallback. |
 | `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
 | `WithFrameAssemblyTimeout` | 30s | Positive absolute inbound Frame assembly deadline |
 | `WithUnbindTimeout` | 10s | Positive absolute Graceful Unbind deadline |
@@ -106,4 +106,4 @@ There are intentionally no product constraints requiring an owner budget to equa
 
 ## Fixed protocol limit
 
-The maximum Pinex Frame is **1,048,576 bytes total**, including the 10-byte Header. The maximum Body is 1,048,566 bytes. This limit is fixed and cannot be raised by configuration. Queue and retained-byte limits are separate from the protocol Frame maximum.
+The maximum neta-go Frame is **1,048,576 bytes total**, including the 10-byte Header. The maximum Body is 1,048,566 bytes. This limit is fixed and cannot be raised by configuration. Queue and retained-byte limits are separate from the protocol Frame maximum.

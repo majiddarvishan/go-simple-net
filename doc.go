@@ -1,5 +1,5 @@
 // Package neta provides a bounded, callback-oriented TCP messaging Client and
-// Server over a Pinex-compatible TCP wire protocol.
+// Server over a bounded, versioned TCP framing protocol.
 //
 // Construct a Client with NewClient and Connect, or construct a Server with
 // NewServer and Start. A successful SendRequest or SendNoWait call confirms
