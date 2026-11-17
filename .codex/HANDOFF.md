@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phase 1 Configuration, Phase 2 Wire Codec and Phase 3 Session Transport/Lifecycle are COMPLETE / CI PASS.** The pinned Pinex C++ 1.5.0 golden compatibility workflow passes against `f7bd1eb779baff0d10e624f20522df345e6ee747`; live TCP interoperability remains Phase 7. Phase 4 resource ledgers, Phase 5 worker pools, Phase 6 Client/Server orchestration, Phase 7 live interoperability, Phase 8 performance and Phase 9 release remain gated.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–4 are COMPLETE / CI PASS.** Phase 4 includes per-Session/owner resource admission, Server aggregate queues, reserve-before-allocation, bounded Completion scratch-drain and OnClose credits. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phase 5 Worker Scheduler and Phases 6–9 remain gated.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–3 COMPLETE / CI PASS; PHASE 4 RESOURCE ADMISSION AUTHORIZED / IN PROGRESS; PHASE 5+ NOT AUTHORIZED  
-**Current work:** Phase 4 Resource Admission & Accounting is authorized and in progress. The canonical task-by-task status is [.codex/TASKS.md](TASKS.md). Phase 1–3 source implementation is complete and CI-green; Phase 5 Worker Scheduler and later phases remain gated. Live TCP Go↔C++ interoperability has not been run and remains Phase 7.
+**Implementation status:** PHASE 1–4 COMPLETE / CI PASS; PHASE 5+ NOT AUTHORIZED  
+**Current work:** Phase 4 Resource Admission & Accounting is COMPLETE / CI PASS at `2935402366603267ba60c181a057d26cf0e7e9a6`. The canonical task-by-task status is [.codex/TASKS.md](TASKS.md); implementation evidence is [Phase 4 report](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md). Phase 5 Worker Scheduler is next but not yet authorized. Live TCP Go↔C++ interoperability remains Phase 7.
 
 ## 1. Repository state
 
@@ -17,7 +17,7 @@
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2 and Phase 3 source/tests are committed and verified by GitHub Actions.
-- Phase 4+ runtime work remains gated; see the Phase 3 implementation evidence at the end of this handoff.
+- Phase 4 resource admission is implemented and CI-green; Phase 5+ remain gated.
 
 ## 2. Source inputs
 
@@ -786,4 +786,46 @@ The owner explicitly instructed: “اول این رو اضافه کن به مخ
 **Scope:** implement the already-approved per-Session and per-owner resource ledgers; outgoing/incoming Application byte and frame admission; Server aggregate queued Application byte/frame budgets; retained Application/Completion payload accounting; Request credits; OnClose event credits; pre-allocation reservations; fixed-scratch Response drain on Completion-byte exhaustion; exact lifecycle transfer/release and focused tests.
 
 **Strict boundary:** no Phase 5 worker scheduler, no Phase 6 Client/Server Dial/Listen/reconnect orchestration, no Phase 7 live TCP interoperability/fault-injection campaign, no Phase 8 benchmarks/pooling, and no Phase 9 release/deployment. No public API, default, wire or owner decision is reopened.
+
+
+
+## Phase 4 implementation evidence — COMPLETE / CI PASS
+
+# Phase 4 — Resource Admission & Accounting Implementation Report
+
+**Status:** COMPLETE / CI PASS  
+**Source verification HEAD:** `2935402366603267ba60c181a057d26cf0e7e9a6`  
+**Date:** 2026-11-17  
+**Authorization:** Explicit owner instruction in this conversation; Phase 4 only.
+
+## Implemented scope
+
+- Added an owner-scoped resource ledger created independently by each `NewClient` and `NewServer`. Session construction supports injection of an existing owner ledger so Phase 6 can share one Client/Server budget across all Sessions and reconnect generations.
+- Added checked, mutex-protected reserve/release counters for owner Request credits, retained Application bytes, retained Completion bytes, OnClose event credits and Server aggregate queued Application bytes/frames.
+- Server aggregate queue admission is one combined budget across incoming and outgoing Application Frames. Client owners do not acquire the Server-only aggregate queue ceiling.
+- Outgoing `SendRequest`, `SendNoWait` and `SendResponse` reserve local queue/count and retained-Application capacity plus owner/Server capacity before allocating/copying the Frame. Rejected capacity does not consume a Sequence or publish Pending state.
+- Request credits are reserved before payload copy and remain held through response wait, queued Completion and active Completion callback; they release exactly once on callback return/cancellation or forced terminal cleanup.
+- Incoming Stream Request Headers reserve full declared Frame bytes/count and retained-Application bytes before Body allocation. Incoming overload closes only the offending Session. Queue-only bytes/count release at callback start; retained bytes release after callback return/cancellation.
+- Matched Stream Responses reserve retained Completion bytes before Body allocation. If capacity is unavailable, the Body is drained with a fixed 4 KiB scratch buffer under the original absolute Frame Assembly deadline; a still-live Request receives a normal Completion with no payload and `ErrCapacity`, while the Session remains open.
+- Unknown, late and pre-Writer-claim Responses are drained without allocating a retained Body.
+- OnClose is best-effort: it reserves one owner event credit after Done, skips permanently if the owner budget is full, and releases the credit after callback return/cancellation.
+- Added idempotent release paths for partial reads, Completion drain timeout, Forced Close A, queued callback cancellation, callbacks that outlive Session Done and Writer-owned frames.
+
+## Verification
+
+- `session_test.go`: 46 focused Session/transport/resource-accounting tests.
+- `resource_ledger_test.go`: 8 owner-ledger tests.
+- Go Actions [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS — compile pinned C++ 1.5.0 production serializer fixture, compare golden Frames and run Go wire compatibility tests.
+- The compatibility workflow is a golden-frame check, **not** live Go↔Pinex TCP interoperability.
+
+## Explicitly not implemented in Phase 4
+
+- Phase 5 physical callback Worker Scheduler and fair per-Session worker dispatch.
+- Phase 6 Client Dial/Server Listen/accept, Bind registry, reconnect and Session-generation orchestration.
+- Phase 7 live TCP interoperability/fault-injection campaign.
+- Phase 8 performance benchmark/pooling work.
+- Phase 9 examples, release and deployment.
+
+No public API, wire behavior, defaults, resource ceilings or frozen owner decisions were changed.
 

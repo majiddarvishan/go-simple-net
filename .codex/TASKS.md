@@ -5,7 +5,7 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Baseline HEAD when this tracker was introduced:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Current phase:** Phase 4 — Resource Admission & Accounting (**AUTHORIZED / IN PROGRESS**)
+**Current phase:** Phase 4 COMPLETE / CI PASS; Phase 5 is next and awaits owner authorization.
 
 This is the single, canonical, implementation-facing task list for the repository. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -24,7 +24,7 @@ This is the single, canonical, implementation-facing task list for the repositor
 | 1 | Module and immutable configuration | COMPLETE / CI PASS | Complete |
 | 2 | Pinex-compatible Wire Codec | COMPLETE / CI PASS | Complete |
 | 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
-| 4 | Resource admission and accounting | IN PROGRESS | **Authorized 2026-11-17** |
+| 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | NOT STARTED | Not yet authorized |
 | 6 | Client/Server orchestration and reconnect | NOT STARTED | Not yet authorized |
 | 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
@@ -103,7 +103,7 @@ This is the single, canonical, implementation-facing task list for the repositor
 
 ## Phase 4 — Resource Admission and Accounting
 
-<badge color="warning">AUTHORIZED / IN PROGRESS</badge>
+<badge color="success">COMPLETE / CI PASS</badge>
 
 **Owner authorization:** 2026-11-17, this conversation. Scope is limited to the already-approved WORKER/Q-008/Q-009/Q-010/PERF-002/PERF-003 contracts. Do not change public API, defaults, wire behavior or frozen overload policies.
 
@@ -117,15 +117,15 @@ This is the single, canonical, implementation-facing task list for the repositor
 
 - [x] **P4-01 — Reservation primitives:** implement race-safe, checked reserve/release primitives for owner byte and count resources; reject overflow/underflow. Session lifecycle idempotency is verified in the integration tasks below.
 - [x] **P4-02 — Owner ledgers:** implement independent Client/Server-owned counters for outstanding Request credits, retained Application bytes, retained Completion bytes and OnClose event credits. NewClient/NewServer each create one independent owner ledger; Phase 6 will inject the same Client ledger into every reconnect generation.
-- [ ] **P4-03 — Server aggregate queue ledger:** enforce combined incoming+outgoing Application queued-frame bytes (256 MiB default) and frame count (65,536 default) per Server; count a frame in exactly one aggregate queue bucket at a time.
-- [ ] **P4-04 — Outgoing Application admission:** reserve per-Session queue bytes/count, retained Application bytes and applicable owner/Server budgets before frame allocation/copy or Request publication. Fail fast with the existing Queue Full/Capacity distinctions; do not consume a Sequence, publish Pending state or transmit rejected work.
-- [ ] **P4-05 — Incoming Application admission:** after Header validation, reserve declared full-frame bytes/count and retained Application bytes before Body allocation/read. On local or Server aggregate overload, close only the offending Session; release reservations on read failure, callback cancellation and callback return.
-- [ ] **P4-06 — Completion admission:** reserve matched Response retained bytes before Body allocation. On Completion-byte capacity exhaustion, drain exactly the declared Body through a fixed small scratch buffer under the original absolute Frame Assembly deadline; if drain succeeds and this Request still wins, deliver its normal Completion with no payload and `ErrCapacity`, keeping the Session open.
-- [ ] **P4-07 — Request credits:** enforce per-Session and owner Request-credit ceilings; keep credit through response wait, terminal settlement, queued Completion and active Completion callback; release exactly once on callback return/cancellation or terminal path.
-- [ ] **P4-08 — OnClose event credits:** make one nonblocking owner-scoped reservation after Done; permanently skip OnClose on budget exhaustion; release admitted event credit only after callback return/cancellation.
-- [ ] **P4-09 — Lifecycle transfer/release:** prove queue-to-active transitions release queue-only charges while retained payload charges follow ownership; cover Writer completion, close, timeout, partial read, Forced Close A, callback cancellation and callbacks that outlive Session Done.
-- [ ] **P4-10 — Admission verification:** exact-boundary and one-over tests, simultaneous multi-Session owner-budget tests, rollback and duplicate-release tests, scratch-drain tests, callback-retention tests and race-detector coverage.
-- [ ] **P4-11 — CI acceptance:** gofmt, go vet ./..., go test ./... and go test -race ./... pass on the final Phase 4 source HEAD; update this tracker with commit and run links.
+- [x] **P4-03 — Server aggregate queue ledger:** one combined incoming+outgoing Application queued-frame byte (256 MiB default) and frame-count (65,536 default) budget per Server.
+- [x] **P4-04 — Outgoing Application admission:** per-Session queue/count, retained Application and owner/Server budgets reserved before Frame allocation/copy or Request publication; Queue Full and Capacity remain distinct; rejected work consumes no Sequence/Pending state.
+- [x] **P4-05 — Incoming Application admission:** full declared Frame bytes/count and retained Application capacity reserved after Header validation but before Body allocation; offender-only close on overload; partial-read/cancel/return release paths covered.
+- [x] **P4-06 — Completion admission:** matched Response retained bytes reserved before Body allocation; capacity exhaustion uses fixed 4 KiB scratch drain under the original absolute Frame Assembly deadline, then no-payload `ErrCapacity` Completion if the Request still wins.
+- [x] **P4-07 — Request credits:** per-Session and owner Request ceilings; credits held through response wait and Completion callback, released once on return/cancel/terminal cleanup.
+- [x] **P4-08 — OnClose event credits:** one nonblocking owner reservation after Done; permanent skip at capacity; release after callback return/cancellation.
+- [x] **P4-09 — Lifecycle transfer/release:** queue-only charges release at callback start; retained payloads follow callback ownership after Done; Writer completion, partial I/O, timeout, Forced Close A and callback cancellation release paths tested.
+- [x] **P4-10 — Admission verification:** exact/over boundaries, concurrent owner admission, multi-Session aggregate limits, scratch-drain success/timeout, partial reads, cancellation and callback-retention tests.
+- [x] **P4-11 — CI acceptance:** gofmt, go vet ./..., go test ./... and go test -race ./... all PASS on Phase 4 source HEAD.
 
 **Phase 4 exclusions:** no Worker Scheduler implementation (Phase 5), no Client Dial/Server Listen or reconnect orchestration (Phase 6), no live Pinex TCP interoperability campaign (Phase 7), no benchmark/pooling work (Phase 8), and no release/deployment (Phase 9).
 
@@ -220,3 +220,12 @@ This is the single, canonical, implementation-facing task list for the repositor
 - Implementation commit: `9f2514115b601c7cdc2efb91fe98daa628b1c7b0`; formatting-only follow-up: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
 - Go CI [44060075443](https://github.com/majiddarvishan/neta-go/actions/runs/44060075443) PASS; Pinex Wire Compatibility [44060075468](https://github.com/majiddarvishan/neta-go/actions/runs/44060075468) PASS.
 - Current source baseline for the next Phase 4 slice: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
+
+
+### Phase 4 completion evidence — 2026-11-17
+
+- Implementation report: [NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md](NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
+- 46 Session tests + 8 owner-ledger tests.
+- Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
+- Phase 5 Worker Scheduler remains NOT AUTHORIZED; do not begin it without owner approval.
