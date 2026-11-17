@@ -17,13 +17,6 @@ func (c *Client) CurrentSession() (*Session, bool) {
 	c.mu.Unlock()
 
 	if session == nil || session.State() != SessionStateBound {
-		if session != nil {
-			c.mu.Lock()
-			if c.current == session {
-				c.current = nil
-			}
-			c.mu.Unlock()
-		}
 		return nil, false
 	}
 
@@ -67,6 +60,7 @@ func (c *Client) Stop(ctx context.Context) error {
 	connectCancel := c.connectCancel
 	connectDone := c.connectDone
 	reconnectCancel := c.reconnectCancel
+	reconnectDone := c.reconnectDone
 	c.mu.Unlock()
 
 	if connectCancel != nil {
@@ -86,6 +80,11 @@ func (c *Client) Stop(ctx context.Context) error {
 			// wait for it to settle before observing the final current generation.
 			<-connectDone
 		}
+	}
+	if reconnectDone != nil {
+		// The supervisor owns no user callbacks and its context has been
+		// cancelled above. Wait until its timer/attempt loop has fully exited.
+		<-reconnectDone
 	}
 
 	c.mu.Lock()

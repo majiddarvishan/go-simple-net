@@ -165,6 +165,10 @@ func (s *Session) SendResponse(sequence uint32, payload []byte, status uint8) er
 		s.mu.Unlock()
 		return err
 	}
+	if s.role == sessionRoleClient && s.bindType == wire.BindUniDirectional {
+		s.mu.Unlock()
+		return ErrProtocol
+	}
 	if err := s.reserveOutgoingApplicationLocked(frameBytes); err != nil {
 		s.mu.Unlock()
 		return err

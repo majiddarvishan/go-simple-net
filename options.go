@@ -29,6 +29,21 @@ func WithClientAddress(address string) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.address = address }}
 }
 
+// WithClientSystemID sets the required Pinex-compatible Bind identity.
+// System IDs are encoded as a NUL-terminated field of at most 19 bytes.
+func WithClientSystemID(systemID string) ClientOption {
+	return ClientOption{apply: func(c *clientConfig) {
+		c.systemID = systemID
+		c.systemIDSet = true
+	}}
+}
+
+// WithClientBindType selects the Client's Bind direction. The default is
+// BindTypeBiDirectional.
+func WithClientBindType(bindType BindType) ClientOption {
+	return ClientOption{apply: func(c *clientConfig) { c.bindType = bindType }}
+}
+
 // WithConnectTimeout sets the absolute per-Dial-attempt timeout.
 func WithConnectTimeout(timeout time.Duration) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.connectTimeout = timeout }}

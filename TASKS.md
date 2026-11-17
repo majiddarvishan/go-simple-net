@@ -158,19 +158,19 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 **Authorization:** Owner replied «ادامه بده» after the explicit Phase 6 authorization question. Scope is limited to P6-01..P6-11. Phase 7+ remain gated.
 
-**Known API contract gap:** Server lifecycle/admission is implemented and CI-green. Client.Connect still requires a Bind, but the frozen ClientOption surface and current config contain no Client SystemID or BindType input. Do not invent a default or silently add an unapproved public option; Client work waits for this one owner clarification.
+**Client Bind input decision CLOSED:** Owner approved Option B. WithClientSystemID(string) is mandatory; WithClientBindType(BindType) is optional with bi-directional default and uni-directional support. Client.Connect(ctx) signature remains unchanged. See DECISION_LOG.md §56.
 
-- [ ] **P6-01 — Client Connect:** Dial with absolute ConnectTimeout, Bind with absolute BindResponseTimeout and Context cancellation semantics.
-- [ ] **P6-02 — Client lifecycle:** CurrentSession and terminal/idempotent Stop are implemented; Connect/Bind generation publication, reconnect disable wiring and stale-generation fencing remain pending.
-- [ ] **P6-03 — Reconnect supervisor:** opt-in AutoReconnect=false by default; approved bounded exponential Full Jitter policy; no Request replay/resend; share owner resource/worker ledgers across generations.
+- [x] **P6-01 — Client Connect:** Dial with absolute ConnectTimeout, Bind with absolute BindResponseTimeout and Context cancellation semantics.
+- [x] **P6-02 — Client lifecycle:** CurrentSession exposes only the active Bound generation; terminal/idempotent Stop cancels Dial/Bind/reconnect, gracefully Unbinds or forces the current Session, and waits for internal Done; generation publication and stale-generation fencing are implemented.
+- [x] **P6-03 — Reconnect supervisor:** opt-in AutoReconnect=false by default; approved bounded exponential Full Jitter policy; no Request replay/resend; share owner resource/worker ledgers across generations.
 - [x] **P6-04 — Server listener:** Start/Addr/Accept lifecycle and listener-close ordering.
 - [x] **P6-05 — Pre-Bind admission:** enforce pending socket count before Session allocation, absolute accept-to-Bind deadline and early refusal.
 - [x] **P6-06 — Bound Session registry:** enforce MaxBoundSessions without eviction, reject excess Bind with Pinex rfail where feasible.
 - [x] **P6-07 — Identity admission:** BindValidator and duplicate System ID rejection with atomic registry insertion/removal.
 - [x] **P6-08 — Server Stop:** terminal/idempotent Stop; close listener and Pre-Bind Sessions, concurrently Graceful-Unbind Bound Sessions, force remaining Sessions on caller Context expiry.
-- [ ] **P6-09 — Owner integration:** Server Sessions now share the Server resource ledger and worker owner; Client generation/reconnect integration remains pending.
-- [ ] **P6-10 — Lifecycle tests:** Server subset complete (11 tests); Client Stop/CurrentSession subset complete (4 tests); Client Connect/Bind, reconnect churn and generation-fencing tests remain pending.
-- [ ] **P6-11 — CI acceptance:** Server and Client lifecycle slices pass gofmt, vet, unit, race and Pinex golden CI; full Phase 6 acceptance remains pending Client Connect/Bind and reconnect implementation.
+- [x] **P6-09 — Owner integration:** Server Sessions share the Server resource ledger and worker owner; every Client generation reuses the Client resource ledger and callback dispatcher.
+- [x] **P6-10 — Lifecycle tests:** Server lifecycle/admission, Client Stop/CurrentSession, Connect/Bind, timeout/rejection, reconnect generation replacement and uni-directional requester-only tests are implemented.
+- [ ] **P6-11 — CI acceptance:** Server and Client Connect/Bind/reconnect slices must pass gofmt, vet, unit, race and Pinex golden CI; final Phase 6 closure is pending the current verification run.
 
 ### Phase 6 Server implementation evidence — 2026-11-17
 
@@ -285,3 +285,14 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - 4 focused Client lifecycle tests.
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
 - Client Connect/Bind and reconnect remain pending the Client SystemID/BindType input decision.
+
+
+### Phase 6 Client Connect/Bind and reconnect implementation — 2026-11-17
+
+- Owner decision: Option B, recorded in .codex/DECISION_LOG.md §56.
+- Added mandatory WithClientSystemID(string) and optional WithClientBindType(BindType); default is bi-directional.
+- Added Client.Connect(ctx) with absolute Dial and Bind deadlines, caller Context precedence and no post-success Context coupling.
+- Added generation fencing and a single reconnect supervisor using the approved 1s/30s Full-Jitter exponential windows; retries only Dial failures/timeouts and unexpected post-Bound transport failures. Bind rejection/timeout are non-retryable. No Request replay.
+- Every generation reuses the Client-owned resource ledger and callback dispatcher.
+- Uni-directional Client behavior is requester-only and compatible with Pinex 1.5.0.
+- Added Client Bind validation, connect/stop, timeout, rejection, reconnect-generation and uni-directional behavior tests. CI evidence pending.

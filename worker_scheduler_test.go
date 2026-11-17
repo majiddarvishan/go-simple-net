@@ -80,7 +80,7 @@ func TestOwnerCallbackDispatcherCreatesThreeIndependentLazyPools(t *testing.T) {
 		}
 	}
 
-	client, err := NewClient(WithClientAddress("127.0.0.1:2775"))
+	client, err := newTestClient(WithClientAddress("127.0.0.1:2775"))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

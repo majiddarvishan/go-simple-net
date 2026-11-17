@@ -163,13 +163,13 @@ func TestOwnerResourceLedgerConcurrentRequestAdmissionNeverOversubscribes(t *tes
 }
 
 func TestConstructorsCreateIndependentOwnerResourceLedgers(t *testing.T) {
-	firstClient, err := NewClient(WithClientAddress("127.0.0.1:9001"))
+	firstClient, err := newTestClient(WithClientAddress("127.0.0.1:9001"))
 	if err != nil {
-		t.Fatalf("NewClient(first): %v", err)
+		t.Fatalf("newTestClient(first): %v", err)
 	}
-	secondClient, err := NewClient(WithClientAddress("127.0.0.1:9002"))
+	secondClient, err := newTestClient(WithClientAddress("127.0.0.1:9002"))
 	if err != nil {
-		t.Fatalf("NewClient(second): %v", err)
+		t.Fatalf("newTestClient(second): %v", err)
 	}
 	if firstClient.resources == nil || secondClient.resources == nil || firstClient.resources == secondClient.resources {
 		t.Fatal("each Client must own an independent resource ledger")

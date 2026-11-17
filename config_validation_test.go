@@ -9,7 +9,7 @@ import (
 func TestTCPEndpointSyntaxValidation(t *testing.T) {
 	for _, address := range []string{"missing-port", "host:", ":9000", "[::1]9000", "2001:db8::1:9000"} {
 		t.Run("client/"+address, func(t *testing.T) {
-			_, err := NewClient(WithClientAddress(address))
+			_, err := newTestClient(WithClientAddress(address))
 			if err == nil || !errors.Is(err, ErrInvalidConfig) {
 				t.Fatalf("expected invalid TCP endpoint %q, got %v", address, err)
 			}
@@ -24,7 +24,7 @@ func TestTCPEndpointSyntaxValidation(t *testing.T) {
 		})
 	}
 	for _, address := range []string{"127.0.0.1:9000", "localhost:9000", "[::1]:9000"} {
-		if _, err := NewClient(WithClientAddress(address)); err != nil {
+		if _, err := newTestClient(WithClientAddress(address)); err != nil {
 			t.Errorf("valid Client endpoint %q rejected: %v", address, err)
 		}
 	}
@@ -49,7 +49,7 @@ func TestAllRequiredPositiveLimitsRejectZero(t *testing.T) {
 	}
 	for _, test := range clientCases {
 		t.Run("client/"+test.name, func(t *testing.T) {
-			_, err := NewClient(WithClientAddress("127.0.0.1:9000"), test.opt)
+			_, err := newTestClient(WithClientAddress("127.0.0.1:9000"), test.opt)
 			requireConfigError(t, err, test.field)
 		})
 	}
@@ -70,7 +70,7 @@ func TestAllRequiredPositiveLimitsRejectZero(t *testing.T) {
 	}
 	for _, test := range sessionCases {
 		t.Run("session/"+test.name, func(t *testing.T) {
-			_, err := NewClient(
+			_, err := newTestClient(
 				WithClientAddress("127.0.0.1:9000"),
 				WithClientSessionOptions(test.opt),
 			)
@@ -107,7 +107,7 @@ func TestAllMandatoryTimeoutsRejectZero(t *testing.T) {
 	}
 	for _, test := range clientCases {
 		t.Run("client/"+test.name, func(t *testing.T) {
-			_, err := NewClient(WithClientAddress("127.0.0.1:9000"), test.opt)
+			_, err := newTestClient(WithClientAddress("127.0.0.1:9000"), test.opt)
 			requireConfigError(t, err, test.field)
 		})
 	}
@@ -125,7 +125,7 @@ func TestAllMandatoryTimeoutsRejectZero(t *testing.T) {
 	}
 	for _, test := range sessionCases {
 		t.Run("session/"+test.name, func(t *testing.T) {
-			_, err := NewClient(
+			_, err := newTestClient(
 				WithClientAddress("127.0.0.1:9000"),
 				WithClientSessionOptions(test.opt),
 			)
@@ -148,7 +148,7 @@ func TestEachWorkerIdleGraceHasIndependentInclusiveRange(t *testing.T) {
 	}
 	for _, test := range valid {
 		t.Run("valid/"+test.name, func(t *testing.T) {
-			if _, err := NewClient(WithClientAddress("127.0.0.1:9000"), test.opt); err != nil {
+			if _, err := newTestClient(WithClientAddress("127.0.0.1:9000"), test.opt); err != nil {
 				t.Fatalf("inclusive idle grace boundary rejected: %v", err)
 			}
 		})
@@ -166,7 +166,7 @@ func TestEachWorkerIdleGraceHasIndependentInclusiveRange(t *testing.T) {
 	}
 	for _, test := range invalid {
 		t.Run("invalid/"+test.name, func(t *testing.T) {
-			_, err := NewClient(WithClientAddress("127.0.0.1:9000"), test.opt)
+			_, err := newTestClient(WithClientAddress("127.0.0.1:9000"), test.opt)
 			if err == nil || !errors.Is(err, ErrInvalidConfig) {
 				t.Fatalf("expected invalid idle grace, got %v", err)
 			}
@@ -179,7 +179,7 @@ func TestSessionOptionSliceIsSnapshotted(t *testing.T) {
 	clientOption := WithClientSessionOptions(options...)
 	options[0] = WithRequestTimeout(0)
 
-	client, err := NewClient(WithClientAddress("127.0.0.1:9000"), clientOption)
+	client, err := newTestClient(WithClientAddress("127.0.0.1:9000"), clientOption)
 	if err != nil {
 		t.Fatalf("mutating caller option slice changed the captured options: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestServerWorkerIdleGraceAcceptsMinimumForEveryClass(t *testing.T) {
 }
 
 func TestNestedSessionOptionsUseFinalEffectiveValues(t *testing.T) {
-	client, err := NewClient(
+	client, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(
 			WithRequestTimeout(0),

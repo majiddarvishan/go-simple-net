@@ -4,6 +4,17 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
+)
+
+// BindType declares which direction a Client may use after Bind.
+type BindType uint8
+
+const (
+	// BindTypeUniDirectional makes the Client requester-only.
+	BindTypeUniDirectional BindType = iota
+	// BindTypeBiDirectional permits Requests and Responses in both directions.
+	BindTypeBiDirectional
 )
 
 // Request is an inbound Application Request delivered to a Server handler.
@@ -41,15 +52,21 @@ type Client struct {
 	resources *ownerResourceLedger
 	callbacks *ownerCallbackDispatcher
 
-	mu              sync.Mutex
-	stopped         bool
-	stopDone        chan struct{}
-	stopErr         error
-	current         *Session
-	generation      uint64
-	connectCancel   context.CancelFunc
-	connectDone     chan struct{}
-	reconnectCancel context.CancelFunc
+	mu               sync.Mutex
+	stopped          bool
+	stopDone         chan struct{}
+	stopErr          error
+	current          *Session
+	generation       uint64
+	boundGeneration  uint64
+	boundAt          time.Time
+	connectCancel    context.CancelFunc
+	connectDone      chan struct{}
+	connectGate      chan struct{}
+	reconnectCancel  context.CancelFunc
+	reconnectDone    chan struct{}
+	reconnectWake    chan clientReconnectEvent
+	reconnectStarted bool
 }
 
 // Server owns a TCP listener, accepted Sessions and their shared resource budgets.

@@ -16,9 +16,13 @@ func NewClient(options ...ClientOption) (*Client, error) {
 	if err := validateClientConfig(config); err != nil {
 		return nil, err
 	}
+	connectGate := make(chan struct{}, 1)
+	connectGate <- struct{}{}
 	return &Client{
-		config:    config,
-		resources: newClientResourceLedger(config.owner),
-		callbacks: newOwnerCallbackDispatcher(config.owner),
+		config:        config,
+		resources:     newClientResourceLedger(config.owner),
+		callbacks:     newOwnerCallbackDispatcher(config.owner),
+		connectGate:   connectGate,
+		reconnectWake: make(chan clientReconnectEvent, 1),
 	}, nil
 }

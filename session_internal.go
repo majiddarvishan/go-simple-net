@@ -230,6 +230,21 @@ func newBoundSessionWithResources(conn net.Conn, config sessionConfig, identity 
 }
 
 func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind, bindTimeout time.Duration, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) (*Session, error) {
+	return newClientBindingSessionWithResources(
+		conn, config, bind, bindTimeout, dispatcher, handlers,
+		newClientResourceLedger(defaultOwnerConfig()),
+	)
+}
+
+func newClientBindingSessionWithResources(
+	conn net.Conn,
+	config sessionConfig,
+	bind wire.Bind,
+	bindTimeout time.Duration,
+	dispatcher sessionCallbackDispatcher,
+	handlers sessionHandlers,
+	resources *ownerResourceLedger,
+) (*Session, error) {
 	if conn == nil {
 		return nil, newConfigError("connection", "<nil>", "must be non-nil")
 	}
@@ -241,7 +256,14 @@ func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind
 	if err != nil {
 		return nil, err
 	}
-	s := newSession(conn, config, sessionIdentity{bindType: bind.Type, role: sessionRoleClient}, dispatcher, handlers)
+	s := newSessionWithResources(
+		conn,
+		config,
+		sessionIdentity{bindType: bind.Type, role: sessionRoleClient},
+		dispatcher,
+		handlers,
+		resources,
+	)
 	s.mu.Lock()
 	sequence = s.nextSequenceLocked()
 	frame, err = wire.EncodeBindRequest(sequence, bind)
@@ -253,9 +275,7 @@ func newClientBindingSession(conn net.Conn, config sessionConfig, bind wire.Bind
 	}
 	s.mu.Unlock()
 	if err != nil {
-		if conn != nil {
-			_ = conn.Close()
-		}
+		_ = conn.Close()
 		return nil, err
 	}
 	s.start()

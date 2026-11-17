@@ -13,7 +13,7 @@ import (
 
 func newClientWithBoundTestSession(t *testing.T, session *Session) *Client {
 	t.Helper()
-	client, err := NewClient(WithClientAddress("127.0.0.1:1"))
+	client, err := newTestClient(WithClientAddress("127.0.0.1:1"))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestClientStopContextExpiryForcesCurrentSession(t *testing.T) {
 }
 
 func TestClientStopBeforeConnectIsTerminalAndIdempotent(t *testing.T) {
-	client, err := NewClient(WithClientAddress("127.0.0.1:1"))
+	client, err := newTestClient(WithClientAddress("127.0.0.1:1"))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

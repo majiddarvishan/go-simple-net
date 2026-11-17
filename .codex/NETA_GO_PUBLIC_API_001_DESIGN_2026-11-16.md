@@ -453,7 +453,7 @@ The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including
 ### Typed Functional Options and error surface
 - Exported option domains are ClientOption, ServerOption and SessionOption, each a typed Functional Option with an unexported effective-config target. Consumers use library-provided With... constructors; no generic map, mutable live Config or hot reload is exposed.
 - WithClientSessionOptions(opts ...SessionOption) returns ClientOption; WithServerSessionOptions(opts ...SessionOption) returns ServerOption. These attach immutable per-Session defaults inherited by Sessions created by that owner.
-- Client-only options include address/endpoint, ConnectTimeout, AutoReconnect and Client-owned worker/event/Request/retained-byte ceilings.
+- Client-only options include address/endpoint, mandatory SystemID, optional BindType (bi-directional default), ConnectTimeout, AutoReconnect and Client-owned worker/event/Request/retained-byte ceilings.
 - Server-only options include listen address, BindValidator, Pre-Bind/Bound Session admission and Server-owned aggregate resource ceilings.
 - Session options include RequestTimeout, FrameAssemblyTimeout, UnbindTimeout, WriteTimeout, Enquire Link settings, per-Session callback concurrency, queue/frame/Request limits and retained-byte limits. ConnectTimeout and BindResponseTimeout are Client-only.
 - Exported error sentinels support errors.Is; typed operation errors support errors.As. Minimum stable categories: ErrInvalidConfig, ErrNotBound, ErrClosing, ErrClosed, ErrQueueFull, ErrCapacity, ErrFrameTooLarge, ErrRequestTimeout, ErrConnectTimeout, ErrBindTimeout, ErrWriteTimeout, ErrUnbindTimeout, ErrBindRejected and ErrProtocol.

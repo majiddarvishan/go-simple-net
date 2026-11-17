@@ -90,11 +90,11 @@ func (s *Session) readFrame() (result inboundFrame, readErr error) {
 		(role == sessionRoleServer && state == SessionStateBinding &&
 			(s.bindResponseWriting || s.bindResponseSent))
 	if header.Command == wire.CommandStreamRequest {
-		if boundAdmissionReady && s.handlers.onRequest != nil {
-			if role == sessionRoleClient && bindType == wire.BindUniDirectional {
-				s.mu.Unlock()
-				return inboundFrame{}, ErrProtocol
-			}
+		if boundAdmissionReady && role == sessionRoleClient && bindType == wire.BindUniDirectional {
+			// Pinex uni-directional Client semantics are requester-only:
+			// peer Requests are drained and ignored, not dispatched or fatal.
+			ignoreRequest = true
+		} else if boundAdmissionReady && s.handlers.onRequest != nil {
 			applicationCharge, err = s.reserveIncomingApplicationLocked(uint64(header.Length))
 			if err != nil {
 				s.mu.Unlock()
@@ -327,6 +327,12 @@ func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 	bind, err := wire.DecodeBindResponse(frame)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrProtocol, err)
+	}
+	s.mu.Lock()
+	requestedBindType := s.bindType
+	s.mu.Unlock()
+	if bind.Type != requestedBindType {
+		return fmt.Errorf("%w: Bind Response type does not match the Client request", ErrProtocol)
 	}
 	s.markBound(bind.SystemID, bind.Type)
 	return nil

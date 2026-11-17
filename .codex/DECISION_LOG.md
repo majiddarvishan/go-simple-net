@@ -1428,3 +1428,17 @@ This entry records implementation evidence within the owner-authorized Phase 6 s
 - Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
 
 Client Connect/Bind and reconnect remain pending the missing Client SystemID/BindType input decision.
+
+
+## 56. Client Bind identity API — OPTION B APPROVED (2026-11-17)
+
+The owner selected **Option B** for the missing Client Bind identity input before Client Connect implementation.
+
+- **WithClientSystemID(string)** is mandatory for NewClient; the value must be non-empty, contain no NUL byte, and fit the Pinex 1.5.0 system_id wire field (at most 19 bytes before its terminator).
+- **WithClientBindType(BindType)** is optional. The default is **BindTypeBiDirectional**; callers may explicitly select **BindTypeUniDirectional**.
+- The public BindType constants are BindTypeUniDirectional and BindTypeBiDirectional.
+- **Client.Connect(ctx)** keeps its frozen signature and performs TCP Dial followed by Bind.
+- Uni-directional Client semantics are requester-only: the Client may send Stream Requests, drains/ignores incoming peer Requests, and rejects SendResponse with ErrProtocol. This matches the pinned Pinex C++ 1.5.0 high-level Client behavior.
+- No wire format or API-001/API-002 decision is reopened. The existing Client owner resource ledger and callback dispatcher are shared across all Session generations.
+
+This decision unblocks the remaining owner-authorized Phase 6 Client Connect/Bind and reconnect implementation. Phase 7 live TCP interoperability, Phase 8 performance work and Phase 9 release work remain separately gated.

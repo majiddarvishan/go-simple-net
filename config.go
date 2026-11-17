@@ -92,6 +92,9 @@ type ownerConfig struct {
 
 type clientConfig struct {
 	address             string
+	systemID            string
+	systemIDSet         bool
+	bindType            BindType
 	connectTimeout      time.Duration
 	bindResponseTimeout time.Duration
 	autoReconnect       bool
@@ -179,6 +182,7 @@ func defaultOwnerConfig() ownerConfig {
 
 func defaultClientConfig() clientConfig {
 	return clientConfig{
+		bindType:            BindTypeBiDirectional,
 		connectTimeout:      defaultConnectTimeout,
 		bindResponseTimeout: defaultBindResponseTimeout,
 		autoReconnect:       false,
@@ -303,6 +307,21 @@ func validateClientConfig(c clientConfig) error {
 	}
 	if err := validateTCPAddress("address", c.address, true); err != nil {
 		return err
+	}
+	if !c.systemIDSet {
+		return newConfigError("system_id", "<unset>", "must be configured with WithClientSystemID")
+	}
+	if c.systemID == "" {
+		return newConfigError("system_id", c.systemID, "must be non-empty")
+	}
+	if len(c.systemID) > 19 {
+		return newConfigError("system_id", c.systemID, "must be at most 19 bytes")
+	}
+	if strings.IndexByte(c.systemID, 0) >= 0 {
+		return newConfigError("system_id", c.systemID, "must not contain NUL")
+	}
+	if c.bindType != BindTypeUniDirectional && c.bindType != BindTypeBiDirectional {
+		return newConfigError("bind_type", fmt.Sprint(c.bindType), "must be a supported BindType")
 	}
 	if c.connectTimeout <= 0 {
 		return newConfigError("connect_timeout", c.connectTimeout.String(), "must be a positive duration")

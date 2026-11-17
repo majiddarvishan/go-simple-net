@@ -1,6 +1,6 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–5 are COMPLETE / CI PASS. Phase 6 is OWNER AUTHORIZED / IN PROGRESS; its Server lifecycle/admission slice is COMPLETE / CI PASS.** Client CurrentSession/Stop are implemented and CI-green; Client Connect/reconnect is blocked only by the missing Client Bind identity input decision. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phases 7–9 remain gated.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–5 are COMPLETE / CI PASS. Phase 6 is OWNER AUTHORIZED / IN PROGRESS; Server lifecycle/admission and Client CurrentSession/Stop are implemented.** The owner approved Client Bind Option B; Client Connect/Bind, generation fencing and reconnect implementation plus focused tests are now prepared and awaiting CI verification. The pinned Pinex C++ 1.5.0 golden compatibility workflow passes; live TCP interoperability remains Phase 7. Phases 7–9 remain gated.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
@@ -872,3 +872,22 @@ Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`. See [Phase
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633): PASS — gofmt, vet, unit and race.
 - Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
 - Client Connect/Bind and reconnect remain pending the Client SystemID/BindType input decision.
+
+
+## 18. Client Bind identity decision and implementation handoff (2026-11-17)
+
+The owner approved **Option B**:
+- WithClientSystemID(string) is mandatory and validated before any Dial.
+- WithClientBindType(BindType) is optional; default BindTypeBiDirectional, with BindTypeUniDirectional available.
+- Client.Connect(ctx) signature remains unchanged.
+- Uni-directional Client behavior is requester-only and follows Pinex 1.5.0: outgoing Requests are allowed; incoming peer Requests are drained/ignored; SendResponse is rejected.
+
+The Phase 6 Client implementation now includes:
+- absolute per-attempt Dial timeout and separate absolute Bind Response timeout, both bounded by caller Context;
+- one serialized Client connection-attempt gate, monotonic generation fencing and publication only after successful Bind;
+- Client-owned resource ledger and callback dispatcher reused across all Session generations;
+- one optional reconnect supervisor with exponential Full Jitter (1s base window, 30s cap, reset after 30s continuously Bound);
+- retry only for transient Dial failures/timeouts and unexpected post-Bound transport failures; Bind rejection/timeout are not retried; no Request replay;
+- Stop cancels Dial/Bind/reconnect and waits for supervisor/internal Session Done without joining user callbacks.
+
+Implementation commit and CI evidence are to be appended after verification. Phase 7–9 remain gated.

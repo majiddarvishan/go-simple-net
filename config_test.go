@@ -100,7 +100,7 @@ func TestDefaultWorkerCounts(t *testing.T) {
 }
 
 func TestConstructorsRequireEndpointsAndDoNotOpenNetworking(t *testing.T) {
-	if _, err := NewClient(); err == nil {
+	if _, err := newTestClient(); err == nil {
 		t.Fatal("NewClient without an endpoint must fail")
 	} else {
 		requireConfigError(t, err, "address")
@@ -110,7 +110,7 @@ func TestConstructorsRequireEndpointsAndDoNotOpenNetworking(t *testing.T) {
 	} else {
 		requireConfigError(t, err, "listen_address")
 	}
-	client, err := NewClient(WithClientAddress("127.0.0.1:9000"))
+	client, err := newTestClient(WithClientAddress("127.0.0.1:9000"))
 	if err != nil || client == nil {
 		t.Fatalf("NewClient: client=%v err=%v", client, err)
 	}
@@ -121,14 +121,14 @@ func TestConstructorsRequireEndpointsAndDoNotOpenNetworking(t *testing.T) {
 }
 
 func TestEnquireLinkIdleZeroIsTheOnlyDurationZeroException(t *testing.T) {
-	_, err := NewClient(
+	_, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(WithEnquireLinkIdleInterval(0)),
 	)
 	if err != nil {
 		t.Fatalf("explicit zero idle interval should disable probes: %v", err)
 	}
-	_, err = NewClient(
+	_, err = newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(WithRequestTimeout(0)),
 	)
@@ -141,7 +141,7 @@ func TestEnquireLinkIdleZeroIsTheOnlyDurationZeroException(t *testing.T) {
 }
 
 func TestFunctionalOptionsApplyBeforeValidationAndRemainIndependent(t *testing.T) {
-	client, err := NewClient(
+	client, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientApplicationWorkers(maxApplicationWorkers+1),
 		WithClientApplicationWorkers(maxApplicationWorkers),
@@ -164,7 +164,7 @@ func TestFunctionalOptionsApplyBeforeValidationAndRemainIndependent(t *testing.T
 }
 
 func TestCrossFieldCapacitiesAreIndependent(t *testing.T) {
-	_, err := NewClient(
+	_, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientApplicationWorkers(1),
 		WithClientMaxOutstandingRequests(1),
@@ -189,11 +189,11 @@ func TestCrossFieldCapacitiesAreIndependent(t *testing.T) {
 }
 
 func TestNilOptionsAreRejected(t *testing.T) {
-	_, err := NewClient(WithClientAddress("127.0.0.1:9000"), ClientOption{})
-	requireConfigError(t, err, "client_options[1]")
+	_, err := newTestClient(WithClientAddress("127.0.0.1:9000"), ClientOption{})
+	requireConfigError(t, err, "client_options[2]")
 	_, err = NewServer(WithServerListenAddress("127.0.0.1:0"), ServerOption{})
 	requireConfigError(t, err, "server_options[1]")
-	_, err = NewClient(
+	_, err = newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(SessionOption{}),
 	)
@@ -218,7 +218,7 @@ func TestWorker009CHardMaximums(t *testing.T) {
 	for _, test := range clientCases {
 		t.Run(test.name, func(t *testing.T) {
 			options := append([]ClientOption{WithClientAddress("127.0.0.1:9000")}, test.opts...)
-			_, err := NewClient(options...)
+			_, err := newTestClient(options...)
 			if err == nil || !errors.Is(err, ErrInvalidConfig) {
 				t.Fatalf("expected invalid config, got %v", err)
 			}
@@ -239,7 +239,7 @@ func TestWorker009CHardMaximums(t *testing.T) {
 	}
 	for _, test := range sessionCases {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := NewClient(
+			_, err := newTestClient(
 				WithClientAddress("127.0.0.1:9000"),
 				WithClientSessionOptions(test.opt),
 			)
@@ -257,7 +257,7 @@ func TestWorker009CHardMaximums(t *testing.T) {
 }
 
 func TestWorker009CInclusiveBoundaries(t *testing.T) {
-	_, err := NewClient(
+	_, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientApplicationWorkers(512),
 		WithClientCompletionWorkers(256),
@@ -291,12 +291,12 @@ func TestWorker009CInclusiveBoundaries(t *testing.T) {
 }
 
 func TestRetainedByteMinimumIsTenBytes(t *testing.T) {
-	_, err := NewClient(
+	_, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientMaxRetainedApplicationBytes(9),
 	)
 	requireConfigError(t, err, "max_retained_application_bytes_per_owner")
-	_, err = NewClient(
+	_, err = newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(WithMaxRetainedCompletionBytesPerSession(9)),
 	)
@@ -304,14 +304,14 @@ func TestRetainedByteMinimumIsTenBytes(t *testing.T) {
 }
 
 func TestQueueByteLimitsArePositiveButIndependentOfFrameMaximum(t *testing.T) {
-	_, err := NewClient(
+	_, err := newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(WithMaxQueuedOutgoingBytes(1)),
 	)
 	if err != nil {
 		t.Fatalf("queue byte limits have positive minimum 1 and are not frame-size overrides: %v", err)
 	}
-	_, err = NewClient(
+	_, err = newTestClient(
 		WithClientAddress("127.0.0.1:9000"),
 		WithClientSessionOptions(WithMaxQueuedIncomingBytes(0)),
 	)
@@ -340,7 +340,7 @@ func TestCheckedUint64Arithmetic(t *testing.T) {
 }
 
 func TestConfigErrorDiagnostics(t *testing.T) {
-	_, err := NewClient(WithClientAddress(" "), WithConnectTimeout(0))
+	_, err := newTestClient(WithClientAddress(" "), WithConnectTimeout(0))
 	requireConfigError(t, err, "address")
 	if !strings.Contains(err.Error(), "non-empty host:port") {
 		t.Fatalf("unexpected diagnostic: %v", err)

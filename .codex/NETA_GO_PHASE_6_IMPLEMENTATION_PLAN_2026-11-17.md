@@ -34,9 +34,15 @@ The owner authorized Phase 6 by saying «ادامه بده» after the explicit 
 - Client/Server Stop are terminal and idempotent. Server closes Listener first, closes Pre-Bind Sessions, then concurrently Unbinds Bound Sessions. Context expiry forces remaining Sessions and returns the caller Context error after internal Done.
 - Done/Stop do not wait for arbitrary user callbacks; OnClose is best-effort after Done.
 
-## Known API contract gap — Client Bind identity
+## Client Bind identity decision — CLOSED / OPTION B APPROVED
 
-The approved public API specifies `Client.Connect(ctx)` performing Bind, but the frozen ClientOption and clientConfig currently have no SystemID or BindType input. The current source has no approved default for either field. Do not infer a SystemID, BindType, or add an unapproved public option. Client Connect implementation is blocked pending owner clarification. The independent Server slice P6-04..P6-08 is now COMPLETE / CI PASS.
+The owner approved Option B on 2026-11-17:
+- WithClientSystemID(string) is mandatory and validated before Dial.
+- WithClientBindType(BindType) is optional; default is BindTypeBiDirectional, with BindTypeUniDirectional supported.
+- Client.Connect(ctx) signature remains unchanged.
+- Uni-directional Client is requester-only: outgoing Requests are permitted, incoming peer Requests are drained/ignored, and SendResponse is rejected.
+
+The previous contract gap is closed. Implementation is in progress within the existing Phase 6 authorization; no API-001/API-002 decision or wire layout is reopened.
 
 ## Phase boundaries
 
@@ -67,3 +73,10 @@ Client lifecycle sub-scope implemented at source HEAD `a05a735aa0383d2588b41b1a2
 - Go CI [44071959633](https://github.com/majiddarvishan/neta-go/actions/runs/44071959633) PASS; Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704) PASS.
 
 Client Connect/Bind and reconnect remain blocked by the missing SystemID/BindType input in the frozen ClientOption surface.
+
+
+## Client Connect/Bind and reconnect implementation result — 2026-11-17
+
+The owner approved Option B for Bind identity. The Client slice now includes mandatory SystemID and configurable BindType, absolute Dial/Bind deadlines with caller Context precedence, Bound-only generation publication, owner-ledger/dispatcher reuse, and a single optional Full-Jitter reconnect supervisor. Bind rejection/timeout are not retried; no Request replay is introduced. Focused tests cover configuration, Bind, graceful Stop, Bind timeout/rejection, reconnect generation replacement and uni-directional requester-only behavior.
+
+CI evidence and the resulting source HEAD will be appended after verification. Phase 7–9 remain gated.
