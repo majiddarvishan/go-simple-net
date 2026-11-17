@@ -32,7 +32,7 @@
 
 ## وضعیت فعلی
 
-وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 8 کامل و CI-verified هستند. Phase 9 با مجوز مالک در حال اجراست؛ P9-00 تا P9-04 کامل شده‌اند؛ P9-05 (Release Readiness) در حال تکمیل است؛ آزمون‌های خودکار و Coverage/Example Smoke موفق شده‌اند و تأییدهای نهایی مالک باقی مانده‌اند. ایجاد Tag/Release نسخه V1 در P9-06 به تأیید جداگانه مالک نیاز دارد.
+وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 8 کامل و CI-verified هستند. Phase 9 با مجوز مالک در حال اجراست؛ P9-00 تا P9-04 کامل شده‌اند؛ P9-05 (Release Readiness) در حال تکمیل است؛ آزمون‌های خودکار و Coverage/Example Smoke موفق شده‌اند و Support Baseline نسخه V1 نیز توسط مالک تأیید شده است: حداقل Go 1.23 و CI-tested Linux/amd64 روی Ubuntu 24.04. بررسی کپی‌رایت، changelog/version و تنظیمات Branch Protection باقی مانده‌اند. ایجاد Tag/Release نسخه V1 در P9-06 به تأیید جداگانه مالک نیاز دارد.
 
 - [گزارش و Baseline عملکرد Phase 8 و تصمیم نهایی PERF-004](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
 - [برنامه اجرایی Phase 9 و معیارهای پذیرش](NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md)
