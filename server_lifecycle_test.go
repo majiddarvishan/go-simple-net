@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
-	"sync/atomic"
 
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
@@ -411,7 +411,6 @@ func TestServerDoneReleasesPendingIdentityBeforeSessionIdentityIsPublished(t *te
 		t.Fatalf("Session identity/accounting leaked: pending=%d sessionIDs=%d", server.pendingSockets, len(server.sessionIDs))
 	}
 }
-
 
 func TestServerBindValidatorReceivesPeerAndCanRejectWithoutReservingID(t *testing.T) {
 	var calls atomic.Uint32
