@@ -57,6 +57,25 @@ func TestBindGoldenVectors(t *testing.T) {
 	}
 }
 
+func TestBindResponseAllowsOmittedBodyLikePinex(t *testing.T) {
+	frameBytes := []byte{
+		0x00, 0x00, 0x00, 0x0a,
+		byte(CommandBindResponse), byte(StatusFailed),
+		0x00, 0x00, 0x00, 0x07,
+	}
+	frame, err := DecodeFrame(frameBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bind, err := DecodeBindResponse(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bind.Type != BindBiDirectional || bind.SystemID != "" {
+		t.Fatalf("omitted Bind Response decoded as %+v, want Pinex defaults", bind)
+	}
+}
+
 func TestStreamPDUUseRawBody(t *testing.T) {
 	payload := []byte{0x00, 0x01, 0x02, 0xfe, 0xff}
 	requestBytes, err := EncodeStreamRequest(42, payload)
