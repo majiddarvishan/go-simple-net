@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -297,20 +296,18 @@ func TestServerConcurrentDuplicateBindsHaveSingleWinner(t *testing.T) {
 		bound <- session
 	}))
 
-	type result struct {
-		conn   net.Conn
-		status wire.CommandStatus
-		err    error
+	type dialResult struct {
+		conn net.Conn
+		err  error
 	}
-	results := make(chan result, 2)
-	var start sync.WaitGroup
-	start.Add(1)
+	connsReady := make(chan dialResult, 2)
+	start := make(chan struct{})
 	for i := 0; i < 2; i++ {
 		go func() {
 			<-start
 			conn, err := net.DialTimeout("tcp", server.Addr().String(), time.Second)
 			if err != nil {
-				results <- result{err: err}
+				connsReady <- dialResult{err: err}
 				return
 			}
 			request, err := wire.EncodeBindRequest(1, wire.Bind{
@@ -319,35 +316,37 @@ func TestServerConcurrentDuplicateBindsHaveSingleWinner(t *testing.T) {
 			})
 			if err != nil {
 				_ = conn.Close()
-				results <- result{err: err}
+				connsReady <- dialResult{err: err}
 				return
 			}
 			if err := writeFullFrame(conn, request, time.Second); err != nil {
 				_ = conn.Close()
-				results <- result{err: err}
+				connsReady <- dialResult{err: err}
 				return
 			}
-			response := readWireFrame(t, conn)
-			results <- result{conn: conn, status: response.Header.Status}
+			connsReady <- dialResult{conn: conn}
 		}()
 	}
-	start.Done()
+	close(start)
 
-	var success, rejected int
 	var conns []net.Conn
 	for i := 0; i < 2; i++ {
-		got := <-results
+		got := <-connsReady
 		if got.err != nil {
-			t.Fatalf("concurrent Bind: %v", got.err)
+			t.Fatalf("concurrent Bind Dial/write: %v", got.err)
 		}
 		conns = append(conns, got.conn)
-		switch got.status {
+	}
+	var success, rejected int
+	for _, conn := range conns {
+		response := readWireFrame(t, conn)
+		switch response.Header.Status {
 		case wire.StatusOK:
 			success++
 		case wire.StatusFailed:
 			rejected++
 		default:
-			t.Fatalf("unexpected Bind status 0x%x", got.status)
+			t.Fatalf("unexpected Bind status 0x%x", response.Header.Status)
 		}
 	}
 	defer func() {
