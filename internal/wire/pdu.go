@@ -96,6 +96,20 @@ func EncodeStreamResponse(sequence uint32, status CommandStatus, body []byte) ([
 	return EncodeFrame(CommandStreamResponse, status, sequence, body)
 }
 
+func DecodeStreamRequest(frame Frame) ([]byte, error) {
+	if frame.Header.Command != CommandStreamRequest {
+		return nil, fmt.Errorf("wire: expected stream request, got command 0x%02x", uint8(frame.Header.Command))
+	}
+	return append([]byte(nil), frame.Body...), nil
+}
+
+func DecodeStreamResponse(frame Frame) ([]byte, error) {
+	if frame.Header.Command != CommandStreamResponse {
+		return nil, fmt.Errorf("wire: expected stream response, got command 0x%02x", uint8(frame.Header.Command))
+	}
+	return append([]byte(nil), frame.Body...), nil
+}
+
 func EncodeUnbindRequest(sequence uint32) ([]byte, error) {
 	return EncodeFrame(CommandUnbindRequest, StatusOK, sequence, nil)
 }
