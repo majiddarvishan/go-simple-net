@@ -1,6 +1,6 @@
 # V1 Release Readiness
 
-**Status: IN PROGRESS. No V1 tag or GitHub Release is authorized or published.**
+**Status: P9-05 qualified engineering review COMPLETE; P9-06 NOT AUTHORIZED. No V1 tag or GitHub Release is published.**
 
 ## Completed gates
 
@@ -29,8 +29,8 @@
 - [x] Owner approved main protection requiring two exact checks: `test` (Go) and `Verify Go wire codec against pinned Pinex C++ 1.5.0` (Pinex). Both jobs are present, pass on [Go run 44161319800](https://github.com/majiddarvishan/neta-go/actions/runs/44161319800) / [Pinex run 44161319863](https://github.com/majiddarvishan/neta-go/actions/runs/44161319863), and are triggered on pull requests.
 - [x] **Applied and verified** `main` branch protection: GitHub branch metadata reports `protected=true`, `required_status_checks.enforcement_level=everyone`, and the two exact mandatory contexts `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Both checks PASS on [Go 44163815612](https://github.com/majiddarvishan/neta-go/actions/runs/44163815612) / [Pinex 44163815661](https://github.com/majiddarvishan/neta-go/actions/runs/44163815661) at `b992beac7495934ce43111bd3a692ec272c8195d`.
 - [x] Verify real PR enforcement: [PR #2](https://github.com/majiddarvishan/neta-go/pull/2) initially `blocked` while both checks were pending, then `clean` after success and successfully squash-merged as `b5839a42b0de99f1ce9abf278e1fba3ff66d6617`. Go [44165799994](https://github.com/majiddarvishan/neta-go/actions/runs/44165799994) and Pinex [44165800103](https://github.com/majiddarvishan/neta-go/actions/runs/44165800103) post-merge CI PASS on this same HEAD.
-- [ ] Confirm strict up-to-date status-check setting and administrator bypass restrictions. Owner reported completing browser configuration; branch metadata `enforcement_level=everyone` confirms the required checks apply to everyone, but does **not** expose the exact strict/bypass toggles; full protection endpoint returns HTTP 403. See [verification guide](../.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md).
-- [ ] Confirm GitHub Release creation permissions/configuration without publishing yet. Repository is public, release listing works, and there are zero tags/Releases; publishing capability is not verifiable via available connector actions. Defer any actual creation until separately approved P9-06.
+- [x] Review detailed protected-branch controls with qualified visibility: owner reported completing the requested browser settings; GitHub reports protection active and mandatory checks at `enforcement_level=everyone`, including a real blocked-then-merged PR. The **exact strict and bypass flags are NOT independently verified** due to classic-protection API HTTP 403. Carry admin settings verification forward as a mandatory P9-06 prepublication gate.
+- [x] Review GitHub Releases without publishing: repository is public, authenticated connection's repo metadata reports admin permissions, Releases and tags list endpoints are accessible and empty, and no existing `v1.0.0` tag conflicts. **Create/publish permission is NOT tested**; this must be checked at P9-06 after explicit owner authorization, not now.
 - [x] Owner confirmed semantic version **`v1.0.0`** and approved the current Unreleased changelog content for planned V1 on 2026-11-17. This is a release **candidate decision only**, not permission to create a tag or publish.
 
 ## P9-05 release-readiness verification matrix — 2026-11-17
@@ -44,15 +44,17 @@
 | LICENSE and commercial use | OWNER APPROVED | Apache-2.0; Copyright 2026 Majid Darvishan |
 | Changelog and version proposal | OWNER APPROVED | Current Unreleased entries and intended `v1.0.0` approved, publication not authorized |
 | Main branch protection | ACTIVE / REAL PR ENFORCEMENT PASS; DETAILS PARTIAL | GitHub: `protected=true`, `enforcement_level=everyone`, contexts `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`. [PR #2](https://github.com/majiddarvishan/neta-go/pull/2) blocked pending checks and merged after PASS. Strict-up-to-date and admin-bypass controls not directly exposed (HTTP 403). [Guide](../.codex/NETA_GO_MAIN_BRANCH_PROTECTION_APPLICATION_2026-11-17.md) |
-| GitHub Release configuration | PARTIAL / NOT VERIFIED FOR PUBLICATION | Public repository and release-list endpoint accessible, tags 0, Releases 0. Connected GitHub integration cannot test creating a release without performing the separately unauthorized publication; owner/admin to inspect permission/configuration |
+| GitHub Release configuration | REVIEW COMPLETE / PUBLISH ABILITY NOT TESTED | Public repository, owner-account repo admin metadata, release and tag listings accessible and empty; actual release creation untested until P9-06 authorization, with mandatory prepublication permission/setting check |
 | V1 tag and GitHub Release | NOT RUN / NOT AUTHORIZED | P9-06 requires separate explicit owner approval |
 
-**P9-05 remains IN PROGRESS** only for independently unavailable branch-rule details and release-publication settings review. All code correctness, compatibility, examples, post-merge CI, protected-branch/PR enforcement, support, copyright/license and version/changelog approvals are PASS. Any GitHub Release operation remains outside this review and requires fresh explicit P9-06 approval.
+**P9-05 is COMPLETE as a qualified engineering release-readiness review.** Code correctness, compatibility, examples, post-merge CI, protected-branch/PR enforcement, support, copyright/license and version/changelog approvals are PASS. The exact `strict`/admin bypass toggles and actual GitHub Release creation permission are **not independently verified**; they are mandatory P9-06 prepublication checks, not silently treated as PASS. This closure is NOT permission to publish.
 
 ## Separate P9-06 release gate
 
-- [ ] All P9-05 gates accepted and recorded in [TASKS.md](../TASKS.md).
-- [ ] Final main HEAD passes Go correctness, example smoke, coverage capture and Pinex compatibility CI.
-- [ ] Owner explicitly approves creating the agreed V1 tag and GitHub Release.
+- [x] P9-05 engineering review completed with transparent release-time verification limits, recorded in [TASKS.md](../TASKS.md).
+- [ ] Independently confirm strict branch up-to-date and administrator bypass controls through GitHub admin settings or an authorized branch-protection read; owner UI completion is recorded, but detailed API remains HTTP 403 to this connector.
+- [ ] Verify release publication permissions and create-release settings under the authorized publishing account without publishing prematurely.
+- [ ] Re-read the exact intended tag target HEAD from protected `main` and require final Go correctness, example smoke, coverage capture and Pinex compatibility CI PASS on that same HEAD.
+- [ ] Owner **separately and explicitly** approves creating the intended `v1.0.0` tag and GitHub Release after reviewing the final release target SHA.
 
 **Do not create a tag or release from this checklist alone.** The general Phase 9 authorization does not authorize P9-06.
