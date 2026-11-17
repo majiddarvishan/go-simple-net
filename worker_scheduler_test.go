@@ -541,7 +541,6 @@ func TestWorkerConcurrentEnqueueAndForcedCloseSettlesEachTaskOnce(t *testing.T) 
 	}
 }
 
-
 func TestSessionReaderWriterAndDoneRemainIndependentOfApplicationCallback(t *testing.T) {
 	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
 	config := defaultSessionConfig()
