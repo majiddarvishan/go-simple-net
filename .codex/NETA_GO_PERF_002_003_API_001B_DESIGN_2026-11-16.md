@@ -1,6 +1,6 @@
 # neta-go V1 — PERF-002 / PERF-003 / API-001b Design Review
 
-> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 supersedes earlier assumptions of strictly serial application callbacks in this document. Configurable parallel Application handlers now **owner-approved**; concurrency=1 is serial. The earlier forced-close alternatives presuppose one serialized user dispatcher and must be **reassessed** under independent internal engine/lifecycle notification lanes. API-001b is OPEN. See [Decision Log](DECISION_LOG.md).
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 supersedes earlier assumptions of strictly serial application callbacks in this document. Configurable parallel Application handlers now **owner-approved**; concurrency=1 is serial. The earlier forced-close alternatives presuppose one serialized user dispatcher and must be **reassessed** under independent internal engine/lifecycle notification lanes. API-001b policy is CLOSED / OWNER APPROVED; exact public surface is finalized in API-001 §21. Historical open alternatives below are superseded by current authority and DECISION_LOG.md.
 
 
 **Date:** 2026-11-16
@@ -509,3 +509,6 @@ The owner approved Option A. The values below are binding V1 configuration-valid
 
 ---
 
+## 28. Final authority reconciliation — 2026-11-17
+
+PERF-002 and PERF-003 are CLOSED / OWNER APPROVED. API-001b policy is CLOSED (Forced Close A, N-ORD2, DONE-A, C-ORD-B). WORKER-001..009C are CLOSED, including all numeric worker/event/frame/Request/retained-byte defaults, hard maxima and validation. API-002-01..08, API-001, API-003 and PROTOCOL-001 are also CLOSED / OWNER APPROVED. Historical open status lines in this document are superseded by later decision sections, DECISION_LOG.md, API-001 §21 and API-002 §10. Only implementation evidence work remains; no implementation or tests are authorized.

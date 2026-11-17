@@ -18,7 +18,7 @@ The following are separate resource classes and must not be conflated:
 3. **OnClose execution:** Session lifecycle callback.
 4. **Internal engine:** Reader/Writer, protocol/control processing, pending correlation, timers, terminal settlement, transport teardown and resource accounting. This engine is not an arbitrary-user-callback worker pool and must not wait for user callbacks.
 
-Numeric worker defaults, public option names, queue/event ceilings and payload-byte limits are not approved by this document.
+Historical statement superseded by WORKER-009A..009C: worker defaults, public configuration semantics, queue/event ceilings and payload-byte limits are CLOSED / OWNER APPROVED. Exact public identifiers are frozen in API-001 §21.
 
 ## 2. WORKER-001 — Owner-scoped worker capacity (OWNER APPROVED, OPTION A)
 
@@ -539,3 +539,7 @@ Resource rules:
 - This deadline is distinct from the absolute 30s Pre-Bind handshake deadline from TCP acceptance, which remains unchanged.
 
 Future tests must cover slow-trickle input, partial Header/Body, timeout-vs-read completion races, exact-once reservation release, scratch-drain expiry, and isolation of unrelated Sessions. Tests are not authorized or run.
+
+## 19. Architecture Freeze reconciliation — 2026-11-17
+
+WORKER-001 through WORKER-009C and WORKER-008 Completion-byte exhaustion are fully CLOSED / OWNER APPROVED. The exact public option surface is frozen under API-001 §21; lifecycle and shutdown are frozen under API-002 §10; API-003 package boundaries and PROTOCOL-001 frame limit are approved. Earlier "next API-002/API-003" statements are historical. The 1 MiB source-verified Frame ceiling is now owner-approved for Go V1. Golden-frame and socket-level cross-language confirmation remain pending implementation authorization.

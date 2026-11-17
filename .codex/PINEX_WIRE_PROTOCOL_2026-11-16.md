@@ -2,7 +2,7 @@
 
 **تاریخ بررسی:** 2026-11-17  
 **مرجع:** majiddarvishan/pinex — branch develop — version 1.5.0  
-**وضعیت:** SOURCE-VERIFIED BASELINE — Pinex 1.5.0 develop HEAD pinned؛ Maximum Frame Size دقیقاً 1 MiB total؛ golden frames و cross-language verification اجرا نشده  
+**وضعیت:** SOURCE-VERIFIED + GO OWNER APPROVED — PROTOCOL-001 OPTION A CLOSED؛ سقف ثابت Maximum Frame برابر 1 MiB total؛ golden frames و cross-language verification هنوز اجرا نشده  
 **پیاده‌سازی:** NOT STARTED
 
 ---
@@ -29,7 +29,7 @@ Version 1.5.0 در CMakeLists.txt شاخه develop ثبت شده است. Snapsho
 
 **حداکثر Frame — SOURCE VERIFIED:** در `include/pa/pinex/net/session.hpp`، بافر دریافت از نوع `detail::flat_buffer<uint8_t, 1024 * 1024>` است و Parser هر `command_length` بزرگ‌تر از `capacity()` را رد می‌کند. `command_length` طول کل Frame و شامل Header ده‌بایتی است. بنابراین Maximum Frame Size برابر **1,048,576 bytes total** و Maximum Body برابر **1,048,566 bytes** است. این سقف در مرحله Pre-Bind و پس از Bind یکسان است. `flat_buffer::capacity()` سقف ثابت پروتکل است، نه اندازه فعلی allocation.
 
-Pinex فعلی در مسیر `send_impl()` سقف متناظر را پیش از ارسال enforce نمی‌کند؛ با این حال گیرنده Pinex چنین Frameی را نمی‌پذیرد. neta-go باید سقف 1 MiB را برای ورودی و خروجی اعمال کند تا Frame غیرقابل‌قبول تولید نکند. این نتیجه از Source استخراج شده و مستقل از WORKER-009C است. Golden Frame و Socket-level cross-language verification هنوز اجرا نشده‌اند.
+Pinex فعلی در مسیر send_impl() سقف متناظر را پیش از ارسال enforce نمی‌کند؛ با این حال گیرنده Pinex چنین Frameی را نمی‌پذیرد. طبق تصمیم مالک PROTOCOL-001 Option A، neta-go باید سقف ثابت 1 MiB را برای ورودی و خروجی اعمال کند. Frame خروجی بزرگ‌تر پیش از Sequence/Pending/Queue admission رد می‌شود؛ Frame ورودی بزرگ‌تر پس از اعتبارسنجی Header و پیش از Body allocation باعث بستن همان Session/Pre-Bind transport می‌شود. این سقف قابل افزایش یا تنظیم عمومی نیست و مستقل از WORKER-009C است. Golden Frame و Socket-level cross-language verification هنوز اجرا نشده‌اند.
 
 ---
 
@@ -321,3 +321,15 @@ Deduplication بر اساس Sequence در نمونه Go بخشی از Pinex Wire
 - Maximum accepted inbound Frame: **1,048,576 bytes total**, Header included; maximum Body: **1,048,566 bytes**.
 - Go compatibility rule: apply the same maximum to inbound validation and outbound admission.
 - هنوز هیچ Golden Frame test یا Socket-level Go↔C++ test اجرا نشده است؛ GO-PINEX-001 تا آماده شدن Golden Frameهای قابل‌استفاده و مجوز تست، کامل بسته نمی‌شود.
+
+## 16. PROTOCOL-001 — Go Maximum Frame Size adoption (CLOSED / OWNER APPROVED / OPTION A, 2026-11-17)
+
+- Fixed maximum total Frame: **1,048,576 bytes**, including the 10-byte Header.
+- Maximum Body: **1,048,566 bytes**.
+- The same limit applies before Bind and after Bind, inbound and outbound.
+- Inbound: validate the complete Header and total length before Body allocation; a larger Frame closes only the offending Session/Pre-Bind transport under Protocol Error handling.
+- Outbound: reject a Frame larger than the limit before Sequence allocation, Pending Request admission or queue reservation; expose ErrFrameTooLarge.
+- No configurable option may raise the limit. Queue/retained-byte limits remain separate.
+- This does not change Wire bytes, command IDs, status values, Sequence semantics or Bind/Stream/Unbind/Enquire Link encoding.
+
+**Owner decision:** Option A approved. Source baseline remains Pinex C++ 1.5.0 develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747. Golden-frame vectors and real bidirectional Go↔C++ socket confirmation remain pending until implementation/test authorization.

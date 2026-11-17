@@ -1,7 +1,7 @@
 # neta-go V1 — API-001b Forced Close, Notification Delivery and Worker Bound Review
 
 **Date:** 2026-11-16  
-**Status:** **Forced Close A, N-ORD2, DONE-A, C-ORD-B and WORKER-001 through WORKER-004 OWNER APPROVED**; API-001b remains PARTIALLY OPEN for numeric worker/event capacities, payload-byte bounds and remaining API details. Earlier §§3–10 show the historical preapproval design; §11 is the current authority split.  
+**Status:** API-001b POLICY CLOSED / OWNER APPROVED; WORKER-001..009C CLOSED; final public surface, terminal-cause accessor and Close timing are finalized in API-001 §21. Earlier sections are historical and superseded by this authority note.  
 **Baseline:** `main@893b96629b69b0c67b5aaf456b3e0f178e9fc811`  
 **Permission:** documentation review only. No Go/C++ code, go.mod, build, tests, benchmarks or operational changes.
 
@@ -477,3 +477,6 @@ The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including
 
 ---
 
+## 19. Final authority reconciliation — 2026-11-17
+
+API-001b policy is fully CLOSED: Forced Close A, N-ORD2, DONE-A and C-ORD-B. WORKER-001 through WORKER-009C, including numeric defaults, hard maxima, valid ranges, worker/resource ownership and all ledgers, are CLOSED / OWNER APPROVED. The terminal-cause accessor is Session.Err(); Session.Close() initiates Forced Close and returns without waiting for Done. Exact public API signatures and callback registration are finalized in API-001 §21. Stop aggregation and all timeout/reconnect decisions are finalized in API-002 §10. Historical "Still open" lists in this file are superseded by these decisions and DECISION_LOG.md. Implementation remains NOT AUTHORIZED.

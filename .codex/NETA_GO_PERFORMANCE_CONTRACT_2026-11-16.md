@@ -1,10 +1,10 @@
 # neta-go V1 — Performance Engineering Contract (Design, Not Implementation)
 
-> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 owner-approved configurable concurrent **Application** handlers per Session, replacing unconditional serial callback execution when `Concurrency > 1`. Internal protocol machinery is independent of user handler return. Older Q-003 wording in this file is historical; see [Decision Log](DECISION_LOG.md). API-001b remains OPEN.
+> **LATEST OWNER REVISION (2026-11-16):** Q-003-R1 owner-approved configurable concurrent **Application** handlers per Session, replacing unconditional serial callback execution when `Concurrency > 1`. Internal protocol machinery is independent of user handler return. Older Q-003 wording in this file is historical; see [Decision Log](DECISION_LOG.md). API-001b policy is CLOSED / OWNER APPROVED; final API surface is recorded in API-001 §21.
 
 
 **Date:** 2026-11-16  
-**Status:** PERFORMANCE PRIORITY APPROVED; PERF-002 payload ownership **APPROVED OPTION A**; other techniques, numeric targets and PERF-003/API-001b remain DRAFT / OPEN.  
+**Status:** PERFORMANCE PRIORITY APPROVED; PERF-002 and PERF-003 CLOSED / OWNER APPROVED; API-001b policy CLOSED; numeric performance thresholds and PERF-004 pooling remain evidence-driven engineering work.  
 **Source of priority:** Owner explicitly approved API-001a Option A (asynchronous/callback-first) and stated that performance is **very important**.  
 **Scope:** neta-go native Go TCP messaging Client/Server wire-compatible with C++ Pinex 1.5.0.  
 **Implementation:** NOT AUTHORIZED. No source, Go module, benchmark or operational changes.
@@ -324,3 +324,8 @@ The pinned Pinex C++ 1.5.0 source confirms a 1 MiB total-frame maximum including
 
 ---
 
+## 8. Architecture Freeze reconciliation — 2026-11-17
+
+PERF-002, PERF-003 and API-001b policy are CLOSED / OWNER APPROVED. WORKER-001..009C is complete, including all worker/resource defaults, maxima, ranges and accounting rules. API-002-01..08, API-001, API-003 and PROTOCOL-001 are now closed. Historical open items above are superseded by the final owner-approved records.
+
+Performance remains a first-class V1 requirement, but no numeric SLA is invented before a reproducible implementation baseline exists. Throughput, p50/p95/p99 latency, allocs/op, bytes/op, CPU, heap/GC, goroutines and contention must be measured. PERF-004 pooling/allocation choices are evidence-driven and remain implementation validation work. No benchmark or implementation is authorized.

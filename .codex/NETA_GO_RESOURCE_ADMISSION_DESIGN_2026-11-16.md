@@ -4,7 +4,7 @@
 
 
 **Date:** 2026-11-16  
-**Status:** RESOURCE ADMISSION + WORKER RESOURCE LIMITS APPROVED — Q-008 / Q-009 B / Q-010 A and WORKER-009A/B/C CLOSED; API-002/API-003 remain OPEN  
+**Status:** RESOURCE ADMISSION + WORKER RESOURCE LIMITS CLOSED / OWNER APPROVED; API-002, API-001 and API-003 architecture decisions are also CLOSED  
 **Branch:** `majiddarvishan/neta-go` / `main`  
 **Implementation:** NOT AUTHORIZED; this file contains no runnable application code.
 
@@ -399,3 +399,7 @@ A Bound Session has a 30s absolute deadline for each inbound Frame, measured fro
 The approved Completion retained-byte failure drain uses the same original Frame Assembly deadline. If the deadline expires before the Body drain completes, close the Session and do not emit Resource Capacity Completion. The absolute Pre-Bind handshake deadline remains 30s from TCP acceptance, unchanged and independent.
 
 Implementation and tests remain NOT AUTHORIZED.
+
+## 11. Architecture Freeze reconciliation — 2026-11-17
+
+Resource admission, queue/frame limits, retained-byte accounting, Request credits, worker permits and WORKER-001..009C are CLOSED / OWNER APPROVED. API-002-01..08, API-001, API-003 and PROTOCOL-001 are also CLOSED / OWNER APPROVED. The 1 MiB total Frame ceiling is fixed by the approved protocol contract; queue and retained-byte limits remain independent. Earlier "API-002/API-003 remain OPEN" statements are historical and superseded. Golden-frame and Go↔C++ socket verification remain implementation validation tasks. No implementation or tests are authorized.
