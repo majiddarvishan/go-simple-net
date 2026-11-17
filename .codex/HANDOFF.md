@@ -742,7 +742,7 @@ Implementation must stay inside `internal/wire`, use only the standard library, 
 - C++ compatibility CI run `44044273818`: PASS — compile pinned C++ PDU serializer snapshot, regenerate/diff golden frames, run Go golden tests.
 - Pinned Pinex source: version 1.5.0, commit `f7bd1eb779baff0d10e624f20522df345e6ee747`.
 - Corrected Pinex's omitted/empty Bind Response Body semantics; Go now returns default `bi_direction` and empty system ID.
-- Source snapshot provenance and original Git blob hashes: `testdata/pinex-1.5.0/source/SNAPSHOT.md`.
+- Source snapshot provenance and original Git blob hashes: `testdata/neta-cpp-1.5.0/source/SNAPSHOT.md`.
 
 The C++ fixture generator uses actual production PDU serializer templates; its Header writer mirrors the audited private `session::serialize_header` implementation. The private Pinex repo cannot be checked out by neta-go Actions without a cross-repository credential, so the exact pinned source headers are snapshotted in this repo. This is compiled C++ golden compatibility, not live TCP/socket interoperability.
 
@@ -923,7 +923,7 @@ The final Go verification also hardened an existing Worker Scheduler race-test a
 **P7-01:** Pinex develop remains version 1.5.0 at exact SHA f7bd1eb779baff0d10e624f20522df345e6ee747; no compatibility baseline drift was found.
 
 **Implemented verification harness:**
-- test/interop/pinex_peer.cpp uses the actual Pinex public high-level C++ Client and Server APIs.
+- test/interop/neta_cpp_peer.cpp uses the actual Pinex public high-level C++ Client and Server APIs.
 - phase7_interop_test.go exercises Go Client ↔ Pinex C++ Server and Pinex C++ Client ↔ Go Server over loopback TCP.
 - phase7_transport_test.go covers fragmented Bind Response, out-of-order Stream Responses, slow-trickle absolute Frame Assembly timeout and abrupt TCP reset.
 - internal/wire/wire_fuzz_test.go adds five fuzz targets.

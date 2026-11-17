@@ -26,7 +26,7 @@ Test and benchmark helpers are also renamed to describe behavior rather than dev
 
 ## Internal compatibility verification preserved
 
-The `.github/workflows/pinex-wire-compat.yml` job **must retain the exact required context** `Verify Go wire codec against pinned Pinex C++ 1.5.0` to keep protected-`main` enforcement. It and `testdata/pinex-1.5.0/` are internal engineering fixtures, **not a user dependency or public product description**. Removing the standalone public compatibility document does not delete the tests or the historical evidence.
+The `.github/workflows/neta-cpp-wire-compat.yml` job **must retain the exact required context** `Verify Go wire codec against pinned Pinex C++ 1.5.0` to keep protected-`main` enforcement. It and `testdata/neta-cpp-1.5.0/` are internal engineering fixtures, **not a user dependency or public product description**. Removing the standalone public compatibility document does not delete the tests or the historical evidence.
 
 The earlier `.codex/` records retain historical phase naming as audit history; they are not current implementation entry points. Only maintained source/tests/scripts/workflows/public docs use the new names.
 
