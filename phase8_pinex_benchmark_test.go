@@ -340,4 +340,3 @@ func BenchmarkPhase8PinexClient(b *testing.B) {
 		})
 	}
 }
-
