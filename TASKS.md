@@ -319,6 +319,11 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ---
 
+## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
+
+- [ ] **PV-02A — Remove trailing NUL from V2 Bind Request/Response:** Go V2 Client sends without NUL; Go V2 Server detects V1/V2 from the first Bind and responds in that version; Go V1-only Server rejects V2; legacy V1 codec and Pinex 1.5.0 fixture unchanged. Codec and loopback tests added; require Go and Pinex CI PASS before marking complete.
+- [ ] **PV-02A-R — Re-review release evidence:** previous P9-05 readiness and PV-01 wire-identity assumptions no longer apply to V2 Bind. CI on final protected main and owner approval of amended Unreleased CHANGELOG are required. P9-06 remains NOT AUTHORIZED.
+
 ## PV-01 — Go-only Session protocol version (owner authorized 2026-11-18)
 
 - [x] **PV-01 — Go protocol-version configuration:** add `ProtocolVersionV1`/`ProtocolVersionV2`, immutable per-Session local version and `WithProtocolVersion` via existing Client/Server Session options; **default V2**, reject unsupported values and test defaults/overrides. Both versions intentionally send exactly the same legacy Pinex 1.5.0 wire bytes, so this is **not wire-level V2 negotiation**. Check Go/Pinex CI on the protected PR before merging.
