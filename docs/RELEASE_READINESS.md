@@ -53,7 +53,7 @@
 
 - [ ] Requalify the new Go Session version setting and default V2 against the exact protected main HEAD, including Go/race, examples and Pinex CI.
 - [ ] Owner review the added Unreleased CHANGELOG entry. The previous approved notes did not contain this new API/default.
-- [x] Clearly distinguish local V2 configuration from an actual new V2 wire format: both selections still use the **same 10-byte Header and NUL-terminated Bind Body**. There is no automatic negotiation and no peer capability assertion.
+- [ ] Requalify NUL-free V2 Bind Request/Response, legacy V1, mixed-version Go Sessions and unchanged Header; the previous statement that V1/V2 wire bytes match has been superseded for Bind only. Legacy Pinex Servers require a V1 Go Client; actual CI and amended changelog require fresh approval.
 
 ## Separate P9-06 release gate
 

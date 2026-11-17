@@ -54,7 +54,7 @@ client, err := neta.NewClient(
 For a Server, use `WithServerSessionOptions(WithProtocolVersion(...))`.
 `session.ProtocolVersion()` returns the immutable **local** version.
 
-**V1 and V2 currently use the exact same Pinex 1.5.0 wire format**, including the NUL byte after Bind SystemID. No version byte was added to the Header; there is no wire-level negotiation or automatic downgrade. The protocol generation V2 is independent of the Go library's intended semantic release version `v1.0.0`.
+**V2 now omits the trailing `0x00` in Bind Request/Response**, while V1 remains byte-for-byte compatible with Pinex C++ 1.5.0. The 10-byte Frame Header and Stream format are unchanged. A Go V2 Server accepts legacy V1 Bind and answers in V1; a V1-only Server rejects V2. To reach a legacy Pinex Server, explicitly configure the Go Client for V1. No automatic fallback or version-negotiation Frame is sent. The protocol version is distinct from the library's proposed semantic release `v1.0.0`.
 
 ## Installing the development version
 

@@ -319,16 +319,21 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ---
 
+## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
+
+- [x] **PV-02A — Remove trailing NUL from V2 Bind Request/Response:** Go V2 Client sends NUL-free Bind; default Go V2 Server detects V1/V2 from the first Bind and responds in that format; Go V1-only Server rejects V2; V1 codec and pinned Pinex 1.5.0 fixture unchanged. Codec, real Go loopback, legacy test-fixture, correctness and race checks verified on [PR #7](https://github.com/majiddarvishan/neta-go/pull/7), commit `d456afb2149b5976f560b57674be2e14da0f460a`: [Go CI PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468231) and [Pinex Compatibility PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468234).
+- [ ] **PV-02A-R — Re-review release evidence:** previous P9-05 readiness and PV-01 wire-identity assumptions no longer apply to V2 Bind. CI on final protected main and owner approval of amended Unreleased CHANGELOG are required. P9-06 remains NOT AUTHORIZED.
+
 ## PV-01 — Go-only Session protocol version (owner authorized 2026-11-18)
 
-- [x] **PV-01 — Go protocol-version configuration:** add `ProtocolVersionV1`/`ProtocolVersionV2`, immutable per-Session local version and `WithProtocolVersion` via existing Client/Server Session options; **default V2**, reject unsupported values and test defaults/overrides. Both versions intentionally send exactly the same legacy Pinex 1.5.0 wire bytes, so this is **not wire-level V2 negotiation**. Check Go/Pinex CI on the protected PR before merging.
+- [x] **PV-01 — Go protocol-version configuration:** add `ProtocolVersionV1`/`ProtocolVersionV2`, immutable per-Session local version and `WithProtocolVersion` via existing Client/Server Session options; **default V2**, reject unsupported values and test defaults/overrides. At PV-01 completion both versions sent legacy Pinex bytes; **PV-02A supersedes this for V2 Bind only**. V1 remains Pinex-identical. Check Go/Pinex CI on the protected PR before merging.
 - [ ] **PV-01-R — Pre-release requalification:** the prior P9-05 signoff predates this Go public API/default change; require passing CI for the final main SHA and owner review of the newly amended Unreleased `CHANGELOG.md` before any `v1.0.0` publication. **P9-06 remains NOT AUTHORIZED.**
 
 ## Future protocol evolution — owner-approved architecture, implementation NOT AUTHORIZED
 
-- [x] **PROTOCOL-VERSION-001 — Session-scoped version selection (DESIGN ONLY):** owner approved selecting the effective protocol version **once per Session**, with no extra version byte in each Frame. V1 / Pinex 1.5.0 remains the default and unchanged; no version is switched mid-Session. [Architecture decision](.codex/NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md).
+- [x] **PROTOCOL-VERSION-001 — Session-scoped version selection (DESIGN ONLY):** owner approved selecting the effective protocol version **once per Session**, with no extra version byte in each Frame. V1 / Pinex 1.5.0 remains unchanged; the earlier default-V1 decision was superseded by owner-approved default V2 (PV-01) and NUL-free Bind V2 (PV-02A). Session versions remain fixed. [Architecture decision](.codex/NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md).
 - [ ] **PV-02 — Select a safe version-selection / negotiation mechanism:** out-of-band peer/endpoint configuration is a candidate; safe in-band negotiation is **not established** for legacy Pinex. Separate design/owner approval is required.
-- [ ] **PV-03 — Design optional V2 Bind format and compatibility gates:** removing the trailing SystemID NUL is only a potential V2 optimization, **not authorized** in V1. No change to existing Bind Request/Response encodings, Pinex golden frames or the 10-byte V1 header.
+- [x] **PV-03 (NUL-free V2 Bind scope) — Implemented under PV-02A:** the new V2 Bind Request/Response omit the NUL; V1 Bind stays Pinex 1.5.0-compatible and the 10-byte Frame Header/Stream frames are unchanged. Any further version-specific wire changes require separate approval.
 - [ ] **PV-04/PV-05 — Peer capability validation and future V2-wire-specific APIs and cross-version tests:** PV-01 provides only local Go configuration; negotiation and wire-dependent behavior still require separate design/approval.
 
 **Release boundary:** The future-version design tasks do not reopen V1 or change the separate P9-06 `v1.0.0` release approval requirement. No code or CI changes were requested or performed.

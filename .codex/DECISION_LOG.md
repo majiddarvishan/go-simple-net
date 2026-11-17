@@ -1636,3 +1636,12 @@ The new Go-only API includes `ProtocolVersionV1` and `ProtocolVersionV2`, defaul
 **Hard boundary:** V1 and V2 configuration values **currently send identical Pinex C++ 1.5.0 wire bytes** (10-byte Header and NUL-terminated SystemID). There is no V2 packet encoding, peer capability negotiation, automatic downgrade or assertion that the remote side supports V2. Removing NUL or introducing a new wire header remains unapproved PV-02/PV-03 work.
 
 The new Go API/default requires fresh CI and release-note approval under PV-01-R; prior P9-05 results were for the old HEAD. The approved intended **library** version `v1.0.0` is distinct from protocol generation V2. P9-06 remains NOT AUTHORIZED; no Tag or GitHub Release.
+
+
+## 70. PV-02A — Drop SystemID trailing NUL for V2 Bind only (2026-11-18)
+
+**Owner approved:** «nul رو توی v2 حذف کن». The owner subsequently requested retrying the GitHub commit after transient integration errors.
+
+Scope: Go V2 Bind Request and Bind Response now omit the trailing NUL. V1 Bind remains byte-for-byte Pinex C++ 1.5.0 compatible. A Go V2 Server accepts and identifies both V1 and V2 on the initial Bind and returns a response using that detected encoding; a V1-only Go Server rejects V2. A V2 Go Client does not attempt automatic downgrade. The 10-byte Frame Header and all Stream/Control PDUs remain unchanged.
+
+Important compatibility boundary: **V2 Bind is not accepted by Pinex 1.5.0 Server**. Go Clients targeting it must explicitly select `ProtocolVersionV1`. This is not full bidirectional capability negotiation; adding V3/version-specific Stream formats remains separately gated. V2 default was already owner-approved. New Go/race/Pinex regression tests and updated release notes must be re-reviewed before release. P9-06 NOT AUTHORIZED.

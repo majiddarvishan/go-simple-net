@@ -237,7 +237,21 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 	if frame.Header.Sequence == 0 {
 		return ErrProtocol
 	}
-	bind, err := wire.DecodeBindRequest(frame)
+	// The first Bind is the version discriminator. V1 carries a trailing
+	// NUL; V2 does not. This does not add a Frame Header or probe command.
+	version := ProtocolVersionV2
+	if len(frame.Body) > 0 && frame.Body[len(frame.Body)-1] == 0 {
+		version = ProtocolVersionV1
+	}
+	// A V1-only Server must never accept a V2 Bind.
+	if version > s.config.protocolVersion {
+		return fmt.Errorf("%w: unsupported Bind protocol version %d", ErrProtocol, version)
+	}
+	decodeBind := wire.DecodeBindRequest
+	if version == ProtocolVersionV2 {
+		decodeBind = wire.DecodeBindRequestV2
+	}
+	bind, err := decodeBind(frame)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrProtocol, err)
 	}
@@ -254,6 +268,8 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 		s.mu.Unlock()
 		return ErrClosing
 	}
+	// Version is selected once before exposing the Bind to the owner.
+	s.protocolVersion = version
 	s.pendingBind = &event
 	s.mu.Unlock()
 
@@ -277,7 +293,11 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 		cause = fmt.Errorf("%w: %v", ErrBindRejected, decision.err)
 	}
 
-	response, err := wire.EncodeBindResponse(frame.Header.Sequence, status, wire.Bind{
+	encodeResponse := wire.EncodeBindResponse
+	if version == ProtocolVersionV2 {
+		encodeResponse = wire.EncodeBindResponseV2
+	}
+	response, err := encodeResponse(frame.Header.Sequence, status, wire.Bind{
 		Type: bind.Type, SystemID: decision.serverSystemID,
 	})
 	if err != nil {
@@ -324,7 +344,14 @@ func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 		s.beginClose(ErrBindRejected, true)
 		return nil
 	}
-	bind, err := wire.DecodeBindResponse(frame)
+	s.mu.Lock()
+	version := s.protocolVersion
+	s.mu.Unlock()
+	decodeResponse := wire.DecodeBindResponse
+	if version == ProtocolVersionV2 {
+		decodeResponse = wire.DecodeBindResponseV2
+	}
+	bind, err := decodeResponse(frame)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrProtocol, err)
 	}

@@ -127,6 +127,7 @@ type Session struct {
 	state                     SessionState
 	systemID                  string
 	bindType                  wire.BindType
+	protocolVersion           ProtocolVersion
 	sequence                  wire.SequenceGenerator
 	pending                   map[uint32]*pendingRequest
 	appQueue                  []*outboundFrame
@@ -185,21 +186,22 @@ func newSessionWithResources(conn net.Conn, config sessionConfig, identity sessi
 		resources = newClientResourceLedger(defaultOwnerConfig())
 	}
 	s := &Session{
-		config:       config,
-		conn:         conn,
-		role:         identity.role,
-		resources:    resources,
-		dispatcher:   dispatcher,
-		handlers:     handlers,
-		state:        SessionStateNew,
-		systemID:     identity.systemID,
-		bindType:     identity.bindType,
-		pending:      make(map[uint32]*pendingRequest),
-		bindRequests: make(chan bindRequestEvent, 1),
-		wake:         make(chan struct{}, 1),
-		bound:        make(chan struct{}),
-		done:         make(chan struct{}),
-		closing:      make(chan struct{}),
+		config:          config,
+		conn:            conn,
+		role:            identity.role,
+		resources:       resources,
+		dispatcher:      dispatcher,
+		handlers:        handlers,
+		state:           SessionStateNew,
+		systemID:        identity.systemID,
+		bindType:        identity.bindType,
+		protocolVersion: config.protocolVersion,
+		pending:         make(map[uint32]*pendingRequest),
+		bindRequests:    make(chan bindRequestEvent, 1),
+		wake:            make(chan struct{}, 1),
+		bound:           make(chan struct{}),
+		done:            make(chan struct{}),
+		closing:         make(chan struct{}),
 	}
 	if conn != nil {
 		s.remoteAddr = conn.RemoteAddr()
@@ -254,7 +256,11 @@ func newClientBindingSessionWithResources(
 		return nil, newConfigError("bind_response_timeout", bindTimeout.String(), "must be a positive duration")
 	}
 	sequence := uint32(1)
-	frame, err := wire.EncodeBindRequest(sequence, bind)
+	encodeBind := wire.EncodeBindRequest
+	if config.protocolVersion == ProtocolVersionV2 {
+		encodeBind = wire.EncodeBindRequestV2
+	}
+	frame, err := encodeBind(sequence, bind)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +274,7 @@ func newClientBindingSessionWithResources(
 	)
 	s.mu.Lock()
 	sequence = s.nextSequenceLocked()
-	frame, err = wire.EncodeBindRequest(sequence, bind)
+	frame, err = encodeBind(sequence, bind)
 	if err == nil {
 		s.state = SessionStateBinding
 		s.bindSequence = sequence

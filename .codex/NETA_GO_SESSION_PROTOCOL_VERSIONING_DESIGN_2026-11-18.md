@@ -81,3 +81,17 @@ The owner explicitly requested adding version selection **only to Go** with **V2
 - Both versions currently use the same unchanged 10-byte Header, NUL-terminated Bind and Stream encoding. Pinex 1.5.0 compatibility is preserved.
 
 **Release boundary:** The prior P9-05 release signoff predates this new Go public API/default. Requalification (PV-01-R) and amended CHANGELOG approval are required before any separately authorized P9-06 publication. No tag/Release is authorized.
+
+
+## 8. Owner-approved PV-02A — V2 NUL-free Bind (2026-11-18)
+
+The owner explicitly requested removing the NUL from V2. This supersedes the temporary PV-01 assumption that V1 and V2 use identical on-wire encoding. The change is **limited to Go Bind Request and Bind Response**; V1 remains unchanged. The 10-byte Frame Header and all Stream/Control frames are unaffected.
+
+- V1: `BindType (1 byte) + SystemID (0..19 bytes) + NUL (1 byte)`.
+- V2: `BindType (1 byte) + SystemID (0..19 bytes)` (no terminator).
+- V2 Client (default) sends V2 and validates NUL-free V2 Bind Response. It **cannot connect to a legacy Pinex 1.5.0 Server** unless explicitly configured V1; no automatic fallback is attempted.
+- Default V2 Go Server identifies V1 by the trailing NUL on the first Bind and V2 by its absence; the selected version is fixed for that Server Session and used for Bind Response. A configured V1-only Go Server rejects V2.
+- This is **format identification**, not a general extensible negotiation handshake; no new Header field/command is added. Future V3 needs a separate agreement mechanism.
+- Empty BindResp Body, when omitted, keeps the original default-body decode allowance. The previous Pinex V1 golden fixtures must continue matching **exactly**.
+
+This behavior intentionally introduces new V2 wire bytes, so previous Pinex compatibility claims must be qualified: **V1** remains Pinex-compatible, while **V2 Bind** is not decodable by Pinex 1.5.0. Cross-version testing and release-readiness requalification are mandatory. P9-06 remains NOT AUTHORIZED.
