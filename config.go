@@ -3,6 +3,7 @@ package neta
 import (
 	"fmt"
 	"math"
+	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -300,6 +301,9 @@ func validateClientConfig(c clientConfig) error {
 	if strings.TrimSpace(c.address) != c.address {
 		return newConfigError("address", c.address, "must not contain leading or trailing whitespace")
 	}
+	if err := validateTCPAddress("address", c.address, true); err != nil {
+		return err
+	}
 	if c.connectTimeout <= 0 {
 		return newConfigError("connect_timeout", c.connectTimeout.String(), "must be a positive duration")
 	}
@@ -322,6 +326,9 @@ func validateServerConfig(c serverConfig) error {
 	if strings.TrimSpace(c.listenAddress) != c.listenAddress {
 		return newConfigError("listen_address", c.listenAddress, "must not contain leading or trailing whitespace")
 	}
+	if err := validateTCPAddress("listen_address", c.listenAddress, false); err != nil {
+		return err
+	}
 	if c.preBindHandshakeTimeout <= 0 {
 		return newConfigError("prebind_handshake_timeout", c.preBindHandshakeTimeout.String(), "must be a positive duration")
 	}
@@ -341,6 +348,18 @@ func validateServerConfig(c serverConfig) error {
 		return err
 	}
 	return validateOwnerConfig(c.owner)
+}
+
+
+func validateTCPAddress(field, address string, requireHost bool) error {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || port == "" {
+		return newConfigError(field, address, "must be a valid TCP host:port endpoint")
+	}
+	if requireHost && host == "" {
+		return newConfigError(field, address, "must include a remote host")
+	}
+	return nil
 }
 
 func validatePositiveUint64(field string, value uint64) error {
