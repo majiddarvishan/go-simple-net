@@ -1924,7 +1924,6 @@ func TestSessionOnCloseEventCreditIsOwnerScoped(t *testing.T) {
 	}
 }
 
-
 func TestSessionForcedCloseCancelsQueuedIncomingApplicationCharge(t *testing.T) {
 	owner := newOwnerResourceLedger(ownerResourceLimits{
 		maxRetainedApplicationBytes:         11,
