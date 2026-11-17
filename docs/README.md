@@ -1,10 +1,12 @@
 # neta-go documentation
 
-- [Public API reference](API.md)
-- [Configuration reference](CONFIGURATION.md)
-- [Lifecycle, callbacks, ownership and errors](LIFECYCLE.md)
-- [Pinex compatibility and verification evidence](PINEX_COMPATIBILITY.md)
-- [Approved Go toolchain and platform support baseline](SUPPORT.md)
-- [V1 release-readiness checklist](RELEASE_READINESS.md)
+This documentation describes the **neta-go** API, configuration, lifecycle and TCP messaging protocol.
 
-The root [README](../README.md) contains the Quick Start. The canonical task and release-readiness status is maintained in [TASKS.md](../TASKS.md).
+- [Public API](API.md)
+- [Configuration and defaults](CONFIGURATION.md)
+- [Session lifecycle, callbacks and ownership](LIFECYCLE.md)
+- [Protocol, framing and versions](PROTOCOL.md)
+- [Go and platform support](SUPPORT.md)
+- [Release readiness](RELEASE_READINESS.md)
+
+Start with the [Quick start](../README.md#quick-start). Development tasks are tracked in [TASKS.md](../TASKS.md).

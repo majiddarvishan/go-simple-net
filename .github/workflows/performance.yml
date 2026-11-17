@@ -1,14 +1,14 @@
-name: Phase 8 Performance Baseline
+name: Performance Benchmarks
 
 on:
   push:
     branches: [main]
     paths:
-      - 'phase8_benchmark_test.go'
-      - 'phase8_pinex_benchmark_test.go'
+      - 'benchmark_test.go'
+      - 'interoperability_benchmark_test.go'
       - 'Makefile'
-      - 'scripts/phase8-benchmark.sh'
-      - '.github/workflows/phase8-performance.yml'
+      - 'scripts/performance.sh'
+      - '.github/workflows/performance.yml'
       - 'go.mod'
   workflow_dispatch:
   schedule:
@@ -18,12 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase8-performance-${{ github.ref }}
+  group: performance-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   benchmark:
-    name: Reproducible Phase 8 performance suite
+    name: Reproducible performance suite
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     steps:
@@ -38,17 +38,17 @@ jobs:
           go-version: '1.23.x'
           cache: false
 
-      - name: Run complete Phase 8 suite
+      - name: Run complete performance suite
         env:
-          ARTIFACT_DIR: artifacts/phase8
-          NETA_PHASE8_SOAK_SECONDS: '300'
-        run: make phase8
+          ARTIFACT_DIR: artifacts/performance
+          NETA_SOAK_SECONDS: '300'
+        run: make benchmark
 
       - name: Upload benchmark and profile artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: neta-go-phase8-${{ github.sha }}
-          path: artifacts/phase8/
+          name: neta-go-performance-${{ github.sha }}
+          path: artifacts/performance/
           if-no-files-found: warn
           retention-days: 30

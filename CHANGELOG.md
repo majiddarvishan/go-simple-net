@@ -1,20 +1,21 @@
 # Changelog
 
-All notable changes to neta-go will be recorded here.
+Notable neta-go changes are recorded here.
 
 ## Unreleased
 
 ### Added
 - Callback-oriented TCP Client and Server API in the root `neta` package.
-- Pinex-compatible 10-byte Frame Header and bounded 1 MiB total Frame codec.
+- Fixed 10-byte Frame Header, bounded 1 MiB total Frame codec and raw Stream payloads.
 - Session lifecycle, Request/Response correlation, bounded callback scheduling and resource accounting.
-- Client and Server examples, public API/configuration/lifecycle documentation and Pinex compatibility notes.
-- Go Session `ProtocolVersion` selection (`V1` / `V2`), default V2, via `WithProtocolVersion` and `Session.ProtocolVersion`; V2 omits the trailing NUL from Bind Request/Response and permits 20-byte SystemIDs; V1 keeps its 19-byte maximum and remains byte-for-byte compatible with Pinex C++ 1.5.0, while the Header and Stream formats stay unchanged.
+- Client and Server examples and API, configuration, protocol and lifecycle documentation.
+- Immutable per-Session `ProtocolVersion` selection (`V1` or `V2`), default V2, via `WithProtocolVersion` and `Session.ProtocolVersion()`.
+- V2 Bind Request/Response bodies without trailing NUL and up to 20 SystemID bytes. V1 retains its NUL-terminated Bind and 19-byte maximum. Header and Stream formats remain unchanged.
 
-### Compatibility
-- The currently verified interoperability target is Pinex C++ 1.5.0 at source commit `f7bd1eb779baff0d10e624f20522df345e6ee747`.
-- Other Pinex versions and non-Linux/amd64 platforms are not yet part of the verified release matrix.
+### Documentation and tooling
+- Purpose-based test, script, Makefile and benchmark workflow names.
+- A neta-go wire protocol reference replaces the former external-compatibility guide.
 
 ### Release status
-- No V1 tag or GitHub Release has been created.
-- The V1 release remains gated on the release-readiness checklist and separate explicit owner approval.
+- No `v1.0.0` tag or GitHub Release has been created.
+- The amended release notes and release publication require explicit owner approval.

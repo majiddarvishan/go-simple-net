@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func phase7PeerBinary(t *testing.T) string {
+func interopPeerBinary(t *testing.T) string {
 	t.Helper()
 	path := os.Getenv("NETA_PINEX_PEER_BIN")
 	if path == "" {
@@ -24,13 +24,13 @@ func phase7PeerBinary(t *testing.T) string {
 	return path
 }
 
-type phase7PeerProcess struct {
+type interopPeerProcess struct {
 	done   <-chan error
 	stderr *bytes.Buffer
 	cancel context.CancelFunc
 }
 
-func startPhase7PinexServer(t *testing.T, binary, address string) *phase7PeerProcess {
+func startInteropPinexServer(t *testing.T, binary, address string) *interopPeerProcess {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	cmd := exec.CommandContext(ctx, binary, "server", address)
@@ -55,7 +55,7 @@ func startPhase7PinexServer(t *testing.T, binary, address string) *phase7PeerPro
 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	process := &phase7PeerProcess{done: done, stderr: stderr, cancel: cancel}
+	process := &interopPeerProcess{done: done, stderr: stderr, cancel: cancel}
 	t.Cleanup(func() {
 		cancel()
 		select {
@@ -66,7 +66,7 @@ func startPhase7PinexServer(t *testing.T, binary, address string) *phase7PeerPro
 	return process
 }
 
-func waitPhase7PinexServer(t *testing.T, process *phase7PeerProcess) {
+func waitInteropPinexServer(t *testing.T, process *interopPeerProcess) {
 	t.Helper()
 	select {
 	case err := <-process.done:
@@ -78,7 +78,7 @@ func waitPhase7PinexServer(t *testing.T, process *phase7PeerProcess) {
 	}
 }
 
-func runPhase7PinexClient(t *testing.T, binary, address string) {
+func runInteropPinexClient(t *testing.T, binary, address string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -104,7 +104,7 @@ func runPhase7PinexClient(t *testing.T, binary, address string) {
 	}
 }
 
-func phase7FreeAddress(t *testing.T) string {
+func interopFreeAddress(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -117,10 +117,10 @@ func phase7FreeAddress(t *testing.T) string {
 	return address
 }
 
-func TestPhase7PinexCPPServerWithGoClient(t *testing.T) {
-	binary := phase7PeerBinary(t)
-	address := phase7FreeAddress(t)
-	peer := startPhase7PinexServer(t, binary, address)
+func TestPinexCPPServerWithGoClient(t *testing.T) {
+	binary := interopPeerBinary(t)
+	address := interopFreeAddress(t)
+	peer := startInteropPinexServer(t, binary, address)
 
 	client, err := NewClient(
 		WithClientAddress(address),
@@ -169,11 +169,11 @@ func TestPhase7PinexCPPServerWithGoClient(t *testing.T) {
 	if err := client.Stop(ctx); err != nil {
 		t.Fatalf("Go Client graceful Stop: %v", err)
 	}
-	waitPhase7PinexServer(t, peer)
+	waitInteropPinexServer(t, peer)
 }
 
-func TestPhase7GoServerWithPinexCPPClient(t *testing.T) {
-	binary := phase7PeerBinary(t)
+func TestGoServerWithPinexCPPClient(t *testing.T) {
+	binary := interopPeerBinary(t)
 	requests := make(chan error, 1)
 	server, err := NewServer(
 		WithServerListenAddress("127.0.0.1:0"),
@@ -196,7 +196,7 @@ func TestPhase7GoServerWithPinexCPPClient(t *testing.T) {
 		_ = server.Stop(stopCtx)
 	}()
 
-	runPhase7PinexClient(t, binary, server.Addr().String())
+	runInteropPinexClient(t, binary, server.Addr().String())
 	select {
 	case err := <-requests:
 		if err != nil {

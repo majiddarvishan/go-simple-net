@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repeatable Phase 8 performance workloads shared by local runs and GitHub Actions.
+# Repeatable performance workloads shared by local runs and GitHub Actions.
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$BASH_SOURCE")/.." && pwd)"
@@ -9,10 +9,10 @@ GO_BIN="$(printenv GO 2>/dev/null || true)"
 if [[ -z "$GO_BIN" ]]; then GO_BIN=go; fi
 MODE=full
 if [[ "$#" -gt 0 ]]; then MODE="$1"; fi
-SOAK_SECONDS="$(printenv NETA_PHASE8_SOAK_SECONDS 2>/dev/null || true)"
+SOAK_SECONDS="$(printenv NETA_SOAK_SECONDS 2>/dev/null || true)"
 if [[ -z "$SOAK_SECONDS" ]]; then SOAK_SECONDS=300; fi
 ARTIFACT_BASE="$(printenv ARTIFACT_DIR 2>/dev/null || true)"
-if [[ -z "$ARTIFACT_BASE" ]]; then ARTIFACT_BASE="$ROOT_DIR/artifacts/phase8"; fi
+if [[ -z "$ARTIFACT_BASE" ]]; then ARTIFACT_BASE="$ROOT_DIR/artifacts/performance"; fi
 if [[ "$ARTIFACT_BASE" != /* ]]; then ARTIFACT_BASE="$ROOT_DIR/$ARTIFACT_BASE"; fi
 
 command -v "$GO_BIN" >/dev/null 2>&1 || {
@@ -22,12 +22,12 @@ command -v "$GO_BIN" >/dev/null 2>&1 || {
 
 if [[ "$MODE" == "soak" || "$MODE" == "full" ]]; then
     if ! [[ "$SOAK_SECONDS" =~ ^[0-9]+$ ]]; then
-        echo "NETA_PHASE8_SOAK_SECONDS must be an integer between 300 and 600." >&2
+        echo "NETA_SOAK_SECONDS must be an integer between 300 and 600." >&2
         exit 2
     fi
     SOAK_NUM=$((10#$SOAK_SECONDS))
     if (( SOAK_NUM < 300 || SOAK_NUM > 600 )); then
-        echo "NETA_PHASE8_SOAK_SECONDS must be an integer between 300 and 600." >&2
+        echo "NETA_SOAK_SECONDS must be an integer between 300 and 600." >&2
         exit 2
     fi
     SOAK_SECONDS="$SOAK_NUM"
@@ -52,7 +52,7 @@ finish() {
         echo "finished_utc=$(date -u +%FT%TZ)"
     } > "$RUN_DIR/status.txt"
     echo
-    if (( rc == 0 )); then echo "Phase 8 result: PASS"; else echo "Phase 8 result: FAIL"; fi
+    if (( rc == 0 )); then echo "Performance suite result: PASS"; else echo "Performance suite result: FAIL"; fi
     echo "Artifacts: $RUN_DIR"
     exit "$rc"
 }
@@ -91,7 +91,7 @@ capture_metadata() {
         echo "GOOS=$("$GO_BIN" env GOOS)"
         echo "GOARCH=$("$GO_BIN" env GOARCH)"
         echo "GOMAXPROCS=$(printenv GOMAXPROCS 2>/dev/null || echo default)"
-        echo "NETA_PHASE8_SOAK_SECONDS=$SOAK_SECONDS"
+        echo "NETA_SOAK_SECONDS=$SOAK_SECONDS"
         echo "GO_ENV:"
         "$GO_BIN" env
         echo "SYSTEM:"
@@ -118,7 +118,7 @@ capture_metadata() {
 
 run_runtime_metadata() {
     run_logged "RUNTIME METADATA TEST" "$RUN_DIR/runtime-metadata.txt" \
-        "$GO_BIN" test -count=1 -run '^TestPhase8RuntimeMetadata$' -v
+        "$GO_BIN" test -count=1 -run '^TestRuntimeMetadata$' -v
 }
 
 run_smoke() {
@@ -126,7 +126,7 @@ run_smoke() {
     run_runtime_metadata
     run_logged "PERFORMANCE SMOKE" "$RUN_DIR/perf-smoke.txt" \
         "$GO_BIN" test -run '^$' \
-        -bench '^BenchmarkPhase8ProfileBaseline$' \
+        -bench '^BenchmarkProfileBaseline$' \
         -benchmem -benchtime=1s -count=1 -cpu=4 \
         -timeout=5m -outputdir="$RUN_DIR"
 }
@@ -135,9 +135,9 @@ run_soak() {
     run_timed_logged "FIVE-MINUTE MIXED-PAYLOAD MEMORY SOAK" \
         "$RUN_DIR/memory-soak-time.txt" \
         "$RUN_DIR/memory-soak.txt" \
-        env NETA_PHASE8_SOAK_SECONDS="$SOAK_SECONDS" \
+        env NETA_SOAK_SECONDS="$SOAK_SECONDS" \
         "$GO_BIN" test -count=1 -v \
-        -run '^TestPhase8MemoryStabilitySoak$' -timeout=7m
+        -run '^TestMemoryStabilitySoak$' -timeout=7m
 }
 
 capture_pprof_summaries() {
@@ -158,18 +158,18 @@ run_full() {
     run_runtime_metadata
 
     run_logged "BENCHMARK MATRIX" "$RUN_DIR/benchmark-matrix.txt" \
-        "$GO_BIN" test -run '^$' -bench '^BenchmarkPhase8' \
+        "$GO_BIN" test -run '^$' -bench '^Benchmark' \
         -benchmem -benchtime=250ms -count=3 -cpu=1,4 -timeout=35m
 
     run_logged "SESSION SCALING: 1 TO 512 SESSIONS" "$RUN_DIR/session-scale.txt" \
-        "$GO_BIN" test -run '^$' -bench '^BenchmarkScalePhase8Sessions$' \
+        "$GO_BIN" test -run '^$' -bench '^BenchmarkScaleSessions$' \
         -benchmem -benchtime=1s -count=1 -cpu=4 -timeout=15m
 
     run_soak
 
     run_timed_logged "SMALL-PAYLOAD CPU/HEAP/MUTEX/BLOCK PROFILES" \
         "$RUN_DIR/profile-time.txt" "$RUN_DIR/profile-run.txt" \
-        "$GO_BIN" test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' \
+        "$GO_BIN" test -run '^$' -bench '^BenchmarkProfileBaseline$' \
         -benchmem -benchtime=10s -count=1 -cpu=4 -timeout=10m \
         -outputdir="$RUN_DIR" \
         -cpuprofile="$RUN_DIR/cpu.pprof" \
@@ -181,7 +181,7 @@ run_full() {
 
     run_timed_logged "LARGE-PAYLOAD CPU/HEAP/MUTEX/BLOCK PROFILES" \
         "$RUN_DIR/profile-large-time.txt" "$RUN_DIR/profile-large-run.txt" \
-        "$GO_BIN" test -run '^$' -bench '^BenchmarkPhase8ProfileLargeBaseline$' \
+        "$GO_BIN" test -run '^$' -bench '^BenchmarkProfileLargeBaseline$' \
         -benchmem -benchtime=5s -count=1 -cpu=4 -timeout=10m \
         -outputdir="$RUN_DIR" \
         -cpuprofile="$RUN_DIR/cpu-large.pprof" \
@@ -200,7 +200,7 @@ case "$MODE" in
         ;;
     full) run_full ;;
     *)
-        echo "Usage: bash scripts/phase8-benchmark.sh {smoke|soak|full}"
+        echo "Usage: bash scripts/performance.sh {smoke|soak|full}"
         exit 2
         ;;
 esac

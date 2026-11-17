@@ -32,10 +32,15 @@ jobs:
 
       - name: Run coverage and paired example smoke
         env:
-          ARTIFACT_DIR: artifacts/phase9
-        run: make phase9
+          ARTIFACT_DIR: artifacts/smoke
+        run: make smoke
 
-      - name: Upload correctness and Phase 9 evidence
+      - name: Validate benchmark smoke entry point
+        env:
+          ARTIFACT_DIR: artifacts/performance-smoke
+        run: make perf-smoke
+
+      - name: Upload correctness and example smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:

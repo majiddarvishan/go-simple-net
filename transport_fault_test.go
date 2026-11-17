@@ -11,7 +11,7 @@ import (
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
-func readPhase7Frame(conn net.Conn) (wire.Frame, error) {
+func readInteropFrame(conn net.Conn) (wire.Frame, error) {
 	var headerBytes [wire.HeaderSize]byte
 	if _, err := io.ReadFull(conn, headerBytes[:]); err != nil {
 		return wire.Frame{}, err
@@ -27,7 +27,7 @@ func readPhase7Frame(conn net.Conn) (wire.Frame, error) {
 	return wire.Frame{Header: header, Body: body}, nil
 }
 
-func writePhase7Full(conn net.Conn, data []byte) error {
+func writeInteropFull(conn net.Conn, data []byte) error {
 	for len(data) > 0 {
 		n, err := conn.Write(data)
 		if n > 0 {
@@ -43,7 +43,7 @@ func writePhase7Full(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func writePhase7Fragmented(conn net.Conn, data []byte, chunkSize int, delay time.Duration) error {
+func writeInteropFragmented(conn net.Conn, data []byte, chunkSize int, delay time.Duration) error {
 	if chunkSize < 1 {
 		chunkSize = 1
 	}
@@ -52,7 +52,7 @@ func writePhase7Fragmented(conn net.Conn, data []byte, chunkSize int, delay time
 		if n > len(data) {
 			n = len(data)
 		}
-		if err := writePhase7Full(conn, data[:n]); err != nil {
+		if err := writeInteropFull(conn, data[:n]); err != nil {
 			return err
 		}
 		data = data[n:]
@@ -63,7 +63,7 @@ func writePhase7Fragmented(conn net.Conn, data []byte, chunkSize int, delay time
 	return nil
 }
 
-func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
+func TestTCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 		defer conn.Close()
 		_ = conn.SetDeadline(time.Now().Add(6 * time.Second))
 
-		bindFrame, err := readPhase7Frame(conn)
+		bindFrame, err := readInteropFrame(conn)
 		if err != nil {
 			peerDone <- err
 			return
@@ -97,17 +97,17 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 			peerDone <- err
 			return
 		}
-		if err := writePhase7Fragmented(conn, bindResponse, 1, time.Millisecond); err != nil {
+		if err := writeInteropFragmented(conn, bindResponse, 1, time.Millisecond); err != nil {
 			peerDone <- err
 			return
 		}
 
-		first, err := readPhase7Frame(conn)
+		first, err := readInteropFrame(conn)
 		if err != nil {
 			peerDone <- err
 			return
 		}
-		second, err := readPhase7Frame(conn)
+		second, err := readInteropFrame(conn)
 		if err != nil {
 			peerDone <- err
 			return
@@ -127,16 +127,16 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 			peerDone <- err
 			return
 		}
-		if err := writePhase7Fragmented(conn, secondResponse, 3, 0); err != nil {
+		if err := writeInteropFragmented(conn, secondResponse, 3, 0); err != nil {
 			peerDone <- err
 			return
 		}
-		if err := writePhase7Fragmented(conn, firstResponse, 2, 0); err != nil {
+		if err := writeInteropFragmented(conn, firstResponse, 2, 0); err != nil {
 			peerDone <- err
 			return
 		}
 
-		unbind, err := readPhase7Frame(conn)
+		unbind, err := readInteropFrame(conn)
 		if err != nil {
 			peerDone <- err
 			return
@@ -147,7 +147,7 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 		}
 		response, err := wire.EncodeUnbindResponse(unbind.Header.Sequence)
 		if err == nil {
-			err = writePhase7Full(conn, response)
+			err = writeInteropFull(conn, response)
 		}
 		peerDone <- err
 	}()
@@ -221,7 +221,7 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 	}
 }
 
-func TestPhase7SlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
+func TestSlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func TestPhase7SlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
 		}
 		defer conn.Close()
 		_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-		request, err := readPhase7Frame(conn)
+		request, err := readInteropFrame(conn)
 		if err != nil {
 			return
 		}
@@ -248,9 +248,9 @@ func TestPhase7SlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
 			return
 		}
 		// Frame Assembly timing starts after the complete Header is available.
-		_ = writePhase7Full(conn, response[:wire.HeaderSize+2])
+		_ = writeInteropFull(conn, response[:wire.HeaderSize+2])
 		time.Sleep(150 * time.Millisecond)
-		_ = writePhase7Full(conn, response[wire.HeaderSize+2:])
+		_ = writeInteropFull(conn, response[wire.HeaderSize+2:])
 	}()
 
 	client, err := NewClient(
@@ -280,7 +280,7 @@ func TestPhase7SlowTrickleCannotExtendBindResponseDeadline(t *testing.T) {
 	<-peerDone
 }
 
-func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
+func TestAbruptTCPResetClosesBoundGeneration(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -295,7 +295,7 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 			peerDone <- err
 			return
 		}
-		request, err := readPhase7Frame(conn)
+		request, err := readInteropFrame(conn)
 		if err != nil {
 			_ = conn.Close()
 			peerDone <- err
@@ -311,7 +311,7 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 			Type: bind.Type, SystemID: "reset-peer",
 		})
 		if err == nil {
-			err = writePhase7Full(conn, response)
+			err = writeInteropFull(conn, response)
 		}
 		if err != nil {
 			_ = conn.Close()
@@ -367,7 +367,7 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 	}
 }
 
-func TestPhase7GracefulEOFClosesBoundGeneration(t *testing.T) {
+func TestGracefulEOFClosesBoundGeneration(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -385,7 +385,7 @@ func TestPhase7GracefulEOFClosesBoundGeneration(t *testing.T) {
 		defer conn.Close()
 		_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 
-		request, err := readPhase7Frame(conn)
+		request, err := readInteropFrame(conn)
 		if err != nil {
 			peerDone <- err
 			return
@@ -399,7 +399,7 @@ func TestPhase7GracefulEOFClosesBoundGeneration(t *testing.T) {
 			Type: bind.Type, SystemID: "eof-peer",
 		})
 		if err == nil {
-			err = writePhase7Full(conn, response)
+			err = writeInteropFull(conn, response)
 		}
 		if err != nil {
 			peerDone <- err

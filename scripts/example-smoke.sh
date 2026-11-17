@@ -2,7 +2,7 @@
 set -euo pipefail
 
 GO="${GO:-go}"
-ARTIFACT_DIR="${ARTIFACT_DIR:-artifacts/phase9}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-artifacts/smoke}"
 mkdir -p "$ARTIFACT_DIR"
 
 TMP_DIR="$(mktemp -d)"
@@ -36,7 +36,7 @@ cleanup() {
     cp "$SERVER_LOG" "$ARTIFACT_DIR/example-server.log"
   fi
   if [[ "$exit_code" -ne 0 ]]; then
-    echo "Phase 9 example/coverage check failed; captured logs:" >&2
+    echo "Example/coverage check failed; captured logs:" >&2
     [[ -f "$CLIENT_LOG" ]] && cat "$CLIENT_LOG" >&2
     [[ -f "$SERVER_LOG" ]] && cat "$SERVER_LOG" >&2
   fi
@@ -127,7 +127,7 @@ fi
   echo "GO_VERSION=$("$GO" version)"
   echo "GOOS=$("$GO" env GOOS)"
   echo "GOARCH=$("$GO" env GOARCH)"
-  echo "COVERAGE=artifacts/phase9/coverage.txt"
+  echo "COVERAGE=$ARTIFACT_DIR/coverage.txt"
   echo "CLIENT_SERVER_LOOPBACK_SMOKE=PASS"
   echo "GRACEFUL_CLIENT_SERVER_STOP=PASS"
 } >"$ARTIFACT_DIR/summary.txt"
