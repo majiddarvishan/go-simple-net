@@ -19,7 +19,7 @@ auto noop_packet()
     return [](const std::string&, uint32_t, const std::string&) {};
 }
 
-int run_server(const std::string& address)
+int run_server(const std::string& address, bool prefix_response)
 {
     // Pinex's public Client/Server and Session APIs are single-io_context-
     // thread objects. Construct, start, dispatch callbacks and stop on this
@@ -35,7 +35,8 @@ int run_server(const std::string& address)
         [&](const std::string& client_id, uint32_t sequence, const std::string& body) {
             try
             {
-                if (!server || server->send_response("cpp:" + body, sequence, client_id) != sequence)
+                const auto response = prefix_response ? "cpp:" + body : body;
+                if (!server || server->send_response(response, sequence, client_id) != sequence)
                     std::cerr << "Pinex server failed to admit response\n";
             }
             catch (const std::exception& error)
@@ -197,7 +198,9 @@ int main(int argc, char** argv)
     try
     {
         if (mode == "server")
-            return run_server(address);
+            return run_server(address, true);
+        if (mode == "server-echo")
+            return run_server(address, false);
         if (mode == "client")
             return run_client(address);
     }
