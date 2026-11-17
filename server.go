@@ -16,5 +16,8 @@ func NewServer(options ...ServerOption) (*Server, error) {
 	if err := validateServerConfig(config); err != nil {
 		return nil, err
 	}
-	return &Server{config: config}, nil
+	return &Server{
+		config:    config,
+		resources: newServerResourceLedger(config.owner, config),
+	}, nil
 }

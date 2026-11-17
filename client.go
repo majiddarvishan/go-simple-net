@@ -16,5 +16,8 @@ func NewClient(options ...ClientOption) (*Client, error) {
 	if err := validateClientConfig(config); err != nil {
 		return nil, err
 	}
-	return &Client{config: config}, nil
+	return &Client{
+		config:    config,
+		resources: newClientResourceLedger(config.owner),
+	}, nil
 }

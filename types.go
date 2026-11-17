@@ -34,11 +34,13 @@ type BindValidator func(BindInfo) error
 // Client is a configured messaging client. Network lifecycle methods are
 // implemented in the Client/Server orchestration phase.
 type Client struct {
-	config clientConfig
+	config    clientConfig
+	resources *ownerResourceLedger
 }
 
 // Server is a configured messaging server. Network lifecycle methods are
 // implemented in the Client/Server orchestration phase.
 type Server struct {
-	config serverConfig
+	config    serverConfig
+	resources *ownerResourceLedger
 }
