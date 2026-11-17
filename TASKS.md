@@ -341,7 +341,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] **PV-03 (NUL-free V2 Bind scope) — Implemented under PV-02A:** the new V2 Bind Request/Response omit the NUL; V1 Bind stays Pinex 1.5.0-compatible and the 10-byte Frame Header/Stream frames are unchanged. Any further version-specific wire changes require separate approval.
 - [ ] **PV-04/PV-05 — Peer capability validation and future V2-wire-specific APIs and cross-version tests:** PV-01 provides only local Go configuration; negotiation and wire-dependent behavior still require separate design/approval.
 
-**Release boundary:** The future-version design tasks do not reopen V1 or change the separate P9-06 `v1.0.0` release approval requirement. No code or CI changes were requested or performed.
+**Release boundary:** Future negotiation work remains out of scope; owner-approved PV-01, PV-02A and PV-02B introduce separately documented Go changes without reopening the legacy V1 wire contract. The P9-06 `v1.0.0` release task still requires separate explicit owner authorization.
 
 ---
 
