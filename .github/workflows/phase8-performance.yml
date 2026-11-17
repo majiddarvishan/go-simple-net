@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'phase8_benchmark_test.go'
+      - 'phase8_pinex_benchmark_test.go'
       - 'Makefile'
       - 'scripts/phase8-benchmark.sh'
       - '.github/workflows/phase8-performance.yml'

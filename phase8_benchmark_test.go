@@ -20,13 +20,66 @@ import (
 )
 
 type phase8BenchEnv struct {
-	closeOnce sync.Once
-	closeErr  error
-	server    *Server
-	clients   []*Client
-	sessions  []*Session
-	received  chan struct{}
-	errors    chan error
+	closeOnce        sync.Once
+	closeErr         error
+	server           *Server
+	clients          []*Client
+	sessions         []*Session
+	deliveryMu       sync.RWMutex
+	deliveryTrackers map[string]*phase8DeliveryTracker
+	errors           chan error
+}
+
+type phase8DeliveryTracker struct {
+	mu        sync.Mutex
+	waiters   map[uint32]chan struct{}
+	completed map[uint32]struct{}
+}
+
+func newPhase8DeliveryTracker() *phase8DeliveryTracker {
+	return &phase8DeliveryTracker{
+		waiters:   make(map[uint32]chan struct{}),
+		completed: make(map[uint32]struct{}),
+	}
+}
+
+func (t *phase8DeliveryTracker) wait(sequence uint32) <-chan struct{} {
+	ready := make(chan struct{}, 1)
+	t.mu.Lock()
+	if _, completed := t.completed[sequence]; completed {
+		delete(t.completed, sequence)
+		ready <- struct{}{}
+	} else {
+		t.waiters[sequence] = ready
+	}
+	t.mu.Unlock()
+	return ready
+}
+
+func (t *phase8DeliveryTracker) complete(sequence uint32) {
+	t.mu.Lock()
+	if ready := t.waiters[sequence]; ready != nil {
+		delete(t.waiters, sequence)
+		ready <- struct{}{}
+	} else {
+		t.completed[sequence] = struct{}{}
+	}
+	t.mu.Unlock()
+}
+
+func (e *phase8BenchEnv) registerDeliveryTracker(clientSession *Session) *phase8DeliveryTracker {
+	tracker := newPhase8DeliveryTracker()
+	e.deliveryMu.Lock()
+	e.deliveryTrackers[clientSession.conn.LocalAddr().String()] = tracker
+	e.deliveryMu.Unlock()
+	return tracker
+}
+
+func (e *phase8BenchEnv) deliveryTracker(remoteAddress string) *phase8DeliveryTracker {
+	e.deliveryMu.RLock()
+	tracker := e.deliveryTrackers[remoteAddress]
+	e.deliveryMu.RUnlock()
+	return tracker
 }
 
 type phase8CompletionResult struct {
@@ -37,10 +90,10 @@ type phase8CompletionResult struct {
 func newPhase8BenchEnv(b testing.TB, sessionCount int, applicationConcurrency, completionConcurrency uint32, respond bool, raiseWorkerCeilings bool) *phase8BenchEnv {
 	b.Helper()
 	env := &phase8BenchEnv{
-		clients:  make([]*Client, 0, sessionCount),
-		sessions: make([]*Session, 0, sessionCount),
-		received: make(chan struct{}, 4096),
-		errors:   make(chan error, 1),
+		clients:          make([]*Client, 0, sessionCount),
+		sessions:         make([]*Session, 0, sessionCount),
+		deliveryTrackers: make(map[string]*phase8DeliveryTracker, sessionCount),
+		errors:           make(chan error, 1),
 	}
 	serverOptions := []ServerOption{
 		WithServerListenAddress("127.0.0.1:0"),
@@ -54,11 +107,12 @@ func newPhase8BenchEnv(b testing.TB, sessionCount int, applicationConcurrency, c
 				}
 				return
 			}
-			select {
-			case env.received <- struct{}{}:
-			default:
-				env.recordError(errors.New("phase8 benchmark receive signal buffer exhausted"))
+			tracker := env.deliveryTracker(session.RemoteAddr().String())
+			if tracker == nil {
+				env.recordError(fmt.Errorf("no SendNoWait delivery tracker for peer %s", session.RemoteAddr()))
+				return
 			}
+			tracker.complete(request.Sequence)
 		}),
 	}
 	if applicationConcurrency != 0 {
@@ -111,6 +165,7 @@ func newPhase8BenchEnv(b testing.TB, sessionCount int, applicationConcurrency, c
 			b.Fatalf("Client %d has no Bound Session", i)
 		}
 		env.sessions = append(env.sessions, session)
+		env.registerDeliveryTracker(session)
 	}
 	return env
 }
@@ -418,6 +473,10 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	}
 	for worker := 0; worker < producers; worker++ {
 		session := env.sessions[worker%len(env.sessions)]
+		tracker := env.deliveryTracker(session.conn.LocalAddr().String())
+		if tracker == nil {
+			b.Fatalf("missing SendNoWait delivery tracker for Session %d", worker%len(env.sessions))
+		}
 		submit := submitSamples[worker]
 		delivery := deliverySamples[worker]
 		workerCount := counts[worker]
@@ -432,14 +491,16 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 			<-start
 			for operation := 0; operation < workerCount && !stop.Load(); operation++ {
 				began := time.Now()
-				if _, err := session.SendNoWait(payload); err != nil {
+				sequence, err := session.SendNoWait(payload)
+				if err != nil {
 					recordError(fmt.Errorf("SendNoWait: %w", err))
 					return
 				}
 				submit[operation] = time.Since(began).Nanoseconds()
+				received := tracker.wait(sequence)
 				timer.Reset(10 * time.Second)
 				select {
-				case <-env.received:
+				case <-received:
 					delivery[operation] = time.Since(began).Nanoseconds()
 				case <-timer.C:
 					recordError(errors.New("timed out waiting for SendNoWait delivery"))
@@ -482,6 +543,39 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 	phase8ReportSamples(b, deliveryLatencies, "delivery-")
 	phase8ReportSessionFairness(b, perSession)
 	phase8ReportRuntime(b, before, after, elapsed, goroutineCount, appSnapshot, completionWorkerCount)
+}
+
+func TestPhase8DeliveryTrackerCorrelation(t *testing.T) {
+	tracker := newPhase8DeliveryTracker()
+
+	first := tracker.wait(11)
+	second := tracker.wait(12)
+	tracker.complete(12)
+	select {
+	case <-second:
+	default:
+		t.Fatal("out-of-order completion was not routed to sequence 12")
+	}
+	select {
+	case <-first:
+		t.Fatal("sequence 11 was completed by sequence 12")
+	default:
+	}
+
+	tracker.complete(11)
+	select {
+	case <-first:
+	default:
+		t.Fatal("sequence 11 completion was not delivered")
+	}
+
+	tracker.complete(13)
+	early := tracker.wait(13)
+	select {
+	case <-early:
+	default:
+		t.Fatal("completion arriving before waiter registration was lost")
+	}
 }
 
 func TestPhase8RuntimeMetadata(t *testing.T) {

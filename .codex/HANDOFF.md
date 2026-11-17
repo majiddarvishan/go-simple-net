@@ -1013,3 +1013,12 @@ Owner executed `make verify` on source HEAD `708d5776e389dd04f0b60b347fa8cd15d42
 - Phase 8 full performance run [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627): still running at this handoff update; do not mark P8-01 or full automation validation complete until artifacts are reviewed.
 
 No production code or frozen contract changed.
+
+
+## 25. Phase 8 — SendNoWait benchmark correlation hardening (2026-11-17)
+
+A test-only benchmark measurement flaw was corrected before accepting the baseline: concurrent SendNoWait producers previously consumed delivery notifications from one shared channel, so a producer could be assigned another producer's delivery timestamp.
+
+The harness now routes notifications by TCP peer address and the returned per-Session sequence, including the race where server delivery precedes waiter registration. A focused test covers out-of-order and early notifications. The Phase 8 workflow was also configured to trigger when `phase8_pinex_benchmark_test.go` changes.
+
+The previous full Phase 8 run [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627) predates this fix and must not be used as final SendNoWait latency/fairness evidence. Run and inspect a fresh full workflow on the corrected harness. No production code or frozen contract changed.

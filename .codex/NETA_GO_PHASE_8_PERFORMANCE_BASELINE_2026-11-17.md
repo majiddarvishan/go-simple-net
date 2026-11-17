@@ -122,3 +122,16 @@ The new shared correctness entry point has now been exercised both locally by th
 - Full Phase 8 performance workflow [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627): IN PROGRESS at the time of this update. It has completed checkout and Go setup and is executing the full suite. No performance baseline or P8-01 completion is claimed until the run succeeds and artifacts are reviewed.
 
 The local and GitHub correctness evidence agrees. No production source, public API, wire protocol, defaults or resource limits were changed for this automation.
+
+
+## 11. SendNoWait benchmark correlation hardening — 2026-11-17
+
+During review of the first full run, the shared receive-signal channel was found to allow one concurrent producer to consume another producer's delivery signal. That did not affect production behavior, but could misattribute per-operation delivery latency and fairness samples.
+
+The benchmark harness now correlates each one-way Request with its own server-side delivery using:
+- the client TCP local address and matching server-side remote address to select the correct Session tracker;
+- the Session's returned Stream Request sequence to route the delivery notification;
+- a bounded-in-practice pending/completed map that also handles delivery racing ahead of waiter registration;
+- a focused test covering out-of-order and early delivery notification.
+
+The change is test-only. No production source, public API, protocol, defaults or resource limits changed. The prior Phase 8 workflow run was started before this correction and is not accepted as final SendNoWait latency evidence. A new full run will validate the corrected harness; P8-01 remains IN PROGRESS until that run and its artifacts are reviewed.
