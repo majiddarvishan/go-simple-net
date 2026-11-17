@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6 AUTHORIZED / IN PROGRESS; PHASE 7–9 NOT AUTHORIZED  
-**Current work:** Phase 6 is AUTHORIZED / IN PROGRESS. The Server listener, bounded Pre-Bind/Bound admission, BindValidator, duplicate-ID registry and terminal Stop are COMPLETE / CI PASS at source HEAD `${expected}`; see [Phase 6 Server report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md). The canonical task list is [TASKS.md](../TASKS.md). Client Connect/Bind and reconnect remain pending the owner decision on the missing Client SystemID/BindType input. Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
+**Current work:** Phase 6 is AUTHORIZED / IN PROGRESS. The Server listener, bounded Pre-Bind/Bound admission, BindValidator, duplicate-ID registry and terminal Stop are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`; see [Phase 6 Server report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md). The canonical task list is [TASKS.md](../TASKS.md). Client Connect/Bind and reconnect remain pending the owner decision on the missing Client SystemID/BindType input. Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 ## 1. Repository state
 
@@ -16,7 +16,7 @@
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - Phase 4 resource-admission source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
 - Phase 5 worker-scheduler source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
-- Phase 6 Server lifecycle/admission source verification HEAD: `${expected}` (11 tests; Go and Pinex golden CI PASS).
+- Phase 6 Server lifecycle/admission source verification HEAD: `8eead509c6817722d6b7c6f5e5a17e1734749911` (11 tests; Go and Pinex golden CI PASS).
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2, Phase 3, Phase 4 and Phase 5 source/tests are committed and verified by GitHub Actions.

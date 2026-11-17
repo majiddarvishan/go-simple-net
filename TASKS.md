@@ -5,7 +5,7 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `${expected}`  
+**Last verified source HEAD:** `8eead509c6817722d6b7c6f5e5a17e1734749911`  
 **Current phase:** Phase 6 — Client and Server orchestration (**AUTHORIZED / IN PROGRESS**, owner approval 2026-11-17). Phase 5 is COMPLETE / CI PASS.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
@@ -175,7 +175,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 ### Phase 6 Server implementation evidence — 2026-11-17
 
 - Report: [Phase 6 Server implementation report](.codex/NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md).
-- Source verification HEAD: `${expected}`.
+- Source verification HEAD: `8eead509c6817722d6b7c6f5e5a17e1734749911`.
 - P6-04 through P6-08 complete; P6-09 and P6-10 are partially complete on the Server side.
 - 11 focused Server lifecycle/admission tests.
 - Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
@@ -223,7 +223,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 |---|---|---|---|
 | 2026-11-17 | `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c` | Phase 3 source | Go [44057820360](https://github.com/majiddarvishan/neta-go/actions/runs/44057820360) PASS; C++ golden [44057820405](https://github.com/majiddarvishan/neta-go/actions/runs/44057820405) PASS |
 | 2026-11-17 | `c98f731fef89519d62d95248982538f25a36db82` | Documentation/handoff | Go [44058276200](https://github.com/majiddarvishan/neta-go/actions/runs/44058276200) PASS; C++ golden [44058274150](https://github.com/majiddarvishan/neta-go/actions/runs/44058274150) PASS |
-| 2026-11-17 | `${expected}` | Phase 6 Server lifecycle/admission | Go [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS |
+| 2026-11-17 | `8eead509c6817722d6b7c6f5e5a17e1734749911` | Phase 6 Server lifecycle/admission | Go [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS |
 
 ## Canonical references
 
