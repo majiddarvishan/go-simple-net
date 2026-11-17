@@ -9,8 +9,8 @@ import (
 const MaxSystemIDLength = 19
 
 var (
-	ErrInvalidBindType = errors.New("wire: invalid bind type")
-	ErrInvalidSystemID = errors.New("wire: invalid system ID")
+	ErrInvalidBindType  = errors.New("wire: invalid bind type")
+	ErrInvalidSystemID  = errors.New("wire: invalid system ID")
 	ErrMalformedBindBody = errors.New("wire: malformed bind body")
 )
 

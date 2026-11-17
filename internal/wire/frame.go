@@ -9,45 +9,45 @@ import (
 )
 
 const (
-	HeaderSize      = 10
-	MaxFrameSize    = 1 << 20
-	MaxBodySize     = MaxFrameSize - HeaderSize
+	HeaderSize   = 10
+	MaxFrameSize = 1 << 20
+	MaxBodySize  = MaxFrameSize - HeaderSize
 )
 
 type CommandID uint8
 
 const (
-	CommandBindRequest       CommandID = 0x01
-	CommandStreamRequest     CommandID = 0x02
-	CommandUnbindRequest     CommandID = 0x03
+	CommandBindRequest        CommandID = 0x01
+	CommandStreamRequest      CommandID = 0x02
+	CommandUnbindRequest      CommandID = 0x03
 	CommandEnquireLinkRequest CommandID = 0x04
 
-	CommandBindResponse       CommandID = 0x81
-	CommandStreamResponse     CommandID = 0x82
-	CommandUnbindResponse     CommandID = 0x83
+	CommandBindResponse        CommandID = 0x81
+	CommandStreamResponse      CommandID = 0x82
+	CommandUnbindResponse      CommandID = 0x83
 	CommandEnquireLinkResponse CommandID = 0x84
 )
 
 type CommandStatus uint8
 
 const (
-	StatusOK    CommandStatus = 0x00
+	StatusOK     CommandStatus = 0x00
 	StatusFailed CommandStatus = 0xFF
 )
 
 var (
-	ErrShortHeader   = errors.New("wire: frame shorter than header")
-	ErrInvalidLength = errors.New("wire: invalid frame length")
-	ErrFrameTooLarge = errors.New("wire: frame exceeds 1 MiB maximum")
-	ErrUnknownCommand = errors.New("wire: unknown command ID")
+	ErrShortHeader        = errors.New("wire: frame shorter than header")
+	ErrInvalidLength      = errors.New("wire: invalid frame length")
+	ErrFrameTooLarge      = errors.New("wire: frame exceeds 1 MiB maximum")
+	ErrUnknownCommand     = errors.New("wire: unknown command ID")
 	ErrInvalidControlBody = errors.New("wire: control command must have an empty body")
 )
 
 // Header is the fixed 10-byte Pinex frame header.
 type Header struct {
-	Length  uint32
-	Command CommandID
-	Status  CommandStatus
+	Length   uint32
+	Command  CommandID
+	Status   CommandStatus
 	Sequence uint32
 }
 
@@ -81,9 +81,9 @@ func ParseHeader(src []byte) (Header, error) {
 		return Header{}, ErrShortHeader
 	}
 	h := Header{
-		Length: binary.BigEndian.Uint32(src[0:4]),
-		Command: CommandID(src[4]),
-		Status: CommandStatus(src[5]),
+		Length:   binary.BigEndian.Uint32(src[0:4]),
+		Command:  CommandID(src[4]),
+		Status:   CommandStatus(src[5]),
 		Sequence: binary.BigEndian.Uint32(src[6:10]),
 	}
 	if h.Length < HeaderSize {
@@ -159,7 +159,6 @@ type SequenceGenerator struct {
 	value atomicUint32
 }
 
-// atomicUint32 is declared in sequence.go to keep sync/atomic isolated.
 func (s *SequenceGenerator) Next() uint32 {
 	return nextSequence(&s.value)
 }
