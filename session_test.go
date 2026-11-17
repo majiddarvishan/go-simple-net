@@ -1496,7 +1496,6 @@ func TestSessionIncomingEnquireLinkAnsweredWhenDisabled(t *testing.T) {
 	waitDone(t, session)
 }
 
-
 func TestSessionServerAggregateOutgoingQueueIncludesWriterOwnedFrame(t *testing.T) {
 	owner := newOwnerResourceLedger(ownerResourceLimits{
 		maxRetainedApplicationBytes:         64,
