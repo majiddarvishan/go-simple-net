@@ -13,7 +13,7 @@ Phases 1–8 are complete. The Phase 8 performance baseline and evidence review 
 - [Client example](examples/client/main.go)
 - [Server example](examples/server/main.go)
 - [Documentation index](docs/README.md)
-- [Go and platform support proposal](docs/SUPPORT.md)
+- [Approved Go and platform support baseline](docs/SUPPORT.md)
 - [V1 release-readiness checklist](docs/RELEASE_READINESS.md)
 - [Changelog](CHANGELOG.md)
 - [Phase 8 performance baseline and evidence](.codex/NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
