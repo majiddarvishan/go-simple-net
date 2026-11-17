@@ -11,6 +11,13 @@ import (
 	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
+// ProtocolVersion returns the Session's immutable locally selected version.
+// The default is V2. This is not evidence of remote peer V2 capability; both
+// versions currently encode exactly the same Pinex-compatible wire bytes.
+func (s *Session) ProtocolVersion() ProtocolVersion {
+	return s.config.protocolVersion
+}
+
 // SendRequest snapshots payload, admits one Stream Request without waiting for
 // network I/O, and reports its terminal result through completion.
 func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uint32, error) {
