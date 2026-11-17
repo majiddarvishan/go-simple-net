@@ -22,11 +22,11 @@ import (
 type phase8BenchEnv struct {
 	closeOnce sync.Once
 	closeErr  error
-	server   *Server
-	clients  []*Client
-	sessions []*Session
-	received chan struct{}
-	errors   chan error
+	server    *Server
+	clients   []*Client
+	sessions  []*Session
+	received  chan struct{}
+	errors    chan error
 }
 
 type phase8CompletionResult struct {
@@ -114,7 +114,6 @@ func newPhase8BenchEnv(b testing.TB, sessionCount int, applicationConcurrency, c
 	}
 	return env
 }
-
 
 func (e *phase8BenchEnv) close(t testing.TB) {
 	t.Helper()
@@ -735,23 +734,19 @@ func TestPhase8MemoryStabilitySoak(t *testing.T) {
 					}
 					return
 				}
-				select {
-				case result := <-done:
-					if result.err != nil {
-						select {
-						case errCh <- fmt.Errorf("producer %d Completion: %w", worker, result.err):
-						default:
-						}
-						return
+				result := <-done
+				if result.err != nil {
+					select {
+					case errCh <- fmt.Errorf("producer %d Completion: %w", worker, result.err):
+					default:
 					}
-					if !phase8ResponseMatches(result.response, payload) {
-						select {
-						case errCh <- fmt.Errorf("producer %d response payload mismatch", worker):
-						default:
-						}
-						return
+					return
+				}
+				if !phase8ResponseMatches(result.response, payload) {
+					select {
+					case errCh <- fmt.Errorf("producer %d response payload mismatch", worker):
+					default:
 					}
-				case <-ctx.Done():
 					return
 				}
 				time.Sleep(5 * time.Millisecond)
@@ -789,6 +784,9 @@ func TestPhase8MemoryStabilitySoak(t *testing.T) {
 		case <-deadline.C:
 			goto soakComplete
 		case <-ctx.Done():
+			cancel()
+			wg.Wait()
+			env.close(t)
 			t.Fatalf("memory soak context ended early: %v", ctx.Err())
 		}
 	}
@@ -821,4 +819,3 @@ soakComplete:
 		maxHeapInuse, final.TotalAlloc-baseline.TotalAlloc, final.NumGC-baseline.NumGC,
 		runtime.NumGoroutine())
 }
-
