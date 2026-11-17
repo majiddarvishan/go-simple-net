@@ -55,7 +55,7 @@ P6-04 through P6-08 are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c
 - Terminal/idempotent Server Stop: close Listener first, close Pre-Bind, concurrently Unbind Bound Sessions, force on caller Context expiry, wait only for internal Done.
 - 11 focused tests; Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
 
-P6-01..P6-03 (Client Connect/Bind, lifecycle and reconnect), Client-side P6-09/P6-10, and full P6-11 remain pending. The single blocker before Client Bind is the missing SystemID/BindType input in the frozen ClientOption surface.
+P6-01 Client Connect/Bind and P6-03 reconnect remain pending. P6-02 CurrentSession/Stop is implemented; generation publication and reconnect-disable integration remain pending. Client-side P6-09/P6-10 and full P6-11 remain pending. The single blocker before Client Bind is the missing SystemID/BindType input in the frozen ClientOption surface.
 
 
 ## Client CurrentSession/Stop implementation result — 2026-11-17

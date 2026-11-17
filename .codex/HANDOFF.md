@@ -6,7 +6,7 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6 AUTHORIZED / IN PROGRESS; PHASE 7–9 NOT AUTHORIZED  
-**Current work:** Phase 6 is AUTHORIZED / IN PROGRESS. The Server listener, bounded Pre-Bind/Bound admission, BindValidator, duplicate-ID registry and terminal Stop are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`; see [Phase 6 Server report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md). The canonical task list is [TASKS.md](../TASKS.md). Client CurrentSession/Stop are now COMPLETE / CI PASS at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b`; Client Connect/Bind and reconnect remain pending the owner decision on the missing Client SystemID/BindType input. Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
+**Current work:** Phase 6 is AUTHORIZED / IN PROGRESS. The Server listener, bounded Pre-Bind/Bound admission, BindValidator, duplicate-ID registry and terminal Stop are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`; see [Phase 6 Server report](NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md). The canonical task list is [TASKS.md](../TASKS.md). Client CurrentSession/Stop are COMPLETE / CI PASS at source HEAD `a05a735aa0383d2588b41b1a2258282d734ff72b` (4 tests; [Client lifecycle report](NETA_GO_PHASE_6_CLIENT_STOP_IMPLEMENTATION_2026-11-17.md)); Client Connect/Bind and reconnect remain pending the owner decision on the missing Client SystemID/BindType input. Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 ## 1. Repository state
 

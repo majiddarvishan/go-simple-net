@@ -27,7 +27,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
-| 6 | Client/Server orchestration and reconnect | AUTHORIZED / IN PROGRESS — Server slice CI PASS | Owner approved 2026-11-17 |
+| 6 | Client/Server orchestration and reconnect | AUTHORIZED / IN PROGRESS — Server + Client lifecycle slices CI PASS | Owner approved 2026-11-17 |
 | 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
@@ -176,7 +176,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 - Report: [Phase 6 Server implementation report](.codex/NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md).
 - Source verification HEAD: `8eead509c6817722d6b7c6f5e5a17e1734749911`.
-- P6-04 through P6-08 complete; P6-09 and P6-10 are partially complete on the Server side.
+- P6-04 through P6-08 complete; P6-02 is partially complete (Client CurrentSession/Stop); P6-09 and P6-10 are partially complete across Server and Client lifecycle slices.
 - 11 focused Server lifecycle/admission tests.
 - Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
 - Client Connect/Bind and reconnect remain blocked by the missing Client SystemID/BindType input decision. Client CurrentSession/Stop are implemented; Phase 7+ remain gated.
