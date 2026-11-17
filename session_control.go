@@ -26,6 +26,7 @@ func (s *Session) controlLoop() {
 		s.mu.Lock()
 		if s.isClosingLocked() {
 			s.mu.Unlock()
+			s.dispatchMu.Unlock()
 			return
 		}
 
@@ -49,7 +50,9 @@ func (s *Session) controlLoop() {
 					continue
 				}
 				pending.settled = true
-				s.removeQueuedRequestLocked(sequence)
+				if !pending.writerClaimed {
+					s.removeQueuedRequestLocked(sequence)
+				}
 				completionTasks = append(completionTasks, s.completionTaskLocked(
 					sequence, pending, Response{Sequence: sequence}, ErrRequestTimeout,
 				))

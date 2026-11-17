@@ -265,6 +265,58 @@ func TestSessionOnBoundIsQueuedBeforeApplicationRequest(t *testing.T) {
 	waitDone(t, session)
 }
 
+func TestSessionCompletionFIFOTracksSettlementOrder(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	var completed []uint32
+	first, err := session.SendRequest([]byte("first"), func(response Response, err error) {
+		if err != nil {
+			t.Errorf("first Completion: %v", err)
+			return
+		}
+		completed = append(completed, response.Sequence)
+	})
+	if err != nil {
+		t.Fatalf("first SendRequest: %v", err)
+	}
+	second, err := session.SendRequest([]byte("second"), func(response Response, err error) {
+		if err != nil {
+			t.Errorf("second Completion: %v", err)
+			return
+		}
+		completed = append(completed, response.Sequence)
+	})
+	if err != nil {
+		t.Fatalf("second SendRequest: %v", err)
+	}
+
+	_ = readWireFrame(t, peer)
+	_ = readWireFrame(t, peer)
+	secondResponse, err := wire.EncodeStreamResponse(second, wire.StatusOK, []byte("second-result"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstResponse, err := wire.EncodeStreamResponse(first, wire.StatusOK, []byte("first-result"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, secondResponse)
+	writeWireFrame(t, peer, firstResponse)
+
+	firstTask := waitForTask(t, dispatcher.takeCompletion)
+	secondTask := waitForTask(t, dispatcher.takeCompletion)
+	firstTask.run()
+	secondTask.run()
+	if len(completed) != 2 || completed[0] != second || completed[1] != first {
+		t.Fatalf("Completion order = %v, want [%d %d]", completed, second, first)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
 func TestSessionUnbindDrainsApplicationFIFO(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
