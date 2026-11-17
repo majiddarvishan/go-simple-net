@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: phase8-performance-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     name: Reproducible loopback benchmarks and profiles
@@ -30,6 +34,7 @@ jobs:
 
       - name: Capture runner and toolchain metadata
         run: |
+          set -euo pipefail
           mkdir -p artifacts
           {
             echo "UTC=$(date -u +%FT%TZ)"
@@ -54,7 +59,36 @@ jobs:
 
       - name: Run benchmark matrix
         run: |
-          go test -run '^$' -bench '^BenchmarkPhase8' -benchmem \
+          set -euo pipefail
+          go test -run '^ -benchmem \
+            -benchtime=250ms -count=3 -cpu=1,4 -timeout=35m \
+            | tee artifacts/benchmark-matrix.txt
+
+      - name: Capture representative CPU, heap, mutex and block profiles
+        run: |
+          set -euo pipefail
+          /usr/bin/time -v -o artifacts/profile-time.txt \
+            go test -run '^$' -bench '^BenchmarkPhase8ProfileBaseline$' \
+              -benchmem -benchtime=10s -count=1 -cpu=4 \
+              -cpuprofile=artifacts/cpu.pprof \
+              -memprofile=artifacts/heap.pprof \
+              -mutexprofile=artifacts/mutex.pprof \
+              -blockprofile=artifacts/block.pprof \
+              | tee artifacts/profile-run.txt
+          go tool pprof -top -nodecount=40 artifacts/cpu.pprof > artifacts/cpu-top.txt
+          go tool pprof -top -nodecount=40 artifacts/heap.pprof > artifacts/heap-top.txt
+          go tool pprof -top -nodecount=40 artifacts/mutex.pprof > artifacts/mutex-top.txt
+          go tool pprof -top -nodecount=40 artifacts/block.pprof > artifacts/block-top.txt
+
+      - name: Upload benchmark and profile artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neta-go-phase8-baseline-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+ -bench '^BenchmarkPhase8' -benchmem \
             -benchtime=250ms -count=3 -cpu=1,4 -timeout=35m \
             | tee artifacts/benchmark-matrix.txt
 
