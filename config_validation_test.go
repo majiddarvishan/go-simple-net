@@ -211,7 +211,6 @@ func TestOwnerAndSessionBudgetsDoNotImposeProductConstraints(t *testing.T) {
 	}
 }
 
-
 func TestServerWorker009CHardMaximums(t *testing.T) {
 	cases := []struct {
 		name  string
