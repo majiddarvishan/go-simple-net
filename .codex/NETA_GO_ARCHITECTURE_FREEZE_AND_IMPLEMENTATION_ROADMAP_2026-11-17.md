@@ -103,11 +103,12 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 - Implement validation after all options and before any Socket/Goroutine creation; enforce all WORKER-009C ranges, cross-field rules and overflow checks.
 - [x] Add public typed error categories and state enums. Keep API surface exactly within API-001.
 
-**Phase 2 — Wire protocol core**
-- Implement pure-Go internal/wire: 10-byte Header, command/status validation, Bind/Stream/Unbind/Enquire Link codecs, Sequence handling and 1 MiB total-frame ceiling.
-- Reject oversized outbound frames before sequence/pending/queue reservation.
-- Validate inbound Header before Body allocation; enforce the same limit in Pre-Bind and Bound phases.
-- Add deterministic golden vectors from the pinned C++ implementation.
+**Phase 2 — Wire protocol core (COMPLETE / GO CI + PINEX C++ GOLDEN CI PASS, 2026-11-17)**
+- [x] Implement pure-Go internal/wire: 10-byte Header, command/status fields, Bind/Stream/Unbind/Enquire Link codecs, Sequence handling and 1 MiB total-frame ceiling.
+- [x] Reject oversized outbound frames and validate inbound Header lengths before accepting a Frame.
+- [x] Add deterministic golden vectors from the pinned Pinex C++ 1.5.0 production PDU serializer source snapshot; compile the C++ fixture generator and compare Go output in CI.
+- [x] Match Pinex's omitted Bind Response Body default-value behavior.
+- [x] Pass gofmt, go vet, go test, go test -race and the C++ golden compatibility workflow.
 
 **Phase 3 — Session transport and lifecycle engine**
 - Implement one Reader and one serialized Writer per Session; no user callback inline in either loop.
@@ -165,7 +166,7 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. On 2026-11-17 the owner explicitly authorized Phase 1 only. Phase 2 (Wire Protocol) and all later phases remain gated by separate owner authorization. Phase 1 code and additional boundary tests are under final CI verification.
+Architecture Freeze is complete as a documentation/decision milestone. The owner explicitly authorized Phase 1 and subsequently authorized Phase 2 Wire Codec. Both phases are COMPLETE / CI PASS. Phase 3 (Session transport and lifecycle engine) and all later phases remain gated by separate owner authorization.
 
 ## Implementation Authorization — Phase 1 only (2026-11-17)
 
@@ -175,7 +176,7 @@ The owner explicitly authorized Phase 1 implementation in this conversation («�
 
 **Baseline at authorization:** main HEAD f3f525e5f36f65235a4c8e023cfafb4bfd6b5737. The authorization is also recorded in HANDOFF.md and IMPLEMENTATION_AUTHORIZATION_2026-11-17.md.
 
-**Boundary:** Phase 2 Wire Protocol and all later runtime/transport/worker/reconnect/interoperability/benchmark/release/deployment work remain NOT AUTHORIZED and require separate owner approval. No frozen architecture decision is reopened.
+**Boundary at Phase 1 authorization:** Phase 2 and later work were not yet authorized at that point. Phase 2 was subsequently authorized separately and is now complete. Phase 3 transport/lifecycle and later runtime/worker/reconnect/live-interoperability/benchmark/release/deployment work remain NOT AUTHORIZED and require separate owner approval. No frozen architecture decision is reopened.
 
 
 ## 11. Phase 1 completion record — 2026-11-17
