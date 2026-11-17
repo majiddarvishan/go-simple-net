@@ -42,6 +42,9 @@ func newPhase8BenchEnv(b *testing.B, sessionCount int, applicationConcurrency, c
 	}
 	serverOptions := []ServerOption{
 		WithServerListenAddress("127.0.0.1:0"),
+		WithServerApplicationWorkerIdleGrace(10 * time.Millisecond),
+		WithServerCompletionWorkerIdleGrace(10 * time.Millisecond),
+		WithServerOnCloseWorkerIdleGrace(10 * time.Millisecond),
 		WithServerOnRequestHandler(func(session *Session, request Request) {
 			if respond {
 				if err := session.SendResponse(request.Sequence, request.Payload, 0); err != nil {
@@ -81,12 +84,38 @@ func newPhase8BenchEnv(b *testing.B, sessionCount int, applicationConcurrency, c
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = env.server.Stop(ctx)
 		cancel()
+
+		retired := func() bool {
+			if env.server.callbacks.application.snapshot().Workers != 0 ||
+				env.server.callbacks.completion.snapshot().Workers != 0 ||
+				env.server.callbacks.onClose.snapshot().Workers != 0 {
+				return false
+			}
+			for _, client := range env.clients {
+				if client.callbacks.application.snapshot().Workers != 0 ||
+					client.callbacks.completion.snapshot().Workers != 0 ||
+					client.callbacks.onClose.snapshot().Workers != 0 {
+					return false
+				}
+			}
+			return true
+		}
+		deadline := time.Now().Add(2 * time.Second)
+		for !retired() && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+		}
+		if !retired() {
+			b.Errorf("benchmark cleanup left callback workers alive after idle grace")
+		}
 	})
 
 	for i := 0; i < sessionCount; i++ {
 		options := []ClientOption{
 			WithClientAddress(server.Addr().String()),
 			WithClientSystemID("phase8-" + strconv.Itoa(i)),
+			WithClientApplicationWorkerIdleGrace(10 * time.Millisecond),
+			WithClientCompletionWorkerIdleGrace(10 * time.Millisecond),
+			WithClientOnCloseWorkerIdleGrace(10 * time.Millisecond),
 		}
 		if completionConcurrency != 0 {
 			options = append(options, WithClientSessionOptions(
