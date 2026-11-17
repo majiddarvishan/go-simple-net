@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"runtime"
@@ -216,6 +215,33 @@ func phase8ReportRuntime(b *testing.B, before, after runtime.MemStats, elapsed t
 	}
 }
 
+
+func phase8ReportSessionFairness(b *testing.B, perSession [][]int64) {
+	var minP95, maxP95 float64
+	active := 0
+	for _, samples := range perSession {
+		if len(samples) == 0 {
+			continue
+		}
+		sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
+		p95 := phase8Percentile(samples, 0.95)
+		if active == 0 || p95 < minP95 {
+			minP95 = p95
+		}
+		if p95 > maxP95 {
+			maxP95 = p95
+		}
+		active++
+	}
+	if active > 1 {
+		b.ReportMetric(minP95, "session-p95-min-ns")
+		b.ReportMetric(maxP95, "session-p95-max-ns")
+		if minP95 > 0 {
+			b.ReportMetric(maxP95/minP95, "session-p95-ratio")
+		}
+	}
+}
+
 func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte, producers int) {
 	b.Helper()
 	if producers < 1 {
@@ -223,6 +249,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	}
 	counts := make([]int, producers)
 	samples := make([][]int64, producers)
+	submitSamples := make([][]int64, producers)
 	completions := make([]chan phase8CompletionResult, producers)
 	handlers := make([]CompletionHandler, producers)
 	for worker := 0; worker < producers; worker++ {
@@ -231,6 +258,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 			counts[worker]++
 		}
 		samples[worker] = make([]int64, counts[worker])
+		submitSamples[worker] = make([]int64, counts[worker])
 		completions[worker] = make(chan phase8CompletionResult, 1)
 		done := completions[worker]
 		handlers[worker] = func(response Response, err error) {
@@ -256,6 +284,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 		done := completions[worker]
 		handler := handlers[worker]
 		workerSamples := samples[worker]
+		workerSubmitSamples := submitSamples[worker]
 		workerCount := counts[worker]
 		wg.Add(1)
 		go func() {
@@ -267,6 +296,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 					recordError(fmt.Errorf("SendRequest: %w", err))
 					return
 				}
+				workerSubmitSamples[operation] = time.Since(began).Nanoseconds()
 				result := <-done
 				if result.err != nil {
 					recordError(fmt.Errorf("Completion: %w", result.err))
@@ -297,10 +327,17 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	env.checkError(b)
 
 	latencies := make([]int64, 0, b.N)
-	for _, workerSamples := range samples {
+	submitLatencies := make([]int64, 0, b.N)
+	perSession := make([][]int64, len(env.sessions))
+	for worker, workerSamples := range samples {
 		latencies = append(latencies, workerSamples...)
+		submitLatencies = append(submitLatencies, submitSamples[worker]...)
+		sessionIndex := worker % len(env.sessions)
+		perSession[sessionIndex] = append(perSession[sessionIndex], workerSamples...)
 	}
+	phase8ReportSamples(b, submitLatencies, "submit-")
 	phase8ReportSamples(b, latencies, "")
+	phase8ReportSessionFairness(b, perSession)
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32
 	for _, client := range env.clients {
@@ -385,12 +422,16 @@ func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, prod
 
 	submitLatencies := make([]int64, 0, b.N)
 	deliveryLatencies := make([]int64, 0, b.N)
+	perSession := make([][]int64, len(env.sessions))
 	for worker := 0; worker < producers; worker++ {
 		submitLatencies = append(submitLatencies, submitSamples[worker]...)
 		deliveryLatencies = append(deliveryLatencies, deliverySamples[worker]...)
+		sessionIndex := worker % len(env.sessions)
+		perSession[sessionIndex] = append(perSession[sessionIndex], deliverySamples[worker]...)
 	}
 	phase8ReportSamples(b, submitLatencies, "submit-")
 	phase8ReportSamples(b, deliveryLatencies, "delivery-")
+	phase8ReportSessionFairness(b, perSession)
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32
 	for _, client := range env.clients {
@@ -468,11 +509,17 @@ func BenchmarkPhase8RequestResponse(b *testing.B) {
 			sessions = []int{1}
 		}
 		for _, sessionCount := range sessions {
-			producers := []int{1, 4, 16}
+			var producers []int
+			switch sessionCount {
+			case 1:
+				producers = []int{1, 4, 16, 64}
+			case 8:
+				producers = []int{8, 32, 64}
+			case 32:
+				producers = []int{32, 64}
+			}
 			if size == wire.MaxBodySize {
 				producers = []int{1, 4}
-			} else if sessionCount == 1 && size <= 1024 {
-				producers = append(producers, 64)
 			}
 			for _, producerCount := range producers {
 				name := fmt.Sprintf("payload=%s/sessions=%d/producers=%d",
@@ -489,7 +536,13 @@ func BenchmarkPhase8RequestResponse(b *testing.B) {
 func BenchmarkPhase8SendNoWait(b *testing.B) {
 	for _, size := range []int{64, 1024, 4096} {
 		for _, sessionCount := range []int{1, 8, 32} {
-			for _, producerCount := range []int{1, 16} {
+			producers := []int{1, 16}
+			if sessionCount == 8 {
+				producers = []int{8, 32}
+			} else if sessionCount == 32 {
+				producers = []int{32, 64}
+			}
+			for _, producerCount := range producers {
 				name := fmt.Sprintf("payload=%s/sessions=%d/producers=%d",
 					phase8PayloadName(size), sessionCount, producerCount)
 				b.Run(name, func(b *testing.B) {
@@ -519,116 +572,30 @@ func BenchmarkPhase8ProfileBaseline(b *testing.B) {
 	phase8RunRequestResponse(b, env, phase8Payload(256), 4)
 }
 
-func phase8ReadFrame(conn net.Conn) (wire.Frame, error) {
-	var headerBytes [wire.HeaderSize]byte
-	if _, err := io.ReadFull(conn, headerBytes[:]); err != nil {
-		return wire.Frame{}, err
-	}
-	header, err := wire.ParseHeader(headerBytes[:])
-	if err != nil {
-		return wire.Frame{}, err
-	}
-	body := make([]byte, int(header.Length)-wire.HeaderSize)
-	if _, err := io.ReadFull(conn, body); err != nil {
-		return wire.Frame{}, err
-	}
-	return wire.Frame{Header: header, Body: body}, nil
-}
-
-func phase8WriteFull(conn net.Conn, frame []byte) error {
-	for len(frame) > 0 {
-		n, err := conn.Write(frame)
-		if err != nil {
-			return err
-		}
-		if n == 0 {
-			return io.ErrShortWrite
-		}
-		frame = frame[n:]
-	}
-	return nil
-}
-
-func phase8BlackholeClient(b *testing.B) (*Client, *Session, func()) {
+func phase8BlockedWriterSession(b *testing.B) (*Session, func()) {
 	b.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		b.Fatal(err)
-	}
-	peerStop := make(chan struct{})
-	peerDone := make(chan error, 1)
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			peerDone <- err
-			return
-		}
-		defer conn.Close()
-		if tcp, ok := conn.(*net.TCPConn); ok {
-			_ = tcp.SetReadBuffer(4096)
-		}
-		frame, err := phase8ReadFrame(conn)
-		if err != nil {
-			peerDone <- err
-			return
-		}
-		bind, err := wire.DecodeBindRequest(frame)
-		if err != nil {
-			peerDone <- err
-			return
-		}
-		response, err := wire.EncodeBindResponse(frame.Header.Sequence, wire.StatusOK, wire.Bind{
-			Type: bind.Type, SystemID: "phase8-blackhole",
-		})
-		if err == nil {
-			err = phase8WriteFull(conn, response)
-		}
-		if err != nil {
-			peerDone <- err
-			return
-		}
-		<-peerStop
-		peerDone <- nil
-	}()
-
-	client, err := NewClient(
-		WithClientAddress(listener.Addr().String()),
-		WithClientSystemID("phase8-saturation"),
-		WithClientSessionOptions(WithMaxQueuedOutgoingBytes(8<<20)),
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.maxQueuedOutgoingBytes = 8 << 20
+	owner := defaultOwnerConfig()
+	session := newBoundSessionWithResources(
+		local,
+		config,
+		sessionIdentity{role: sessionRoleClient, bindType: wire.BindBiDirectional},
+		newOwnerCallbackDispatcher(owner),
+		sessionHandlers{},
+		newClientResourceLedger(owner),
 	)
-	if err != nil {
-		_ = listener.Close()
-		b.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	err = client.Connect(ctx)
-	cancel()
-	if err != nil {
-		_ = listener.Close()
-		b.Fatalf("blackhole Client Connect: %v", err)
-	}
-	session, ok := client.CurrentSession()
-	if !ok {
-		_ = listener.Close()
-		b.Fatal("blackhole Client has no Bound Session")
-	}
 	cleanup := func() {
 		session.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_ = client.Stop(ctx)
-		cancel()
-		close(peerStop)
-		_ = listener.Close()
-		select {
-		case <-peerDone:
-		case <-time.After(3 * time.Second):
-		}
+		_ = peer.Close()
+		<-session.Done()
 	}
-	return client, session, cleanup
+	return session, cleanup
 }
 
 func BenchmarkPhase8QueueFullAdmission(b *testing.B) {
-	_, session, cleanup := phase8BlackholeClient(b)
+	session, cleanup := phase8BlockedWriterSession(b)
 	b.Cleanup(cleanup)
 	payload := phase8Payload(64 << 10)
 	saturated := false
