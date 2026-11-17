@@ -98,12 +98,12 @@ type bindRequestEvent struct {
 }
 
 type inboundFrame struct {
-	frame                  wire.Frame
-	applicationCharge      *applicationReadCharge
-	completionCharge       *completionReadCharge
-	ignoreRequest          bool
-	ignoreResponse         bool
-	completionCapacityErr  bool
+	frame                 wire.Frame
+	applicationCharge     *applicationReadCharge
+	completionCharge      *completionReadCharge
+	ignoreRequest         bool
+	ignoreResponse        bool
+	completionCapacityErr bool
 }
 
 // Session owns exactly one Reader and one serialized Writer for one TCP
