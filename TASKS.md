@@ -243,7 +243,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 - Corrected full Phase 8 workflow [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; artifact [14338552627](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003/artifacts/14338552627); benchmark harness SHA `c5ebca4d3d0b7f1d36270501add0b059525df2c2`.
 - Final pre-Phase-9 repository HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`: Go correctness [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) PASS; Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) PASS.
-- Owner's local `make verify` on 2026-11-17: PASS (gofmt, vet, uncached unit and race). The prior local stash remains preserved as `stash@{0}`; it has not been applied or dropped.
+- Owner's local `make verify` passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5` on 2026-11-17: PASS (gofmt, vet, uncached unit and race). The prior local stash remains preserved as `stash@{0}`; it has not been applied or dropped.
 - Five-minute soak: PASS; baseline/final heap 335,696/308,088 bytes; max HeapInuse 4,374,528 bytes; max RSS 91,348 KiB; 4,549 GC cycles; two goroutines after cleanup; retained/queued Application bytes stayed zero.
 - 512-Session Request/Response: 64 B at 123,864 ops/s (p95 6.57 ms, p99 9.58 ms, fairness ratio 1.352); 256 B at 116,244 ops/s (p95 8.84 ms, p99 11.97 ms, fairness ratio 1.319).
 - SendNoWait delivery correlation is now per TCP peer and per-Session sequence; concurrent routing integration test [phase8_delivery_test.go](phase8_delivery_test.go) passes ordinary and race CI.

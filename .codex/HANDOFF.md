@@ -1,12 +1,12 @@
 # Project Handoff — neta-go / Pinex Compatibility
 
-> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–6 are COMPLETE / CI PASS.** Phase 6 Client Connect/Bind, generation fencing, Full-Jitter reconnect and Server lifecycle/admission are implemented and verified. Final source HEAD: `f8ce7669d2bbde33d3134d300e3256ae290dc529`. Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) and pinned Pinex C++ 1.5.0 Golden Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) pass. Phase 7 live TCP interoperability and Phases 8–9 remain NOT AUTHORIZED.
+> **CANONICAL REVISION (2026-11-17):** Q-003-R1, PERF-002 A, PERF-003 A model, API-001b-FC-A, N-ORD2, DONE-A, C-ORD-B and WORKER-001..009C remain owner-approved. PROTOCOL-001 fixes Pinex's maximum Frame at 1 MiB total including the 10-byte Header. **Phases 1–8 are COMPLETE / CI PASS.** Phase 9 is owner-authorized and IN PROGRESS: P9-00 tracker reconciliation is complete; P9-01..P9-05 are authorized; P9-06 release tagging remains separately gated on explicit owner approval. Latest verified pre-Phase-9 HEAD: `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`; production source HEAD: `209c24a7dbc5a5aa3db95ec63705915406acacb6`. Go CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039), Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167), and Phase 8 Performance [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003) PASS.
 
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASES 1–8 COMPLETE / CI PASS; PHASE 9 IN PROGRESS / OWNER AUTHORIZED
-**Current work:** Phase 6 is COMPLETE / CI PASS at source HEAD `f8ce7669d2bbde33d3134d300e3256ae290dc529`. Server lifecycle/admission, Client CurrentSession/Stop, Client Connect/Bind, generation fencing, owner resource integration and reconnect supervisor are implemented. Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) and Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) PASS. See [Phase 6 Client Connect report](NETA_GO_PHASE_6_CLIENT_CONNECT_IMPLEMENTATION_2026-11-17.md) and root [TASKS.md](../TASKS.md). Phase 7 live TCP interoperability and Phases 8–9 remain NOT AUTHORIZED.
+**Current work:** P9-00 documentation/tracker reconciliation is complete. Next: Client example (P9-01) and Server example (P9-02), then public API/usage docs (P9-03), Pinex compatibility docs (P9-04), and test/CI plus release-readiness review (P9-05). P9-06 release tagging is not authorized yet. No production source/API/protocol/default change is part of P9-00.
 
 ## 1. Repository state
 
@@ -1053,11 +1053,11 @@ P8-01..P8-05 are COMPLETE:
 - Small/large CPU, heap, mutex and block profiles reviewed.
 - PERF-004 = **NO CHANGE**. Inbound payload pooling is forbidden by PERF-002 A; outbound pooling lacks a proven material performance win and would add hard-bounded retention/lifecycle/accounting complexity.
 - Correctness/Pinex compatibility CI PASS on latest repository HEAD [8986636f1fefbd2ebcad20df8e3fe66ed6c5fbbc](https://github.com/majiddarvishan/neta-go/actions/runs/44107389341) and [44107389316](https://github.com/majiddarvishan/neta-go/actions/runs/44107389316). The eight-producer/two-Session SendNoWait delivery-routing integration test is included in these gates.
-- Owner's local `make verify` passed on the earlier automation HEAD; local stash `stash@{0}` remains preserved and has not been applied or dropped.
+- Owner's local `make verify` on 2026-11-17 passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`: PASS (gofmt, vet, uncached unit and race); local stash `stash@{0}` remains preserved and has not been applied or dropped.
 
 The five-minute soak completed with heap 335,696 → 308,088 bytes, max HeapInuse 4,374,528 bytes, max RSS 91,348 KiB, 4,549 GC cycles and two goroutines after cleanup. Server retained/queued Application bytes stayed zero in periodic samples.
 
-No production code, public API, wire format, default, timeout/reconnect policy, worker ceiling or resource limit changed. Numeric performance thresholds remain intentionally unset pending owner workload review. Phase 9 remains NOT AUTHORIZED.
+No production code, public API, wire format, default, timeout/reconnect policy, worker ceiling or resource limit changed. Numeric performance thresholds remain intentionally unset pending owner workload review. At the time this Phase 8 closure entry was written, Phase 9 had not yet been authorized; Phase 9 was subsequently authorized in §29.
 
 
 ## 29. Phase 9 authorization and P9-00 tracker reconciliation — 2026-11-17

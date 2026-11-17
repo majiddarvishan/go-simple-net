@@ -4,7 +4,7 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Architecture:** Frozen; all fundamental owner decisions closed.  
-**Current implementation status:** Phases 1–5 COMPLETE / CI PASS; Phases 6–9 outside current authorization.
+**Current implementation status:** Phases 1–8 COMPLETE / CI PASS; Phase 9 P9-00..P9-05 OWNER AUTHORIZED / IN PROGRESS; P9-06 release tagging requires separate explicit owner approval.
 
 ## Owner authorization
 
@@ -263,3 +263,25 @@ Client CurrentSession/Stop sub-scope is COMPLETE / CI PASS at source HEAD `a05a7
 - Pinex Wire Compatibility [44071959704](https://github.com/majiddarvishan/neta-go/actions/runs/44071959704): PASS.
 
 Client Connect/Bind and reconnect remain pending the owner decision on the missing SystemID/BindType configuration.
+
+
+## Phase 9 Authorization — Documentation, Examples and V1 Release Readiness (2026-11-17)
+
+The owner approved the Phase 9 execution plan by replying «ادامه بده» after the plan and release boundary were presented.
+
+**Authorized scope:**
+- P9-00: reconcile repository status/tracker/README/HANDOFF/authorization records and refine Phase 9 acceptance criteria.
+- P9-01: add a runnable Client example for Connect/Bind, SendRequest/Completion, SendNoWait, error handling and graceful Stop.
+- P9-02: add a runnable Server example for Start/Addr, BindValidator, OnRequest/SendResponse, OnClose and graceful Stop.
+- P9-03: complete public GoDoc and user-facing API, configuration, ownership, callback, error, timeout, reconnect, lifecycle, shutdown and Quick Start documentation.
+- P9-04: document Pinex 1.5.0 compatibility, golden evidence, live TCP interoperability and limitations.
+- P9-05: review example/test/CI coverage, supported Go/platform baseline, changelog/versioning and release readiness.
+
+**Strict boundaries:**
+- P9-06 (creating a V1 release tag/release) is **NOT AUTHORIZED** by this approval. It requires successful P9-05 acceptance and separate explicit owner approval immediately before release.
+- No production API signature, wire format, configuration default/range, timeout/reconnect behavior, callback order, worker topology, payload ownership or resource-accounting contract is reopened.
+- Example code may be added under `examples/`; documentation and CI/test harness changes are in scope. Production package behavior changes require separate review and approval.
+- No new third-party dependency is approved.
+- Keep the owner's local `stash@{0}` untouched pending exact local patch review.
+
+**Baseline:** repository HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`; production source HEAD `209c24a7dbc5a5aa3db95ec63705915406acacb6`. Go correctness CI [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) PASS; Phase 8 performance workflow [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003) PASS.
