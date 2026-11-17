@@ -156,7 +156,7 @@ func TestPhase7TCPFragmentedBindAndOutOfOrderResponses(t *testing.T) {
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("fragment-client"),
 		WithBindResponseTimeout(3*time.Second),
-		WithClientSessionOptions(WithFrameAssemblyTimeout(2*time.Second)),
+		WithClientSessionOptions(WithFrameAssemblyTimeout(2*time.Second), WithProtocolVersion(ProtocolVersionV1)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -330,6 +330,7 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 	client, err := NewClient(
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("reset-client"),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 		WithClientOnCloseHandler(func(_ *Session, cause error) {
 			closed <- cause
 		}),
@@ -413,6 +414,7 @@ func TestPhase7GracefulEOFClosesBoundGeneration(t *testing.T) {
 	client, err := NewClient(
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("eof-client"),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 		WithClientOnCloseHandler(func(_ *Session, cause error) {
 			closed <- cause
 		}),
