@@ -8,8 +8,8 @@ help:
 	@echo "  make race        - uncached race detector"
 	@echo "  make verify      - all correctness checks"
 	@echo "  make perf-smoke  - short benchmark smoke test"
-	@echo "  make benchmark      - complete benchmark, soak and profiles"
-	@echo "  make smoke      - coverage snapshot and paired Client/Server example smoke"
+	@echo "  make benchmark   - complete benchmark, soak and profiles"
+	@echo "  make smoke       - coverage snapshot and paired Client/Server example smoke"
 	@echo "  make soak        - five-minute mixed-payload memory soak"
 
 check:

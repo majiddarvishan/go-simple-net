@@ -35,6 +35,11 @@ jobs:
           ARTIFACT_DIR: artifacts/smoke
         run: make smoke
 
+      - name: Validate benchmark smoke entry point
+        env:
+          ARTIFACT_DIR: artifacts/performance-smoke
+        run: make perf-smoke
+
       - name: Upload correctness and example smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
