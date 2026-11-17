@@ -201,9 +201,7 @@ func phase8ReportSamples(b *testing.B, samples []int64, prefix string) {
 	b.ReportMetric(phase8Percentile(samples, 0.99), prefix+"p99-ns")
 }
 
-func phase8ReportRuntime(b *testing.B, before runtime.MemStats, elapsed time.Duration, appWorkers callbackWorkerPoolSnapshot, completionWorkers uint32) {
-	var after runtime.MemStats
-	runtime.ReadMemStats(&after)
+func phase8ReportRuntime(b *testing.B, before, after runtime.MemStats, elapsed time.Duration, appWorkers callbackWorkerPoolSnapshot, completionWorkers uint32) {
 	if b.N > 0 {
 		b.ReportMetric(float64(after.TotalAlloc-before.TotalAlloc)/float64(b.N), "heap-alloc-B/op")
 	}
@@ -291,6 +289,8 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	wg.Wait()
 	b.StopTimer()
 	elapsed := b.Elapsed()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
 	if firstError != nil {
 		b.Fatalf("request/response benchmark failed: %v", firstError)
 	}
@@ -306,7 +306,7 @@ func phase8RunRequestResponse(b *testing.B, env *phase8BenchEnv, payload []byte,
 	for _, client := range env.clients {
 		completionWorkerCount += client.callbacks.completion.snapshot().Workers
 	}
-	phase8ReportRuntime(b, before, elapsed, appSnapshot, completionWorkerCount)
+	phase8ReportRuntime(b, before, after, elapsed, appSnapshot, completionWorkerCount)
 }
 
 func phase8RunSendNoWait(b *testing.B, env *phase8BenchEnv, payload []byte, producers int) {
