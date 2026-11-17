@@ -60,9 +60,9 @@ type Server struct {
 	stopDone   chan struct{}
 	stopErr    error
 
-	sessions      map[*Session]struct{}
-	preBind       map[*Session]struct{}
+	sessions       map[*Session]struct{}
+	preBind        map[*Session]struct{}
 	pendingSockets uint32
-	pendingIDs    map[string]*Session
-	boundIDs      map[string]*Session
+	pendingIDs     map[string]*Session
+	boundIDs       map[string]*Session
 }

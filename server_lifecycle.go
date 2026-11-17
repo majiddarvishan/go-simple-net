@@ -101,9 +101,9 @@ func (s *Server) acceptLoop(listener net.Listener, ready chan<- struct{}, done c
 		s.mu.Unlock()
 
 		handlers := sessionHandlers{
-			onBound:   s.config.onBound,
-			onRequest: s.config.onRequest,
-			onClose:   s.config.onClose,
+			onBound:         s.config.onBound,
+			onRequest:       s.config.onRequest,
+			onClose:         s.config.onClose,
 			onBoundInternal: s.sessionBecameBound,
 			onDoneInternal:  s.sessionDone,
 		}
