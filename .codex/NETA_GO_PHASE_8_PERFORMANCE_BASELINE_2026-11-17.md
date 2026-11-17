@@ -135,3 +135,46 @@ The benchmark harness now correlates each one-way Request with its own server-si
 - a focused test covering out-of-order and early delivery notification.
 
 The change is test-only. No production source, public API, protocol, defaults or resource limits changed. The prior Phase 8 workflow run was started before this correction and is not accepted as final SendNoWait latency evidence. A new full run will validate the corrected harness; P8-01 remains IN PROGRESS until that run and its artifacts are reviewed.
+
+
+## 12. First full-run artifact review — preliminary, not accepted as final baseline
+
+**Workflow:** [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627) — PASS  
+**Source SHA:** `708d5776e389dd04f0b60b347fa8cd15d42d40bc`  
+**Artifact:** [neta-go-phase8-708d5776e389.zip](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627/artifacts/14338171799)  
+**Artifact ID:** `14338171799`  
+**Runner:** Ubuntu 24.04, Go 1.23.12, Linux/amd64, 4 vCPU, Intel Xeon 6975P-C.
+
+The full script completed successfully in about 9m22s of job execution. All workload groups except SendNoWait have usable preliminary evidence. The SendNoWait results are excluded because concurrent producer delivery signals were not correlated to their own Session sequence; the corrected tracker is committed in `c5ebca4d3d0b7f1d36270501add0b059525df2c2` and a new full run is in progress.
+
+### Preliminary stable evidence
+
+- Five-minute mixed-payload soak: PASS.
+  - baseline heap: 319,200 bytes; final heap: 317,944 bytes;
+  - maximum HeapInuse: 4 MiB;
+  - maximum RSS: 88,492 KiB;
+  - cumulative allocations: 13,341,453,008 bytes; GC cycles: 4,609;
+  - goroutines after cleanup: 2;
+  - periodic samples showed server retained and queued Application bytes at zero.
+- Queue Full admission: median 16.61 ns/op, 0 B/op, 0 allocs/op.
+- 512 Sessions, 64-byte Request/Response: 134,807 ops/s, p95 5.88 ms, p99 8.58 ms, per-Session p95 max/min ratio 1.294.
+- 512 Sessions, 256-byte Request/Response: 125,931 ops/s, p95 7.79 ms, p99 9.64 ms, per-Session p95 max/min ratio 1.238.
+- 256-byte profile workload, one CPU: 82,947 ops/s, p50 47.6 µs, p95 57.0 µs, p99 67.7 µs, 1,712 B/op, 18 allocs/op.
+- 256-byte profile workload, four CPUs: 61,187 ops/s, p50 61.6 µs, p95 102.9 µs, p99 132.6 µs, 1,734 B/op, 19 allocs/op.
+- Near-1 MiB profile workload, one CPU: 1,311 ops/s, p50 762.9 µs, p95 788.5 µs, p99 804.4 µs, about 4.19 MB/op, 21 allocs/op.
+- Near-1 MiB profile workload, four CPUs: 1,153 ops/s, p50 817.6 µs, p95 1.22 ms, p99 1.47 ms, about 4.19 MB/op, 21 allocs/op.
+
+### Preliminary profile interpretation
+
+- Small-payload allocation profile: `buildStreamFrame` 33.61% and `Session.readFrame` 29.59% of sampled alloc_space. Callback completion-task/queue allocations are secondary.
+- Large-payload allocation profile: `Session.readFrame` 50.08% and `buildStreamFrame` 49.88%.
+- CPU profile: `internal/runtime/syscall.Syscall6` 33.16% flat; `Session.controlLoop` 12.62% cumulative; `runtime.selectgo` 9.67% cumulative. This does not yet justify a timer/control-loop redesign.
+- Mutex profile is not a strong case for redesign: total sampled delay was about 677 ms; the largest attribution was `sync.(*Mutex).Unlock` and runtime lost-contended-lock accounting.
+
+### PERF-004 candidate assessment — pending corrected rerun
+
+`buildStreamFrame` is the largest avoidable allocation candidate, but its allocation is also the safe caller-payload snapshot held until the single Writer finishes. Reuse would need a strictly bounded retention policy and correct recycling on successful write, failed write, close, queue cancellation and admission races. A generic `sync.Pool` would not provide the required hard retained-memory bound. Per-Session pooling would introduce a new per-Session retained-memory allowance and must be reconciled with owner resource accounting.
+
+`Session.readFrame` allocates the owned inbound payload that may be retained by the application. Pooling/recycling that memory is prohibited by PERF-002 A. No inbound pooling is proposed.
+
+**Current decision:** no production optimization is accepted from this preliminary run. Re-run on the corrected SendNoWait harness, compare the same workload, then decide whether a strictly bounded outbound-only reuse design provides enough measured benefit to justify its resource-accounting and lifecycle complexity. If not, record PERF-004 = NO CHANGE.

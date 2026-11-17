@@ -1022,3 +1022,14 @@ A test-only benchmark measurement flaw was corrected before accepting the baseli
 The harness now routes notifications by TCP peer address and the returned per-Session sequence, including the race where server delivery precedes waiter registration. A focused test covers out-of-order and early notifications. The Phase 8 workflow was also configured to trigger when `phase8_pinex_benchmark_test.go` changes.
 
 The previous full Phase 8 run [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627) predates this fix and must not be used as final SendNoWait latency/fairness evidence. Run and inspect a fresh full workflow on the corrected harness. No production code or frozen contract changed.
+
+
+## 26. Phase 8 — Preliminary full-run evidence and profile review (2026-11-17)
+
+The first complete Phase 8 workflow [44103718627](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627) completed PASS and uploaded artifact [14338171799](https://github.com/majiddarvishan/neta-go/actions/runs/44103718627/artifacts/14338171799), source SHA `708d5776e389dd04f0b60b347fa8cd15d42d40bc`.
+
+The artifact was downloaded and inspected. The five-minute soak passed with baseline/final heap 319,200/317,944 bytes, max HeapInuse 4 MiB, max RSS 88,492 KiB, 4,609 GC cycles and two goroutines after cleanup. Server retained/queued Application bytes stayed at zero in periodic samples. The 512-Session Request/Response scaling, queue-full, codec and profile results are summarized in the Phase 8 baseline report.
+
+SendNoWait metrics from this run are excluded because the initial test harness could attribute one producer's delivery signal to another producer. This was corrected in commit `c5ebca4d3d0b7f1d36270501add0b059525df2c2`; a new full Phase 8 run is required and is currently queued/running.
+
+Profile review identifies outbound `buildStreamFrame` as a possible allocation optimization and inbound `Session.readFrame` as an ownership-required allocation. PERF-002 A forbids recycling inbound payloads. Any outbound reuse must be strictly bounded and reconciled with owner resource accounting. No production optimization has been accepted yet.
