@@ -9,24 +9,24 @@ import (
 )
 
 const (
-	defaultRequestTimeout            = 30 * time.Second
-	defaultFrameAssemblyTimeout      = 30 * time.Second
-	defaultConnectTimeout            = 30 * time.Second
-	defaultBindResponseTimeout       = 30 * time.Second
-	defaultPreBindHandshakeTimeout   = 30 * time.Second
-	defaultUnbindTimeout             = 10 * time.Second
-	defaultWriteTimeout              = 30 * time.Second
-	defaultEnquireLinkIdleInterval   = 30 * time.Second
+	defaultRequestTimeout             = 30 * time.Second
+	defaultFrameAssemblyTimeout       = 30 * time.Second
+	defaultConnectTimeout             = 30 * time.Second
+	defaultBindResponseTimeout        = 30 * time.Second
+	defaultPreBindHandshakeTimeout    = 30 * time.Second
+	defaultUnbindTimeout              = 10 * time.Second
+	defaultWriteTimeout               = 30 * time.Second
+	defaultEnquireLinkIdleInterval    = 30 * time.Second
 	defaultEnquireLinkResponseTimeout = 10 * time.Second
-	defaultWorkerIdleGrace           = 30 * time.Second
+	defaultWorkerIdleGrace            = 30 * time.Second
 
-	defaultQueuedApplicationBytes   = uint64(4 << 20)
-	defaultQueuedControlBytes       = uint64(4 << 10)
+	defaultQueuedApplicationBytes    = uint64(4 << 20)
+	defaultQueuedControlBytes        = uint64(4 << 10)
 	defaultAggregateQueuedFrameBytes = uint64(256 << 20)
-	defaultRetainedApplicationBytes = uint64(16 << 20)
-	defaultOwnerApplicationBytes    = uint64(512 << 20)
-	defaultRetainedCompletionBytes  = uint64(16 << 20)
-	defaultOwnerCompletionBytes     = uint64(256 << 20)
+	defaultRetainedApplicationBytes  = uint64(16 << 20)
+	defaultOwnerApplicationBytes     = uint64(512 << 20)
+	defaultRetainedCompletionBytes   = uint64(16 << 20)
+	defaultOwnerCompletionBytes      = uint64(256 << 20)
 
 	defaultBoundSessions       = uint32(1024)
 	defaultPendingPreBind      = uint32(128)
@@ -41,39 +41,39 @@ const (
 )
 
 const (
-	maxApplicationWorkers       = uint32(512)
-	maxCompletionWorkers        = uint32(256)
-	maxOnCloseWorkers           = uint32(128)
+	maxApplicationWorkers         = uint32(512)
+	maxCompletionWorkers          = uint32(256)
+	maxOnCloseWorkers             = uint32(128)
 	maxSessionCallbackConcurrency = uint32(32)
-	maxOnCloseEventCredits      = uint32(4096)
-	maxSessionApplicationFrames = uint32(1024)
+	maxOnCloseEventCredits        = uint32(4096)
+	maxSessionApplicationFrames   = uint32(1024)
 	maxAggregateApplicationFrames = uint32(262144)
-	maxSessionRequests          = uint32(512)
-	maxOwnerRequests            = uint32(131072)
-	maxSessionRetainedBytes     = uint64(64 << 20)
-	maxOwnerApplicationBytes    = uint64(2 << 30)
-	maxOwnerCompletionBytes     = uint64(1 << 30)
-	maxWorkerIdleGrace          = 10 * time.Minute
+	maxSessionRequests            = uint32(512)
+	maxOwnerRequests              = uint32(131072)
+	maxSessionRetainedBytes       = uint64(64 << 20)
+	maxOwnerApplicationBytes      = uint64(2 << 30)
+	maxOwnerCompletionBytes       = uint64(1 << 30)
+	maxWorkerIdleGrace            = 10 * time.Minute
 )
 
 type sessionConfig struct {
-	requestTimeout              time.Duration
-	frameAssemblyTimeout        time.Duration
-	unbindTimeout               time.Duration
-	writeTimeout                time.Duration
-	enquireLinkIdleInterval     time.Duration
-	enquireLinkResponseTimeout  time.Duration
-	maxQueuedOutgoingBytes      uint64
-	maxQueuedIncomingBytes      uint64
-	maxQueuedControlBytes       uint64
-	applicationConcurrency      uint32
-	completionConcurrency       uint32
+	requestTimeout               time.Duration
+	frameAssemblyTimeout         time.Duration
+	unbindTimeout                time.Duration
+	writeTimeout                 time.Duration
+	enquireLinkIdleInterval      time.Duration
+	enquireLinkResponseTimeout   time.Duration
+	maxQueuedOutgoingBytes       uint64
+	maxQueuedIncomingBytes       uint64
+	maxQueuedControlBytes        uint64
+	applicationConcurrency       uint32
+	completionConcurrency        uint32
 	maxIncomingApplicationFrames uint32
 	maxOutgoingApplicationFrames uint32
-	maxOutstandingRequests      uint32
-	maxRetainedApplicationBytes uint64
-	maxRetainedCompletionBytes  uint64
-	invalidOption               string
+	maxOutstandingRequests       uint32
+	maxRetainedApplicationBytes  uint64
+	maxRetainedCompletionBytes   uint64
+	invalidOption                string
 }
 
 type ownerConfig struct {
@@ -90,15 +90,15 @@ type ownerConfig struct {
 }
 
 type clientConfig struct {
-	address            string
-	connectTimeout     time.Duration
+	address             string
+	connectTimeout      time.Duration
 	bindResponseTimeout time.Duration
-	autoReconnect      bool
-	onBound            OnBoundHandler
-	onClose            OnCloseHandler
-	session            sessionConfig
-	owner              ownerConfig
-	invalidOption      string
+	autoReconnect       bool
+	onBound             OnBoundHandler
+	onClose             OnCloseHandler
+	session             sessionConfig
+	owner               ownerConfig
+	invalidOption       string
 }
 
 type serverConfig struct {
@@ -109,7 +109,7 @@ type serverConfig struct {
 	onClose                             OnCloseHandler
 	preBindHandshakeTimeout             time.Duration
 	maxBoundSessions                    uint32
-	maxPendingPreBindSessions            uint32
+	maxPendingPreBindSessions           uint32
 	maxAggregateQueuedApplicationBytes  uint64
 	maxAggregateQueuedApplicationFrames uint32
 	session                             sessionConfig
@@ -190,7 +190,7 @@ func defaultServerConfig() serverConfig {
 	return serverConfig{
 		preBindHandshakeTimeout:             defaultPreBindHandshakeTimeout,
 		maxBoundSessions:                    defaultBoundSessions,
-		maxPendingPreBindSessions:            defaultPendingPreBind,
+		maxPendingPreBindSessions:           defaultPendingPreBind,
 		maxAggregateQueuedApplicationBytes:  defaultAggregateQueuedFrameBytes,
 		maxAggregateQueuedApplicationFrames: defaultAggregateFrames,
 		session:                             defaultSessionConfig(),
