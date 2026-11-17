@@ -87,6 +87,10 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 	state := s.state
 	role := s.role
 	s.lastActivity = time.Now()
+	if state == SessionStateBound && s.enquireLinkQueued && !s.enquireLinkWriting {
+		s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+		s.clearProbeLocked()
+	}
 	s.mu.Unlock()
 	s.signalControl()
 

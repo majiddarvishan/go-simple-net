@@ -2,6 +2,7 @@ package neta
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"io"
 	"net"
@@ -88,6 +89,18 @@ func (d *testSessionDispatcher) takeCompletion() (callbackTask, bool) {
 	task := d.completion[0]
 	d.completion[0] = callbackTask{}
 	d.completion = d.completion[1:]
+	return task, true
+}
+
+func (d *testSessionDispatcher) takeOnClose() (callbackTask, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.onClose) == 0 {
+		return callbackTask{}, false
+	}
+	task := d.onClose[0]
+	d.onClose[0] = callbackTask{}
+	d.onClose = d.onClose[1:]
 	return task, true
 }
 
@@ -450,6 +463,141 @@ func TestSessionReadsFragmentedHeaderAndBody(t *testing.T) {
 	}
 	session.Close()
 	waitDone(t, session)
+}
+
+func TestSessionEnquireLinkDisabledWhenIdleIntervalIsZero(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 0
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	_ = peer.SetReadDeadline(time.Now().Add(60 * time.Millisecond))
+	var one [1]byte
+	if _, err := peer.Read(one[:]); err == nil {
+		t.Fatal("EnquireLink was sent while automatic probes were disabled")
+	} else if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("unexpected read error: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionCancelsQueuedEnquireLinkAfterInboundActivity(t *testing.T) {
+	local, peer := net.Pipe()
+	config := defaultSessionConfig()
+	config.enquireLinkIdleInterval = 40 * time.Millisecond
+	config.enquireLinkResponseTimeout = 100 * time.Millisecond
+	session := newTestBoundSession(local, config, &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("writer-blocker")); err != nil {
+		t.Fatalf("SendNoWait: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		queued := session.enquireLinkQueued && !session.enquireLinkWriting
+		session.mu.Unlock()
+		if queued {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	queued := session.enquireLinkQueued && !session.enquireLinkWriting
+	session.mu.Unlock()
+	if !queued {
+		t.Fatal("EnquireLink was not queued behind the blocked Writer")
+	}
+
+	inbound, err := wire.EncodeStreamRequest(61, []byte("activity"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, inbound)
+	deadline = time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		session.mu.Lock()
+		stillQueued := session.enquireLinkQueued
+		session.mu.Unlock()
+		if !stillQueued {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	session.mu.Lock()
+	stillQueued := session.enquireLinkQueued
+	session.config.enquireLinkIdleInterval = 0
+	session.mu.Unlock()
+	if stillQueued {
+		t.Fatal("inbound activity did not cancel the queued EnquireLink")
+	}
+
+	outbound := readWireFrame(t, peer)
+	if outbound.Header.Command != wire.CommandStreamRequest || string(outbound.Body) != "writer-blocker" {
+		t.Fatalf("unexpected outbound frame: %+v", outbound.Header)
+	}
+	_ = peer.SetReadDeadline(time.Now().Add(60 * time.Millisecond))
+	var one [1]byte
+	if _, err := peer.Read(one[:]); err == nil {
+		t.Fatal("cancelled EnquireLink was transmitted")
+	} else if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("unexpected read error: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
+func TestSessionOnCloseIsQueuedOnlyAfterDone(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	observedDone := make(chan bool, 1)
+	session := newBoundSession(local, defaultSessionConfig(), sessionIdentity{
+		role: sessionRoleClient, bindType: wire.BindBiDirectional,
+	}, dispatcher, sessionHandlers{
+		onClose: func(s *Session, _ error) {
+			select {
+			case <-s.Done():
+				observedDone <- true
+			default:
+				observedDone <- false
+			}
+		},
+	})
+	defer peer.Close()
+
+	session.Close()
+	waitDone(t, session)
+	task := waitForTask(t, dispatcher.takeOnClose)
+	task.run()
+	select {
+	case done := <-observedDone:
+		if !done {
+			t.Fatal("OnClose ran before Session.Done")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnClose callback did not run")
+	}
+}
+
+func TestSessionRejectsZeroSequence(t *testing.T) {
+	local, peer := net.Pipe()
+	session := newTestBoundSession(local, defaultSessionConfig(), &testSessionDispatcher{}, sessionHandlers{})
+	defer peer.Close()
+
+	header := make([]byte, wire.HeaderSize)
+	binary.BigEndian.PutUint32(header[0:4], uint32(wire.HeaderSize))
+	binary.BigEndian.PutUint16(header[4:6], uint16(wire.CommandStreamRequest))
+	binary.BigEndian.PutUint32(header[6:10], 0)
+	writeWireFrame(t, peer, header)
+	waitDone(t, session)
+	if !errors.Is(session.Err(), ErrProtocol) {
+		t.Fatalf("expected ErrProtocol for zero sequence, got %v", session.Err())
+	}
+	if err := session.SendResponse(0, nil, 0); !errors.Is(err, ErrProtocol) {
+		t.Fatalf("SendResponse with zero sequence = %v, want ErrProtocol", err)
+	}
 }
 
 func TestSessionFrameAssemblyTimeoutIsAbsolute(t *testing.T) {
