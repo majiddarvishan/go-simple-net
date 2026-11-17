@@ -175,7 +175,7 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4 Resource Admission & Accounting is now OWNER AUTHORIZED / IN PROGRESS (2026-11-17); Phase 5+ remain gated.
+Architecture Freeze is complete as a documentation/decision milestone. Phases 1–5 are COMPLETE / CI PASS. Phase 6 Client/Server orchestration and reconnect is the next implementation phase but remains NOT AUTHORIZED; Phases 7–9 are also gated.
 
 ## Implementation Authorization — Phase 1 only (2026-11-17)
 
@@ -279,7 +279,7 @@ See [canonical task tracker](TASKS.md). No public API, wire contract, defaults o
 - Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415): PASS.
 - Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS.
 - Live Go↔Pinex TCP interoperability is still Phase 7 and has not been claimed.
-- Phase 5 Worker Scheduler and all later phases remain outside the current authorization.
+- Phase 5 Worker Scheduler was subsequently authorized and is COMPLETE / CI PASS. Phase 6+ remain outside the current authorization.
 
 
 ## Phase 5 implementation authorization — 2026-11-17

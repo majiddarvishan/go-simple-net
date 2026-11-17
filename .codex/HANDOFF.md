@@ -83,8 +83,8 @@ Therefore, copying the sample's protocol handling verbatim would not interoperat
 See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 - GO-PINEX-001: protocol source baseline pinned to Pinex develop `f7bd1eb779baff0d10e624f20522df345e6ee747`; Maximum Frame Size verified as 1 MiB total including Header; golden-frame artifacts are compiled and compared in CI. Live socket-level cross-language confirmation remains Phase 7.
-- Phase 1 Configuration, Phase 2 Wire Codec and Phase 3 Session Transport/Lifecycle are COMPLETE / CI PASS.
-- GO-PINEX-002 through GO-PINEX-014 remain broader integration/backlog items; use the gated roadmap below rather than treating them as Phase 3 blockers.
+- Phases 1–5 (Configuration, Wire Codec, Session Transport/Lifecycle, Resource Admission and Worker Scheduler) are COMPLETE / CI PASS.
+- GO-PINEX-002 through GO-PINEX-014 remain broader integration/backlog items; the root `TASKS.md` is the canonical implementation tracker, while Phases 6–9 remain gated.
 
 ## 7. Owner decisions
 
@@ -98,7 +98,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next design-only work:** API-004 A and API-001a A are CLOSED. Performance is an owner-declared first-class V1 priority. Next: design PERF-002 / API-001b payload ownership/copy lifetime and PERF-003 bounded pending/completion; then API-002 timeouts/reconnect/close and API-003 module/package path. Pin C++ Pinex develop HEAD and golden-wire test vectors before implementation. No code, tests, module/repository renaming or operational action authorized.
+**Next action:** Phase 5 is COMPLETE / CI PASS. Phase 6 Client/Server orchestration and reconnect is the next implementation phase, but it is NOT AUTHORIZED. Obtain explicit owner approval before starting Client Dial, Server Listen/accept, reconnect supervision or Session-generation fencing. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated. See the root `TASKS.md` for the canonical task status.
 
 ## 9. Approved Go library name
 

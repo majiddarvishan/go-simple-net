@@ -237,7 +237,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
 - 46 Session tests + 8 owner-ledger tests.
 - Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415) PASS; Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425) PASS.
-- Phase 5 Worker Scheduler remains NOT AUTHORIZED; do not begin it without owner approval.
+- At the time Phase 4 closed, Phase 5 had not yet been authorized. Phase 5 was subsequently authorized and is now COMPLETE / CI PASS; see the Phase 5 completion evidence below.
 
 
 ### Phase 5 implementation authorization — 2026-11-17
