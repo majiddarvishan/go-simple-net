@@ -24,7 +24,7 @@ func TestClientBindConfigurationValidatesWireConstraints(t *testing.T) {
 		field    string
 	}{
 		{name: "empty_system_id", systemID: "", bindType: BindTypeBiDirectional, field: "system_id"},
-		{name: "too_long_system_id", systemID: strings.Repeat("x", 20), bindType: BindTypeBiDirectional, field: "system_id"},
+		{name: "too_long_system_id", systemID: strings.Repeat("x", 21), bindType: BindTypeBiDirectional, field: "system_id"},
 		{name: "nul_system_id", systemID: "client\x00id", bindType: BindTypeBiDirectional, field: "system_id"},
 		{name: "invalid_bind_type", systemID: "client", bindType: BindType(2), field: "bind_type"},
 	}
