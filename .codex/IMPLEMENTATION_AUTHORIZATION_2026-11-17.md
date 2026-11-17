@@ -1,0 +1,36 @@
+# neta-go — Implementation Authorization Record
+
+**Date:** 2026-11-17  
+**Repository:** github.com/majiddarvishan/neta-go  
+**Branch:** main  
+**Architecture:** Frozen; all fundamental owner decisions closed.
+
+## Owner authorization
+
+The owner explicitly authorized Phase 1 in this conversation: «آره، اجازه داری».
+
+## Authorized scope — Phase 1 only
+
+- Create/maintain the approved module path github.com/majiddarvishan/neta-go and root package neta.
+- Implement typed ClientOption, ServerOption, and SessionOption.
+- Implement immutable effective configuration and approved defaults.
+- Apply every Functional Option before final validation.
+- Validate all API-004 and WORKER-009C ranges, zero-value exception, independent owner/Session budgets, and cross-field invariants.
+- Protect arithmetic helpers against overflow/underflow.
+- Provide the public config errors/state declarations required by frozen API-001.
+- Add and run focused Phase 1 tests and CI.
+
+## Baseline and current evidence
+
+- Main HEAD at authorization: f3f525e5f36f65235a4c8e023cfafb4bfd6b5737.
+- Existing Phase 1 source/module commit: 8c1132392e9c6e919f72ad16ce8f285d989188d9.
+- Subsequent config hardening and CI-green source baseline: f3f525e5f36f65235a4c8e023cfafb4bfd6b5737.
+- Additional Server-side WORKER-009C boundary tests: 18bec96bb13cbdfa5a7819301b23d61e3fb3db75.
+- CI for the baseline before the additional tests: PASS (gofmt, go vet, go test, go test -race).
+- CI for the additional tests: pending at record creation.
+
+## Authorization boundary
+
+This authorization does NOT authorize Phase 2 or later: Wire Protocol, transport/runtime, lifecycle engine, worker scheduler, reconnect, Pinex interoperability, benchmarks, release, or deployment. Those phases require a separate explicit owner approval.
+
+Earlier blanket statements that no implementation/tests are authorized are superseded only for the Phase 1 scope above. No architecture decisions are reopened.
