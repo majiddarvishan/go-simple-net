@@ -6,7 +6,10 @@ func NewClient(options ...ClientOption) (*Client, error) {
 	config := defaultClientConfig()
 	for i, option := range options {
 		if option.apply == nil {
-			return nil, newConfigError("client_options["+itoa(i)+"]", "<nil>", "must be a non-zero ClientOption")
+			if config.invalidOption == "" {
+				config.invalidOption = "client_options[" + itoa(i) + "]"
+			}
+			continue
 		}
 		option.apply(&config)
 	}

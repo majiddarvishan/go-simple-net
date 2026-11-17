@@ -6,7 +6,10 @@ func NewServer(options ...ServerOption) (*Server, error) {
 	config := defaultServerConfig()
 	for i, option := range options {
 		if option.apply == nil {
-			return nil, newConfigError("server_options["+itoa(i)+"]", "<nil>", "must be a non-zero ServerOption")
+			if config.invalidOption == "" {
+				config.invalidOption = "server_options[" + itoa(i) + "]"
+			}
+			continue
 		}
 		option.apply(&config)
 	}
