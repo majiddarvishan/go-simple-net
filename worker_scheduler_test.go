@@ -673,3 +673,149 @@ func TestSessionCompletionWorkerDoesNotBlockReaderWriterOrDone(t *testing.T) {
 		t.Fatalf("Completion resources leaked after callback return: %+v", got)
 	}
 }
+
+
+func TestWorkerOwnerPermitSurvivesSessionDoneUntilCallbackReturns(t *testing.T) {
+	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
+	oldGeneration := newWorkerTestSession(dispatcher, 1, 1, nil, nil)
+	newGeneration := newWorkerTestSession(dispatcher, 1, 1, nil, nil)
+
+	oldStarted := make(chan struct{})
+	releaseOld := make(chan struct{})
+	oldReturned := make(chan struct{})
+	newStarted := make(chan struct{})
+
+	enqueueWorkerTestTask(t, oldGeneration, callbackApplication, func() {
+		close(oldStarted)
+		<-releaseOld
+		close(oldReturned)
+	}, nil)
+	waitForWorkerSignal(t, oldStarted, "old-generation Application callback")
+
+	// Session teardown must finish independently of the already-started user
+	// callback. The callback nevertheless retains the shared owner permit.
+	oldGeneration.Close()
+	waitDone(t, oldGeneration)
+
+	select {
+	case <-oldReturned:
+		t.Fatal("Session Done waited for the running old-generation callback")
+	default:
+	}
+
+	enqueueWorkerTestTask(t, newGeneration, callbackApplication, func() {
+		close(newStarted)
+	}, nil)
+	select {
+	case <-newStarted:
+		t.Fatal("new generation bypassed the permit held by a callback from the retired generation")
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	close(releaseOld)
+	waitForWorkerSignal(t, oldReturned, "old-generation callback return")
+	waitForWorkerSignal(t, newStarted, "new-generation callback after old permit release")
+
+	newGeneration.Close()
+	waitDone(t, newGeneration)
+	waitForWorkerPool(t, dispatcher.application, func(s callbackWorkerPoolSnapshot) bool {
+		return s.ActiveCallbacks == 0 && s.QueuedCallbacks == 0
+	}, "owner Application permit release")
+}
+
+func TestWorkerOnCloseEventCreditsCountQueuedAndRunning(t *testing.T) {
+	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
+	resources := newOwnerResourceLedger(ownerResourceLimits{maxOnCloseEventCredits: 2})
+
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	firstReturned := make(chan struct{})
+	secondStarted := make(chan struct{})
+	secondReturned := make(chan struct{})
+	thirdStarted := make(chan struct{})
+
+	first := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
+		close(firstStarted)
+		<-releaseFirst
+		close(firstReturned)
+	})
+	second := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
+		close(secondStarted)
+		close(secondReturned)
+	})
+	third := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
+		close(thirdStarted)
+	})
+
+	first.Close()
+	waitDone(t, first)
+	waitForWorkerSignal(t, firstStarted, "first running OnClose callback")
+
+	second.Close()
+	waitDone(t, second)
+	waitForWorkerPool(t, dispatcher.onClose, func(s callbackWorkerPoolSnapshot) bool {
+		return s.ActiveCallbacks == 1 && s.QueuedCallbacks == 1
+	}, "second OnClose callback queued behind the first")
+	if got := resources.snapshot().onCloseEventCredits; got != 2 {
+		t.Fatalf("queued + running OnClose credits = %d, want 2", got)
+	}
+
+	third.Close()
+	waitDone(t, third)
+	select {
+	case <-thirdStarted:
+		t.Fatal("third OnClose ran after queued + running events exhausted the owner budget")
+	default:
+	}
+	if got := resources.snapshot().onCloseEventCredits; got != 2 {
+		t.Fatalf("OnClose credits changed after saturated event was skipped: %d, want 2", got)
+	}
+
+	close(releaseFirst)
+	waitForWorkerSignal(t, firstReturned, "first OnClose callback return")
+	waitForWorkerSignal(t, secondStarted, "queued second OnClose callback")
+	waitForWorkerSignal(t, secondReturned, "second OnClose callback return")
+	waitForWorkerPool(t, dispatcher.onClose, func(s callbackWorkerPoolSnapshot) bool {
+		return s.ActiveCallbacks == 0 && s.QueuedCallbacks == 0
+	}, "all admitted OnClose events to settle")
+	if got := resources.snapshot().onCloseEventCredits; got != 0 {
+		t.Fatalf("OnClose credits after both callbacks return = %d, want 0", got)
+	}
+}
+
+func TestBlockedOnCloseDoesNotBlockApplicationOrCompletion(t *testing.T) {
+	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
+	resources := newOwnerResourceLedger(ownerResourceLimits{maxOnCloseEventCredits: 2})
+
+	onCloseStarted := make(chan struct{})
+	releaseOnClose := make(chan struct{})
+	onCloseReturned := make(chan struct{})
+	closing := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
+		close(onCloseStarted)
+		<-releaseOnClose
+		close(onCloseReturned)
+	})
+
+	closing.Close()
+	waitDone(t, closing)
+	waitForWorkerSignal(t, onCloseStarted, "blocked OnClose callback")
+
+	other := newWorkerTestSession(dispatcher, 1, 1, resources, nil)
+	applicationDone := make(chan struct{})
+	completionDone := make(chan struct{})
+	enqueueWorkerTestTask(t, other, callbackApplication, func() { close(applicationDone) }, nil)
+	enqueueWorkerTestTask(t, other, callbackCompletion, func() { close(completionDone) }, nil)
+
+	waitForWorkerSignal(t, applicationDone, "Application callback while OnClose is blocked")
+	waitForWorkerSignal(t, completionDone, "Completion callback while OnClose is blocked")
+	select {
+	case <-onCloseReturned:
+		t.Fatal("blocked OnClose callback unexpectedly returned")
+	default:
+	}
+
+	close(releaseOnClose)
+	waitForWorkerSignal(t, onCloseReturned, "OnClose callback release")
+	other.Close()
+	waitDone(t, other)
+}
