@@ -249,7 +249,7 @@ The authorization is limited to the Phase 3 Session transport/lifecycle engine d
 
 ## Phase 3 implementation evidence — 2026-11-17
 
-- Current verified `main` HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+- Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - `session_test.go`: 33 focused Session/transport/lifecycle tests.
 - Go CI run `44057820360`: PASS — gofmt, go vet, go test and go test -race.
 - Pinex Wire Compatibility run `44057820405`: PASS — compiled pinned C++ 1.5.0 production-serializer fixture, golden comparison and Go wire compatibility tests.

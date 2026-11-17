@@ -61,6 +61,29 @@ No phase beyond Phase 3 is authorized by this record.
 - Forced Close A never waits for user callbacks; Done closes after internal teardown and terminal cause publication.
 - gofmt, go vet ./..., go test ./..., and go test -race ./... pass in CI.
 
-## 7. Status
+## 7. Implementation status — COMPLETE / CI PASS
 
-Implementation not yet started at the time this authorization record was created. Update this section and the roadmap checkboxes as each Phase 3 slice is completed and verified.
+**Phase 3 source verification HEAD:** `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+
+### Implemented
+
+- Exactly one Reader loop, one serialized Writer loop and one Session control/deadline loop.
+- Client Bind and server Pre-Bind handshake primitives, state transitions and absolute deadlines.
+- Absolute Frame Assembly deadline from the first Header byte, including the server BindResponse-to-Bound transition race.
+- Absolute per-Frame Writer deadline measured from Writer ownership.
+- Idle-only Enquire Link, zero-disable behavior, incoming probe response, one outstanding probe and matching-sequence response deadline.
+- Session-scoped nonzero Sequence allocation, bounded Request tracking, Request deadline from successful local admission, response correlation, late-response suppression and exactly-once terminal settlement.
+- Graceful Unbind admission closure/FIFO barrier/deadline; Forced Close A, immutable terminal cause, Done publication and internal cleanup.
+- Private callback-dispatch interface; no user callback runs inline in Reader or Writer.
+
+### Verification evidence
+
+- `session_test.go`: 33 focused Session/transport/lifecycle tests.
+- Go GitHub Actions run `44057820360`: PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility run `44057820405`: PASS — pinned C++ 1.5.0 production-serializer fixture build, golden comparison and Go wire tests.
+- No third-party runtime/network dependency was added.
+- Live Go↔Pinex TCP interoperability is intentionally deferred to Phase 7.
+
+### Remaining phase boundaries
+
+Phase 3 is complete. Phase 4 full Resource Admission/owner ledgers, Phase 5 bounded callback Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live interoperability/fault-injection, Phase 8 performance and Phase 9 release remain outside this authorization and must not be started without the corresponding approval.

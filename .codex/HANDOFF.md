@@ -11,7 +11,7 @@
 ## 1. Repository state
 
 - Default branch: main
-- Latest verified remote `main` HEAD after Phase 3 implementation: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+- Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`; subsequent commits only updated project evidence and handoff records.
 - `.codex/AGENT_CONTEXT.md`: not present on `main` at the verified HEAD.
 - Verified baseline before WORKER-001 documentation updates: 525487737c1b75c62d021a391a395e03c1aadb1e
 - Phase 1, Phase 2 and Phase 3 source/tests are committed and verified by GitHub Actions.
@@ -766,7 +766,7 @@ The owner explicitly authorized Phase 3 in the continuation of chat pg_07 by rep
 
 **Status:** COMPLETE / CI PASS within the explicitly owner-authorized Phase 3 boundary.
 
-- Current verified remote `main` HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
+- Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
 - The Session engine is implemented in `session.go`, `session_control.go`, `session_internal.go` and `session_transport.go`; focused coverage is in `session_test.go`.
 - `session_test.go` contains 33 focused Session/transport/lifecycle tests.
 - Correctness hardening includes outbound-activity cancellation of queued Enquire Link, ignoring a Response before Writer claim, preserving the first post-Bind Frame Assembly deadline, exact Writer-ownership Write deadline, Request timeout origin after successful local admission, and Unbind Context terminal-cause classification.
