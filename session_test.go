@@ -1655,7 +1655,6 @@ func TestSessionRequestCreditIsOwnerScopedAndHeldThroughCompletionReturn(t *test
 	waitDone(t, second)
 }
 
-
 func TestSessionIncomingApplicationChargeTransfersQueueToCallback(t *testing.T) {
 	owner := newOwnerResourceLedger(ownerResourceLimits{
 		maxRetainedApplicationBytes:         11,
