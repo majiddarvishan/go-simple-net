@@ -215,7 +215,6 @@ func phase8ReportRuntime(b *testing.B, before, after runtime.MemStats, elapsed t
 	}
 }
 
-
 func phase8ReportSessionFairness(b *testing.B, perSession [][]int64) {
 	var minP95, maxP95 float64
 	active := 0
