@@ -24,5 +24,6 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		preBind:    make(map[*Session]struct{}),
 		pendingIDs: make(map[string]*Session),
 		boundIDs:   make(map[string]*Session),
+		sessionIDs: make(map[*Session]string),
 	}, nil
 }

@@ -183,14 +183,15 @@ func (s *Server) reserveBoundIdentity(session *Session, systemID string) error {
 		return fmt.Errorf("%w: maximum bound Sessions reached", ErrBindRejected)
 	}
 	s.pendingIDs[systemID] = session
+	s.sessionIDs[session] = systemID
 	return nil
 }
 
 // sessionBecameBound commits the previously reserved SystemID only after the
 // successful Bind Response has been fully written.
 func (s *Server) sessionBecameBound(session *Session) {
-	systemID := session.SystemID()
 	s.mu.Lock()
+	systemID := s.sessionIDs[session]
 	if s.pendingIDs[systemID] == session {
 		delete(s.pendingIDs, systemID)
 		s.boundIDs[systemID] = session
@@ -207,8 +208,9 @@ func (s *Server) sessionBecameBound(session *Session) {
 // sessionDone removes only entries still owned by this exact Session pointer.
 // An old Session can never remove a newer Session using the same SystemID.
 func (s *Server) sessionDone(session *Session, _ error) {
-	systemID := session.SystemID()
 	s.mu.Lock()
+	systemID := s.sessionIDs[session]
+	delete(s.sessionIDs, session)
 	delete(s.sessions, session)
 	if _, exists := s.preBind[session]; exists {
 		delete(s.preBind, session)

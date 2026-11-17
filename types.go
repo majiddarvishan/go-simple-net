@@ -65,4 +65,5 @@ type Server struct {
 	pendingSockets uint32
 	pendingIDs     map[string]*Session
 	boundIDs       map[string]*Session
+	sessionIDs     map[*Session]string
 }
