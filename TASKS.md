@@ -5,7 +5,7 @@
 **Tracker owner:** Project owner  
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
-**Last verified source HEAD:** `c72136693f85e61239bfca42bd04b40e66eddc27`  
+**Last verified source HEAD:** `${expected}`  
 **Current phase:** Phase 6 — Client and Server orchestration (**AUTHORIZED / IN PROGRESS**, owner approval 2026-11-17). Phase 5 is COMPLETE / CI PASS.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
@@ -27,7 +27,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 3 | Session transport and lifecycle | COMPLETE / CI PASS | Complete |
 | 4 | Resource admission and accounting | COMPLETE / CI PASS | Authorized 2026-11-17 |
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
-| 6 | Client/Server orchestration and reconnect | NOT STARTED | Not yet authorized |
+| 6 | Client/Server orchestration and reconnect | AUTHORIZED / IN PROGRESS — Server slice CI PASS | Owner approved 2026-11-17 |
 | 7 | Live interoperability and fault-injection verification | NOT STARTED | Not yet authorized |
 | 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
@@ -158,19 +158,28 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 **Authorization:** Owner replied «ادامه بده» after the explicit Phase 6 authorization question. Scope is limited to P6-01..P6-11. Phase 7+ remain gated.
 
-**Known API contract gap:** The frozen public API requires Client.Connect to Bind, but the approved ClientOption surface and current config contain no Client SystemID or BindType input. Do not invent a default or silently add an unapproved public option. Implement independent Server work while this one API detail is clarified.
+**Known API contract gap:** Server lifecycle/admission is implemented and CI-green. Client.Connect still requires a Bind, but the frozen ClientOption surface and current config contain no Client SystemID or BindType input. Do not invent a default or silently add an unapproved public option; Client work waits for this one owner clarification.
 
 - [ ] **P6-01 — Client Connect:** Dial with absolute ConnectTimeout, Bind with absolute BindResponseTimeout and Context cancellation semantics.
 - [ ] **P6-02 — Client lifecycle:** CurrentSession generation, terminal/idempotent Stop, disable reconnect on Stop and stale-generation fencing.
 - [ ] **P6-03 — Reconnect supervisor:** opt-in AutoReconnect=false by default; approved bounded exponential Full Jitter policy; no Request replay/resend; share owner resource/worker ledgers across generations.
-- [ ] **P6-04 — Server listener:** Start/Addr/Accept lifecycle and listener-close ordering.
-- [ ] **P6-05 — Pre-Bind admission:** enforce pending socket count before Session allocation, absolute accept-to-Bind deadline and early refusal.
-- [ ] **P6-06 — Bound Session registry:** enforce MaxBoundSessions without eviction, reject excess Bind with Pinex rfail where feasible.
-- [ ] **P6-07 — Identity admission:** BindValidator and duplicate System ID rejection with atomic registry insertion/removal.
-- [ ] **P6-08 — Server Stop:** terminal/idempotent Stop; close listener and Pre-Bind Sessions, concurrently Graceful-Unbind Bound Sessions, force remaining Sessions on caller Context expiry.
-- [ ] **P6-09 — Owner integration:** wire shared Client/Server resource ledgers and worker owners into every Session generation.
-- [ ] **P6-10 — Lifecycle tests:** simultaneous accepts, pre-bind floods, duplicate IDs, capacity boundaries, reconnect churn, stale generation races and graceful/forced Stop.
-- [ ] **P6-11 — CI acceptance:** gofmt, vet, unit and race CI pass.
+- [x] **P6-04 — Server listener:** Start/Addr/Accept lifecycle and listener-close ordering.
+- [x] **P6-05 — Pre-Bind admission:** enforce pending socket count before Session allocation, absolute accept-to-Bind deadline and early refusal.
+- [x] **P6-06 — Bound Session registry:** enforce MaxBoundSessions without eviction, reject excess Bind with Pinex rfail where feasible.
+- [x] **P6-07 — Identity admission:** BindValidator and duplicate System ID rejection with atomic registry insertion/removal.
+- [x] **P6-08 — Server Stop:** terminal/idempotent Stop; close listener and Pre-Bind Sessions, concurrently Graceful-Unbind Bound Sessions, force remaining Sessions on caller Context expiry.
+- [ ] **P6-09 — Owner integration:** Server Sessions now share the Server resource ledger and worker owner; Client generation/reconnect integration remains pending.
+- [ ] **P6-10 — Lifecycle tests:** Server subset complete (11 tests: Start/Addr, Pre-Bind cap, BindValidator, duplicate/concurrent IDs, Bound cap, registry cleanup, graceful/forced Stop); Client/reconnect/generation tests remain pending.
+- [ ] **P6-11 — CI acceptance:** Server slice passes gofmt, vet, unit, race and Pinex golden CI; full Phase 6 acceptance remains pending Client/reconnect implementation.
+
+### Phase 6 Server implementation evidence — 2026-11-17
+
+- Report: [Phase 6 Server implementation report](.codex/NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md).
+- Source verification HEAD: `${expected}`.
+- P6-04 through P6-08 complete; P6-09 and P6-10 are partially complete on the Server side.
+- 11 focused Server lifecycle/admission tests.
+- Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
+- Client Connect/Bind and reconnect remain blocked by the missing Client SystemID/BindType input decision; Phase 7+ remain gated.
 
 ## Phase 7 — Live interoperability and fault-injection verification
 
@@ -214,6 +223,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 |---|---|---|---|
 | 2026-11-17 | `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c` | Phase 3 source | Go [44057820360](https://github.com/majiddarvishan/neta-go/actions/runs/44057820360) PASS; C++ golden [44057820405](https://github.com/majiddarvishan/neta-go/actions/runs/44057820405) PASS |
 | 2026-11-17 | `c98f731fef89519d62d95248982538f25a36db82` | Documentation/handoff | Go [44058276200](https://github.com/majiddarvishan/neta-go/actions/runs/44058276200) PASS; C++ golden [44058274150](https://github.com/majiddarvishan/neta-go/actions/runs/44058274150) PASS |
+| 2026-11-17 | `${expected}` | Phase 6 Server lifecycle/admission | Go [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS |
 
 ## Canonical references
 
@@ -223,6 +233,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [Resource admission design](.codex/NETA_GO_RESOURCE_ADMISSION_DESIGN_2026-11-16.md)
 - [Worker capacity and resource accounting design](.codex/NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md)
 - [Performance contract](.codex/NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md)
+- [Phase 6 Server implementation report](.codex/NETA_GO_PHASE_6_SERVER_IMPLEMENTATION_2026-11-17.md)
 - [Decision log](.codex/DECISION_LOG.md)
 
 

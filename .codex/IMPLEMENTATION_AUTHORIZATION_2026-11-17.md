@@ -234,3 +234,19 @@ The owner explicitly authorized Phase 6 by replying **«ادامه بده»** af
 **Explicit exclusions:** Phase 7 live Go↔Pinex TCP interoperability/fault-injection campaign; Phase 8 benchmark/optimization; Phase 9 examples/release/deployment.
 
 **Pre-implementation API gap:** The frozen Client API requires a Bind Request, but the approved ClientOption/config surface has no Client SystemID or BindType field/option. No default for either is approved. Server-side Phase 6 work may proceed; do not invent the missing Client Bind identity semantics or add a public option until the owner clarifies it.
+
+
+## Phase 6 Server implementation evidence — 2026-11-17
+
+Server sub-scope P6-04..P6-08 is COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`.
+
+- Server Start/Addr/Accept; bounded Pre-Bind socket admission; absolute Pre-Bind deadline.
+- Bound Session capacity reservation; optional BindValidator; atomic duplicate SystemID admission; no eviction.
+- Shared Server resource ledger and callback dispatcher injected into every accepted Session.
+- Session pointer-identity registry promotion and cleanup; no stale Session can remove a replacement ID.
+- Terminal/idempotent Server Stop with listener-first close, Pre-Bind forced close, concurrent Bound Unbind and caller-Context forced escalation.
+- 11 focused Server lifecycle/admission tests.
+- Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615): PASS — gofmt, vet, unit, race.
+- Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706): PASS.
+
+Phase 6 remains IN PROGRESS. Client Connect/Bind, CurrentSession, Client Stop, reconnect supervisor and generation fencing remain pending the owner decision on Client Bind SystemID/BindType input. Phase 7+ remain excluded.

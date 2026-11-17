@@ -3,7 +3,8 @@
 **Status:** AUTHORIZED / IN PROGRESS — 2026-11-17  
 **Repository:** `github.com/majiddarvishan/neta-go`  
 **Branch:** `main`  
-**Phase 5 source baseline:** `c72136693f85e61239bfca42bd04b40e66eddc27`
+**Phase 5 source baseline:** `c72136693f85e61239bfca42bd04b40e66eddc27`  
+**Phase 6 Server slice source HEAD:** `${expected}` (CI PASS)
 
 ## Authority
 
@@ -35,8 +36,23 @@ The owner authorized Phase 6 by saying «ادامه بده» after the explicit 
 
 ## Known API contract gap — Client Bind identity
 
-The approved public API specifies `Client.Connect(ctx)` performing Bind, but the frozen ClientOption and clientConfig currently have no SystemID or BindType input. The current source has no approved default for either field. Do not infer a SystemID, BindType, or add an unapproved public option. Client Connect implementation is blocked pending owner clarification. Server-side work is independent and may proceed.
+The approved public API specifies `Client.Connect(ctx)` performing Bind, but the frozen ClientOption and clientConfig currently have no SystemID or BindType input. The current source has no approved default for either field. Do not infer a SystemID, BindType, or add an unapproved public option. Client Connect implementation is blocked pending owner clarification. The independent Server slice P6-04..P6-08 is now COMPLETE / CI PASS.
 
 ## Phase boundaries
 
 Do not perform live Go↔Pinex TCP interoperability (Phase 7), benchmark/optimization (Phase 8), or release/deployment/examples (Phase 9).
+
+
+## Phase 6 Server implementation result — 2026-11-17
+
+P6-04 through P6-08 are COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`.
+
+- Server Start/Addr/Accept and listener-close ordering.
+- Pre-Bind admission slot reserved before Session allocation; default cap 128 and absolute accept-to-Bind timeout inherited from the frozen contract.
+- MaxBoundSessions reservation, optional BindValidator, duplicate SystemID rejection and no-eviction policy.
+- Pointer-identity registry promotion/cleanup, including close-before-SystemID-publication and old-generation cleanup protection.
+- Server-owned resource ledger and callback dispatcher passed into every accepted Session.
+- Terminal/idempotent Server Stop: close Listener first, close Pre-Bind, concurrently Unbind Bound Sessions, force on caller Context expiry, wait only for internal Done.
+- 11 focused tests; Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
+
+P6-01..P6-03 (Client Connect/Bind, lifecycle and reconnect), Client-side P6-09/P6-10, and full P6-11 remain pending. The single blocker before Client Bind is the missing SystemID/BindType input in the frozen ClientOption surface.

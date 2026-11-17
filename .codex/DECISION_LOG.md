@@ -1389,3 +1389,24 @@ The owner explicitly authorized Phase 6 by replying «ادامه بده» after 
 **Not authorized:** Phase 7 live Go↔Pinex TCP interoperability/fault-injection campaign, Phase 8 performance benchmark/optimization, Phase 9 examples/release/deployment.
 
 **Known contract gap to clarify before Client Bind implementation:** current frozen ClientOption/config surface contains no SystemID or BindType input, although Client.Connect is specified to send Bind. No default or public option is inferred by this authorization. Server-side work may proceed independently.
+
+
+## 54. Phase 6 Server lifecycle/admission implementation progress — 2026-11-17
+
+This entry records implementation evidence for the owner-authorized Phase 6 Server slice. It does not add or reopen an architecture/API decision.
+
+**Result:** P6-04..P6-08 COMPLETE / CI PASS at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`.
+
+- Server Start/Addr/Accept, listener-first Stop and terminal/idempotent lifecycle.
+- Pre-Bind socket admission slot reserved before Session allocation; default cap 128; absolute accept-to-Bind deadline.
+- MaxBoundSessions capacity reservations; optional BindValidator; duplicate SystemID rejection with Pinex-compatible failed Bind Response; no eviction.
+- SystemID registry promotion only after Bind Response Write; pointer-identity cleanup; release pending reservations even if close wins before Session.SystemID publication.
+- Server-owned resource ledger and callback dispatcher shared across all accepted Sessions.
+- Server Stop closes Listener, closes Pre-Bind Sessions, concurrently Graceful-Unbinds Bound Sessions and forces remaining Sessions on caller Context expiry; it waits for internal Done, not callbacks.
+- 11 focused tests in `server_lifecycle_test.go`.
+
+**Verification:**
+- Go Actions [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706): PASS.
+
+**Remaining Phase 6:** Client Connect/Bind, CurrentSession, Client Stop, reconnect supervisor, generation fencing and Client lifecycle tests. The frozen ClientOption/clientConfig has no SystemID or BindType input; no default is approved. Ask the owner before adding that public configuration.

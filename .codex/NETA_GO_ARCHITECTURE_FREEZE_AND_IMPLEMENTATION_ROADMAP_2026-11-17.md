@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1–5 COMPLETE / CI PASS / PHASE 6+ NOT AUTHORIZED  
+**Implementation authorization:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6 AUTHORIZED / IN PROGRESS (Server slice CI PASS); PHASE 7–9 NOT AUTHORIZED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. Phases 1–5 are COMPLETE / CI PASS. Phase 6+ remain gated.
+The architecture is frozen at the design/contract level. Phases 1–5 are COMPLETE / CI PASS. Phase 6 was separately authorized on 2026-11-17 and is IN PROGRESS; its Server lifecycle/admission slice is COMPLETE / CI PASS. Phase 7–9 remain gated.
 
 ## 2. Architecture decision closure
 
@@ -175,7 +175,7 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. Phases 1–5 are COMPLETE / CI PASS. Phase 6 Client/Server orchestration and reconnect is the next implementation phase but remains NOT AUTHORIZED; Phases 7–9 are also gated.
+Architecture Freeze is complete as a documentation/decision milestone. Phases 1–5 are COMPLETE / CI PASS. Phase 6 Client/Server orchestration is OWNER AUTHORIZED / IN PROGRESS; the Server lifecycle/admission slice is COMPLETE / CI PASS. Client Connect/Bind and reconnect remain pending the missing Client SystemID/BindType input decision. Phases 7–9 remain NOT AUTHORIZED.
 
 ## Implementation Authorization — Phase 1 only (2026-11-17)
 
@@ -296,4 +296,21 @@ Phase 6 networking/reconnect, Phase 7 live TCP interoperability, Phase 8 benchma
 - Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353): PASS — gofmt, vet, unit and race.
 - Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291): PASS.
 - Live Go↔Pinex TCP interoperability remains Phase 7.
-- Phase 6 Client/Server orchestration and later phases remain NOT AUTHORIZED.
+- Phase 6 was subsequently authorized separately; see the latest Phase 6 implementation addendum below. Phases 7–9 remain NOT AUTHORIZED.
+
+
+## Phase 6 implementation authorization and Server progress — 2026-11-17
+
+The owner separately authorized Phase 6 by replying «ادامه بده» after the Phase 6 start question. This authorizes P6-01..P6-11 in root `TASKS.md` only; it does not authorize Phase 7+.
+
+**Server slice COMPLETE / CI PASS** at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`:
+- P6-04 Server Start/Addr/Accept and listener lifecycle.
+- P6-05 bounded Pre-Bind admission before Session allocation and absolute handshake deadline.
+- P6-06 MaxBoundSessions reservations and no-eviction capacity policy.
+- P6-07 BindValidator, duplicate SystemID rejection, atomic reservation and pointer-identity registry cleanup.
+- P6-08 terminal/idempotent Server Stop with concurrent Graceful Unbind and Context-driven Forced Close.
+- Shared Server resource ledger and callback dispatcher wired into every accepted Session.
+- 11 focused Server tests.
+- Go CI [44070940615](https://github.com/majiddarvishan/neta-go/actions/runs/44070940615) PASS; Pinex Wire Compatibility [44070940706](https://github.com/majiddarvishan/neta-go/actions/runs/44070940706) PASS.
+
+**Remaining:** Client Connect/Bind, CurrentSession, Client Stop, reconnect supervisor, generation fencing and Client tests. The frozen ClientOption surface has no SystemID/BindType input and no default is approved; owner clarification is required before Client Bind implementation. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated.
