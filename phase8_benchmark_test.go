@@ -602,6 +602,11 @@ func BenchmarkPhase8ProfileBaseline(b *testing.B) {
 	phase8RunRequestResponse(b, env, phase8Payload(256), 4)
 }
 
+func BenchmarkPhase8ProfileLargeBaseline(b *testing.B) {
+	env := newPhase8BenchEnv(b, 1, 1, 1, true, false)
+	phase8RunRequestResponse(b, env, phase8Payload(wire.MaxBodySize), 1)
+}
+
 func phase8BlockedWriterSession(b *testing.B) (*Session, func()) {
 	b.Helper()
 	local, peer := net.Pipe()
