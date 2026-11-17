@@ -543,3 +543,14 @@ Future tests must cover slow-trickle input, partial Header/Body, timeout-vs-read
 ## 19. Architecture Freeze reconciliation — 2026-11-17
 
 WORKER-001 through WORKER-009C and WORKER-008 Completion-byte exhaustion are fully CLOSED / OWNER APPROVED. The exact public option surface is frozen under API-001 §21; lifecycle and shutdown are frozen under API-002 §10; API-003 package boundaries and PROTOCOL-001 frame limit are approved. Earlier "next API-002/API-003" statements are historical. The 1 MiB source-verified Frame ceiling is now owner-approved for Go V1. Golden-frame and socket-level cross-language confirmation remain pending implementation authorization.
+
+
+## Phase 4 implementation authorization addendum — 2026-11-17
+
+The owner authorized implementation of Phase 4 Resource Admission & Accounting after requesting a canonical repository task tracker. This supersedes historical “Implementation: NOT AUTHORIZED” statements only for Phase 4.
+
+Authorized: implement the already-approved limits and ownership/accounting rules in this design, including reserve-before-allocation, per-Session and owner-scoped ledgers, Server aggregate queued Application budgets, Request and OnClose credits, WORKER-008 Completion scratch-drain behavior, exact release/transfer, tests and CI.
+
+Not authorized by this addendum: Phase 5 physical Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability campaign, Phase 8 benchmark/pooling work, or Phase 9 release/deployment. No frozen decision/default/public API/wire contract is changed.
+
+Canonical implementation checklist: [TASKS.md](TASKS.md).

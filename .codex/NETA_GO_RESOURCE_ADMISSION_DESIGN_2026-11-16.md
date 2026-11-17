@@ -403,3 +403,14 @@ Implementation and tests remain NOT AUTHORIZED.
 ## 11. Architecture Freeze reconciliation — 2026-11-17
 
 Resource admission, queue/frame limits, retained-byte accounting, Request credits, worker permits and WORKER-001..009C are CLOSED / OWNER APPROVED. API-002-01..08, API-001, API-003 and PROTOCOL-001 are also CLOSED / OWNER APPROVED. The 1 MiB total Frame ceiling is fixed by the approved protocol contract; queue and retained-byte limits remain independent. Earlier "API-002/API-003 remain OPEN" statements are historical and superseded. Golden-frame and Go↔C++ socket verification remain implementation validation tasks. No implementation or tests are authorized.
+
+
+## Phase 4 implementation authorization addendum — 2026-11-17
+
+The owner authorized implementation of Phase 4 Resource Admission & Accounting after requesting a canonical repository task tracker. This supersedes historical “Implementation: NOT AUTHORIZED” statements only for Phase 4.
+
+Authorized: implement the already-approved limits and ownership/accounting rules in this design, including reserve-before-allocation, per-Session and owner-scoped ledgers, Server aggregate queued Application budgets, Request and OnClose credits, WORKER-008 Completion scratch-drain behavior, exact release/transfer, tests and CI.
+
+Not authorized by this addendum: Phase 5 physical Worker Scheduler, Phase 6 Client/Server orchestration/reconnect, Phase 7 live TCP interoperability campaign, Phase 8 benchmark/pooling work, or Phase 9 release/deployment. No frozen decision/default/public API/wire contract is changed.
+
+Canonical implementation checklist: [TASKS.md](TASKS.md).

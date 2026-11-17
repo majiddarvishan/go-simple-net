@@ -4,7 +4,7 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Architecture:** Frozen; all fundamental owner decisions closed.  
-**Current implementation status:** Phase 1 COMPLETE / CI PASS; Phase 2 Wire Codec COMPLETE / CI PASS; Phase 3 Session Transport & Lifecycle COMPLETE / CI PASS; Phase 4+ outside current authorization.
+**Current implementation status:** Phases 1–3 COMPLETE / CI PASS; Phase 4 Resource Admission & Accounting AUTHORIZED / IN PROGRESS; Phase 5+ outside current authorization.
 
 ## Owner authorization
 
@@ -129,3 +129,24 @@ The owner-authorized Phase 3 Session Transport & Lifecycle Engine is COMPLETE at
 - Go Actions run `44057820360`: PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
 - Pinex Wire Compatibility run `44057820405`: PASS — pinned C++ 1.5.0 serializer fixture build, golden comparison and Go wire tests.
 - Scope remained limited to private Session transport/lifecycle implementation. Full Resource Admission (Phase 4), Worker Scheduler (Phase 5), Client/Server orchestration (Phase 6), live TCP interoperability (Phase 7), performance (Phase 8) and release (Phase 9) remain unauthorized.
+
+
+## Phase 4 Authorization — Resource Admission & Accounting (2026-11-17)
+
+The owner explicitly instructed that a repository-visible task tracker be added first and implementation then continue. This authorizes Phase 4 only.
+
+**Authorized scope**
+- Implement the approved local and owner-scoped byte/count ledgers for outgoing/incoming Application frames, retained Application/Completion payloads, Request credits, OnClose event credits and Server aggregate queued Application frames.
+- Reserve declared inbound Frame capacity before Body allocation/read.
+- Preserve the approved Q-008 fail-fast outgoing Queue Full and Q-009/Q-010 offender-only incoming close behavior.
+- Implement WORKER-008 Option A Completion retained-byte exhaustion: fixed-size scratch drain under the original absolute Frame Assembly deadline, then a normal Completion with no payload and ErrCapacity if that Request still wins.
+- Implement exact once-only release/ownership transfer for writes, partial reads, callback start/return/cancellation, timeout and Forced Close A.
+- Add focused boundary, multi-Session, owner isolation, lifecycle and race tests; pass gofmt, vet, unit and race CI.
+
+**Strict exclusions**
+- Phase 5 physical worker pools and fair scheduler.
+- Phase 6 Client/Server Dial, Listen, accept, Bind registry and reconnect orchestration.
+- Phase 7 live Go↔Pinex TCP interoperability and broad fault-injection campaign.
+- Phase 8 benchmarks/pooling and Phase 9 release/deployment.
+
+No public API, wire behavior, default, resource limit, owner decision or frozen architecture contract is reopened. The canonical task-by-task checklist is `.codex/TASKS.md`.

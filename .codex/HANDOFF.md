@@ -5,10 +5,12 @@
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1 COMPLETE / CI PASS; PHASE 2 WIRE CODEC COMPLETE / CI PASS; PHASE 3 SESSION TRANSPORT/LIFECYCLE COMPLETE / CI PASS; PHASE 4+ NOT AUTHORIZED  
-**Current work:** Phase 3 Session Transport & Lifecycle is COMPLETE at `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`. Go CI `44057820360` and Pinex C++ golden compatibility CI `44057820405` both PASS. The Session implementation has 33 focused tests, including fragmentation, absolute deadlines, request correlation, Enquire Link, graceful Unbind and forced close. Live TCP Go↔C++ interoperability has not been run and remains Phase 7. Phase 4 resource ledgers, Phase 5 worker scheduler, Phase 6 Client/Server orchestration, Phase 7 live socket interoperability, Phase 8 performance, and Phase 9 release remain gated.
+**Implementation status:** PHASE 1–3 COMPLETE / CI PASS; PHASE 4 RESOURCE ADMISSION AUTHORIZED / IN PROGRESS; PHASE 5+ NOT AUTHORIZED  
+**Current work:** Phase 4 Resource Admission & Accounting is authorized and in progress. The canonical task-by-task status is [.codex/TASKS.md](TASKS.md). Phase 1–3 source implementation is complete and CI-green; Phase 5 Worker Scheduler and later phases remain gated. Live TCP Go↔C++ interoperability has not been run and remains Phase 7.
 
 ## 1. Repository state
+
+- Canonical implementation checklist: [.codex/TASKS.md](TASKS.md). Update it whenever a task changes status.
 
 - Default branch: main
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`; subsequent commits only updated project evidence and handoff records.
@@ -775,3 +777,13 @@ The owner explicitly authorized Phase 3 in the continuation of chat pg_07 by rep
 - The compatibility workflow is a compiled C++ golden check, not live Go↔Pinex TCP interoperability.
 
 **Still gated:** Phase 4 full resource admission/owner ledgers; Phase 5 bounded callback worker pools; Phase 6 Client/Server orchestration and reconnect; Phase 7 live socket interoperability/fault-injection; Phase 8 performance campaign; Phase 9 release. No work outside Phase 3 is authorized by this result.
+
+
+## Phase 4 authorization — Resource Admission & Accounting (2026-11-17)
+
+The owner explicitly instructed: “اول این رو اضافه کن به مخزن. بعدش پیاده ساطی رو ادامهع بده” after being shown that Phase 4 was the next implementation phase. This authorizes Phase 4 only.
+
+**Scope:** implement the already-approved per-Session and per-owner resource ledgers; outgoing/incoming Application byte and frame admission; Server aggregate queued Application byte/frame budgets; retained Application/Completion payload accounting; Request credits; OnClose event credits; pre-allocation reservations; fixed-scratch Response drain on Completion-byte exhaustion; exact lifecycle transfer/release and focused tests.
+
+**Strict boundary:** no Phase 5 worker scheduler, no Phase 6 Client/Server Dial/Listen/reconnect orchestration, no Phase 7 live TCP interoperability/fault-injection campaign, no Phase 8 benchmarks/pooling, and no Phase 9 release/deployment. No public API, default, wire or owner decision is reopened.
+

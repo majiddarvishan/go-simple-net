@@ -171,7 +171,7 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 ## 10. Final authorization boundary
 
-Architecture Freeze is complete as a documentation/decision milestone. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4+ remain gated by separate owner authorization.
+Architecture Freeze is complete as a documentation/decision milestone. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4 Resource Admission & Accounting is now OWNER AUTHORIZED / IN PROGRESS (2026-11-17); Phase 5+ remain gated.
 
 ## Implementation Authorization — Phase 1 only (2026-11-17)
 
@@ -255,3 +255,14 @@ The authorization is limited to the Phase 3 Session transport/lifecycle engine d
 - Pinex Wire Compatibility run `44057820405`: PASS — compiled pinned C++ 1.5.0 production-serializer fixture, golden comparison and Go wire compatibility tests.
 - Live Go↔Pinex TCP interoperability remains Phase 7; Phase 3 does not claim socket-level cross-language proof.
 - Phase 4 resource ledgers, Phase 5 worker scheduler and Phase 6 Client/Server orchestration remain gated and were not implemented.
+
+
+## Phase 4 implementation authorization — 2026-11-17
+
+The owner explicitly instructed to add a canonical task tracker and then continue implementation. This authorizes Phase 4 Resource Admission & Accounting only, within the already-frozen Q-008/Q-009/Q-010, PERF-002/PERF-003 and WORKER-001..009C contracts.
+
+**Scope:** per-Session and per-owner byte/count/Request/event ledgers; Server aggregate queued Application budgets; reserve-before-allocation; Completion fixed-scratch drain on retained-byte exhaustion; exact transfer/release and tests.
+
+**Excluded:** Phase 5 worker pools/scheduler, Phase 6 Client/Server orchestration and reconnect, Phase 7 live TCP interoperability/fault-injection, Phase 8 performance campaign and Phase 9 release/deployment.
+
+See [canonical task tracker](TASKS.md). No public API, wire contract, defaults or architecture decision is reopened.
