@@ -183,8 +183,9 @@ func (s *Session) handlePreBindRequest(frame wire.Frame) error {
 	s.bindType = bind.Type
 	s.systemID = bind.SystemID
 	err = s.enqueueControlLocked(&outboundFrame{
-		bytes:   response,
-		control: true,
+		bytes:        response,
+		control:      true,
+		bindResponse: true,
 		afterWrite: func() {
 			if cause != nil {
 				s.beginClose(cause, true)
