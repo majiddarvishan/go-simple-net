@@ -1,6 +1,6 @@
 GO ?= go
 
-.PHONY: help check verify race phase8 perf-smoke soak
+.PHONY: help check verify race phase8 phase9 perf-smoke soak
 
 help:
 	@echo "Available targets:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make verify      - all correctness checks"
 	@echo "  make perf-smoke  - short Phase 8 benchmark smoke test"
 	@echo "  make phase8      - complete Phase 8 benchmark, soak and profiles"
+	@echo "  make phase9      - coverage snapshot and paired Client/Server example smoke"
 	@echo "  make soak        - five-minute mixed-payload memory soak"
 
 check:
@@ -25,6 +26,9 @@ perf-smoke:
 
 phase8:
 	@GO="$(GO)" bash scripts/phase8-benchmark.sh full
+
+phase9:
+	@GO="$(GO)" ARTIFACT_DIR="$${ARTIFACT_DIR:-artifacts/phase9}" bash scripts/phase9-release-check.sh
 
 soak:
 	@GO="$(GO)" bash scripts/phase8-benchmark.sh soak
