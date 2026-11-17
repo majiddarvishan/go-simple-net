@@ -118,6 +118,7 @@ func TestClientConnectBindsConfiguredIdentityAndStopsGracefully(t *testing.T) {
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("client-01"),
 		WithClientBindType(BindTypeUniDirectional),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -223,6 +224,7 @@ func TestClientBindRejectionIsNotAutomaticallyRetried(t *testing.T) {
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("client-rejected"),
 		WithAutoReconnect(true),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -318,6 +320,7 @@ func TestClientAutoReconnectCreatesFreshSessionGeneration(t *testing.T) {
 		WithClientAddress(listener.Addr().String()),
 		WithClientSystemID("client-reconnect"),
 		WithAutoReconnect(true),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
