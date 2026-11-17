@@ -42,8 +42,3 @@ type Client struct {
 type Server struct {
 	config serverConfig
 }
-
-// Session represents one bound or closing peer connection.
-type Session struct {
-	config sessionConfig
-}

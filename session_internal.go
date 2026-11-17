@@ -97,6 +97,7 @@ type Session struct {
 	handlers   sessionHandlers
 
 	mu                  sync.Mutex
+	dispatchMu          sync.Mutex
 	cond                *sync.Cond
 	state               SessionState
 	systemID            string
@@ -265,7 +266,7 @@ func (s *Session) waitBindRequest(ctx context.Context) (bindRequestEvent, error)
 // BindValidator and duplicate-SystemID admission checks have completed.
 func (s *Session) completeBind(event bindRequestEvent, serverSystemID string, admissionErr error) error {
 	s.mu.Lock()
-	if s.state != SessionStateNew || s.pendingBind != &event {
+	if s.state != SessionStateNew || s.pendingBind == nil || s.pendingBind.decision != event.decision {
 		s.mu.Unlock()
 		return ErrClosing
 	}
@@ -314,6 +315,18 @@ func (s *Session) dispatchBound() {
 }
 
 func (s *Session) enqueueCallback(class callbackClass, task callbackTask) bool {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+
+	s.mu.Lock()
+	forcedClose := s.state >= SessionStateClosing && s.closeForced
+	s.mu.Unlock()
+	if forcedClose && class != callbackOnClose {
+		if task.cancel != nil {
+			task.cancel()
+		}
+		return false
+	}
 	if s.dispatcher == nil {
 		if task.cancel != nil {
 			task.cancel()
@@ -452,7 +465,11 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.closeForced = forced
 
 		var gracefulTasks []callbackTask
-		if !forced {
+		if forced {
+			for _, pending := range s.pending {
+				pending.settled = true
+			}
+		} else {
 			terminalErr := cause
 			if terminalErr == nil {
 				terminalErr = ErrClosed
@@ -485,7 +502,9 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.signalControl()
 
 		if forced && s.dispatcher != nil {
+			s.dispatchMu.Lock()
 			s.dispatcher.cancelUnstarted(s, callbackMaskApplication|callbackMaskCompletion)
+			s.dispatchMu.Unlock()
 		}
 		for _, task := range gracefulTasks {
 			if !s.enqueueCallback(callbackCompletion, task) {
@@ -524,7 +543,8 @@ func (s *Session) failRead(err error) {
 		err = ErrProtocol
 	}
 	var terminal error
-	if errors.Is(err, context.DeadlineExceeded) {
+	var netErr net.Error
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 		terminal = newOperationError("frame assembly", context.DeadlineExceeded)
 	} else {
 		terminal = newOperationError("read", err)

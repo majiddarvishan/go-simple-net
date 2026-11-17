@@ -2,7 +2,6 @@ package neta
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/majiddarvishan/neta-go/internal/wire"
@@ -91,7 +90,7 @@ func (s *Session) controlLoop() {
 			}
 		}
 
-		next := s.nextDeadlineLocked(now)
+		next := s.nextDeadlineLocked()
 		s.mu.Unlock()
 
 		for _, task := range completionTasks {
@@ -129,7 +128,7 @@ func (s *Session) controlLoop() {
 	}
 }
 
-func (s *Session) nextDeadlineLocked(now time.Time) time.Time {
+func (s *Session) nextDeadlineLocked() time.Time {
 	var next time.Time
 	consider := func(candidate time.Time) {
 		if candidate.IsZero() {
@@ -205,4 +204,3 @@ func (s *Session) clearProbeLocked() {
 	s.enquireLinkDeadline = time.Time{}
 }
 
-var _ = errors.Is

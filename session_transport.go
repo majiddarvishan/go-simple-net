@@ -2,7 +2,6 @@ package neta
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +51,12 @@ func (s *Session) readFrame() (wire.Frame, error) {
 		return wire.Frame{}, err
 	}
 
+	switch header.Command {
+	case wire.CommandUnbindRequest, wire.CommandUnbindResponse, wire.CommandEnquireLinkRequest, wire.CommandEnquireLinkResponse:
+		if header.Length != wire.HeaderSize {
+			return wire.Frame{}, fmt.Errorf("%w: control command must not carry a Body", ErrProtocol)
+		}
+	}
 	bodyLength := int(header.Length) - wire.HeaderSize
 	var body []byte
 	if bodyLength > 0 {
@@ -384,4 +389,3 @@ func (s *Session) waitForClose(ctx context.Context) error {
 	}
 }
 
-var _ = binary.BigEndian

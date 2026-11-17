@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/majiddarvishan/neta-go/internal/wire"
@@ -201,22 +202,7 @@ func (s *Session) SystemID() string {
 	return s.systemID
 }
 
-func (s *Session) RemoteAddr() netAddr {
-	return netAddr{s.remoteAddr}
-}
-
-// netAddr keeps the public return type exactly net.Addr without exposing
-// mutable Session state. The wrapper is removed by the public alias below.
-type netAddr struct{ addr interface{ Network() string; String() string } }
-
-func (a netAddr) Network() string {
-	if a.addr == nil { return "" }
-	return a.addr.Network()
-}
-func (a netAddr) String() string {
-	if a.addr == nil { return "" }
-	return a.addr.String()
-}
+func (s *Session) RemoteAddr() net.Addr { return s.remoteAddr }
 
 func (s *Session) completeRequest(sequence uint32, response Response, resultErr error) {
 	s.mu.Lock()
