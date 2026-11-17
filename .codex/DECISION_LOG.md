@@ -1496,3 +1496,25 @@ The owner-authorized Phase 7 scope P7-01..P7-08 is complete. Pinex develop remai
 The transport blackhole case is an accepted TCP socket that withholds the Bind Response. Privileged firewall-level SYN-drop/network-namespace injection was not run. This limitation is explicitly recorded; no host firewall or production network was modified.
 
 No frozen public API, Wire Protocol, defaults, timeout/reconnect policy, resource ceilings or architecture decision was changed. Phase 8 performance/optimization and Phase 9 examples/release/deployment remain separately gated and NOT AUTHORIZED.
+
+
+## 60. Phase 8 — Performance baseline and evidence-driven optimization authorization (2026-11-17)
+
+The owner explicitly approved the complete Phase 8 scope by replying «ادامه بده» after the direct approval question.
+
+Authorized:
+- reproducible benchmarks across codec, Request/Response, SendNoWait, payload sizes, Session scaling, producer contention, callback concurrency and bounded saturation;
+- collection of throughput, p50/p95/p99, allocations/bytes, CPU, heap/GC, goroutines, RSS and contention;
+- CPU, heap, mutex and block profiling;
+- evidence-driven evaluation of PERF-004 allocation/pooling/batching candidates;
+- correctness, race, golden and real TCP regression gates after accepted optimizations;
+- recording results and task completion in the repository.
+
+Binding limits:
+- PERF-002 A remains unchanged: accepted outbound payload is snapshotted; inbound payload is owned and may be retained; user-visible inbound memory is never pooled/recycled.
+- Preserve all frozen public API, Wire Protocol, timeout/reconnect, worker, queue, Request-credit, retained-byte, resource-accounting and callback-order contracts.
+- No numeric performance SLA is assumed; thresholds may only be proposed after reproducible measurements and workload review.
+- Race-instrumented runs are for correctness only and must not be compared as production throughput.
+- Phase 9 examples/release/deployment remains unauthorized.
+
+This approval authorizes Phase 8 implementation and benchmark execution only. It does not reopen architecture or API decisions.

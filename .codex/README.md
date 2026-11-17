@@ -32,4 +32,6 @@
 
 ## وضعیت فعلی
 
-وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 7 کامل و CI-verified هستند؛ Phase 8 و 9 همچنان نیازمند مجوز جداگانه‌اند.
+وضعیت واقعی هر تسک در فایل مرکزی [TASKS.md](../TASKS.md) ثبت می‌شود. Phase 1 تا 7 کامل و CI-verified هستند؛ Phase 8 با مجوز مالک در حال اجراست و Phase 9 همچنان نیازمند مجوز جداگانه است.
+
+- [گزارش و Baseline عملکرد Phase 8](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)

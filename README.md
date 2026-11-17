@@ -8,6 +8,6 @@ The implementation is tracked phase by phase. The root task tracker is the sourc
 
 **[View implementation tasks and progress →](TASKS.md)**
 
-Current phase: **Phase 7 — Live interoperability and fault-injection verification (COMPLETE / CI PASS)**. Phases 1–7 are implemented and verified. Phases 8–9 remain gated pending separate owner authorization.
+Current phase: **Phase 8 — Performance baseline and evidence-driven optimization (IN PROGRESS)**. Phases 1–7 are implemented and verified. Phase 8 is owner-authorized; Phase 9 remains gated.
 
 Architecture decisions and detailed design records are maintained under [`.codex/`](.codex/).

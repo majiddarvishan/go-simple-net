@@ -6,7 +6,7 @@
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
 **Last verified source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
-**Current phase:** Phase 7 — Live interoperability and fault-injection verification (**COMPLETE / CI PASS**, owner authorized 2026-11-17). Phase 8–9 remain gated.
+**Current phase:** Phase 8 — Performance baseline and evidence-driven optimization (**IN PROGRESS**, owner authorized 2026-11-17). Phase 9 remains gated.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -29,7 +29,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 | 5 | Bounded callback Worker Scheduler | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 7 | Live interoperability and fault-injection verification | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
-| 8 | Performance baseline and evidence-driven optimization | NOT STARTED | Not yet authorized |
+| 8 | Performance baseline and evidence-driven optimization | IN PROGRESS | Owner authorized 2026-11-17 |
 | 9 | Examples, documentation and V1 release readiness | NOT STARTED | Not yet authorized |
 
 ---
@@ -209,13 +209,25 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ## Phase 8 — Performance baseline and evidence-driven optimization
 
-<badge color="secondary">NOT STARTED — NOT YET AUTHORIZED</badge>
+<badge color="warning">IN PROGRESS — OWNER AUTHORIZED 2026-11-17</badge>
 
-- [ ] **P8-01 — Reproducible baseline:** benchmark payload sizes, one/many Sessions, concurrent producers, callback concurrency, saturation and reconnect churn.
-- [ ] **P8-02 — Record metrics:** throughput, p50/p95/p99 latency, allocs/op, bytes/op, CPU, heap/GC, goroutines and contention.
-- [ ] **P8-03 — Profile hot paths:** identify allocation, copy, mutex and scheduler costs before optimization.
-- [ ] **P8-04 — PERF-004 decisions:** evaluate pooling/batching only where measured benefit justifies complexity and ownership remains safe.
-- [ ] **P8-05 — Regression gate:** rerun correctness, race and interoperability after every accepted optimization; set numeric targets only from workload evidence.
+**Authorization:** The owner approved the complete Phase 8 scope by replying «ادامه بده» after the explicit Phase 8 approval question. P8-01..P8-05 are authorized. Phase 9 examples, documentation polish, release readiness and deployment remain outside scope.
+
+**Guardrails:** measure before optimizing. No public API, Wire Protocol, default, timeout/reconnect policy, resource ceiling, callback-ordering contract or frozen architecture decision may be changed in this phase. PERF-004 pooling/batching remains a measured engineering choice, not an assumed optimization. Do not create numeric performance SLAs before the reproducible baseline and owner workload review.
+
+- [ ] **P8-01 — Reproducible baseline:** build a repeatable loopback TCP benchmark suite covering Pinex wire codec, Request/Response, SendNoWait, payload sizes 64 B/256 B/1 KiB/4 KiB/near 1 MiB, 1/8/32 Sessions, producer contention, callback concurrency and controlled queue saturation. Record Go version, OS/architecture, CPU model/count, GOMAXPROCS, runner limits and exact source SHA.
+- [ ] **P8-02 — Record metrics:** collect throughput, p50/p95/p99 end-to-end completion latency, submission latency, allocs/op, bytes/op, CPU, heap/GC, goroutine count, worker snapshots, RSS and contention. Keep -race correctness runs separate from performance numbers.
+- [ ] **P8-03 — Profile hot paths:** capture CPU, heap, mutex and block profiles for representative small-payload/high-throughput and larger-payload scenarios; inspect top cumulative/self costs and allocation/copy sites before proposing changes.
+- [ ] **P8-04 — PERF-004 decisions:** evaluate private outbound frame pooling, batching or other candidates only when the profile identifies a material bottleneck. Never pool user-owned inbound payloads; preserve PERF-002 A ownership and all admission/accounting semantics. If no safe material win is proven, record NO CHANGE.
+- [ ] **P8-05 — Regression gate:** after each accepted optimization rerun gofmt, vet, unit, race, Pinex golden and live TCP interoperability plus the benchmark suite. Report before/after on the same runner/methodology; reject regressions in tail latency, fairness, memory bounds or correctness.
+
+### Phase 8 baseline implementation plan — 2026-11-17
+
+- Existing approved performance contract and workload matrix are in .codex/NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md; PERF-002 A and all resource/worker limits remain binding.
+- Initial benchmark code and CI workflow are being added as test-only infrastructure. No production code is changed for baseline collection.
+- The first baseline is loopback Go↔Go and pure-Go wire codec. The Phase 7 actual Pinex C++ peer is retained as the cross-language correctness gate; any direct performance comparison to C++ must use a separately matched benchmark harness and disclose language/runtime differences.
+- The initial runner baseline is an Ubuntu 24.04 GitHub-hosted runner. Results are environment-specific and are not production hardware guarantees.
+- Detailed measurements, profile analysis, benchmark commands, artifact links and decisions will be appended to .codex/NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md.
 
 ## Phase 9 — Documentation, examples and V1 release readiness
 

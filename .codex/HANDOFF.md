@@ -962,3 +962,23 @@ The owner authorized P7-01..P7-08. All eight tasks are now complete:
 The dedicated Pinex workflow remains on test-only branch test/neta-go-phase7-interop; Pinex develop was not changed. The test suite exercises an application-stage silent TCP Bind peer as the blackhole case. Privileged firewall-level SYN-drop/network-namespace injection was not run and is not claimed.
 
 No public API, wire format, defaults, resource ceilings or frozen architecture decisions were changed. Phase 7 is closed. Phase 8 performance/optimization and Phase 9 release/deployment remain NOT AUTHORIZED and require separate owner approval.
+
+
+## 22. Phase 8 authorization and performance handoff — 2026-11-17
+
+**Owner authorization:** The owner approved the complete Phase 8 scope by replying «ادامه بده» after being explicitly asked to approve Phase 8. P8-01..P8-05 are authorized. Phase 9 is not authorized.
+
+**Starting repository HEAD:** 7f9fe62e4ffa85966b5f028365086707ec08fed2 (Phase 7 completion documentation commit; source baseline remains 209c24a7dbc5a5aa3db95ec63705915406acacb6).
+
+**Repository inspection:** .codex/AGENT_CONTEXT.md is not present on main; the canonical tracker is root TASKS.md. Reviewed NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md, NETA_GO_PERF_002_003_API_001B_DESIGN_2026-11-16.md, Worker Capacity/Resource Accounting design, Architecture Freeze/Decision Register, current implementation and CI workflows.
+
+**Binding performance constraints:**
+- PERF-002 A: one outbound snapshot on successful admission; inbound payload is directly read into owned, user-retainable memory; never recycle user-visible inbound payload.
+- Existing bounded byte/count/resource ledgers, worker class isolation, fair per-Session scheduling, Request credit lifecycle, callback order and single serialized TCP Writer remain unchanged.
+- No numeric throughput/latency SLA exists yet. Establish a reproducible baseline before proposing thresholds.
+- -race is a correctness gate, not a performance measurement.
+- No public API, wire format, defaults, timeout/reconnect policy or resource ceiling changes.
+
+**P8 tasks:** P8-01 benchmark suite and environment capture; P8-02 latency/throughput/allocation/CPU/heap/GC/goroutine/RSS/contention metrics; P8-03 CPU/heap/mutex/block profiling; P8-04 evidence-based PERF-004 evaluation; P8-05 correctness/interop/performance regression gate.
+
+Initial work must remain test/benchmark/CI/documentation-only. Do not begin Phase 9. Record exact source HEAD and runner details for every result.
