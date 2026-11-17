@@ -176,8 +176,8 @@ func newBoundSession(conn net.Conn, config sessionConfig, identity sessionIdenti
 	s.lastActivity = time.Now()
 	s.mu.Unlock()
 	s.boundOnce.Do(func() { close(s.bound) })
-	s.start()
 	s.dispatchBound()
+	s.start()
 	return s
 }
 
@@ -305,9 +305,11 @@ func (s *Session) completeBind(event bindRequestEvent, serverSystemID string, ad
 }
 
 func (s *Session) markBound(systemID string, bindType wire.BindType) {
+	s.dispatchMu.Lock()
 	s.mu.Lock()
 	if s.state != SessionStateBinding {
 		s.mu.Unlock()
+		s.dispatchMu.Unlock()
 		return
 	}
 	s.state = SessionStateBound
@@ -319,8 +321,20 @@ func (s *Session) markBound(systemID string, bindType wire.BindType) {
 	s.mu.Unlock()
 
 	s.boundOnce.Do(func() { close(s.bound) })
+	accepted := true
+	if s.handlers.onBound != nil {
+		task := callbackTask{
+			session: s,
+			run:     func() { s.handlers.onBound(s) },
+			cancel:  func() {},
+		}
+		accepted = s.enqueueCallbackWithDispatchLock(callbackApplication, task)
+	}
+	s.dispatchMu.Unlock()
 	s.signalControl()
-	s.dispatchBound()
+	if !accepted {
+		s.beginClose(ErrCapacity, true)
+	}
 }
 
 func (s *Session) dispatchBound() {
@@ -340,7 +354,12 @@ func (s *Session) dispatchBound() {
 func (s *Session) enqueueCallback(class callbackClass, task callbackTask) bool {
 	s.dispatchMu.Lock()
 	defer s.dispatchMu.Unlock()
+	return s.enqueueCallbackWithDispatchLock(class, task)
+}
 
+// enqueueCallbackWithDispatchLock requires dispatchMu. It serializes callback
+// admission with Unbind and Forced Close state transitions.
+func (s *Session) enqueueCallbackWithDispatchLock(class callbackClass, task callbackTask) bool {
 	s.mu.Lock()
 	forcedClose := s.state >= SessionStateClosing && s.closeForced
 	s.mu.Unlock()

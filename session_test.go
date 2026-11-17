@@ -209,6 +209,62 @@ func TestSessionSendRequestCorrelatesResponse(t *testing.T) {
 	waitDone(t, session)
 }
 
+func TestSessionOnBoundIsQueuedBeforeApplicationRequest(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	var order []string
+	session, err := newClientBindingSession(local, defaultSessionConfig(), wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "client",
+	}, time.Second, dispatcher, sessionHandlers{
+		onBound: func(*Session) { order = append(order, "bound") },
+		onRequest: func(*Session, Request) { order = append(order, "request") },
+	})
+	if err != nil {
+		t.Fatalf("newClientBindingSession: %v", err)
+	}
+	defer peer.Close()
+
+	bindRequest := readWireFrame(t, peer)
+	bindResponse, err := wire.EncodeBindResponse(bindRequest.Header.Sequence, wire.StatusOK, wire.Bind{
+		Type: wire.BindBiDirectional, SystemID: "server",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, bindResponse)
+	request, err := wire.EncodeStreamRequest(55, []byte("after-bind"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, request)
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		dispatcher.mu.Lock()
+		count := len(dispatcher.application)
+		dispatcher.mu.Unlock()
+		if count >= 2 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	first, ok := dispatcher.takeApplication()
+	if !ok {
+		t.Fatal("OnBound callback was not queued")
+	}
+	second, ok := dispatcher.takeApplication()
+	if !ok {
+		t.Fatal("OnRequest callback was not queued")
+	}
+	first.run()
+	second.run()
+	if len(order) != 2 || order[0] != "bound" || order[1] != "request" {
+		t.Fatalf("callback order = %v", order)
+	}
+	session.Close()
+	waitDone(t, session)
+}
+
 func TestSessionUnbindDrainsApplicationFIFO(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
@@ -235,6 +291,54 @@ func TestSessionUnbindDrainsApplicationFIFO(t *testing.T) {
 	}
 	writeWireFrame(t, peer, response)
 
+	select {
+	case err := <-unbindResult:
+		if err != nil {
+			t.Fatalf("Unbind: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Unbind did not complete")
+	}
+	waitDone(t, session)
+}
+
+func TestSessionUnbindStopsNewApplicationAdmission(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{
+		onRequest: func(*Session, Request) {},
+	})
+	defer peer.Close()
+
+	firstRequest, err := wire.EncodeStreamRequest(1, []byte("accepted-before-unbind"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, firstRequest)
+	waitForApplicationQueued(t, dispatcher)
+
+	unbindResult := make(chan error, 1)
+	go func() { unbindResult <- session.Unbind(context.Background()) }()
+	unbind := readWireFrame(t, peer)
+	if unbind.Header.Command != wire.CommandUnbindRequest {
+		t.Fatalf("expected Unbind Request, got 0x%x", unbind.Header.Command)
+	}
+
+	secondRequest, err := wire.EncodeStreamRequest(2, []byte("after-unbind"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, secondRequest)
+	time.Sleep(20 * time.Millisecond)
+	if got := dispatcher.applicationCount(); got != 1 {
+		t.Fatalf("Application callback count after Unbind = %d, want 1", got)
+	}
+
+	response, err := wire.EncodeUnbindResponse(unbind.Header.Sequence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWireFrame(t, peer, response)
 	select {
 	case err := <-unbindResult:
 		if err != nil {

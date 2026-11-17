@@ -125,31 +125,30 @@ func (s *Session) Unbind(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	s.dispatchMu.Lock()
 	s.mu.Lock()
+	var admissionErr error
 	switch s.state {
 	case SessionStateBound:
 		sequence := s.nextSequenceLocked()
 		if sequence == 0 {
-			s.mu.Unlock()
-			return ErrCapacity
+			admissionErr = ErrCapacity
+			break
 		}
 		frame, err := wire.EncodeUnbindRequest(sequence)
 		if err != nil {
-			s.mu.Unlock()
-			return err
+			admissionErr = err
+			break
 		}
 		s.state = SessionStateUnbinding
 		s.unbindSequence = sequence
 		s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
-		if err := s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true}); err != nil {
-			s.mu.Unlock()
-			s.beginClose(err, true)
-			return err
-		}
+		admissionErr = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true})
 	case SessionStateUnbinding:
 		// Join the existing graceful Unbind operation.
 	case SessionStateClosing, SessionStateClosed:
 		s.mu.Unlock()
+		s.dispatchMu.Unlock()
 		select {
 		case <-s.done:
 			return s.Err()
@@ -158,9 +157,15 @@ func (s *Session) Unbind(ctx context.Context) error {
 		}
 	default:
 		s.mu.Unlock()
+		s.dispatchMu.Unlock()
 		return ErrNotBound
 	}
 	s.mu.Unlock()
+	s.dispatchMu.Unlock()
+	if admissionErr != nil {
+		s.beginClose(admissionErr, true)
+		return admissionErr
+	}
 	s.signalControl()
 
 	select {

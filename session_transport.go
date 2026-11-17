@@ -83,7 +83,6 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 	s.mu.Lock()
 	state := s.state
 	role := s.role
-	bindType := s.bindType
 	s.lastActivity = time.Now()
 	s.mu.Unlock()
 	s.signalControl()
@@ -100,7 +99,7 @@ func (s *Session) handleFrame(frame wire.Frame) error {
 		}
 		return s.handleClientBindResponse(frame)
 	case SessionStateBound, SessionStateUnbinding:
-		return s.handleBoundFrame(frame, state, role, bindType)
+		return s.handleBoundFrame(frame, role)
 	default:
 		return ErrClosed
 	}
@@ -203,14 +202,24 @@ func (s *Session) handleClientBindResponse(frame wire.Frame) error {
 	return nil
 }
 
-func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role sessionRole, bindType wire.BindType) error {
+func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 	switch frame.Header.Command {
 	case wire.CommandStreamRequest:
-		if role == sessionRoleClient && bindType == wire.BindUniDirectional {
-			return ErrProtocol
-		}
-		if state == SessionStateUnbinding || s.handlers.onRequest == nil {
+		if s.handlers.onRequest == nil {
 			return nil
+		}
+		s.dispatchMu.Lock()
+		s.mu.Lock()
+		currentState := s.state
+		currentBindType := s.bindType
+		s.mu.Unlock()
+		if currentState != SessionStateBound {
+			s.dispatchMu.Unlock()
+			return nil
+		}
+		if role == sessionRoleClient && currentBindType == wire.BindUniDirectional {
+			s.dispatchMu.Unlock()
+			return ErrProtocol
 		}
 		payload := frame.Body
 		task := callbackTask{
@@ -220,7 +229,9 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 			},
 			cancel: func() {},
 		}
-		if !s.enqueueCallback(callbackApplication, task) {
+		accepted := s.enqueueCallbackWithDispatchLock(callbackApplication, task)
+		s.dispatchMu.Unlock()
+		if !accepted {
 			s.beginClose(ErrCapacity, true)
 		}
 		return nil
@@ -269,7 +280,13 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 		if err != nil {
 			return err
 		}
+		s.dispatchMu.Lock()
 		s.mu.Lock()
+		if s.isClosingLocked() {
+			s.mu.Unlock()
+			s.dispatchMu.Unlock()
+			return ErrClosed
+		}
 		if s.state == SessionStateBound {
 			s.state = SessionStateUnbinding
 		}
@@ -280,6 +297,7 @@ func (s *Session) handleBoundFrame(frame wire.Frame, state SessionState, role se
 			afterWrite: func() { s.beginClose(nil, false) },
 		})
 		s.mu.Unlock()
+		s.dispatchMu.Unlock()
 		if err != nil {
 			s.beginClose(err, true)
 		}
