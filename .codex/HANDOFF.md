@@ -652,3 +652,8 @@ Detailed draft: `NETA_GO_API_002_LIFECYCLE_TIMEOUT_SHUTDOWN_DESIGN_2026-11-17.md
 - This does not enable AutoReconnect or authorize retries. No wire change; no implementation/tests authorized.
 
 **Next:** API-002-04 Bind response timeout. Proposal: 30s absolute from TCP establishment, before Bind Write, including Bind Write and matching response wait.
+
+
+## 47. Consolidated Architecture Freeze decision register (2026-11-17)
+
+All remaining owner choices are collected in [NETA_GO_ARCHITECTURE_FREEZE_DECISION_REGISTER_2026-11-17.md](NETA_GO_ARCHITECTURE_FREEZE_DECISION_REGISTER_2026-11-17.md): API-002-04..08, final API-001 public surface, API-003 module/package boundaries and PROTOCOL-001 adoption of the source-verified 1 MiB total-frame ceiling. The register is a proposal, not an approval. No implementation, tests, benchmarks, builds or dependency changes are authorized.

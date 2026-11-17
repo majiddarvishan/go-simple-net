@@ -1216,3 +1216,8 @@ The caller's Context cancellation always applies; an earlier caller deadline tak
 **References:** API-002 lifecycle design §5.2; API-004 configuration contract §11.6.
 
 **Next:** API-002-04 — Bind response timeout. Proposal: 30s absolute from TCP establishment, before sending Bind, covering Bind Write and response wait. Implementation remains NOT AUTHORIZED.
+
+
+## Architecture Freeze decision register issued (OPEN, 2026-11-17)
+
+The consolidated owner-choice set is recorded in [NETA_GO_ARCHITECTURE_FREEZE_DECISION_REGISTER_2026-11-17.md](NETA_GO_ARCHITECTURE_FREEZE_DECISION_REGISTER_2026-11-17.md). It covers API-002-04..08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Go adoption of the source-verified 1 MiB total-frame ceiling. This entry does not approve any option. Existing approvals, including API-002-01..03 and WORKER-001..009C, remain unchanged. Implementation and tests remain NOT AUTHORIZED.
