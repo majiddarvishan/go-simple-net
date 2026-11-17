@@ -312,7 +312,7 @@ func validateSystemID(field, systemID string) error {
 	if strings.IndexByte(systemID, 0) >= 0 {
 		return invalidConfig(field, "<redacted>", "must not contain a NUL byte")
 	}
-	if size := len([]byte(systemID)); size > maxSystemIDBytes {
+	if size := len(systemID); size > maxSystemIDBytes {
 		return invalidConfig(field, size, "Pinex system_id is limited to 19 bytes")
 	}
 	return nil
