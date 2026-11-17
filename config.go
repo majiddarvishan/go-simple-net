@@ -58,6 +58,7 @@ const (
 )
 
 type sessionConfig struct {
+	protocolVersion              ProtocolVersion
 	requestTimeout               time.Duration
 	frameAssemblyTimeout         time.Duration
 	unbindTimeout                time.Duration
@@ -123,6 +124,7 @@ type serverConfig struct {
 
 func defaultSessionConfig() sessionConfig {
 	return sessionConfig{
+		protocolVersion:              ProtocolVersionV2,
 		requestTimeout:               defaultRequestTimeout,
 		frameAssemblyTimeout:         defaultFrameAssemblyTimeout,
 		unbindTimeout:                defaultUnbindTimeout,
@@ -204,6 +206,9 @@ func defaultServerConfig() serverConfig {
 }
 
 func validateSessionConfig(c sessionConfig) error {
+	if c.protocolVersion != ProtocolVersionV1 && c.protocolVersion != ProtocolVersionV2 {
+		return newConfigError("protocol_version", fmt.Sprint(c.protocolVersion), "must be ProtocolVersionV1 or ProtocolVersionV2")
+	}
 	durations := []struct {
 		name string
 		v    time.Duration
