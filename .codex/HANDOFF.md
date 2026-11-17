@@ -6,11 +6,11 @@
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
 **Implementation status:** PHASE 1–4 COMPLETE / CI PASS; PHASE 5 AUTHORIZED / IN PROGRESS; PHASE 6–9 NOT AUTHORIZED  
-**Current work:** Phase 5 Bounded callback Worker Scheduler is OWNER AUTHORIZED / IN PROGRESS (2026-11-17). The canonical task-by-task status is [.codex/TASKS.md](TASKS.md); the binding implementation contract is [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Phases 1–4 remain COMPLETE / CI PASS. Phase 6+ remain gated; live TCP Go↔C++ interoperability remains Phase 7.
+**Current work:** Phase 5 Bounded callback Worker Scheduler is OWNER AUTHORIZED / IN PROGRESS (2026-11-17). The canonical task-by-task status is [TASKS.md](../TASKS.md); the binding implementation contract is [Worker Capacity & Resource Accounting Design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md). Phases 1–4 remain COMPLETE / CI PASS. Phase 6+ remain gated; live TCP Go↔C++ interoperability remains Phase 7.
 
 ## 1. Repository state
 
-- Canonical implementation checklist: [.codex/TASKS.md](TASKS.md). Update it whenever a task changes status.
+- Canonical implementation checklist: [TASKS.md](../TASKS.md). Update it whenever a task changes status.
 
 - Default branch: main
 - Phase 3 source verification HEAD: `cc0d25e9252b48f38dcddeeb53eaa6e7fe1cbf4c`.
