@@ -4,7 +4,7 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Architecture:** Frozen; all fundamental owner decisions closed.  
-**Current implementation status:** Phases 1–3 COMPLETE / CI PASS; Phase 4 Resource Admission & Accounting AUTHORIZED / IN PROGRESS; Phase 5+ outside current authorization.
+**Current implementation status:** Phases 1–4 COMPLETE / CI PASS; Phase 5+ outside current authorization.
 
 ## Owner authorization
 
@@ -150,3 +150,14 @@ The owner explicitly instructed that a repository-visible task tracker be added 
 - Phase 8 benchmarks/pooling and Phase 9 release/deployment.
 
 No public API, wire behavior, default, resource limit, owner decision or frozen architecture contract is reopened. The canonical task-by-task checklist is `.codex/TASKS.md`.
+
+
+## Phase 4 implementation completion evidence — 2026-11-17
+
+The Phase 4 scope authorized above is COMPLETE at source HEAD `2935402366603267ba60c181a057d26cf0e7e9a6`.
+
+- 46 focused Session/transport/resource-accounting tests and 8 owner-ledger tests.
+- Go Actions [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415): PASS — gofmt, go vet ./..., go test ./..., go test -race ./....
+- Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS.
+- Implementation report: `.codex/NETA_GO_PHASE_4_RESOURCE_ADMISSION_IMPLEMENTATION_2026-11-17.md`.
+- Phase 5 Worker Scheduler, Phase 6 orchestration/reconnect, Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain NOT AUTHORIZED.

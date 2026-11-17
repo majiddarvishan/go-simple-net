@@ -4,14 +4,14 @@
 **Repository:** github.com/majiddarvishan/neta-go  
 **Branch:** main  
 **Status:** ARCHITECTURE FROZEN — OWNER DECISIONS COMPLETE  
-**Implementation authorization:** PHASE 1 + PHASE 2 + PHASE 3 COMPLETE / PHASE 4+ NOT AUTHORIZED  
+**Implementation authorization:** PHASE 1–4 COMPLETE / PHASE 5+ NOT AUTHORIZED  
 **Compatibility baseline:** Pinex C++ 1.5.0, audited develop HEAD f7bd1eb779baff0d10e624f20522df345e6ee747
 
 ## 1. Executive result
 
 All owner decisions required for the V1 architecture freeze are closed. The owner approved Option A for API-002-04 through API-002-08, API-001 final public surface, API-003 module/package architecture and PROTOCOL-001 Maximum Frame Size adoption on 2026-11-17.
 
-The architecture is frozen at the design/contract level. Phases 1, 2 and 3 are COMPLETE / CI PASS. Phase 4+ remain gated by separate owner authorization.
+The architecture is frozen at the design/contract level. Phases 1–4 are COMPLETE / CI PASS. Phase 5+ remain gated by separate owner authorization.
 
 ## 2. Architecture decision closure
 
@@ -121,11 +121,15 @@ No numeric Performance SLA is invented at Architecture Freeze. Throughput, p50/p
 
 **Phase 3 boundary:** use the approved per-Session bounded FIFO as a minimal transport prerequisite only. Full independent resource ledgers remain Phase 4; isolated callback worker pools remain Phase 5; Client/Server orchestration, reconnect and generation fencing remain Phase 6. No public API expansion, dependency, benchmark, release or deployment.
 
-**Phase 4 — Admission and resource accounting**
-- Implement independent ledgers for queue bytes/counts, retained Application/Completion bytes, Request credits, OnClose event credits and worker permits.
-- Add per-Session and owner limits exactly as approved; owner limits remain per Client/Server, not process-wide.
-- Prove no double-counting across queue-to-Writer and queue-to-active callback transitions; use checked arithmetic and overflow/underflow guards.
-- Enforce incoming offender-close and outgoing fail-fast semantics.
+**Phase 4 — Admission and resource accounting (OWNER AUTHORIZED 2026-11-17 / COMPLETE / CI PASS)**
+- [x] Implement independent Client/Server owner ledgers for Request credits, retained Application/Completion bytes and OnClose event credits.
+- [x] Enforce per-Session incoming/outgoing Application queue bytes/counts and retained-byte limits, plus the Server aggregate incoming+outgoing queue budget.
+- [x] Reserve outgoing and incoming Application capacity before Frame allocation/copy; reserve matched Completion bytes before Body allocation.
+- [x] Implement fixed 4 KiB scratch drain on Completion capacity exhaustion under the original absolute Frame Assembly deadline.
+- [x] Preserve fail-fast outgoing Queue Full/Capacity distinctions and offender-only incoming overload close.
+- [x] Prove queue-to-Writer and queue-to-callback transfer, callback ownership beyond Done, exact release on timeout/partial I/O/Forced Close/cancellation and OnClose best-effort credits.
+- [x] Pass exact/over boundary, multi-Session, owner isolation, concurrent admission, partial I/O, scratch-drain and race-detector tests.
+- [x] Pass gofmt, go vet ./..., go test ./... and go test -race ./... in CI.
 
 **Phase 5 — Worker scheduler**
 - Implement three isolated lazy worker classes: Application, Completion and OnClose.
@@ -266,3 +270,13 @@ The owner explicitly instructed to add a canonical task tracker and then continu
 **Excluded:** Phase 5 worker pools/scheduler, Phase 6 Client/Server orchestration and reconnect, Phase 7 live TCP interoperability/fault-injection, Phase 8 performance campaign and Phase 9 release/deployment.
 
 See [canonical task tracker](TASKS.md). No public API, wire contract, defaults or architecture decision is reopened.
+
+
+## Phase 4 completion evidence — 2026-11-17
+
+- Source verification HEAD: `2935402366603267ba60c181a057d26cf0e7e9a6`.
+- 46 focused Session tests and 8 owner-resource-ledger tests.
+- Go CI [44062568415](https://github.com/majiddarvishan/neta-go/actions/runs/44062568415): PASS.
+- Pinex Wire Compatibility [44062568425](https://github.com/majiddarvishan/neta-go/actions/runs/44062568425): PASS.
+- Live Go↔Pinex TCP interoperability is still Phase 7 and has not been claimed.
+- Phase 5 Worker Scheduler and all later phases remain outside the current authorization.
