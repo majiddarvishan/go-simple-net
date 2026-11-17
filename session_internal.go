@@ -108,17 +108,17 @@ type Session struct {
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
 
-	mu                      sync.Mutex
-	dispatchMu              sync.Mutex
-	cond                    *sync.Cond
-	state                   SessionState
-	systemID                string
-	bindType                wire.BindType
-	sequence                wire.SequenceGenerator
-	pending                 map[uint32]*pendingRequest
-	appQueue                []*outboundFrame
-	controlQueue            []*outboundFrame
-	barrierQueue            []*outboundFrame
+	mu                        sync.Mutex
+	dispatchMu                sync.Mutex
+	cond                      *sync.Cond
+	state                     SessionState
+	systemID                  string
+	bindType                  wire.BindType
+	sequence                  wire.SequenceGenerator
+	pending                   map[uint32]*pendingRequest
+	appQueue                  []*outboundFrame
+	controlQueue              []*outboundFrame
+	barrierQueue              []*outboundFrame
 	queuedAppBytes            uint64
 	queuedAppFrames           uint32
 	retainedApplicationBytes  uint64
@@ -129,30 +129,30 @@ type Session struct {
 	admissionCount            uint32
 	resourceAccountingFailed  bool
 	queuedControlBytes        uint64
-	activeWrite                *outboundFrame
-	lastActivity               time.Time
-	preBindDeadline            time.Time
-	bindDeadline               time.Time
-	unbindDeadline             time.Time
-	enquireLinkDeadline        time.Time
-	bindSequence               uint32
-	unbindSequence             uint32
-	enquireLinkSequence        uint32
-	bindRequestWriting         bool
-	bindRequestSent            bool
-	bindResponseWriting        bool
-	bindResponseSent           bool
-	unbindRequestWriting       bool
-	unbindRequestSent          bool
-	enquireLinkWriting         bool
-	enquireLinkQueued          bool
-	enquireLinkOutstanding     bool
-	enquireLinkResponseSeen    bool
-	pendingBind                *bindRequestEvent
-	bindRequests               chan bindRequestEvent
-	closeCause                 error
-	closeForced                bool
-	started                    bool
+	activeWrite               *outboundFrame
+	lastActivity              time.Time
+	preBindDeadline           time.Time
+	bindDeadline              time.Time
+	unbindDeadline            time.Time
+	enquireLinkDeadline       time.Time
+	bindSequence              uint32
+	unbindSequence            uint32
+	enquireLinkSequence       uint32
+	bindRequestWriting        bool
+	bindRequestSent           bool
+	bindResponseWriting       bool
+	bindResponseSent          bool
+	unbindRequestWriting      bool
+	unbindRequestSent         bool
+	enquireLinkWriting        bool
+	enquireLinkQueued         bool
+	enquireLinkOutstanding    bool
+	enquireLinkResponseSeen   bool
+	pendingBind               *bindRequestEvent
+	bindRequests              chan bindRequestEvent
+	closeCause                error
+	closeForced               bool
+	started                   bool
 
 	wake      chan struct{}
 	bound     chan struct{}
