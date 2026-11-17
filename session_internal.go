@@ -334,12 +334,33 @@ func (s *Session) waitBound(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	// A completed Bind wins over a Context cancellation observed afterward.
+	select {
+	case <-s.bound:
+		return nil
+	default:
+	}
 	select {
 	case <-s.bound:
 		return nil
 	case <-s.done:
 		return s.Err()
 	case <-ctx.Done():
+		select {
+		case <-s.bound:
+			return nil
+		default:
+		}
+		s.mu.Lock()
+		bound := s.state == SessionStateBound
+		s.mu.Unlock()
+		if bound {
+			// markBound publishes internal generation state before closing
+			// bound; do not tear down a successfully negotiated Session just
+			// because the caller Context expires during that publication.
+			<-s.bound
+			return nil
+		}
 		s.beginClose(ctx.Err(), true)
 		<-s.done
 		return ctx.Err()

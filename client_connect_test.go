@@ -396,3 +396,28 @@ func TestUniDirectionalClientDrainsAndIgnoresPeerRequests(t *testing.T) {
 	session.Close()
 	waitDone(t, session)
 }
+
+
+func TestWaitBoundPreservesBindThatWonBeforeContextCancellation(t *testing.T) {
+	session := newSession(nil, defaultSessionConfig(), sessionIdentity{
+		role: sessionRoleClient,
+	}, nil, sessionHandlers{})
+	session.mu.Lock()
+	session.state = SessionStateBound
+	session.mu.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		session.boundOnce.Do(func() { close(session.bound) })
+	}()
+	if err := session.waitBound(ctx); err != nil {
+		t.Fatalf("waitBound returned %v after Bind had won", err)
+	}
+	if session.State() != SessionStateBound {
+		t.Fatalf("Session state = %s, want Bound", session.State())
+	}
+	session.beginClose(ErrClosed, true)
+	waitDone(t, session)
+}
