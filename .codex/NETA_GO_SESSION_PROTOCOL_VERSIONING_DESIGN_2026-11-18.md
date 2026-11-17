@@ -95,3 +95,16 @@ The owner explicitly requested removing the NUL from V2. This supersedes the tem
 - Empty BindResp Body, when omitted, keeps the original default-body decode allowance. The previous Pinex V1 golden fixtures must continue matching **exactly**.
 
 This behavior intentionally introduces new V2 wire bytes, so previous Pinex compatibility claims must be qualified: **V1** remains Pinex-compatible, while **V2 Bind** is not decodable by Pinex 1.5.0. Cross-version testing and release-readiness requalification are mandatory. P9-06 remains NOT AUTHORIZED.
+
+
+## 9. PV-02B — V2 SystemID capacity raised to 20 bytes (owner-approved 2026-11-18)
+
+The owner directed an increase of the V2 `SystemID` limit to **20 bytes** now that the trailing NUL is absent. This **supersedes only the V2 0..19 byte bound stated in section 8**; it does not change V1.
+
+- V1 Bind Request/Response: `BindType (1 byte) + SystemID (0..19 bytes) + NUL (1 byte)`. Pinex 1.5.0 compatibility, max-19 validation and golden bytes preserved.
+- V2 Bind Request/Response: `BindType (1 byte) + SystemID (0..20 bytes)`. Still no NUL; exactly 20 bytes permitted, 21 bytes rejected.
+- Go Client validation depends on its `WithProtocolVersion` Session setting; default V2 permits 20 bytes, explicit V1 remains limited to 19.
+- V2 Go Server decodes a 20-byte SystemID and retains it as Session identity; V1 server/codec still reject a 20-byte SystemID.
+- No change to the fixed 10-byte Header, Stream/Control PDUs, command/status definitions, or limits on payloads and Session resources.
+
+**Verification gate:** Go test/race/paired example smoke and pinned Pinex compatibility CI must pass on the protected PR, then after merge on latest main; update root `TASKS.md` evidence accordingly. Publication still requires separate owner authorization P9-06 and renewed CHANGELOG acceptance.

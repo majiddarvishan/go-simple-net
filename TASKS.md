@@ -319,6 +319,11 @@ This root-level file is the single, canonical, implementation-facing task list f
 
 ---
 
+## PV-02B — Extend V2 SystemID to 20 bytes (owner-authorized 2026-11-18)
+
+- [x] **PV-02B — Version-specific SystemID limit:** V2 accepts up to 20 bytes in Bind Request/Response (without a NUL); V1 remains 19 bytes + NUL. Go Client validation honors the selected Session protocol version; Encode/Decode reject exceeding lengths. New tests verify V2 accepts 20/rejects 21, V1 accepts 19/rejects 20, Request/Response round-trips and real TCP V2 Bind of 20 bytes. Protected [PR #8](https://github.com/majiddarvishan/neta-go/pull/8): Go [44187040490](https://github.com/majiddarvishan/neta-go/actions/runs/44187040490) **PASS** and Pinex [44187040470](https://github.com/majiddarvishan/neta-go/actions/runs/44187040470) **PASS** on SHA `9e2ede41284684c640897d282b39f36468335424`. Post-merge main evidence and release notes requalification remain PV-02B-R.
+- [ ] **PV-02B-R — Release requalification:** record exact post-merge main CI and obtain owner approval of updated Unreleased release notes. **P9-06 remains NOT AUTHORIZED**; no tag/release.
+
 ## PV-02A — V2 NUL-free Bind (owner-authorized 2026-11-18)
 
 - [x] **PV-02A — Remove trailing NUL from V2 Bind Request/Response:** Go V2 Client sends NUL-free Bind; default Go V2 Server detects V1/V2 from the first Bind and responds in that format; Go V1-only Server rejects V2; V1 codec and pinned Pinex 1.5.0 fixture unchanged. Codec, real Go loopback, legacy test-fixture, correctness and race checks verified on [PR #7](https://github.com/majiddarvishan/neta-go/pull/7), commit `d456afb2149b5976f560b57674be2e14da0f460a`: [Go CI PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468231) and [Pinex Compatibility PASS](https://github.com/majiddarvishan/neta-go/actions/runs/44183468234).
@@ -336,7 +341,7 @@ This root-level file is the single, canonical, implementation-facing task list f
 - [x] **PV-03 (NUL-free V2 Bind scope) — Implemented under PV-02A:** the new V2 Bind Request/Response omit the NUL; V1 Bind stays Pinex 1.5.0-compatible and the 10-byte Frame Header/Stream frames are unchanged. Any further version-specific wire changes require separate approval.
 - [ ] **PV-04/PV-05 — Peer capability validation and future V2-wire-specific APIs and cross-version tests:** PV-01 provides only local Go configuration; negotiation and wire-dependent behavior still require separate design/approval.
 
-**Release boundary:** The future-version design tasks do not reopen V1 or change the separate P9-06 `v1.0.0` release approval requirement. No code or CI changes were requested or performed.
+**Release boundary:** Future negotiation work remains out of scope; owner-approved PV-01, PV-02A and PV-02B introduce separately documented Go changes without reopening the legacy V1 wire contract. The P9-06 `v1.0.0` release task still requires separate explicit owner authorization.
 
 ---
 

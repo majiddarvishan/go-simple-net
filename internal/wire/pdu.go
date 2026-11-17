@@ -6,7 +6,13 @@ import (
 	"fmt"
 )
 
-const MaxSystemIDLength = 19
+const (
+	// MaxSystemIDLength is the legacy Pinex V1 SystemID byte limit.
+	// V1 needs one additional NUL byte within its 20-byte string field.
+	MaxSystemIDLength = 19
+	// MaxSystemIDLengthV2 permits all 20 SystemID bytes, without a NUL.
+	MaxSystemIDLengthV2 = 20
+)
 
 var (
 	ErrInvalidBindType   = errors.New("wire: invalid bind type")
@@ -85,8 +91,8 @@ func encodeBindBodyV2(bind Bind) ([]byte, error) {
 	if bind.Type != BindUniDirectional && bind.Type != BindBiDirectional {
 		return nil, fmt.Errorf("%w: %d", ErrInvalidBindType, bind.Type)
 	}
-	if len(bind.SystemID) > MaxSystemIDLength || bytes.IndexByte([]byte(bind.SystemID), 0) >= 0 {
-		return nil, fmt.Errorf("%w: length must be 0..%d bytes and contain no NUL", ErrInvalidSystemID, MaxSystemIDLength)
+	if len(bind.SystemID) > MaxSystemIDLengthV2 || bytes.IndexByte([]byte(bind.SystemID), 0) >= 0 {
+		return nil, fmt.Errorf("%w: length must be 0..%d bytes and contain no NUL", ErrInvalidSystemID, MaxSystemIDLengthV2)
 	}
 	body := make([]byte, 1, 1+len(bind.SystemID))
 	body[0] = byte(bind.Type)
@@ -102,7 +108,7 @@ func decodeBindBodyV2(body []byte) (Bind, error) {
 		return Bind{}, fmt.Errorf("%w: %d", ErrInvalidBindType, bindType)
 	}
 	systemIDBytes := body[1:]
-	if len(systemIDBytes) > MaxSystemIDLength || bytes.IndexByte(systemIDBytes, 0) >= 0 {
+	if len(systemIDBytes) > MaxSystemIDLengthV2 || bytes.IndexByte(systemIDBytes, 0) >= 0 {
 		return Bind{}, ErrInvalidSystemID
 	}
 	return Bind{Type: bindType, SystemID: string(systemIDBytes)}, nil

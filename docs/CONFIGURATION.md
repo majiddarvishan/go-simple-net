@@ -13,7 +13,7 @@ Options are applied before final validation. The resulting configuration is immu
 | Option | Default | Validation / behavior |
 |---|---:|---|
 | `WithClientAddress` | Required | Valid TCP host:port with a non-empty remote host |
-| `WithClientSystemID` | Required | Non-empty, no NUL, at most 19 bytes |
+| `WithClientSystemID` | Required | Non-empty, no embedded NUL. **V1: 19 bytes maximum** (plus a required terminator); **V2: 20 bytes maximum** (no terminator). Measured in bytes, not Unicode characters. |
 | `WithClientBindType` | `BindTypeBiDirectional` | `BindTypeUniDirectional` or `BindTypeBiDirectional` |
 | `WithConnectTimeout` | 30s | Positive duration; absolute per-Dial-attempt deadline |
 | `WithBindResponseTimeout` | 30s | Positive duration; absolute Bind handshake deadline |
@@ -62,7 +62,8 @@ Options are applied before final validation. The resulting configuration is immu
 
 | Option | Default | Validation / behavior |
 |---|---:|---|
-| `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`. V1 uses NUL-terminated Bind; V2 omits the NUL in Bind Request/Response. A new Go V2 Server accepts both and replies in kind; a V1-only Server rejects V2. Clients must explicitly choose V1 for legacy Pinex Servers. No automatic fallback. |\n| `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
+| `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`. V1 uses NUL-terminated Bind; V2 omits the NUL in Bind Request/Response. A new Go V2 Server accepts both and replies in kind; a V1-only Server rejects V2. Clients must explicitly choose V1 for legacy Pinex Servers. No automatic fallback. |
+| `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
 | `WithFrameAssemblyTimeout` | 30s | Positive absolute inbound Frame assembly deadline |
 | `WithUnbindTimeout` | 10s | Positive absolute Graceful Unbind deadline |
 | `WithWriteTimeout` | 30s | Positive absolute per-Frame Writer deadline |

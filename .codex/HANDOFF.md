@@ -1195,3 +1195,10 @@ The owner approved removing the trailing NUL only for V2. GitHub writes were tem
 Actual behavior: V1 codec remains unchanged. V2 Bind Request/Response omit the terminator; new Go Server (V2 default) detects legacy/V2 Bind format and responds using the same version. Selected protocol version is stored in Session under mu. A Go Client defaults to V2 and must set `WithProtocolVersion(ProtocolVersionV1)` to bind to Pinex C++ 1.5.0. No automatic negotiation/downgrade or new Header bytes. Codec and Go loopback tests added.
 
 Review release-boundary carefully: PV-02A and PV-02A-R tasks in `TASKS.md` require real PR/Go/Pinex CI evidence before closure; no prior CI results imply V2-wire validation. P9-06 remains NOT AUTHORIZED; no tag or release.
+
+
+## 40. PV-02B — Raise V2 SystemID byte limit to 20 (2026-11-18)
+
+Owner explicitly requested expanding `SystemID` capacity to **20 bytes** after V2 NUL removal. Implementation in `feature/v2-system-id-20-bytes-2026-11-18`: internal V2 Bind codec now allows 20 rather than 19 bytes for both Request and Response; legacy V1 codec retains 19 bytes plus NUL. Go Client construction derives the byte limit from `ProtocolVersion`, including default V2=20 and explicit V1=19. New codec and TCP tests cover boundaries and actual Session identity. No new Header field, no Pinex C++ change, no V2 auto-fallback.
+
+Track `PV-02B` and `PV-02B-R` separately in root `TASKS.md`. Merge only after protected-PR Go/race/example and Pinex wire CI PASS. Post-merge main CI and renewed changelog review remain release preflight. P9-06 is NOT AUTHORIZED, no tag/Release; local stash remains untouched.

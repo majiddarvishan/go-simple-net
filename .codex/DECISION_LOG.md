@@ -1645,3 +1645,12 @@ The new Go API/default requires fresh CI and release-note approval under PV-01-R
 Scope: Go V2 Bind Request and Bind Response now omit the trailing NUL. V1 Bind remains byte-for-byte Pinex C++ 1.5.0 compatible. A Go V2 Server accepts and identifies both V1 and V2 on the initial Bind and returns a response using that detected encoding; a V1-only Go Server rejects V2. A V2 Go Client does not attempt automatic downgrade. The 10-byte Frame Header and all Stream/Control PDUs remain unchanged.
 
 Important compatibility boundary: **V2 Bind is not accepted by Pinex 1.5.0 Server**. Go Clients targeting it must explicitly select `ProtocolVersionV1`. This is not full bidirectional capability negotiation; adding V3/version-specific Stream formats remains separately gated. V2 default was already owner-approved. New Go/race/Pinex regression tests and updated release notes must be re-reviewed before release. P9-06 NOT AUTHORIZED.
+
+
+## 71. PV-02B — V2 SystemID supports 20 bytes; V1 stays at 19 (2026-11-18)
+
+**Owner decision:** «حالا که nul رو حذف کردی محدودیت system-id رو بکن 20». This authorizes **only V2** Bind Request/Response SystemID capacity 20 bytes, because the NUL byte has already been omitted in V2. Pinex-compatible V1 continues to cap SystemID at 19 bytes **plus a mandatory NUL**.
+
+Implementation scope: `internal/wire` uses separate V1 (`MaxSystemIDLength=19`) and V2 (`MaxSystemIDLengthV2=20`) byte limits in both Encode and Decode. Go `NewClient` validates SystemID byte length based on the configured `ProtocolVersion`: default V2 accepts 20, explicit V1 rejects 20. No embedded NUL is allowed. Tests cover request/response round-trip at exactly 20, rejection at 21, V1 19/20 boundary, and a real TCP Bind with 20-byte ID. Header/Stream/Control unchanged.
+
+Publication boundary: require Go and Pinex CI on the implementation PR and protected main before closure and obtain renewed owner approval of the amended Unreleased changelog before any v1.0.0 publication. P9-06 NOT AUTHORIZED.

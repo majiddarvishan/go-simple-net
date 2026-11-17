@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/majiddarvishan/neta-go/internal/wire"
 )
 
 const (
@@ -319,8 +321,12 @@ func validateClientConfig(c clientConfig) error {
 	if c.systemID == "" {
 		return newConfigError("system_id", c.systemID, "must be non-empty")
 	}
-	if len(c.systemID) > 19 {
-		return newConfigError("system_id", c.systemID, "must be at most 19 bytes")
+	maxSystemIDLength := wire.MaxSystemIDLength
+	if c.session.protocolVersion == ProtocolVersionV2 {
+		maxSystemIDLength = wire.MaxSystemIDLengthV2
+	}
+	if len(c.systemID) > maxSystemIDLength {
+		return newConfigError("system_id", c.systemID, fmt.Sprintf("must be at most %d bytes", maxSystemIDLength))
 	}
 	if strings.IndexByte(c.systemID, 0) >= 0 {
 		return newConfigError("system_id", c.systemID, "must not contain NUL")
