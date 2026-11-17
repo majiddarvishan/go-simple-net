@@ -50,6 +50,12 @@ func (s *Server) Start() error {
 
 	go s.acceptLoop(listener, ready, acceptDone)
 	<-ready
+	s.mu.Lock()
+	stopping := s.stopping
+	s.mu.Unlock()
+	if stopping {
+		return ErrClosed
+	}
 	return nil
 }
 

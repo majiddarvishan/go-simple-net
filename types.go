@@ -34,16 +34,14 @@ type OnRequestHandler func(*Session, Request)
 type OnCloseHandler func(*Session, error)
 type BindValidator func(BindInfo) error
 
-// Client is a configured messaging client. Network lifecycle methods are
-// implemented in the Client/Server orchestration phase.
+// Client owns a configured TCP connection lifecycle and its Session generations.
 type Client struct {
 	config    clientConfig
 	resources *ownerResourceLedger
 	callbacks *ownerCallbackDispatcher
 }
 
-// Server is a configured messaging server. Network lifecycle methods are
-// implemented in the Client/Server orchestration phase.
+// Server owns a TCP listener, accepted Sessions and their shared resource budgets.
 type Server struct {
 	config    serverConfig
 	resources *ownerResourceLedger

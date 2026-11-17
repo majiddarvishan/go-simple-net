@@ -445,3 +445,33 @@ func TestServerBindValidatorReceivesPeerAndCanRejectWithoutReservingID(t *testin
 	_ = receiveBoundSession(t, bound)
 	waitServerBoundCount(t, server, 1)
 }
+
+
+func TestServerDoneForOldSessionCannotRemoveReplacementIdentity(t *testing.T) {
+	oldSession := &Session{}
+	newSession := &Session{}
+	server := &Server{
+		sessions:       map[*Session]struct{}{oldSession: {}, newSession: {}},
+		preBind:        make(map[*Session]struct{}),
+		pendingIDs:     make(map[string]*Session),
+		boundIDs:       map[string]*Session{"peer": newSession},
+		sessionIDs:     map[*Session]string{oldSession: "peer", newSession: "peer"},
+	}
+
+	server.sessionDone(oldSession, ErrClosed)
+
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if server.boundIDs["peer"] != newSession {
+		t.Fatal("old Session cleanup removed the replacement Session's SystemID")
+	}
+	if _, exists := server.sessions[newSession]; !exists {
+		t.Fatal("old Session cleanup removed the replacement Session from the registry")
+	}
+	if _, exists := server.sessionIDs[newSession]; !exists {
+		t.Fatal("old Session cleanup removed the replacement Session identity")
+	}
+	if server.sessionIDs[oldSession] != "" {
+		t.Fatal("old Session identity reservation was not released")
+	}
+}
