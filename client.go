@@ -1,0 +1,17 @@
+package neta
+
+// NewClient constructs a Client with a validated immutable configuration.
+// It does not dial, open a socket, or start goroutines.
+func NewClient(options ...ClientOption) (*Client, error) {
+	config := defaultClientConfig()
+	for i, option := range options {
+		if option.apply == nil {
+			return nil, newConfigError("client_options["+itoa(i)+"]", "<nil>", "must be a non-zero ClientOption")
+		}
+		option.apply(&config)
+	}
+	if err := validateClientConfig(config); err != nil {
+		return nil, err
+	}
+	return &Client{config: config}, nil
+}
