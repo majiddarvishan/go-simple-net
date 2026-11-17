@@ -161,3 +161,35 @@ func TestOwnerResourceLedgerConcurrentRequestAdmissionNeverOversubscribes(t *tes
 		}
 	}
 }
+
+func TestConstructorsCreateIndependentOwnerResourceLedgers(t *testing.T) {
+	firstClient, err := NewClient(WithClientAddress("127.0.0.1:9001"))
+	if err != nil {
+		t.Fatalf("NewClient(first): %v", err)
+	}
+	secondClient, err := NewClient(WithClientAddress("127.0.0.1:9002"))
+	if err != nil {
+		t.Fatalf("NewClient(second): %v", err)
+	}
+	if firstClient.resources == nil || secondClient.resources == nil || firstClient.resources == secondClient.resources {
+		t.Fatal("each Client must own an independent resource ledger")
+	}
+
+	firstServer, err := NewServer(WithServerListenAddress("127.0.0.1:0"))
+	if err != nil {
+		t.Fatalf("NewServer(first): %v", err)
+	}
+	secondServer, err := NewServer(WithServerListenAddress("127.0.0.1:0"))
+	if err != nil {
+		t.Fatalf("NewServer(second): %v", err)
+	}
+	if firstServer.resources == nil || secondServer.resources == nil || firstServer.resources == secondServer.resources {
+		t.Fatal("each Server must own an independent resource ledger")
+	}
+	if !firstServer.resources.limits.hasAggregateApplicationQueue {
+		t.Fatal("Server ledger must enforce aggregate Application queue limits")
+	}
+	if firstClient.resources.limits.hasAggregateApplicationQueue {
+		t.Fatal("Client ledger must not acquire a Server-only aggregate queue limit")
+	}
+}

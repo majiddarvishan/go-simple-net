@@ -115,8 +115,8 @@ This is the single, canonical, implementation-facing task list for the repositor
 
 ### Implementation tasks
 
-- [ ] **P4-01 — Reservation primitives:** implement race-safe, checked, idempotent reserve/release primitives for byte and count resources; reject overflow/underflow and make release exactly-once.
-- [ ] **P4-02 — Owner ledgers:** implement independent Client/Server-owned counters for outstanding Request credits, retained Application bytes, retained Completion bytes and OnClose event credits. Client reconnect generations must share one owner ledger; independent owners must remain isolated.
+- [x] **P4-01 — Reservation primitives:** implement race-safe, checked reserve/release primitives for owner byte and count resources; reject overflow/underflow. Session lifecycle idempotency is verified in the integration tasks below.
+- [x] **P4-02 — Owner ledgers:** implement independent Client/Server-owned counters for outstanding Request credits, retained Application bytes, retained Completion bytes and OnClose event credits. NewClient/NewServer each create one independent owner ledger; Phase 6 will inject the same Client ledger into every reconnect generation.
 - [ ] **P4-03 — Server aggregate queue ledger:** enforce combined incoming+outgoing Application queued-frame bytes (256 MiB default) and frame count (65,536 default) per Server; count a frame in exactly one aggregate queue bucket at a time.
 - [ ] **P4-04 — Outgoing Application admission:** reserve per-Session queue bytes/count, retained Application bytes and applicable owner/Server budgets before frame allocation/copy or Request publication. Fail fast with the existing Queue Full/Capacity distinctions; do not consume a Sequence, publish Pending state or transmit rejected work.
 - [ ] **P4-05 — Incoming Application admission:** after Header validation, reserve declared full-frame bytes/count and retained Application bytes before Body allocation/read. On local or Server aggregate overload, close only the offending Session; release reservations on read failure, callback cancellation and callback return.
@@ -211,3 +211,12 @@ This is the single, canonical, implementation-facing task list for the repositor
 - [Worker capacity and resource accounting design](NETA_GO_WORKER_CAPACITY_RESOURCE_ACCOUNTING_DESIGN_2026-11-16.md)
 - [Performance contract](NETA_GO_PERFORMANCE_CONTRACT_2026-11-16.md)
 - [Decision log](DECISION_LOG.md)
+
+
+### Phase 4 progress evidence — 2026-11-17
+
+- P4-01 and P4-02 implemented in `resource_ledger.go`; Client/Server constructors now create independent owner ledgers.
+- Tests cover exact capacity, over-capacity rejection, release/underflow protection, independent Application/Completion budgets, shared Server aggregate queue counters, Client-vs-Server aggregate behavior, OnClose event credits, owner isolation and concurrent Request admission.
+- Implementation commit: `9f2514115b601c7cdc2efb91fe98daa628b1c7b0`; formatting-only follow-up: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
+- Go CI [44060075443](https://github.com/majiddarvishan/neta-go/actions/runs/44060075443) PASS; Pinex Wire Compatibility [44060075468](https://github.com/majiddarvishan/neta-go/actions/runs/44060075468) PASS.
+- Current source baseline for the next Phase 4 slice: `94760d4d0cb2a319b7c49665b0cfcffc4b7b45db`.
