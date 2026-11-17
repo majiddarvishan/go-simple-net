@@ -8,7 +8,7 @@
 
 ## Authority
 
-The owner authorized Phase 6 by saying «ادامه بده» after the explicit Phase 6 start question. Scope is P6-01..P6-11 in root `TASKS.md`, under the frozen API-001/API-002 contracts.
+The owner authorized Phase 6 by saying «ادامه بده» after the explicit Phase 6 start question. Scope is P6-01..P6-11 in `.codex/TASKS.md`, under the frozen API-001/API-002 contracts.
 
 ## Implementation order
 

@@ -35,7 +35,7 @@ Reviewed:
 - current Client, Server, Session transport, wire codec, resource ledger and callback scheduler implementation
 - current Go and Pinex golden CI workflows
 
-AGENT_CONTEXT.md is absent under .codex on main; root TASKS.md is the canonical implementation tracker.
+AGENT_CONTEXT.md is absent under .codex on main; `.codex/TASKS.md` is the canonical implementation tracker.
 
 ## 4. Required workload matrix
 

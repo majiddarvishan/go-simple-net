@@ -11,7 +11,7 @@
 
 Phases 0–8 are complete. Phase 8's corrected performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003) passed and PERF-004 was closed as **NO CHANGE**. The final pre-Phase-9 Go correctness run [44108072039](https://github.com/majiddarvishan/neta-go/actions/runs/44108072039) and Pinex Wire Compatibility run [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167) passed on HEAD `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`.
 
-The root `TASKS.md` is the only implementation checklist. `.codex/TASKS.md` is a pointer to it, not a second checklist.
+The `.codex/TASKS.md` is the only implementation checklist. `.codex/TASKS.md` is a pointer to it, not a second checklist.
 
 At the authorization baseline HEAD, the repository had no `examples/` or user-facing `docs/` directory, the root README was only a short project-status page, and package-level `doc.go` was minimal. These gaps are now closed by P9-01..P9-04. The module directive remains Go 1.23 and Go CI uses Go 1.23.x; the owner's local environment is Go 1.27.0. The owner approved the V1 release support baseline on 2026-11-17: minimum Go 1.23 and Ubuntu 24.04/Linux amd64 as the continuously CI-verified platform; other GOOS/GOARCH combinations remain unverified.
 
@@ -59,7 +59,7 @@ Estimates are engineering effort, not calendar promises. The initial total is ap
 - No production source, tests, public API, wire protocol, defaults or resource limits changed.
 - P9-00 commits: [dcb67647cd5748b6a92b54743b257c667d582450](https://github.com/majiddarvishan/neta-go/commit/dcb67647cd5748b6a92b54743b257c667d582450), [c6ac25338851edda1630dd6301a8eaf509f994c0](https://github.com/majiddarvishan/neta-go/commit/c6ac25338851edda1630dd6301a8eaf509f994c0), and final link/evidence correction [a43b0e5ca9b50f592ae402d18968b538af5bc128](https://github.com/majiddarvishan/neta-go/commit/a43b0e5ca9b50f592ae402d18968b538af5bc128).
 - Go correctness CI [44114430747](https://github.com/majiddarvishan/neta-go/actions/runs/44114430747) PASS (`make verify`) and Pinex Wire Compatibility [44114430634](https://github.com/majiddarvishan/neta-go/actions/runs/44114430634) PASS on the final P9-00 commit.
-- A relative Markdown link audit corrected one pre-existing broken Phase 4 report link in root `TASKS.md`; the audited links now resolve.
+- A relative Markdown link audit corrected one pre-existing broken Phase 4 report link in `.codex/TASKS.md`; the audited links now resolve.
 
 ### P9-01 — Client example
 
@@ -211,7 +211,7 @@ A comparison with an older committed workflow version is not a substitute for re
 
 ## 7. Source authority
 
-- Root `TASKS.md`: canonical task status and acceptance evidence.
+- `.codex/TASKS.md`: canonical task status and acceptance evidence.
 - `.codex/DECISION_LOG.md`: owner decisions and authorization boundaries.
 - `.codex/HANDOFF.md`: current continuation state and important project constraints.
 - This file: Phase 9 plan, estimates, dependencies and release gates.

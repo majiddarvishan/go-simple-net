@@ -107,4 +107,4 @@ The owner directed an increase of the V2 `SystemID` limit to **20 bytes** now th
 - V2 Go Server decodes a 20-byte SystemID and retains it as Session identity; V1 server/codec still reject a 20-byte SystemID.
 - No change to the fixed 10-byte Header, Stream/Control PDUs, command/status definitions, or limits on payloads and Session resources.
 
-**Verification gate:** Go test/race/paired example smoke and pinned Pinex compatibility CI must pass on the protected PR, then after merge on latest main; update root `TASKS.md` evidence accordingly. Publication still requires separate owner authorization P9-06 and renewed CHANGELOG acceptance.
+**Verification gate:** Go test/race/paired example smoke and pinned Pinex compatibility CI must pass on the protected PR, then after merge on latest main; update `.codex/TASKS.md` evidence accordingly. Publication still requires separate owner authorization P9-06 and renewed CHANGELOG acceptance.

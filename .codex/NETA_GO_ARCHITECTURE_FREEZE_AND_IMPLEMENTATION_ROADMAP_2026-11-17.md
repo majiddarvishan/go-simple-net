@@ -301,7 +301,7 @@ Phase 6 networking/reconnect, Phase 7 live TCP interoperability, Phase 8 benchma
 
 ## Phase 6 implementation authorization and Server progress — 2026-11-17
 
-The owner separately authorized Phase 6 by replying «ادامه بده» after the Phase 6 start question. This authorizes P6-01..P6-11 in root `TASKS.md` only; it does not authorize Phase 7+.
+The owner separately authorized Phase 6 by replying «ادامه بده» after the Phase 6 start question. This authorizes P6-01..P6-11 in `.codex/TASKS.md` only; it does not authorize Phase 7+.
 
 **Server slice COMPLETE / CI PASS** at source HEAD `8eead509c6817722d6b7c6f5e5a17e1734749911`:
 - P6-04 Server Start/Addr/Accept and listener lifecycle.

@@ -9,4 +9,4 @@ This documentation describes the **neta-go** API, configuration, lifecycle and T
 - [Go and platform support](SUPPORT.md)
 - [Release readiness](RELEASE_READINESS.md)
 
-Start with the [Quick start](../README.md#quick-start). Development tasks are tracked in [TASKS.md](../TASKS.md).
+Start with the [Quick start](../README.md#quick-start). Development tasks are tracked in [TASKS.md](../.codex/TASKS.md).

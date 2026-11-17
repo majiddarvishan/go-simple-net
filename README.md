@@ -77,7 +77,7 @@ Generated logs and profiles live in ignored `artifacts/` directories.
 - [Go and platform support](docs/SUPPORT.md)
 - [Release readiness](docs/RELEASE_READINESS.md)
 - [Changelog](CHANGELOG.md)
-- [Implementation tasks](TASKS.md)
+- [Implementation tasks](.codex/TASKS.md)
 
 ## Status and license
 

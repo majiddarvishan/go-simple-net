@@ -1382,7 +1382,7 @@ This entry records implementation of frozen WORKER-001..009C contracts; it does 
 
 ## 53. Phase 6 Client/Server Orchestration — implementation authorization (2026-11-17)
 
-The owner explicitly authorized Phase 6 by replying «ادامه بده» after the Phase 6 authorization question. This authorizes implementation of P6-01..P6-11 in root `TASKS.md`, strictly under the already-closed API-001 and API-002 contracts. It does not reopen architecture decisions.
+The owner explicitly authorized Phase 6 by replying «ادامه بده» after the Phase 6 authorization question. This authorizes implementation of P6-01..P6-11 in `.codex/TASKS.md`, strictly under the already-closed API-001 and API-002 contracts. It does not reopen architecture decisions.
 
 **Authorized:** Client Connect/Bind, lifecycle, CurrentSession, reconnect supervisor and generation fencing; Server Listen/Accept, bounded Pre-Bind and Bound admission, BindValidator, duplicate System ID registry, terminal graceful-to-forced Stop; shared owner resource/worker ledgers; focused tests and CI.
 
@@ -1469,7 +1469,7 @@ Phase 6 P6-01..P6-11 is COMPLETE. The existing Worker Scheduler race-test assert
 
 ## 58. Phase 7 implementation authorization and verification boundary — 2026-11-17
 
-The owner explicitly authorized Phase 7 — Live Interoperability and Fault-Injection Verification, covering P7-01..P7-08 in the root TASKS.md.
+The owner explicitly authorized Phase 7 — Live Interoperability and Fault-Injection Verification, covering P7-01..P7-08 in the `.codex/TASKS.md`.
 
 The authorization permits building real-socket interoperability tests against the pinned Pinex C++ 1.5.0 Client/Server, bounded wire fuzzing, TCP/admission/callback fault injection, reconnect soak testing, CI and documentation/evidence updates.
 
@@ -1548,7 +1548,7 @@ This approval authorizes Phase 8 implementation and benchmark execution only. It
 - Pinex Wire Compatibility CI [44108072167](https://github.com/majiddarvishan/neta-go/actions/runs/44108072167): PASS.
 - Phase 8 performance run [44105272003](https://github.com/majiddarvishan/neta-go/actions/runs/44105272003): PASS; PERF-004 = NO CHANGE.
 
-The canonical execution checklist is root `TASKS.md`; scope, estimates, dependencies, acceptance criteria and open release questions are in `NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md`.
+The canonical execution checklist is `.codex/TASKS.md`; scope, estimates, dependencies, acceptance criteria and open release questions are in `NETA_GO_PHASE_9_RELEASE_READINESS_PLAN_2026-11-17.md`.
 
 
 ## 62. P9-05 — Go minimum and verified-platform support decision (2026-11-17)
@@ -1567,7 +1567,7 @@ Evidence on prior HEAD `22af702cfedb1d92848a5483194459caad15f407`: Go correctnes
 - Preserve the repository's existing **Apache License 2.0**. It is a permissive license allowing commercial and proprietary use, reproduction, modification and distribution under its terms. No new non-commercial restriction or license switch is required or approved.
 - Replace the placeholder copyright notice in the LICENSE appendix with `Copyright 2026 Majid Darvishan` while preserving the full Apache-2.0 legal terms.
 - README must accurately state that commercial use is permitted **subject to the license's conditions**, including retaining applicable copyright/license notices and satisfying required notices for redistribution.
-- Mark the copyright/licensing checkbox complete in root `TASKS.md` and `docs/RELEASE_READINESS.md`.
+- Mark the copyright/licensing checkbox complete in `.codex/TASKS.md` and `docs/RELEASE_READINESS.md`.
 
 **Boundary:** This is a copyright/license attribution decision within P9-05. It does not approve a version, release notes, V1 tag, GitHub Release or any production API/wire/default behavior change. Branch protection and version/changelog review remain open.
 
@@ -1624,7 +1624,7 @@ This is an **engineering review acceptance**, not a new owner authorization for 
 - Whether to use explicit peer configuration, a separate endpoint or a proven legacy-safe in-band handshake is **NOT DECIDED**. Never probe old peers with an unrecognized V2 header/command/Bind tail; a failed Bind does not prove support for an alternative protocol version. The V2 Body/Header specification and possible NUL elimination are also NOT DECIDED.
 - Existing 10-byte V1 header and frozen `v1.0.0` API/wire contract **must not change**. Per-Frame version overhead is not added. Future V2 may be separately specified and explicitly authorized, but no code/test/CI/fixture change is permitted by this decision.
 
-Design and deferred tasks: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md) and root `TASKS.md` PV-02..PV-05. This **does not authorize or block** P9-06 release tagging. No Tag/GitHub Release or code change was performed.
+Design and deferred tasks: [NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md](NETA_GO_SESSION_PROTOCOL_VERSIONING_DESIGN_2026-11-18.md) and `.codex/TASKS.md` PV-02..PV-05. This **does not authorize or block** P9-06 release tagging. No Tag/GitHub Release or code change was performed.
 
 
 ## 69. PV-01 — Go-only Session ProtocolVersion, default V2 (2026-11-18)
