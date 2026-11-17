@@ -549,6 +549,31 @@ func TestSessionCancelsQueuedEnquireLinkAfterInboundActivity(t *testing.T) {
 	waitDone(t, session)
 }
 
+func TestSessionCloseClearsTransportQueuesAndPendingState(t *testing.T) {
+	local, peer := net.Pipe()
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSession(local, defaultSessionConfig(), dispatcher, sessionHandlers{})
+	defer peer.Close()
+
+	if _, err := session.SendNoWait([]byte("writer-owned")); err != nil {
+		t.Fatalf("SendNoWait: %v", err)
+	}
+	if _, err := session.SendRequest([]byte("queued-request"), func(Response, error) {}); err != nil {
+		t.Fatalf("SendRequest: %v", err)
+	}
+	session.Close()
+	waitDone(t, session)
+
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if len(session.pending) != 0 || len(session.appQueue) != 0 || len(session.controlQueue) != 0 || len(session.barrierQueue) != 0 {
+		t.Fatalf("Session retained internal queues: pending=%d app=%d control=%d barrier=%d", len(session.pending), len(session.appQueue), len(session.controlQueue), len(session.barrierQueue))
+	}
+	if session.activeWrite != nil || session.queuedAppBytes != 0 || session.queuedAppFrames != 0 || session.queuedControlBytes != 0 {
+		t.Fatalf("Session retained transport charges: active=%v appBytes=%d appFrames=%d controlBytes=%d", session.activeWrite != nil, session.queuedAppBytes, session.queuedAppFrames, session.queuedControlBytes)
+	}
+}
+
 func TestSessionOnCloseIsQueuedOnlyAfterDone(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}

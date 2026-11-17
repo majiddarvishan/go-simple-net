@@ -314,7 +314,9 @@ func (s *Session) handleBoundFrame(frame wire.Frame, role sessionRole) error {
 		if s.state == SessionStateBound {
 			s.state = SessionStateUnbinding
 			s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
-			s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+			if s.enquireLinkQueued && !s.enquireLinkWriting {
+				s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+			}
 			s.clearProbeLocked()
 		}
 		err = s.enqueueControlLocked(&outboundFrame{
@@ -401,7 +403,7 @@ func (s *Session) writerLoop() {
 		if s.activeWrite == item {
 			s.activeWrite = nil
 		}
-		if err == nil {
+		if err == nil && !s.isClosingLocked() {
 			s.lastActivity = time.Now()
 			if item.bindRequest {
 				s.bindRequestWriting = false

@@ -41,6 +41,10 @@ type callbackTask struct {
 // sessionCallbackDispatcher is deliberately private. Implementations must only
 // enqueue work and must never invoke user code inline. Phase 5 supplies the
 // bounded, owner-scoped worker pools.
+// sessionCallbackDispatcher must provide nonblocking enqueue operations. Enqueue
+// must never execute task.run inline and must preserve per-Session FIFO order
+// within each callback class. cancelUnstarted removes only queued tasks and
+// invokes their cancel functions exactly once; it never waits for running work.
 type sessionCallbackDispatcher interface {
 	enqueueApplication(callbackTask) bool
 	enqueueCompletion(callbackTask) bool
@@ -480,6 +484,9 @@ func (s *Session) releaseFrameChargeLocked(item *outboundFrame) {
 }
 
 func (s *Session) removeQueuedControlSequenceLocked(sequence uint32) bool {
+	if sequence == 0 {
+		return false
+	}
 	for i, item := range s.controlQueue {
 		if item.controlSeq != sequence {
 			continue

@@ -143,7 +143,9 @@ func (s *Session) Unbind(ctx context.Context) error {
 			break
 		}
 		s.state = SessionStateUnbinding
-		s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+		if s.enquireLinkQueued && !s.enquireLinkWriting {
+			s.removeQueuedControlSequenceLocked(s.enquireLinkSequence)
+		}
 		s.clearProbeLocked()
 		s.unbindSequence = sequence
 		s.unbindDeadline = time.Now().Add(s.config.unbindTimeout)
