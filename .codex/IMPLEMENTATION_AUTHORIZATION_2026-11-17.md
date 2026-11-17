@@ -219,3 +219,18 @@ The owner explicitly authorized Phase 5 by replying «آره» after being asked
 
 No public API, wire behavior, approved defaults, resource ceilings or frozen architecture decisions were changed.
 
+
+
+## Phase 6 authorization — Client/Server orchestration (2026-11-17)
+
+The owner explicitly authorized Phase 6 by replying **«ادامه بده»** after being asked whether Phase 6 could start.
+
+**Authorized scope:** P6-01 through P6-11 in the root [TASKS.md](../TASKS.md):
+- Client Dial/Bind, lifecycle, CurrentSession, terminal Stop, reconnect supervisor and generation fencing, strictly following API-001/API-002.
+- Server Listen/Accept, pending socket admission, absolute Pre-Bind deadline, Bound Session capacity, BindValidator, atomic duplicate-SystemID admission/removal and terminal Stop.
+- Shared owner resource ledger and callback dispatcher across all Sessions/generations.
+- Focused lifecycle, capacity, concurrency, reconnect and shutdown tests; gofmt, vet, unit and race CI.
+
+**Explicit exclusions:** Phase 7 live Go↔Pinex TCP interoperability/fault-injection campaign; Phase 8 benchmark/optimization; Phase 9 examples/release/deployment.
+
+**Pre-implementation API gap:** The frozen Client API requires a Bind Request, but the approved ClientOption/config surface has no Client SystemID or BindType field/option. No default for either is approved. Server-side Phase 6 work may proceed; do not invent the missing Client Bind identity semantics or add a public option until the owner clarifies it.

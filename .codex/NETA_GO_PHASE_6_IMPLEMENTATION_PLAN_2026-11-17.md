@@ -1,0 +1,42 @@
+# Phase 6 — Client and Server Orchestration Implementation Plan
+
+**Status:** AUTHORIZED / IN PROGRESS — 2026-11-17  
+**Repository:** `github.com/majiddarvishan/neta-go`  
+**Branch:** `main`  
+**Phase 5 source baseline:** `c72136693f85e61239bfca42bd04b40e66eddc27`
+
+## Authority
+
+The owner authorized Phase 6 by saying «ادامه بده» after the explicit Phase 6 start question. Scope is P6-01..P6-11 in root `TASKS.md`, under the frozen API-001/API-002 contracts.
+
+## Implementation order
+
+1. Server lifecycle: Start/Addr/Accept, terminal/idempotent Stop, listener-close ordering.
+2. Bounded accepted-socket/Pre-Bind admission before Session allocation; absolute accept-to-Bind deadline.
+3. Bind supervisor per Pre-Bind Session, optional BindValidator, atomic reservation for unique SystemID and MaxBoundSessions; cleanup by Session pointer identity.
+4. Shared Server resource ledger and callback dispatcher injected into every accepted Session.
+5. Server Stop: close Listener first, close Pre-Bind Sessions, initiate Unbind concurrently for Bound Sessions, force remaining Sessions on caller Context expiry; Done does not join user callbacks.
+6. Client lifecycle/Connect/Bind, shared owner resources and generation fencing.
+7. Single reconnect supervisor/timer with Full Jitter (1s base, 30s cap; reset after 30s continuously Bound); retry only transient Dial failure/timeout and unexpected loss after Bound; never replay Requests.
+8. Tests, CI, evidence and task tracker update.
+
+## Frozen contracts to preserve
+
+- Client ConnectTimeout 30s absolute per Dial, includes DNS and TCP; caller Context earlier deadline wins.
+- Client BindResponseTimeout 30s absolute from TCP establishment, includes Bind writer wait/write and matching response; Bind rejection/timeout are non-retryable.
+- Server Pre-Bind timeout 30s absolute from TCP accept; default pending cap 128.
+- Default MaxBoundSessions 1024. New unique Bind at capacity is rejected with Pinex-compatible `rfail`; never evict an existing Session.
+- BindValidator is optional. With no validator, an otherwise valid unique Bind is accepted. Duplicate SystemIDs are always rejected atomically.
+- Client AutoReconnect defaults false. When enabled: transient Dial failure/timeout and unexpected transport loss after Bound are retryable; Full Jitter exponential window 1s base / 30s cap; reset after 30s continuously Bound.
+- No accepted Request is replayed/resubmitted on a new Session generation.
+- Client and Server resource ledgers and callback dispatchers are owner-scoped and shared by all their Sessions/generations.
+- Client/Server Stop are terminal and idempotent. Server closes Listener first, closes Pre-Bind Sessions, then concurrently Unbinds Bound Sessions. Context expiry forces remaining Sessions and returns the caller Context error after internal Done.
+- Done/Stop do not wait for arbitrary user callbacks; OnClose is best-effort after Done.
+
+## Known API contract gap — Client Bind identity
+
+The approved public API specifies `Client.Connect(ctx)` performing Bind, but the frozen ClientOption and clientConfig currently have no SystemID or BindType input. The current source has no approved default for either field. Do not infer a SystemID, BindType, or add an unapproved public option. Client Connect implementation is blocked pending owner clarification. Server-side work is independent and may proceed.
+
+## Phase boundaries
+
+Do not perform live Go↔Pinex TCP interoperability (Phase 7), benchmark/optimization (Phase 8), or release/deployment/examples (Phase 9).

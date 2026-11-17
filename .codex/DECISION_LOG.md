@@ -1378,3 +1378,14 @@ This entry records implementation of frozen WORKER-001..009C contracts; it does 
 **Verification:** 16 Worker Scheduler tests; 46 Session/transport tests; 8 owner-ledger tests. Go CI `44066876353` PASS (gofmt, vet, unit, race). Pinex Wire Compatibility `44066876291` PASS (golden frames only).
 
 **Strict boundary:** Client Dial/Server Listen/accept and Session-generation/reconnect orchestration remain Phase 6; live Go↔Pinex TCP interoperability remains Phase 7; performance benchmarks/pooling remain Phase 8; examples/release/deployment remain Phase 9. No public API, default, wire contract or approved design decision changed.
+
+
+## 53. Phase 6 Client/Server Orchestration — implementation authorization (2026-11-17)
+
+The owner explicitly authorized Phase 6 by replying «ادامه بده» after the Phase 6 authorization question. This authorizes implementation of P6-01..P6-11 in root `TASKS.md`, strictly under the already-closed API-001 and API-002 contracts. It does not reopen architecture decisions.
+
+**Authorized:** Client Connect/Bind, lifecycle, CurrentSession, reconnect supervisor and generation fencing; Server Listen/Accept, bounded Pre-Bind and Bound admission, BindValidator, duplicate System ID registry, terminal graceful-to-forced Stop; shared owner resource/worker ledgers; focused tests and CI.
+
+**Not authorized:** Phase 7 live Go↔Pinex TCP interoperability/fault-injection campaign, Phase 8 performance benchmark/optimization, Phase 9 examples/release/deployment.
+
+**Known contract gap to clarify before Client Bind implementation:** current frozen ClientOption/config surface contains no SystemID or BindType input, although Client.Connect is specified to send Bind. No default or public option is inferred by this authorization. Server-side work may proceed independently.

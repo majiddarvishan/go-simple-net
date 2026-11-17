@@ -6,7 +6,7 @@
 **Last updated:** 2026-11-17  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
 **Last verified source HEAD:** `c72136693f85e61239bfca42bd04b40e66eddc27`  
-**Current phase:** Phase 5 COMPLETE / CI PASS; Phase 6 is next and awaits separate owner authorization.
+**Current phase:** Phase 6 — Client and Server orchestration (**AUTHORIZED / IN PROGRESS**, owner approval 2026-11-17). Phase 5 is COMPLETE / CI PASS.
 
 This root-level file is the single, canonical, implementation-facing task list for the repository. It is intentionally placed beside the source tree so it is visible immediately on the GitHub repository page. Update the checkboxes in the same commit that completes a task or its acceptance evidence. Keep design decisions in `DECISION_LOG.md`; this file tracks implementation and verification.
 
@@ -150,11 +150,15 @@ This root-level file is the single, canonical, implementation-facing task list f
 - Source verification HEAD: `c72136693f85e61239bfca42bd04b40e66eddc27`.
 - 16 Worker Scheduler tests; existing 46 Session tests and 8 owner-ledger tests remain green.
 - Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) PASS; Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) PASS.
-- Phase 6 remains NOT AUTHORIZED.
+- Phase 6 was authorized on 2026-11-17; implementation is in progress. See the Phase 6 plan and authorization addendum.
 
 ## Phase 6 — Client and Server orchestration
 
-<badge color="secondary">NOT STARTED — NOT YET AUTHORIZED</badge>
+<badge color="warning">AUTHORIZED / IN PROGRESS — 2026-11-17</badge>
+
+**Authorization:** Owner replied «ادامه بده» after the explicit Phase 6 authorization question. Scope is limited to P6-01..P6-11. Phase 7+ remain gated.
+
+**Known API contract gap:** The frozen public API requires Client.Connect to Bind, but the approved ClientOption surface and current config contain no Client SystemID or BindType input. Do not invent a default or silently add an unapproved public option. Implement independent Server work while this one API detail is clarified.
 
 - [ ] **P6-01 — Client Connect:** Dial with absolute ConnectTimeout, Bind with absolute BindResponseTimeout and Context cancellation semantics.
 - [ ] **P6-02 — Client lifecycle:** CurrentSession generation, terminal/idempotent Stop, disable reconnect on Stop and stale-generation fencing.

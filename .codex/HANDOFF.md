@@ -5,8 +5,8 @@
 **Updated:** 2026-11-17  
 **Repository:** majiddarvishan/neta-go  
 **Branch:** main  
-**Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6–9 NOT AUTHORIZED  
-**Current work:** Phase 5 Bounded callback Worker Scheduler is COMPLETE / CI PASS at `c72136693f85e61239bfca42bd04b40e66eddc27`. The canonical task-by-task status is [TASKS.md](../TASKS.md); implementation evidence is [Phase 5 report](NETA_GO_PHASE_5_WORKER_SCHEDULER_IMPLEMENTATION_2026-11-17.md). Phase 6 Client/Server orchestration is next but NOT AUTHORIZED. Live TCP Go↔C++ interoperability remains Phase 7.
+**Implementation status:** PHASE 1–5 COMPLETE / CI PASS; PHASE 6 AUTHORIZED / IN PROGRESS; PHASE 7–9 NOT AUTHORIZED  
+**Current work:** Phase 6 Client/Server orchestration is AUTHORIZED / IN PROGRESS (owner approval 2026-11-17). Phase 5 is COMPLETE / CI PASS at source HEAD `c72136693f85e61239bfca42bd04b40e66eddc27`. The canonical task list is [TASKS.md](../TASKS.md); Phase 6 sequencing and the known Client Bind identity gap are in [Phase 6 plan](NETA_GO_PHASE_6_IMPLEMENTATION_PLAN_2026-11-17.md). Phase 7 live TCP Go↔C++ interoperability and Phases 8–9 remain NOT AUTHORIZED.
 
 ## 1. Repository state
 
@@ -98,7 +98,7 @@ See PINEX_GO_PORT_TASKS_2026-11-16.md for the complete backlog.
 
 Q-001, Q-002, Q-003, Q-004, Q-005, Q-006, Q-007, Q-008, Q-009, Q-010 and NAM-001 are **CLOSED** as design decisions. Q-010 Option A (2026-11-16) approved **configurable** initial capacities and global-overload rules: inbound 4 MiB per Session, outgoing 4 MiB per Session (Q-008), aggregate queued Application 256 MiB per Server, 1024 bound Sessions, 128 pre-bind, 30s pre-bind timeout, 4 KiB Control reserve per Session. These are defaults, not preallocated memory or process RSS limits.
 
-**Next action:** Phase 5 is COMPLETE / CI PASS. Phase 6 Client/Server orchestration and reconnect is the next implementation phase, but it is NOT AUTHORIZED. Obtain explicit owner approval before starting Client Dial, Server Listen/accept, reconnect supervision or Session-generation fencing. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated. See the root `TASKS.md` for the canonical task status.
+**Next action:** Continue authorized Phase 6 implementation. Server listener/accept, bounded Pre-Bind/Bound admission, duplicate-ID registry, and Stop are implementable from frozen contracts. Client.Connect requires the missing Client Bind identity input (SystemID and BindType); ask the owner for that one API detail before adding any public option/default. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain gated. See root `TASKS.md`.
 
 ## 9. Approved Go library name
 

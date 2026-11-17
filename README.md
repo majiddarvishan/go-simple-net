@@ -8,6 +8,6 @@ The implementation is tracked phase by phase. The root task tracker is the sourc
 
 **[View implementation tasks and progress →](TASKS.md)**
 
-Current phase: **Phase 5 complete / CI pass**. Phase 6 — Client/Server orchestration is next and awaits separate owner authorization.
+Current phase: **Phase 6 — Client/Server orchestration (authorized / in progress)**. Phase 5 is complete; Phase 7+ remain gated.
 
 Architecture decisions and detailed design records are maintained under [`.codex/`](.codex/).
