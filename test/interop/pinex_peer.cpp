@@ -3,13 +3,10 @@
 
 #include <boost/asio.hpp>
 
-#include <atomic>
 #include <chrono>
-#include <future>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 namespace asio = boost::asio;
 using namespace pa::pinex;
@@ -24,10 +21,13 @@ auto noop_packet()
 
 int run_server(const std::string& address)
 {
+    // Pinex's public Client/Server and Session APIs are single-io_context-
+    // thread objects. Construct, start, dispatch callbacks and stop on this
+    // same thread; io.run() therefore runs on main rather than a worker.
     asio::io_context io;
-    std::promise<void> stopped;
-    auto stopped_future = stopped.get_future();
-    std::atomic<bool> stopped_set{false};
+    asio::steady_timer deadline(io);
+    bool completed = false;
+    bool timed_out = false;
     std::unique_ptr<messaging_server> server;
 
     server = std::make_unique<messaging_server>(
@@ -46,54 +46,47 @@ int run_server(const std::string& address)
         noop_packet(),
         noop_packet(),
         [&](const std::string&, session_stat state) {
-            if (state == session_stat::close && !stopped_set.exchange(true))
+            if (state == session_stat::close && !completed)
             {
-                asio::post(io, [&] {
-                    if (server)
-                        server->stop();
-                    stopped.set_value();
-                });
+                completed = true;
+                if (server)
+                    server->stop();
+                deadline.cancel();
             }
         });
 
-    std::thread runner([&] { io.run(); });
-    std::cout << "READY\n" << std::flush;
-
-    if (stopped_future.wait_for(15s) != std::future_status::ready)
-    {
-        if (!stopped_set.exchange(true))
+    deadline.expires_after(15s);
+    deadline.async_wait([&](const boost::system::error_code& error) {
+        if (!error)
         {
-            asio::post(io, [&] {
-                if (server)
-                    server->stop();
-                stopped.set_value();
-            });
+            timed_out = true;
+            if (server)
+                server->stop();
         }
-        if (stopped_future.wait_for(2s) != std::future_status::ready)
-            io.stop();
-        runner.join();
-        return 2;
-    }
+    });
 
-    io.stop();
-    runner.join();
-    return 0;
+    std::cout << "READY\n" << std::flush;
+    io.run();
+    return completed && !timed_out ? 0 : 2;
 }
 
 int run_client(const std::string& address)
 {
+    // Keep all Pinex operations on the same thread that first calls start().
     asio::io_context io;
-    std::promise<std::string> outcome;
-    auto outcome_future = outcome.get_future();
-    std::promise<void> closed;
-    auto closed_future = closed.get_future();
-    std::atomic<bool> outcome_set{false};
-    std::atomic<bool> closed_set{false};
+    asio::steady_timer deadline(io);
+    bool completed = false;
+    bool timed_out = false;
+    bool outcome_set = false;
+    std::string outcome;
     std::shared_ptr<messaging_client> client;
 
     auto publish_outcome = [&](std::string value) {
-        if (!outcome_set.exchange(true))
-            outcome.set_value(std::move(value));
+        if (!outcome_set)
+        {
+            outcome = std::move(value);
+            outcome_set = true;
+        }
     };
 
     client = std::make_shared<messaging_client>(
@@ -106,6 +99,10 @@ int run_client(const std::string& address)
         },
         [&](const std::string&, uint32_t, const std::string& body) {
             publish_outcome("TIMEOUT:" + body);
+            asio::post(io, [&] {
+                if (client)
+                    client->stop();
+            });
         },
         nullptr,
         nullptr,
@@ -113,59 +110,54 @@ int run_client(const std::string& address)
             if (state == session_stat::bind)
             {
                 if (!client || client->send_request("from-cpp") == 0)
+                {
                     publish_outcome("SEND_FAILED");
+                    asio::post(io, [&] {
+                        if (client)
+                            client->stop();
+                    });
+                }
             }
-            else if (state == session_stat::close && !closed_set.exchange(true))
+            else if (state == session_stat::close)
             {
-                closed.set_value();
+                completed = true;
+                deadline.cancel();
             }
         },
         [&](const std::string& error) {
             publish_outcome("ERROR:" + error);
+            asio::post(io, [&] {
+                if (client)
+                    client->stop();
+                deadline.cancel();
+            });
         },
         2s,
         2s);
 
-    std::thread runner([&] { io.run(); });
-
-    if (outcome_future.wait_for(15s) != std::future_status::ready)
-    {
-        asio::post(io, [&] {
+    deadline.expires_after(15s);
+    deadline.async_wait([&](const boost::system::error_code& error) {
+        if (!error)
+        {
+            timed_out = true;
             if (client)
                 client->stop();
-        });
-        if (closed_future.wait_for(2s) != std::future_status::ready)
-            io.stop();
-        runner.join();
-        std::cerr << "Pinex Client timed out waiting for Go response\n";
+        }
+    });
+
+    io.run();
+    if (timed_out || !completed)
+    {
+        std::cerr << "Pinex Client did not complete the request/Unbind exchange\n";
         return 2;
     }
-
-    const auto result = outcome_future.get();
-    if (result != "go:from-cpp")
+    if (!outcome_set || outcome != "go:from-cpp")
     {
-        asio::post(io, [&] {
-            if (client)
-                client->stop();
-        });
-        closed_future.wait_for(2s);
-        io.stop();
-        runner.join();
-        std::cerr << "Unexpected Go response: " << result << "\n";
+        std::cerr << "Unexpected Go response: " << outcome << "\n";
         return 3;
     }
 
-    if (closed_future.wait_for(5s) != std::future_status::ready)
-    {
-        io.stop();
-        runner.join();
-        std::cerr << "Pinex Client did not finish graceful Unbind\n";
-        return 4;
-    }
-
-    io.stop();
-    runner.join();
-    std::cout << "PASS " << result << "\n";
+    std::cout << "PASS " << outcome << "\n";
     return 0;
 }
 } // namespace
