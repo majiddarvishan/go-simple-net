@@ -41,15 +41,14 @@ func (s *Session) SendRequest(payload []byte, completion CompletionHandler) (uin
 		return 0, ErrCapacity
 	}
 	binary.BigEndian.PutUint32(frame[6:10], sequence)
-	pending := &pendingRequest{
-		completion: completion,
-		deadline:   time.Now().Add(s.config.requestTimeout),
-	}
+	pending := &pendingRequest{completion: completion}
 	item := &outboundFrame{bytes: frame, requestSeq: sequence}
 	if err := s.enqueueApplicationLocked(item); err != nil {
 		s.mu.Unlock()
 		return 0, err
 	}
+	// The admission linearization point is the successful FIFO insertion above.
+	pending.deadline = time.Now().Add(s.config.requestTimeout)
 	s.pending[sequence] = pending
 	s.mu.Unlock()
 
