@@ -674,7 +674,6 @@ func TestSessionCompletionWorkerDoesNotBlockReaderWriterOrDone(t *testing.T) {
 	}
 }
 
-
 func TestWorkerOwnerPermitSurvivesSessionDoneUntilCallbackReturns(t *testing.T) {
 	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
 	oldGeneration := newWorkerTestSession(dispatcher, 1, 1, nil, nil)
