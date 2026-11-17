@@ -318,7 +318,9 @@ func TestPhase7AbruptTCPResetClosesBoundGeneration(t *testing.T) {
 			return
 		}
 		<-releaseReset
-		_ = conn.SetLinger(0)
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			_ = tcpConn.SetLinger(0)
+		}
 		_ = conn.Close()
 		peerDone <- nil
 	}()
