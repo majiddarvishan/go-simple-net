@@ -1,0 +1,50 @@
+name: Wire parser mutation fuzz (V1 and V2)
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  wire-fuzz:
+    name: Mutate wire codec parsers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+
+      - name: Run bounded parser mutation campaigns
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          fuzztime=12s
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            fuzztime=3s
+          fi
+          targets=(
+            FuzzParseHeader
+            FuzzDecodeFrame
+            FuzzDecodeBindRequest
+            FuzzDecodeBindResponse
+            FuzzDecodeBindRequestV2
+            FuzzDecodeBindResponseV2
+            FuzzDecodeStreamRequest
+          )
+          for target in "${targets[@]}"; do
+            echo "::group::${target} (${fuzztime})"
+            go test -run='^$' -fuzz="^${target}$" -fuzztime="$fuzztime" -parallel=2 ./internal/wire
+            echo "::endgroup::"
+          done

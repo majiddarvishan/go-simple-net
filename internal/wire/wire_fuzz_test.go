@@ -1,6 +1,9 @@
 package wire
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func FuzzParseHeader(f *testing.F) {
 	valid, _ := EncodeFrame(CommandStreamRequest, StatusOK, 1, []byte("seed"))
@@ -104,5 +107,66 @@ func FuzzDecodeStreamRequest(f *testing.F) {
 			return
 		}
 		_, _ = DecodeStreamRequest(frame)
+	})
+}
+
+// Mutate V2 Bind requests independently of the legacy NUL-terminated V1 path.
+// A successful decode must never yield an embedded NUL or an overlong ID.
+func FuzzDecodeBindRequestV2(f *testing.F) {
+	valid, _ := EncodeBindRequestV2(7, Bind{Type: BindBiDirectional, SystemID: "abcdefghijklmnopqrst"})
+	legacy, _ := EncodeBindRequest(7, Bind{Type: BindBiDirectional, SystemID: "v1-client"})
+	f.Add(valid)
+	f.Add(legacy)
+	f.Add([]byte{})
+	f.Add([]byte{0, 0, 0, 10, byte(CommandBindRequest), 0, 0, 0, 0, 1})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > MaxFrameSize+1 {
+			return
+		}
+		frame, err := DecodeFrame(data)
+		if err != nil {
+			return
+		}
+		bind, err := DecodeBindRequestV2(frame)
+		if err == nil {
+			if frame.Header.Command != CommandBindRequest ||
+				(bind.Type != BindUniDirectional && bind.Type != BindBiDirectional) ||
+				len(bind.SystemID) > MaxSystemIDLengthV2 ||
+				bytes.IndexByte([]byte(bind.SystemID), 0) >= 0 {
+				t.Fatalf("V2 Bind decoder accepted invalid request: %+v", bind)
+			}
+		}
+	})
+}
+
+// An empty V2 Bind Response body remains valid for legacy default-value
+// compatibility, but a nonempty V2 Bind body must be NUL free.
+func FuzzDecodeBindResponseV2(f *testing.F) {
+	valid, _ := EncodeBindResponseV2(7, StatusOK, Bind{Type: BindBiDirectional, SystemID: "abcdefghijklmnopqrst"})
+	empty, _ := EncodeFrame(CommandBindResponse, StatusOK, 7, nil)
+	legacy, _ := EncodeBindResponse(7, StatusOK, Bind{Type: BindBiDirectional, SystemID: "v1-server"})
+	f.Add(valid)
+	f.Add(empty)
+	f.Add(legacy)
+	f.Add([]byte{})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > MaxFrameSize+1 {
+			return
+		}
+		frame, err := DecodeFrame(data)
+		if err != nil {
+			return
+		}
+		bind, err := DecodeBindResponseV2(frame)
+		if err == nil {
+			if frame.Header.Command != CommandBindResponse ||
+				(bind.Type != BindUniDirectional && bind.Type != BindBiDirectional) ||
+				len(bind.SystemID) > MaxSystemIDLengthV2 ||
+				bytes.IndexByte([]byte(bind.SystemID), 0) >= 0 {
+				t.Fatalf("V2 Bind decoder accepted invalid response: %+v", bind)
+			}
+		}
 	})
 }
