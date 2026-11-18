@@ -88,3 +88,11 @@ The specimen deliberately has no numeric memory reading, no asserted measurement
 
 ## 7. Decision boundary and status
 MEM-003 design documented. MEM-004 final **definition and coverage for the comparator memory metric**, snapshot feasibility, overlay behavior and quantitative sampling bounds still require proof/review. MEM-005 production changes and test/benchmark evidence NOT EXECUTED. Source SHA and old archive unchanged; no new numerical baseline, no absolute SLA, no performance gate; QA-004/005 OPEN and QA-007 CLOSED.
+
+## 8. Initial read-only overlay prototype — built 2026-11-19 (diagnostic only)
+
+`scripts/qa005_memory_overlay.py` constructs a Go test overlay **outside** a selected checkout, leaving tracked fixtures unchanged. It inserts sampling into the two existing traffic benchmark loops and records only **`probe-owner-charge-peak-B`** and **`probe-owner-charge-samples`** when `NETA_QA005_MEMORY_PROBE=1`. This is policy-reservation sampling, not unique backing buffer attribution; it does not emit `retained-attributed-B`, never enables a performance gate, and does not modify the approved numerical manifest.
+
+Feasibility check run in the assistant's isolated container: `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest -v scripts/test_qa005_memory_overlay.py` using a toy Go test module, both Python tests and toy `go test -overlay` compilation/1x benchmark passed on Go 1.23.2/linux-amd64. It is **not** evidence that the patch matches the actual source-V1 fixture under Go 1.27; this verification and the actual-byte method remain open. The generator intentionally does **not** inject into `qa005_qualify.sh`; its existing strict preflight/gate is unchanged. 
+
+Proposed exact-source short feasibility procedure *after source checkout and toolchain are available*: run generator with `--source /path/to/exact-sha-checkout --output /tmp/unique-adapter-dir`, verify manifest original fixture SHA against the pinned source, compile with `go test -overlay /tmp/unique-adapter-dir/overlay.json -run '^$' -bench '^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium$' -benchtime=1x -cpu=4` and optional environment `NETA_QA005_MEMORY_PROBE=1`. This is a short smoke, **NOT** the 10-pair 95% qualification or 30m soak. Only proceed with real attributed metric after separately validated ownership and overhead.
