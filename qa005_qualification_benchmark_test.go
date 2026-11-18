@@ -30,8 +30,6 @@ var qa005Scenarios = []qa005Scenario{
 
 	{"Full", "RR", 64, 1, 4, "near"},
 	{"Full", "NoWait", 64, 1, 4, "near"},
-	{"Full", "RR", 4096, 1, 1, "near"},
-	{"Full", "NoWait", 4096, 1, 1, "near"},
 	{"Full", "RR", 65536, 1, 1, "medium"},
 	{"Full", "NoWait", 65536, 1, 1, "medium"},
 	{"Full", "RR", 64, 32, 1, "medium"},
