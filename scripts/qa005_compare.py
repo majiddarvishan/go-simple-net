@@ -24,7 +24,8 @@ REQUIRED_METRICS = {
     "deadline_detection_p99_ns": (0.15, "lower"),
 }
 REQUIRED_ENV = ("go_version", "goos", "goarch", "gomaxprocs", "cpu_model",
-                "machine_id", "scenario_version", "workload_config")
+                "machine_id", "scenario_version", "workload_config",
+                "scenario_mode", "harness_sha256")
 PAIRS = 10
 CONFIDENCE = 0.95
 P99_MIN_OBSERVATIONS = 1000
@@ -116,6 +117,26 @@ def classify(base, candidate, tolerance, direction, critical):
             "confidence_interval_log": [lower, upper], "threshold_log": threshold}
 
 
+def complete_matrix(logs, mode):
+    """Refuse incomplete, duplicated, or mixed benchmark matrices.
+
+    Ten matched pairs are not meaningful if either side silently omitted or
+    substituted workloads, even when every observed metric looks favorable.
+    """
+    if len(logs) != 2 * PAIRS or mode not in ("core", "full"):
+        return False
+    expected_core = 8
+    expected_full = 0 if mode == "core" else 16
+    names = set(logs[0])
+    if len(names) != expected_core + expected_full:
+        return False
+    core_count = sum("/Core/" in name for name in names)
+    full_count = sum("/Full/" in name for name in names)
+    if core_count != expected_core or full_count != expected_full:
+        return False
+    return all(set(one_run) == names for one_run in logs)
+
+
 def main():
     cli = argparse.ArgumentParser()
     cli.add_argument("--baseline", required=True, type=Path)
@@ -167,6 +188,7 @@ def main():
     cand_logs = [parse_benchmark(args.candidate / f"{i:02d}.log")
                  for i in range(1, PAIRS + 1)]
     cases = sorted(set().union(*(set(log) for log in base_logs + cand_logs)))
+    matrix_complete = complete_matrix(base_logs + cand_logs, baseline_meta.get("scenario_mode"))
     number_tests = max(1, len(cases) * len(REQUIRED_METRICS))
     critical = student_t_critical((1 - CONFIDENCE) / number_tests, PAIRS - 1)
     comparison = {}
@@ -187,11 +209,12 @@ def main():
         "PASS" if relative and all(x == "PASS" for x in relative) else "INCONCLUSIVE"
     )
     # Missing owner-approved stable baseline or environment cannot qualify PASS.
-    status = relative_status if comparable and owner_approved else "INCONCLUSIVE"
+    status = relative_status if comparable and owner_approved and matrix_complete else "INCONCLUSIVE"
     # Absolute SLA values and the mandatory gate have not been owner-approved.
     report = {
         "status": status, "relative_status": relative_status,
         "baseline_approved": owner_approved, "environment_comparable": comparable,
+        "matrix_complete": matrix_complete, "observed_scenarios": len(cases),
         "confidence": CONFIDENCE, "paired_runs": PAIRS,
         "multiple_comparison_method": "Bonferroni family-wise t intervals",
         "reference_baseline_sha256": baseline_digest,
@@ -203,7 +226,7 @@ def main():
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps({key: report[key] for key in (
         "status", "relative_status", "baseline_approved", "environment_comparable",
-        "absolute_sla_status", "performance_gate")}, indent=2))
+        "absolute_sla_status", "performance_gate", "matrix_complete", "observed_scenarios")}, indent=2))
 
 
 if __name__ == "__main__":

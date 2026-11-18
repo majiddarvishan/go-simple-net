@@ -43,6 +43,28 @@ class ComparatorTests(unittest.TestCase):
             self.assertEqual(len(result), 1)
             self.assertEqual(next(iter(result.values()))["p99_ns"], 1300.0)
 
+    def test_incomplete_matrix_cannot_qualify(self):
+        names = [f"BenchmarkQA005Qualification/Core/RR-64B-S1-C1-{i}" for i in range(8)]
+        one_run = {name: {} for name in names}
+        logs = [dict(one_run) for _ in range(20)]
+        self.assertTrue(MOD.complete_matrix(logs, "core"))
+        del logs[0][names[0]]
+        self.assertFalse(MOD.complete_matrix(logs, "core"))
+
+    def test_full_requires_exact_8_core_16_full(self):
+        names = [f"BenchmarkQA005Qualification/Core/RR-64B-S1-C1-{i}" for i in range(8)]
+        names += [f"BenchmarkQA005Qualification/Full/RR-64B-S1-C1-{i}" for i in range(16)]
+        logs = [{name: {} for name in names} for _ in range(20)]
+        self.assertTrue(MOD.complete_matrix(logs, "full"))
+        self.assertFalse(MOD.complete_matrix(logs, "core"))
+        logs[8][names[0] + "-extra"] = {}
+        self.assertFalse(MOD.complete_matrix(logs, "full"))
+
+    def test_empty_or_unknown_matrix_is_not_pass(self):
+        self.assertFalse(MOD.complete_matrix([{} for _ in range(20)], "core"))
+        self.assertFalse(MOD.complete_matrix([{ "unexpected": {} } for _ in range(20)], "full"))
+        self.assertFalse(MOD.complete_matrix([{} for _ in range(19)], "core"))
+
 
 if __name__ == "__main__":
     unittest.main()
