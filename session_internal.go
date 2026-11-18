@@ -2,6 +2,7 @@ package neta
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"net"
 	"sync"
@@ -255,12 +256,15 @@ func newClientBindingSessionWithResources(
 	if bindTimeout <= 0 {
 		return nil, newConfigError("bind_response_timeout", bindTimeout.String(), "must be a positive duration")
 	}
-	sequence := uint32(1)
+	// Validate and serialize the Bind before creating the Session so an
+	// invalid identity returns an error without taking ownership of conn.
+	// A newly constructed Session starts its sequence generator at one.
+	const firstSequence uint32 = 1
 	encodeBind := wire.EncodeBindRequest
 	if config.protocolVersion == ProtocolVersionV2 {
 		encodeBind = wire.EncodeBindRequestV2
 	}
-	frame, err := encodeBind(sequence, bind)
+	frame, err := encodeBind(firstSequence, bind)
 	if err != nil {
 		return nil, err
 	}
@@ -273,14 +277,15 @@ func newClientBindingSessionWithResources(
 		resources,
 	)
 	s.mu.Lock()
-	sequence = s.nextSequenceLocked()
-	frame, err = encodeBind(sequence, bind)
-	if err == nil {
-		s.state = SessionStateBinding
-		s.bindSequence = sequence
-		s.bindDeadline = time.Now().Add(bindTimeout)
-		err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, bindRequest: true})
-	}
+	sequence := s.nextSequenceLocked()
+	// Update only the Sequence in the prevalidated, already-encoded Frame.
+	// This also remains correct if the Session's initial sequence policy
+	// changes later, without allocating a second Bind Body or Frame.
+	binary.BigEndian.PutUint32(frame[6:10], sequence)
+	s.state = SessionStateBinding
+	s.bindSequence = sequence
+	s.bindDeadline = time.Now().Add(bindTimeout)
+	err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, bindRequest: true})
 	s.mu.Unlock()
 	if err != nil {
 		_ = conn.Close()
