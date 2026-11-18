@@ -71,3 +71,10 @@ Commit تستی `2db90faf67923ea796ed611629390197cffb0e43` فقط انتظار �
 - `make smoke` → **PASS**؛ کل package اصلی Coverage **82.7%**، `internal/wire` Coverage **92.0%**؛ Build مثال‌ها، Bind/Loopback، Request/Response، یک‌طرفه و Graceful Shutdown موفق شدند.
 
 **تصمیم ثبت:** مورد Flaky Local QA-007 **CLOSED**؛ QA-007 در Feature Branch همچنان **[x]** است. نتایج QA-004 و QA-005، ۳۰دقیقه Soak و صفر بودن Ledger بعد از بار کاری از اجرای قبلی نگهداری می‌شوند؛ به‌عنوان اجرای مجدد روی Commit جدید معرفی نمی‌شوند. Baseline مرجع، ده جفت مقایسهٔ معتبر، Peak Retained Memory و SLA مطلق هنوز تأیید نشده‌اند؛ QA-004/005 و Performance Gate بسته/فعال نشده‌اند.
+
+## ۶. ابزار جدید A/A Noise Probe (آمادهٔ اجرای محلی)
+
+- افزوده شد: `scripts/qa005_noise_probe.sh` در Commit `63f80470b60be4c27475d3f681b2475d7c37b6db`؛ این اسکریپت فعلاً روی سیستم مالک اجرا/تأیید نشده است.
+- ورودی پیش‌فرض `core` و حالت‌های اختیاری `full` / `qa004`؛ اجرای **۱۰ جفت متناوب A/A** با دو Worktree موقت Detached از SHA یکسان؛ Capture Governor/CPU/Memory/PSI/Swap؛ خروجی `comparison.json`، `noise-summary.json` و تنها یک `.tar.gz` برای بازبینی.
+- هدف: سنجش نوسان دستگاه مرجع پیشنهادی **بدون** مقایسهٔ نسخهٔ تاریخی، امضای Baseline، فعال‌سازی Gate، اجرای GitHub CI یا اعمال تغییر در Production.
+- **تأکید:** A/A حتی در صورت عملکرد خوب، جای ۱۰ جفت مقایسهٔ بین نسخه‌های مختلف با Fixture یکسان، تأیید مالک، متریک حافظهٔ قابل انتساب و SLAهای مطلق را نمی‌گیرد. QA-004/005 همچنان باز، QA-007 بسته و Performance Gate غیرفعال است.
