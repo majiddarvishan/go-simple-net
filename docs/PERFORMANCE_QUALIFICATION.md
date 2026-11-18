@@ -159,3 +159,10 @@ The feature-branch CI runs Go correctness, race and pinned C++ V1 golden compati
 ## Compatibility boundaries
 
 No heap/wheel deadline redesign; no hot-path benchmark instrumentation except a nil internal terminal-settlement observation hook exclusively used by synthetic tests. V2 default Bind without NUL and 20-byte SystemID, V1 NUL Bind with 19-byte SystemID and 10-byte Header are unchanged. No PR, merge, tag or release without separate owner permission.
+
+## QA-005-MEM-001 — Proposed retained-memory qualification method (design only, 2026-11-19)
+
+The owner selected **B / Hybrid Ownership Accounting**, recorded in [the code-based ownership audit](../.codex/NETA_GO_QA005_ATTRIBUTABLE_MEMORY_OWNERSHIP_DESIGN_2026-11-19.md) and the [measurement/baseline compatibility plan](../.codex/NETA_GO_QA005_MEMORY_MEASUREMENT_QUALIFICATION_PLAN_2026-11-19.md). This **does not activate** any runner, adapter, code instrumentation, baseline metric or performance gate.
+
+Two existing comparability checks are mandatory: (1) the pinned original source SHA and unchanged workload fixtures, and (2) if a measurement-only test overlay is prototyped, exact matching **effective compiled** benchmark fixture and versioned adapter digests. The suggested `go test -overlay` route has not been verified and must be proven on clean, detached trees before relying on it; do not alter the source-V1 commit. Proposed in-workload sampled peak of covered library-owned retained storage is **not yet an approved `retained-attributed-B` comparator value**. Sampling can miss short peaks and independently observed owner charge peaks cannot be summed as a simultaneous exact peak. Any missing coverage, unknown retained external panic references, nonzero accounting-failure flags or absent/invalid values is INCONCLUSIVE; never convert post-workload zero counters or process HeapAlloc into attributable memory. Existing ten-pair/95%/15% rules remain unchanged and do not imply reference machine approval.
+
