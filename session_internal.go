@@ -129,6 +129,8 @@ type Session struct {
 	dispatchMu                sync.Mutex
 	panicMu                   sync.Mutex
 	panicLog                  callbackPanicStore
+	// Optional internal benchmark hook; nil on production Sessions.
+	deadlineSettlementObserver func(time.Time, time.Time)
 	cond                      *sync.Cond
 	state                     SessionState
 	systemID                  string

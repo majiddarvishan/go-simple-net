@@ -921,7 +921,7 @@ var deadlineScanBenchmarkSink time.Time
 // search under the same Session mutex used by controlLoop. It deliberately
 // does not simulate network traffic or establish a production SLA.
 func BenchmarkPendingDeadlineScan(b *testing.B) {
-	for _, pendingCount := range []int{0, 1, 32, 128, 512} {
+	for _, pendingCount := range []int{0, 1, 32, 128, 512, 2048, 8192} {
 		b.Run(fmt.Sprintf("pending=%d", pendingCount), func(b *testing.B) {
 			config := defaultSessionConfig()
 			config.enquireLinkIdleInterval = 0
