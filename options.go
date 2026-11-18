@@ -261,6 +261,19 @@ func WithServerMaxRetainedCompletionBytes(limit uint64) ServerOption {
 	return serverOwnerOption(func(c *ownerConfig) { c.maxRetainedCompletionBytes = limit })
 }
 
+// WithCallbackPanicRingCapacity sets the number of recent callback panics retained
+// per Session (1..32, default 8). Storage is allocated only on first panic.
+func WithCallbackPanicRingCapacity(limit uint32) SessionOption {
+	return sessionOption(func(c *sessionConfig) { c.callbackPanicRingCapacity = limit })
+}
+
+// WithCallbackPanicByteBudget sets the total recent callback-panic record byte
+// budget per Session (64 KiB..2 MiB, default 256 KiB). First and OnClose
+// records are independent of this budget.
+func WithCallbackPanicByteBudget(limit uint64) SessionOption {
+	return sessionOption(func(c *sessionConfig) { c.callbackPanicByteBudget = limit })
+}
+
 // WithRequestTimeout sets the absolute timeout for an admitted Request. The default is 30s; the duration must be positive.
 func WithRequestTimeout(timeout time.Duration) SessionOption {
 	return sessionOption(func(c *sessionConfig) { c.requestTimeout = timeout })

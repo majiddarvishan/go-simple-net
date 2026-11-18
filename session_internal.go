@@ -124,6 +124,8 @@ type Session struct {
 
 	mu                        sync.Mutex
 	dispatchMu                sync.Mutex
+	panicMu                   sync.Mutex
+	panicLog                  callbackPanicStore
 	cond                      *sync.Cond
 	state                     SessionState
 	systemID                  string
