@@ -126,6 +126,23 @@ The owner selected **Option A**: use the **current** implementation as the start
 **Future qualified comparison (not yet run):** use one clean, detached checkout at that exact source SHA and a second at a future candidate SHA, with bit-identical test workload fixtures and compatible instrumentation; match the host, Go version, settings and measurement duration. Run ten alternating matched pairs for QA-004/Core/Full on the owner-reviewed reference environment, capture and preserve logs with SHA-256, include a valid attributable retained-memory metric and apply only separately owner-approved absolute SLA/zero-baseline policies. Previously collected A/A metrics characterize noise; they must not be treated as historical code-regression evidence.
 
 **What remains unapproved:** reference machine, immutable numeric reference measurements, per-mode validated comparator manifest, 15% retained-attributable-memory evidence, absolute SLA limits, and mandatory gate activation. QA-004/005 remain **OPEN**; QA-007 is **CLOSED**. There is no historical `main` performance comparison and no automatic promotion of this anchor into a release qualification.
+## Local first numeric reference capture for future changes (Owner Option A)
+
+After owner approval of the **source anchor only** (`QA004-QA005-SOURCE-V1`, exact SHA `9b7b2318f73d173a99d22489042f84f8ce58b745`), a single local-only collector is available:
+
+```bash
+git pull --ff-only
+bash -n scripts/qa005_baseline_capture.sh
+bash scripts/qa005_baseline_capture.sh
+```
+
+Runs on Linux from a clean checkout with `git`, `go`, `python3` and `tar`. It reads the approved source-anchor JSON, then creates a **temporary detached worktree at that exact historical SHA** (not the moving branch HEAD). It executes **10 independent runs per mode**: QA-005 8 Core workloads and 24 Full workloads with default **1s** benchmark samples (the better-observed A/A diagnostic duration), plus QA-004 five P99 terminal-settlement scenarios with fixed **1200x** samples; full means 8 Core + 16 additional Full cases. An optional `NETA_QA005_BENCHTIME=250ms|500ms|1s|2s` changes only the traffic modes; QA-004 retains 1200x.
+
+The collector records the exact Go/host settings, source SHA, benchmark-fixture digest, ordered SHA-256 of ten raw logs for each mode, original run logs, run durations, case medians/ranges/sample CV, host-load/PSI/governor/swap snapshots, and one tarball in `artifacts/qa005-reference-capture/`. Per-mode outputs are in `<mode>/baseline/{01..10}.log`, `<mode>/baseline/environment.json`, `<mode>/statistics.json`, and `<mode>/DRAFT-NOT-APPROVED.json`. The draft includes **`owner_approved=false`** and must never be hand-edited to true or promoted without owner review. A source-only selection does **not** approve the machine, numeric values, absolute SLAs, attributable retained-memory metric or mandatory performance gate.
+
+**Important statistical boundary:** the ten stored single-source observations are a candidate *reference profile*, not ten interleaved **cross-version** matched pairs. A future real regression assessment must run `scripts/qa005_qualify.sh` on both the pinned source SHA and a future candidate SHA with **matching benchmark fixture bytes**, toolchain, workload configuration and host, producing ten new alternating baseline/candidate pairs and a **separate, freshly reviewed numerical approval manifest**. A draft digest from the single-source capture cannot be copied into a new paired comparison because its ordered baseline logs will differ. These 1s data must not be compared numerically with 250ms evidence as though they were the same workload.
+
+**Fail-closed:** if any mandatory benchmark scenario is missing or substituted, fewer than 1200 QA-004 detections are recorded, CPU/op evidence is absent, a capacity rejection is observed or a tracked owner-resource end counter is nonzero, the respective mode is `FAIL` (with logs retained). Temporary worktrees are cleaned and the collector attempts to package one tarball even on error. This collection script has not yet been run on the owner's workstation; its status is **PREPARED / AWAITING LOCAL EVIDENCE**. The owner's earlier successful 30-minute soak is distinct historical correctness/stability evidence and is not represented as a new run.
 ## Statistical acceptance and baseline custody
 
 Relative tolerances: 10% for throughput and P50/P95, and 15% for P99, CPU/op, allocations/op, retained memory and deadline-detection P99. Three outcomes: PASS, FAIL or INCONCLUSIVE. A regressed metric fails only when its lower bound exceeds tolerance; passes only when the upper bound is within tolerance. Zero/near-zero baselines require an owner-approved meaningful absolute-delta policy, otherwise INCONCLUSIVE.

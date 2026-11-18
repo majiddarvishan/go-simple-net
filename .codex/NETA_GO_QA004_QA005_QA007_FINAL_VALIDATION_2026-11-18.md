@@ -104,3 +104,11 @@ Commit تستی `2db90faf67923ea796ed611629390197cffb0e43` فقط انتظار �
 ## ۱۰. تصمیم مالک: گزینه A، تثبیت Source Baseline برای آینده (2026-11-19)
 
 مالک گزینهٔ A را انتخاب کرد: کد فعلی به‌عنوان مرجع اولیهٔ مقایسهٔ **تغییرات آینده** استفاده شود، نه بازسازی رگرسیون نسبت به `main` قدیمی. شناسهٔ مبنا `QA004-QA005-SOURCE-V1`، SHA قطعی و ثابت: `9b7b2318f73d173a99d22489042f84f8ce58b745`؛ فایل ساختاریافته: `docs/performance-baselines/qa004-qa005-source-v1.json`؛ مرجع تصمیم `.codex/DECISION_LOG.md` §74. این تصمیم تنها Source Anchor را تأیید می‌کند و **به معنای تصویب دستگاه مرجع، اعداد Baseline، حد مطلق SLA، Retained-attributed memory، Manifest پذیرش Comparator یا فعال‌کردن Performance Gate نیست**. QA-004/005 همچنان باز، QA-007 بسته، بدون PR/Merge/Tag/Release. معیار آینده: مقایسهٔ ۱۰ جفت با همان Fixture و Workload قابل قیاس بین SHA مبنا و SHA تغییر‌یافته، بعد از تأیید جداگانهٔ شواهد عددی.
+
+## ۱۱. ابزار جمع‌آوری پروفایل عددی Baseline در سیستم مالک (2026-11-19)
+
+- ابزار جدید: `scripts/qa005_baseline_capture.sh`؛ پیش‌فرض `all`، سه مجموعه QA-005 Core (۸ حالت)، QA-005 Full (۲۴ حالت، شامل Core) و QA-004 Deadline Detection (۵ جمعیت مصنوعی)؛ **۱۰ اجرای مستقل** در هر Mode. Source pinned: `QA004-QA005-SOURCE-V1` در SHA `9b7b2318f73d173a99d22489042f84f8ce58b745`.
+- مدت Benchmark پیش‌فرض Core/Full برابر `1s` است (انتخاب تشخیصی برای جمع‌آوری، نه SLA تأییدشده). QA-004 همیشه `1200x` نمونه دارد؛ Source Worktree موقت Detached از SHA ثابت ساخته می‌شود و شاخهٔ کاری تغییر نمی‌کند.
+- شواهد: ۱۰ Log شماره‌دار، Machine Metadata و Fixture SHA-256، digest لاگ‌های مرتب‌شده، P50/P95/P99/CPU/Alloc و CV، PSI/CPU Governor/Swap، گزارش PASS/FAIL برای هر Mode، یک آرشیو `.tar.gz` و فایل `DRAFT-NOT-APPROVED.json` با `owner_approved=false`.
+- **مرز:** این ابزار هنوز روی سیستم مالک اجرا نشده و به‌هیچ‌وجه تأیید Baseline عددی، سخت‌افزار، حافظهٔ قابل‌انتساب یا Performance Gate نیست. ۱۰ نمونهٔ یک‌طرفه جای ۱۰ جفت متناوب بین Source مبنا و Candidate آینده را نمی‌گیرد؛ برای مقایسهٔ رگرسیون آینده باید شواهد تازهٔ هر دو نسخه با Fixture و محیط مشترک گردآوری شوند. Soak قبلی مجدداً اجرا نشده است.
+- بعد از اجرای محلی، فایل فشردهٔ تولیدی را مالک ارسال می‌کند تا آمار نوسان و وضعیت واجد شرایط بودن دستگاه و Baseline بررسی شود؛ تغییر Production، PR، Merge، Tag و Release مجاز نشده‌اند.
