@@ -1,10 +1,10 @@
 # QA-005-MEM-004B — Actual backing-buffer ownership overlay (2026-11-19)
 
-**Status: IMPLEMENTED AS TEST-ONLY DIAGNOSTIC; NOT FULLY ATTRIBUTED MEMORY; awaiting actual Go overlay CI.**
+**Status: V2 TEST-ONLY DIAGNOSTIC; real-source Go overlay CI PASS at 26aa2873, full attribution INCONCLUSIVE.**
 
 Option B remains: no production source edits or new hot-path bookkeeping in normal builds. New external source overlay `scripts/qa005_owned_buffers_overlay.py` injects Session-mutex-protected accounting only into the benchmark's **temporary compile view** of four existing Go files. Original pinned QA004-QA005-SOURCE-V1 `9b7b2318f73d173a99d22489042f84f8ce58b745` is untouched; the script rejects output inside the checkout and hashes every original/effective overlaid source.
 
-- F1: one outgoing accepted Stream frame backing slice, counted on enqueue, released on frame-charge release (writer or close), not on writer claim.
+- F1: outgoing Stream frame backing slice now counted on allocation inside the V2 SendRequest/SendNoWait/SendResponse overlay, before Queue admission, and released once on write, Close or rejected-frame rollback. Queue/Writer transfer is non-additive.
 - F2: one inbound Stream Request Body backing slice, counted immediately after `make`, released only when Application retention charge finishes (callback return or cancel).
 - F3: one inbound matched Stream Response Body backing slice, counted immediately after `make`, released with Completion charge on return/cancel.
 - F4: outgoing Control frame backing slice, counted on enqueue, released after write or cancel/close.
@@ -23,3 +23,13 @@ Next: run synthetic Python tests and 1x real Go overlay under CI; inspect exact 
 - Measurement coverage remains partial and unqualified. Specifically, actual F1 outgoing bytes between frame build and Queue admission are not tracked, nor are metadata or external retained graphs. Test-only source overlays are fully separate from normal production builds; source-V1 anchor and API/wire remain fixed. `retained-attributed-B` is NEVER emitted by this probe.
 - The CI owned-buffer step is `continue-on-error`; check its own step log, not only overall workflow conclusion. Recorded initial fixture compile failure on 40f8a5a3 and workflow YAML failure on 40016b5e, both fixed by dfb33283.
 
+
+## MEM-004C V2 correction and verified evidence (2026-11-19)
+
+Versioned test-only adapter: **QA005-OWNED-BUFFER-OVERLAY-V2-UNQUALIFIED**. Original session.go is now included in source/effective SHA-256 manifests. Allocation of outbound F1 happens under Session lock and is observed immediately by the diagnostic counters before copying and Queue admission. The overlay-only qa005Enqueued flag distinguishes an already-owned frame transfer from duplicate Queue admission; Go source, public API and source-V1 anchor are untouched.
+
+- [Actions 44422549332](https://github.com/majiddarvishan/neta-go/actions/runs/44422549332) at 50abb663: overall green, optional owned-buffer 1x smoke **FAIL** because already-owned frames were flagged as duplicates.
+- [Actions 44423060164](https://github.com/majiddarvishan/neta-go/actions/runs/44423060164) at ae9f78b6: overall green, optional step **FAIL** during Python import because a new Go test was outside the generated fixture string.
+- [Actions 44423378544](https://github.com/majiddarvishan/neta-go/actions/runs/44423378544) at 26aa2873: all jobs and the optional owned step PASS (5 Python; 3 Go -race; real 1x Core RR). Sampled peak **0 B**, Session event-HWM upper **212 B**, samples **2**. These figures are diagnostic and incomparable with exact global attributable retained memory.
+
+**Still open:** concurrent builds/rejected Send under Forced Close; active callbacks after Done; OnClose/Panic external references; pending/worker metadata; F4 pre-admission and unclassified inbound allocations; Session removal from dynamic registry; sample gaps and exact peak semantics; 10-pair identical effective adapter; instrumentation ON/OFF overhead. A missing short peak must not become an approved zero. MEM-004 remains OPEN; MEM-005/006 OPEN; retained-attributed-B is never emitted.
