@@ -35,6 +35,7 @@ const (
 
 type callbackTask struct {
 	session *Session
+	name    string
 	run     func()
 	cancel  func()
 }
@@ -449,6 +450,7 @@ func (s *Session) markBound(systemID string, bindType wire.BindType) {
 	if s.handlers.onBound != nil {
 		task := callbackTask{
 			session: s,
+			name: "OnBound",
 			run:     func() { s.handlers.onBound(s) },
 			cancel:  func() {},
 		}
@@ -467,6 +469,7 @@ func (s *Session) dispatchBound() {
 	}
 	task := callbackTask{
 		session: s,
+			name: "OnBound",
 		run:     func() { s.handlers.onBound(s) },
 		cancel:  func() {},
 	}
@@ -487,7 +490,7 @@ func (s *Session) enqueueCallbackWithDispatchLock(class callbackClass, task call
 	s.mu.Lock()
 	forcedClose := s.state >= SessionStateClosing && s.closeForced
 	s.mu.Unlock()
-	if forcedClose && class != callbackOnClose {
+	if forcedClose && class == callbackApplication {
 		if task.cancel != nil {
 			task.cancel()
 		}
@@ -763,26 +766,22 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.closeForced = forced
 		close(s.closing)
 
-		var gracefulTasks []callbackTask
-		if forced {
-			for _, pending := range s.pending {
-				if !pending.settled {
-					pending.settled = true
-					s.releaseRequestCreditLocked(pending)
-				}
+		// Every locally accepted Request owns exactly one eventual Completion.
+		// Forced Close only cancels unstarted Application callbacks; it never
+		// cancels or releases Completion responsibility prematurely.
+		terminalErr := cause
+		if terminalErr == nil {
+			terminalErr = ErrClosed
+		}
+		var terminalTasks []callbackTask
+		for sequence, pending := range s.pending {
+			if pending.settled {
+				continue
 			}
-		} else {
-			terminalErr := cause
-			if terminalErr == nil {
-				terminalErr = ErrClosed
-			}
-			for sequence, pending := range s.pending {
-				if pending.settled {
-					continue
-				}
-				pending.settled = true
-				gracefulTasks = append(gracefulTasks, s.completionTaskLocked(sequence, pending, Response{Sequence: sequence}, terminalErr))
-			}
+			pending.settled = true
+			terminalTasks = append(terminalTasks, s.completionTaskLocked(
+				sequence, pending, Response{Sequence: sequence}, terminalErr,
+			))
 		}
 
 		for _, item := range s.appQueue {
@@ -816,10 +815,10 @@ func (s *Session) beginClose(cause error, forced bool) {
 		if conn != nil {
 			_ = conn.Close()
 		}
-		if forced && s.dispatcher != nil {
-			s.dispatcher.cancelUnstarted(s, callbackMaskApplication|callbackMaskCompletion)
+		if s.dispatcher != nil {
+			s.dispatcher.cancelUnstarted(s, callbackMaskApplication)
 		}
-		for _, task := range gracefulTasks {
+		for _, task := range terminalTasks {
 			s.enqueueCallbackWithDispatchLock(callbackCompletion, task)
 		}
 		s.dispatchMu.Unlock()

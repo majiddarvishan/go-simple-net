@@ -212,7 +212,9 @@ func (s *Server) handleBind(session *Session) {
 			return
 		default:
 		}
-		admissionErr = s.config.bindValidator(event.info)
+		session.invokeUserCallback("BindValidator", func() {
+			admissionErr = s.config.bindValidator(event.info)
+		})
 		select {
 		case <-session.closing:
 			return
