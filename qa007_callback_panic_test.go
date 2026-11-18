@@ -122,8 +122,22 @@ func TestQA007ForcedClosePreservesAllCompletionAndCredit(t *testing.T) {
 	if remaining := ledger.snapshot().outstandingRequests; remaining != 0 {
 		t.Fatalf("owner Request credits retained: %d", remaining)
 	}
-	if session.Diagnostics().CallbackPanics.First == nil {
-		t.Fatal("Completion panic not recorded")
+	// Completion callbacks release their Request credits while unwinding the
+	// panic; the outer recovery boundary records diagnostics afterwards.
+	// Therefore zero outstanding credits alone does not prove recovery is done.
+	panicDeadline := time.Now().Add(3 * time.Second)
+	for {
+		record := session.Diagnostics().CallbackPanics.First
+		if record != nil {
+			if record.Callback != "Completion" || record.Stack == "" {
+				t.Fatalf("Completion panic record incomplete: %+v", record)
+			}
+			break
+		}
+		if time.Now().After(panicDeadline) {
+			t.Fatal("Completion panic not recorded within 3 seconds")
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
