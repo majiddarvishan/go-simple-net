@@ -377,6 +377,22 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 
 Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/pinex` retain factual source provenance. They are not the project-facing branding or public neta-go API.
 
+## Independent senior engineering audit — 2026-11-18
+
+**Review-only findings; implementation NOT YET AUTHORIZED.** Source HEAD `0fadd380d558028a85333fa044eeb4c93ae5c11f`. [Full findings, exact paths and regression plans](NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md). Current exact-SHA Go [44202868979](https://github.com/majiddarvishan/neta-go/actions/runs/44202868979), wire [44202868919](https://github.com/majiddarvishan/neta-go/actions/runs/44202868919), full performance [44202869096](https://github.com/majiddarvishan/neta-go/actions/runs/44202869096) CI all PASS. These do not cover every scenario below.
+
+- [ ] **QA-001 / P1 — Live C++ interop test regression:** Go Client test and benchmark must explicitly select V1 for the pinned V1 peer; verify real TCP in both directions with a non-skipped CI job.
+- [ ] **QA-002 / P1 — Blocked BindValidator lifecycle:** bound validator execution lifetime and repeated pre-Bind timeout must not accumulate unbounded goroutines; define compatible cancellation/capacity policy and negative test.
+- [ ] **QA-003 / P2 — Early Bind length guard:** reject Bind Body lengths above 21 bytes before reading/allocating large payloads; add malicious-header/alloc tests.
+- [ ] **QA-004 / P2 — Pending deadline scan:** benchmark and profile O(N) control loop against 1/32/128/512 outstanding requests; optimize only on evidence.
+- [ ] **QA-005 / P2 — Performance acceptance:** get owner workload/SLA baselines and define noise-tolerant numeric regression acceptance.
+- [ ] **QA-006 / P2 — Fatal Accept handling:** surface unexpected listener failure and add injected-error regression test.
+- [ ] **QA-007 / P2 — Callback panic contract:** decide explicit recover-or-fatal behavior and test/document it; no unilateral panic-policy change.
+- [ ] **QA-008 / P3 — Clean code/docs:** update stale release readiness evidence and remove duplicate initial Bind serialization without changing semantics.
+- [ ] **QA-009 / P2 — Broader verification:** make fuzz mutation campaigns and actual C++ peer TCP tests executable in scheduled/authorized CI (in addition to golden wire checks).
+
+**Release gate:** QA-001..QA-003 must be resolved or explicitly risk-accepted; all other open findings need a disposition before `v1.0.0` publication. **P9-06 still NOT AUTHORIZED.** No production code was changed by this audit.
+
 ## Verification and update log
 
 | Date | HEAD / Commit | Scope | Evidence |
