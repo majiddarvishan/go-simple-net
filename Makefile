@@ -1,6 +1,6 @@
 GO ?= go
 
-.PHONY: help check verify race benchmark smoke perf-smoke soak
+.PHONY: help check verify race benchmark smoke perf-smoke soak qa005-report
 
 help:
 	@echo "Available targets:"
@@ -10,7 +10,8 @@ help:
 	@echo "  make perf-smoke  - short benchmark smoke test"
 	@echo "  make benchmark   - complete benchmark, soak and profiles"
 	@echo "  make smoke       - coverage snapshot and paired Client/Server example smoke"
-	@echo "  make soak        - five-minute mixed-payload memory soak"
+	@echo "  make soak        - mixed-payload memory soak (300..1800s)"
+	@echo "  make qa005-report - report-only Core QA-005 qualification snapshot"
 
 check:
 	@GO="$(GO)" bash scripts/ci-check.sh check
@@ -32,3 +33,6 @@ smoke:
 
 soak:
 	@GO="$(GO)" bash scripts/performance.sh soak
+
+qa005-report:
+	@bash scripts/qa005_report.sh

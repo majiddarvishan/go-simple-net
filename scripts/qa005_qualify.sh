@@ -11,6 +11,7 @@ CANDIDATE="$(cd -- "$2" && pwd)"
 mkdir -p -- "$3"
 OUTPUT="$(cd -- "$3" && pwd)"
 MODE="${4:-core}"
+export QA005_MODE="$MODE"
 if [[ "$MODE" != core && "$MODE" != full ]]; then
     echo "Mode must be core or full" >&2; exit 2
 fi

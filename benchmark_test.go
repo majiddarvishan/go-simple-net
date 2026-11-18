@@ -784,11 +784,11 @@ func BenchmarkScaleSessions(b *testing.B) {
 func TestMemoryStabilitySoak(t *testing.T) {
 	rawDuration := os.Getenv("NETA_SOAK_SECONDS")
 	if rawDuration == "" {
-		t.Skip("set NETA_SOAK_SECONDS to run the five-minute mixed-payload memory soak")
+		t.Skip("set NETA_SOAK_SECONDS=1800 to run the 30-minute mixed-payload stability soak")
 	}
 	seconds, err := strconv.Atoi(rawDuration)
-	if err != nil || seconds < 300 || seconds > 600 {
-		t.Fatalf("NETA_SOAK_SECONDS must be between 300 and 600, got %q", rawDuration)
+	if err != nil || seconds < 300 || seconds > 1800 {
+		t.Fatalf("NETA_SOAK_SECONDS must be between 300 and 1800, got %q", rawDuration)
 	}
 
 	env := newBenchmarkEnv(t, 8, 1, 1, true, false)
