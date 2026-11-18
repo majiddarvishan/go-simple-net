@@ -18,7 +18,9 @@ The separate C++ golden-vector workflow is an internal wire regression check. It
 ## Pending publication gates
 
 - [x] Repository naming/documentation cleanup merged in PRs #10–#13 and verified on protected `main` (`0fadd380d558028a85333fa044eeb4c93ae5c11f`).
-- [ ] Complete [independent QA audit](../.codex/NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md) remediation and requalification: QA-001 real C++ E2E is still unverified, QA-002/QA-003 fixes are in PR #15, and QA-004..QA-009 await disposition.
+- [x] Verify real two-direction TCP interoperability against pinned C++ 1.5.0 via a **private** workflow (normal and `-race`): [run 44260379077](https://github.com/majiddarvishan/pinex/actions/runs/44260379077) on neta-go `0824a70127594df72f78d1048cc360e33f57bd5b`. Details in the [QA-001 evidence](../.codex/NETA_GO_QA001_REAL_TCP_VERIFICATION_2026-11-18.md). This is **not** a required status gate on public neta-go PRs.
+- [x] Validate QA-006 terminal Accept error handling on protected `main`: [Go CI 44259964992](https://github.com/majiddarvishan/neta-go/actions/runs/44259964992) and [Wire CI 44259965112](https://github.com/majiddarvishan/neta-go/actions/runs/44259965112) PASS.
+- [ ] Complete the [independent QA audit](../.codex/NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md) disposition: QA-001/002/003/006 are closed, QA-004 has measurement but no production SLA decision; QA-005/007/008/009 remain open.
 - [ ] Obtain **fresh owner approval** for the revised [Unreleased changelog](../CHANGELOG.md), including V1/V2 behavior. An earlier approval does not cover these changes.
 - [ ] Independently inspect strict/up-to-date and administrator-bypass branch-protection settings (full settings are not readable through the connected integration).
 - [ ] Confirm GitHub Release creation permissions and publishing settings under the intended publisher account.
