@@ -25,12 +25,12 @@ func NewServer(options ...ServerOption) (*Server, error) {
 	return &Server{
 		config:         config,
 		validatorSlots: validatorSlots,
-		resources:  newServerResourceLedger(config.owner, config),
-		callbacks:  newOwnerCallbackDispatcher(config.owner),
-		sessions:   make(map[*Session]struct{}),
-		preBind:    make(map[*Session]struct{}),
-		pendingIDs: make(map[string]*Session),
-		boundIDs:   make(map[string]*Session),
-		sessionIDs: make(map[*Session]string),
+		resources:      newServerResourceLedger(config.owner, config),
+		callbacks:      newOwnerCallbackDispatcher(config.owner),
+		sessions:       make(map[*Session]struct{}),
+		preBind:        make(map[*Session]struct{}),
+		pendingIDs:     make(map[string]*Session),
+		boundIDs:       make(map[string]*Session),
+		sessionIDs:     make(map[*Session]string),
 	}, nil
 }

@@ -47,9 +47,9 @@ func TestOversizedBindHeaderIsRejectedBeforeReadingBody(t *testing.T) {
 				_ = readWireFrame(t, peer)
 			}
 			header, err := (wire.Header{
-				Length: uint32(wire.HeaderSize + 22),
-				Command: tc.cmd,
-				Status: wire.StatusOK,
+				Length:   uint32(wire.HeaderSize + 22),
+				Command:  tc.cmd,
+				Status:   wire.StatusOK,
 				Sequence: 1,
 			}).MarshalBinary()
 			if err != nil {
