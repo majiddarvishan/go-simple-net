@@ -92,7 +92,7 @@ def patch_benchmark(source):
         segment = source[start:end]
         if segment.count(START) != 1 or segment.count(STOP) != 1:
             raise ValueError('unexpected benchmark timer contract: ' + function)
-        segment = segment.replace(START, '\tprobe := qa005StartChargeProbe(env)\n' + START, 1)
+        segment = segment.replace(START, START + '\tprobe := qa005StartChargeProbe(env)\n', 1)
         segment = segment.replace(STOP, STOP + '\tprobe.qa005ReportChargeProbe(b)\n', 1)
         source = source[:start] + segment + source[end:]
     return source.rstrip() + '\n' + HELPER

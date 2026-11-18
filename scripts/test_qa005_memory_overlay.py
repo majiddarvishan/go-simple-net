@@ -50,6 +50,8 @@ func BenchmarkCheck(b *testing.B) {
             self.assertEqual(original, (root / 'benchmark_test.go').read_bytes())
             replacement = (out / 'benchmark_test.go').read_text()
             self.assertEqual(replacement.count('probe := qa005StartChargeProbe(env)'), 2)
+            self.assertIn('b.ResetTimer()\n\tprobe := qa005StartChargeProbe(env)', replacement)
+            self.assertNotIn('probe := qa005StartChargeProbe(env)\n\tb.ResetTimer()', replacement)
             self.assertNotIn('b.ReportMetric(float64(p.peak), "retained-attributed-B")', replacement)
             # The toy fixture has otherwise-unused imports; disable vet only for this synthetic check.
             result = subprocess.run(['go', 'test', '-vet=off', '-overlay', str(out / 'overlay.json'), '-run', '^TestNoop$', './...'],
