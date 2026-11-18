@@ -77,6 +77,9 @@ type OnCloseHandler func(*Session, error)
 
 // BindValidator validates the peer identity and transport details before the
 // Server accepts a Bind. A nil validator accepts otherwise valid unique identities.
+// It runs on a bounded handshake goroutine. A blocked user validator cannot
+// be forcibly cancelled by a Session timeout or Server.Stop; its own external
+// operations must be bounded by the application's policy.
 type BindValidator func(BindInfo) error
 
 // Client owns a configured TCP connection lifecycle and its Session generations.
@@ -118,6 +121,10 @@ type Server struct {
 	acceptDone chan struct{}
 	stopDone   chan struct{}
 	stopErr    error
+
+	// A permit remains held until a user BindValidator actually returns,
+	// even if the corresponding Session times out and frees its socket.
+	validatorSlots chan struct{}
 
 	sessions       map[*Session]struct{}
 	preBind        map[*Session]struct{}

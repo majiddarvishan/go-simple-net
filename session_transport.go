@@ -78,6 +78,12 @@ func (s *Session) readFrame() (result inboundFrame, readErr error) {
 	}
 
 	bodyLength := int(header.Length) - wire.HeaderSize
+	// No Bind representation has more than one BindType byte plus 20 bytes
+	// (V1 includes a terminator; V2 does not). Reject oversized Headers before
+	// reading or allocating an unauthenticated Body.
+	if (header.Command == wire.CommandBindRequest || header.Command == wire.CommandBindResponse) && bodyLength > 1+wire.MaxSystemIDLengthV2 {
+		return inboundFrame{}, fmt.Errorf("%w: Bind body exceeds maximum length", ErrProtocol)
+	}
 	ignoreRequest := false
 	ignoreResponse := false
 	completionCapacityErr := false

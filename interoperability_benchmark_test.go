@@ -127,9 +127,9 @@ func BenchmarkInteropCppServer(b *testing.B) {
 				})
 
 				var err error
-				client, err = NewClient(
-					WithClientAddress(address),
-					WithClientSystemID("benchmark-neta-cpp-client"),
+				client, err = newLegacyNetaCPPClient(
+					address,
+					"benchmark-neta-cpp-client",
 					WithClientApplicationWorkerIdleGrace(10*time.Millisecond),
 					WithClientCompletionWorkerIdleGrace(10*time.Millisecond),
 					WithClientOnCloseWorkerIdleGrace(10*time.Millisecond),

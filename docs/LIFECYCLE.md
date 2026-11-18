@@ -9,6 +9,8 @@
 
 A Server may install a BindValidator. It receives the peer SystemID, BindType and actual RemoteAddr. When no validator is installed, otherwise valid Binds with unique System IDs are accepted. Duplicate System IDs and Bound-session capacity overflow are rejected without evicting existing Sessions.
 
+A BindValidator is an application-supplied synchronous function. A Pre-Bind handshake timeout closes the Session, but Go cannot forcibly cancel a validator function that is already blocked. The Server therefore caps the number of running validators at `MaxPendingPreBindSessions`; each execution keeps its permit until the function returns, even if its Session has timed out. Additional handshakes waiting for a permit are abandoned when their Session closes. A blocked validator may outlive `Server.Stop`; **applications must place their own timeouts on external work inside BindValidator**. This prevents unbounded validator goroutine accumulation without changing the existing callback signature.
+
 ## Session state
 
 The public states are:
