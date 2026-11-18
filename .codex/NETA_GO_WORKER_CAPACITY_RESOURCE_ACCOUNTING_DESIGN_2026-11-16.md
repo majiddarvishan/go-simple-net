@@ -1,5 +1,7 @@
 # neta-go V1 — Worker Capacity & Resource Accounting Design
 
+> **OWNER-APPROVED SUPERSESSION (2026-11-18; contract only, not current code):** The final [QA-007 contract](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md) overrides historical **API-001b-FC-A** queued Completion cancellation and **WORKER-003** best-effort OnClose skip. On **every** Forced Close retain already-admitted Completion using existing bounded Request credits; on accepting an OnClose-eligible Session reserve one owner OnClose credit in advance, reject admission when none remains, and transfer that same credit through queued/running OnClose. Existing 1,024 default / 4,096 configured maximum remain the owner limit. Historical sections in this file remain evidence of previously approved and implemented behavior; source/test changes require a new owner authorization.
+
 **Date:** 2026-11-16  
 **Status:** WORKER DESIGN COMPLETE — WORKER-001 through WORKER-009C CLOSED / OWNER APPROVED  
 **Repository:** `github.com/majiddarvishan/neta-go`, branch `main`  
@@ -587,3 +589,15 @@ Phase 5 Worker Scheduler is COMPLETE / CI PASS at source HEAD `c72136693f85e6123
 - Go CI [44066876353](https://github.com/majiddarvishan/neta-go/actions/runs/44066876353) PASS; Pinex Wire Compatibility [44066876291](https://github.com/majiddarvishan/neta-go/actions/runs/44066876291) PASS.
 
 The Client/Server owner dispatcher objects are now present, but Session-generation construction through Dial/Listen/accept and reconnect remains Phase 6. Live Go↔Pinex TCP interoperability remains Phase 7. No public API, default, wire contract or approved design decision changed.
+
+
+## 2026-11-18 contract supersession addendum — approved design, source not modified
+
+**Source at the time of this documentation decision still implements** the original WORKER-003 best-effort OnClose reservation after Done and Forced Close A cancellation of queued Completions. The owner approved replacing these **specific** old contracts. This addendum is the authoritative planned behavior; prior approvals and CI evidence remain historical.
+
+1. **Completion (QA-007.26=A + conflict resolution A):** cancel unstarted Application callbacks at Forced Close, but **never cancel an admitted Request's queued Completion merely because Session is Closing/Closed**, regardless of close cause. Keep one per-Session and one owner Request credit (currently defaults 128/32,768; per-Session hard max 512) through its eventual callback processing, with no second Completion event credit. All terminal races settle internally once, and each Completion starts at most once. Never block Session Done on user Completion; owner Stop/worker lifetime must account for tasks outliving Sessions.
+2. **OnClose (QA-007.30=A + conflict resolution A):** preserve the same owner OnClose ledger/default 1,024/hard maximum 4,096, but extend charge population to **OnClose-eligible accepted live Sessions + queued events + running callbacks**. Reserve before admitting an eligible Session; immediate admission denial on no credit, with no socket/Session resource leak. If no OnClose handler exists, reservation is unnecessary. Transfer charge on closing and release after callback return (including recovered panic), without double charge. An OnClose callback may remain blocked and hold its charge indefinitely. Consequently future Session admission can fail even though transport and Done remain prompt.
+3. **Scheduler:** keep three isolated bounded owner-wide pools, existing worker ceilings, per-Session Completion concurrency, FIFO-start selection and N-ORD2 cross-class overlap. For Application callbacks, use QA-007.29 linearizable start claim; do not extend cancellation policy to Completion lane. OnClose remains at-most-once **admission-backed**, not guaranteed to return or start within a finite time under permanently blocked workers.
+4. **Implementation-sensitive boundaries, to verify rather than assume:** Client reconnect generations share one owner ledger; Server Bind/Client Connect failures return reserved credit exactly once; ensure backpressure and `Stop` do not silently destroy queued accepted Completion/OnClose work. No unbounded queues/goroutines and no changes to wire formats, timeout values or worker numeric defaults are approved.
+
+QA-007 remains unchecked until this new contract is implemented and qualified by source/race/interop tests with separate owner permission.
