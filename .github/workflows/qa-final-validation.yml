@@ -1,0 +1,117 @@
+name: QA-004/005/007 Final Verification
+
+# This workflow runs only after the completed implementation commit is moved
+# to the isolated feature branch. No stage-by-stage CI or performance gate.
+on:
+  push:
+    branches:
+      - feature/qa004-qa005-qa007-implementation-2026-11-18
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-final-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  correctness:
+    name: Go format, vet, tests, race, lifecycle and protocol
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Run exact-SHA Go final verification
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/go
+        run: make verify
+      - name: Build and run paired examples
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/examples
+        run: make smoke
+      - name: Upload final Go evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-go-${{ github.sha }}
+          path: artifacts/qa-final/
+          if-no-files-found: warn
+
+  wire:
+    name: Pinned neta-cpp V1 golden compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile pinned C++ fixture generator
+        run: |
+          g++ -std=c++20 -O2 -Wall -Wextra \
+            -I testdata/neta-cpp-1.5.0/source/include \
+            testdata/neta-cpp-1.5.0/golden.cpp \
+            -o /tmp/neta-cpp-wire-golden
+      - name: Compare byte-exact C++ fixture
+        run: |
+          /tmp/neta-cpp-wire-golden > /tmp/neta-cpp-wire-golden.txt
+          diff -u testdata/neta-cpp-1.5.0/golden.txt /tmp/neta-cpp-wire-golden.txt
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - run: go test ./internal/wire -count=1
+
+  performance:
+    name: Advisory scan and Core qualification (no numeric gate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: QA-004 linear scan 32 to 8192 pending
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          go test -run '^$' -bench '^BenchmarkPendingDeadlineScan$' \
+            -benchtime=150ms -benchmem -count=1 -cpu=1,4 \
+            -timeout=15m 2>&1 | tee artifacts/qa-final/perf/deadline-scan.log
+      - name: QA-004 terminal detection-delay benchmark
+        run: |
+          go test -run '^$' -bench '^BenchmarkPendingDeadlineDetection$' \
+            -benchtime=100ms -benchmem -count=1 -cpu=4 \
+            -timeout=15m 2>&1 | tee artifacts/qa-final/perf/deadline-detection.log
+      - name: QA-005 Core report-only workload
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/perf/core
+        run: bash scripts/qa005_report.sh
+      - name: QA-005 comparator unit tests
+        run: python3 -m unittest discover -s scripts -p 'test_qa005_compare.py'
+      - name: Declare advisory qualification limitations
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
