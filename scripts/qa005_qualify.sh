@@ -16,10 +16,21 @@ if [[ "$MODE" != core && "$MODE" != full && "$MODE" != qa004 ]]; then
     echo "Mode must be core, full or qa004" >&2; exit 2
 fi
 SELECTOR='^BenchmarkQA005Qualification/Core/'
-BENCHTIME="250ms"
+# Keep the established 250ms qualification workload by default. A/A
+# repeatability diagnostics may extend each benchmark sample locally; the
+# effective duration is recorded in each environment's workload_config.
+BENCHTIME="${NETA_QA005_BENCHTIME:-250ms}"
+case "$BENCHTIME" in
+    250ms|500ms|1s|2s) ;;
+    *) echo "INCONCLUSIVE: NETA_QA005_BENCHTIME must be 250ms, 500ms, 1s or 2s" >&2; exit 2 ;;
+esac
 FIXTURES=(qa005_qualification_benchmark_test.go benchmark_test.go)
 if [[ "$MODE" == full ]]; then SELECTOR='^BenchmarkQA005Qualification/'; fi
 if [[ "$MODE" == qa004 ]]; then
+    if [[ -n "${NETA_QA005_BENCHTIME:-}" ]]; then
+        echo "INCONCLUSIVE: qa004 requires fixed 1200x samples; unset NETA_QA005_BENCHTIME" >&2
+        exit 2
+    fi
     SELECTOR='^BenchmarkPendingDeadlineDetection$'
     BENCHTIME="1200x"
     FIXTURES=(qa004_deadline_benchmark_test.go benchmark_test.go)
