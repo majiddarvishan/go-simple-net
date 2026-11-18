@@ -1,6 +1,6 @@
 # Lifecycle, Callbacks, Payload Ownership and Errors
 
-> **QA-007 implementation branch (2026-11-18):** Source changes on the feature branch implement owner-approved retained Completion and admission-reserved OnClose. Full correctness, race and qualification evidence is still pending final validation; this is not a release statement.
+> **QA-007 feature branch verified (2026-11-18):** Source implementation of retained Completion, callback panic diagnostics and pre-admission OnClose credit passed Go correctness/race, worker, protocol and C++ V1 golden tests on code SHA `e852392542c20daf5a79cba2aaee7fbd55e454f8` ([GitHub Actions](https://github.com/majiddarvishan/neta-go/actions/runs/44306325369)). This is NOT a merged release; independent QA-004/005 performance reference qualification remains open.
 
 ## Construction and startup
 
@@ -35,7 +35,7 @@ A Session accepts Application traffic only while Bound. During Unbinding, new Ap
 5. Starts RequestTimeout after successful local admission.
 6. Invokes the Completion callback with the matching Response or terminal error.
 
-A nil CompletionHandler is rejected. A successful return means **local admission only**; it does not mean the peer received, accepted or processed the Request. An accepted Request is never replayed by automatic reconnect. **Current implementation (superseded target policy):** a queued Completion callback may be cancelled if Forced Close wins before that callback starts; a callback that has started is allowed to return. **New approved target QA-007.26:** retain every accepted Request's pending/queued Completion across *any* Forced Close; exactly one internal settlement and at most one callback start. Request credit remains held until its Completion responsibility actually ends.
+A nil CompletionHandler is rejected. A successful return means **local admission only**; it does not mean the peer received, accepted or processed the Request. An accepted Request is never replayed by automatic reconnect. **QA-007.26 implementation (feature branch):** retain every accepted Request's pending/queued Completion across *any* Forced Close; exactly one terminal settlement and at most one callback start. Request credit remains held until its Completion responsibility actually ends.
 
 ### One-way traffic
 
@@ -57,7 +57,7 @@ Each Client and Server owns three isolated bounded callback lanes:
 
 Worker ceilings are owner-wide and independent by callback class. Per-Session Application and Completion concurrency are separate configurable intersections with those owner ceilings. Both default to one. Application callbacks for one Session are FIFO-started; when concurrency exceeds one, callbacks may overlap and finish out of order. Completion callbacks preserve callback-start FIFO order, not necessarily completion-return order.
 
-**QA-007 feature-branch target (pending test verification):** reserve owner OnClose credit before eligible Session admission, reject admission immediately at saturation, transfer the credit to the queued/running callback after Done, and release on callback return even after a recovered panic.
+**QA-007.30 verified feature-branch behavior:** reserve owner OnClose credit before eligible Session admission, reject admission immediately at saturation, transfer the credit to queued/running callback after Done, and release on callback return even after a recovered panic.
 
 A callback should not block indefinitely. A blocked callback retains its worker permit and the applicable callback/request/payload accounting until it returns or is cancelled under the defined lifecycle policy.
 
@@ -118,11 +118,11 @@ Use `errors.Is` for stable categories:
 
 Use `errors.As` for `*ConfigError` to inspect `Field()`, `Value()` and `Constraint()`, or for `*OperationError` to inspect `Operation()`. Both preserve the underlying error chain.
 
-## Callback panic implementation — feature branch (pending final validation)
+## Callback panic implementation — verified on feature branch
 
 The final owner-approved QA-007 design is documented in [QA-004 / QA-005 / QA-007 approved contracts](../.codex/NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md), including QA-007.14–30 and explicit supersessions of Forced Close/OnClose legacy policies.
 
-**Code drafted; implementation not yet verified by final tests:**
+**Feature-branch implementation verified by Go correctness and Race tests:**
 
 - Recover all user callback panics (including OnClose), close only the affected Session and preserve the first Closing cause as immutable `Session.Err()`. Panics from already-started callbacks are still diagnosed after Done.
 - Expose typed `Session.Diagnostics()` containing `CallbackPanics` (First, Recent, OnClose, Dropped) with independent coherent snapshots; lazy count/byte-bounded recent records, complete retained stacks, safely bounded 1 KiB value text and internally retained raw panic values.
@@ -131,4 +131,4 @@ The final owner-approved QA-007 design is documented in [QA-004 / QA-005 / QA-00
 - Reserve owner OnClose event capacity on admission of each OnClose-eligible Session; when the owner credit budget is exhausted, reject new eligible admission rather than silently discard post-Done OnClose. OnClose uses its independent bounded pool and can overlap Completion.
 - `Done` remains independent of arbitrary user callback return. Permanent user callback blocking can prevent eventual execution; do not promise finite-time callback delivery.
 
-**Qualification status:** Feature-branch source changes still require formatting, correctness, race and performance evidence. No release permission is implied.
+**Qualification status:** Go formatting, correctness, race, lifecycle and protocol verification PASS on the feature branch. QA-004/005 reference performance qualification and any release authorization remain open.
