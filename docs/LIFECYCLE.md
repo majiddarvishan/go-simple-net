@@ -114,3 +114,9 @@ Use `errors.Is` for stable categories:
 | `ErrProtocol` | Malformed or directionally invalid protocol operation |
 
 Use `errors.As` for `*ConfigError` to inspect `Field()`, `Value()` and `Constraint()`, or for `*OperationError` to inspect `Operation()`. Both preserve the underlying error chain.
+
+## Planned callback panic contract — design approved, not yet implemented
+
+The owner-approved QA-007 design is documented in [QA-004 / QA-005 / QA-007 approved contracts](../.codex/NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md). Future behavior is to recover panics from every user Callback (including `OnClose`), immediately close the affected Session, finalize Pending requests once, preserve the original Close cause, record bounded diagnostics and provide thread-safe independent snapshots. Running callbacks are not forcibly stopped; queued callbacks not yet started are cancelled.
+
+**Not a statement of current API behavior:** `ErrCallbackPanic` and the diagnostic snapshot interface are planned decisions only, not verified implemented features. Exact public signatures and some limits remain owner-gated. This section must be revised when implementation and regression tests are complete.

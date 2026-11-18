@@ -1204,3 +1204,9 @@ Review release-boundary carefully: PV-02A and PV-02A-R tasks in `TASKS.md` requi
 Owner explicitly requested expanding `SystemID` capacity to **20 bytes** after V2 NUL removal. Implementation in `feature/v2-system-id-20-bytes-2026-11-18`: internal V2 Bind codec now allows 20 rather than 19 bytes for both Request and Response; legacy V1 codec retains 19 bytes plus NUL. Go Client construction derives the byte limit from `ProtocolVersion`, including default V2=20 and explicit V1=19. New codec and TCP tests cover boundaries and actual Session identity. No new Header field, no Pinex C++ change, no V2 auto-fallback.
 
 Track `PV-02B` and `PV-02B-R` separately in `.codex/TASKS.md`. Merge only after protected-PR Go/race/example and Pinex wire CI PASS. Post-merge main CI and renewed changelog review remain release preflight. P9-06 is NOT AUTHORIZED, no tag/Release; local stash remains untouched.
+
+## 72. Owner-approved QA contracts — 2026-11-18 (documentation only)
+
+Protected-main base at the start of this documentation work: `bf0f27e6116d6ad5bf99403df615bc57923b5883`. Owner approved QA-004.1 A / QA-004.2 B, QA-005.1 B / QA-005.2 B, and QA-007 B with all QA-007.1..13 sub-decisions. See [full approved contracts](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md) and [canonical tracker](TASKS.md).
+
+**IMPORTANT:** design approved does not mean remediation code/QA tests have been completed. Open numerical / API contracts require fresh owner approval, notably Panic recent-record minimum byte budget, diagnostic public API, and quantitative regression gates with reference workloads. Keep QA-004, QA-005, QA-007 unchecked until their acceptance evidence is complete. Do not change code, run tests or create PRs under the documentation-only authorization. No `v1.0.0` tag or Release without explicit separate permission.

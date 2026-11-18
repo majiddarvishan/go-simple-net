@@ -1654,3 +1654,11 @@ Important compatibility boundary: **V2 Bind is not accepted by Pinex 1.5.0 Serve
 Implementation scope: `internal/wire` uses separate V1 (`MaxSystemIDLength=19`) and V2 (`MaxSystemIDLengthV2=20`) byte limits in both Encode and Decode. Go `NewClient` validates SystemID byte length based on the configured `ProtocolVersion`: default V2 accepts 20, explicit V1 rejects 20. No embedded NUL is allowed. Tests cover request/response round-trip at exactly 20, rejection at 21, V1 19/20 boundary, and a real TCP Bind with 20-byte ID. Header/Stream/Control unchanged.
 
 Publication boundary: require Go and Pinex CI on the implementation PR and protected main before closure and obtain renewed owner approval of the amended Unreleased changelog before any v1.0.0 publication. P9-06 NOT AUTHORIZED.
+
+## 72. QA-004 / QA-005 / QA-007 — Owner-approved design decisions (2026-11-18)
+
+The owner explicitly approved **QA-004.1 = A** (retain Linear Scan) and **QA-004.2 = B** (quantitative benchmarks and evidence-based regression gates); **QA-005.1 = B** (multidimensional performance SLA) and **QA-005.2 = B** (versioned reference baseline with regression gate); and **QA-007 = B, QA-007.1 = A, QA-007.2 = B, QA-007.3 = B, QA-007.4 = A, QA-007.5 = A, QA-007.6 = B, QA-007.7 = B, QA-007.8 = B, QA-007.9 = B, QA-007.10 = B, QA-007.11 = B, QA-007.12 = B, QA-007.13 = B**.
+
+**Canonical full contract:** [QA-004, QA-005 and QA-007 approved design](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md). These are owner-approved *design* choices only. The minimum configurable Panic diagnostic byte budget, exact exported diagnostics API, reference workloads/hardware, numerical SLA thresholds and gate confidence/activation rules remain **UNDECIDED**. QA-004/005/007 are not implementation/test-complete; see [TASKS.md](TASKS.md).
+
+No production source, test, CI workflow or PR was changed or run as part of this decision-record work. Protocol V2 default, V1 wire compatibility, V2 20-byte SystemID, fixed 10-byte Header and the separate owner-only `v1.0.0` release gate remain binding.
