@@ -2,9 +2,9 @@ package neta
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"errors"
 	"net"
 	"testing"
 	"time"
@@ -16,9 +16,9 @@ import (
 // Session generator; the next outbound sequence must not reuse Bind's ID.
 func TestClientInitialBindFrameIsExactAndConsumesSequence(t *testing.T) {
 	for _, tc := range []struct {
-		name string
+		name    string
 		version ProtocolVersion
-		encode func(uint32, wire.Bind) ([]byte, error)
+		encode  func(uint32, wire.Bind) ([]byte, error)
 	}{
 		{name: "V1", version: ProtocolVersionV1, encode: wire.EncodeBindRequest},
 		{name: "V2", version: ProtocolVersionV2, encode: wire.EncodeBindRequestV2},
