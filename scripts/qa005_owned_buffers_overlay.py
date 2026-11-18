@@ -5,6 +5,7 @@ F1/F2/F3/F4 backing storage is tracked by Session under its existing mutex.
 This is an UNQUALIFIED diagnostic. Metadata/closures/Panic objects are excluded,
 and time sampling can miss fast peaks. Never emit retained-attributed-B.
 No repository source file is edited by this script.
+V2 additionally tracks F1 during build/copy and rolls back rejected frames.
 """
 import argparse
 import hashlib
@@ -17,8 +18,8 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V1-UNQUALIFIED"
-SOURCE_FILES = ("benchmark_test.go", "session_internal.go", "session_transport.go", "resource_charges.go")
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V2-UNQUALIFIED"
+SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "resource_charges.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
 
@@ -126,6 +127,83 @@ def patch_charges(content):
         "\tc.qa005BodyBytes = 0\n"
         "\tif next, ok := checkedSubUint64(",
         "completion return")
+    return content
+
+
+
+def patch_session(content):
+    """Register allocated F1 while holding Session.mu before copying the frame.
+
+    Ownership starts at make, not after FIFO admission. An unqueued frame is
+    released by its Send* call's defer; successful admission transfers the same
+    observation to the outboundFrame. All changes exist only in the Go overlay.
+    """
+    builder = ("func buildStreamFrame(command wire.CommandID, status wire.CommandStatus, "
+               "sequence uint32, payload []byte) ([]byte, error) {")
+    content = replace_once(
+        content, builder,
+        builder.replace("payload []byte)", "payload []byte, qa005Owner ...*Session)"),
+        "frame builder optional observer")
+    content = replace_once(
+        content, "\tframe := make([]byte, length)\n",
+        "\tvar frame []byte\n"
+        "\tif len(qa005Owner) == 0 || qa005Owner[0] == nil {\n"
+        "\t\tframe = make([]byte, length)\n"
+        "\t} else {\n"
+        "\t\towner := qa005Owner[0]\n"
+        "\t\towner.mu.Lock()\n"
+        "\t\tframe = make([]byte, length)\n"
+        "\t\tqa005AddOwnedLocked(owner, &owner.qa005OwnedOutgoingApp, uint64(cap(frame)))\n"
+        "\t\towner.mu.Unlock()\n"
+        "\t}\n",
+        "registered frame allocation")
+    starts = (
+        "func (s *Session) SendRequest(",
+        "func (s *Session) SendNoWait(",
+        "func (s *Session) SendResponse(",
+    )
+    end = "func (s *Session) applicationSendErrorLocked("
+    for index, marker in enumerate(starts):
+        begin = content.find(marker)
+        after = content.find(starts[index+1] if index+1 < len(starts) else end, begin+len(marker))
+        if begin < 0 or after < 0:
+            raise ValueError("missing send function boundary: " + marker)
+        segment = content[begin:after]
+        call = "frame, err := buildStreamFrame("
+        if segment.count(call) != 1:
+            raise ValueError("send builder call changed: " + marker)
+        line_end = segment.index("\n", segment.index(call))
+        line = segment[segment.index(call):line_end]
+        if not line.endswith("payload)"):
+            raise ValueError("unexpected send builder call: " + marker)
+        segment = segment.replace(line, line[:-1] + ", s)", 1)
+        segment = replace_once(
+            segment, "\n\n\ts.mu.Lock()\n\tif err != nil {",
+            "\n\tqa005Transferred := false\n"
+            "\tif err == nil {\n"
+            "\t\tdefer func() {\n"
+            "\t\t\tif !qa005Transferred {\n"
+            "\t\t\t\ts.mu.Lock()\n"
+            "\t\t\t\tqa005SubtractOwnedLocked(s, &s.qa005OwnedOutgoingApp, uint64(cap(frame)))\n"
+            "\t\t\t\ts.mu.Unlock()\n"
+            "\t\t\t}\n"
+            "\t\t}()\n"
+            "\t}\n\n\ts.mu.Lock()\n\tif err != nil {",
+            "unqueued frame rollback " + marker)
+        segment = replace_once(
+            segment, "\titem := &outboundFrame{bytes: frame,",
+            "\titem := &outboundFrame{bytes: frame, qa005Observed: true,",
+            "enqueue ownership transfer " + marker)
+        signal = "\ts.signalControl()"
+        if segment.count(signal) != 1:
+            raise ValueError("unexpected send success boundary: " + marker)
+        before_signal = segment.index(signal)
+        last_finish = segment.rfind("\ts.finishAdmissionLocked()\n", 0, before_signal)
+        if last_finish < 0:
+            raise ValueError("missing final admission completion: " + marker)
+        segment = (segment[:last_finish] + "\tqa005Transferred = true\n" +
+                   segment[last_finish:])
+        content = content[:begin] + segment + content[after:]
     return content
 
 
@@ -320,6 +398,7 @@ def patch_benchmark(content):
 PATCHES = {
     "benchmark_test.go": patch_benchmark,
     "session_internal.go": patch_internal,
+    "session.go": patch_session,
     "session_transport.go": patch_transport,
     "resource_charges.go": patch_charges,
 }
@@ -331,7 +410,7 @@ def prepare(source, output):
     if source == output or source in output.parents:
         raise ValueError("overlay output must be outside source checkout")
     original = {name: (source / name).read_bytes() for name in
-                (*FIXTURES, "session_internal.go", "session_transport.go", "resource_charges.go")}
+                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "resource_charges.go")}
     edited = {name: PATCHES[name](original[name].decode("utf-8")).encode("utf-8")
               for name in SOURCE_FILES}
     output.mkdir(parents=True, exist_ok=False)
@@ -360,6 +439,7 @@ def prepare(source, output):
         "primary_metric": "probe-owned-buffer-peak-B",
         "sampler_interval_ms": 5,
         "source_tree_mutated": False,
+        "tracks_pre_enqueue_allocated_F1": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

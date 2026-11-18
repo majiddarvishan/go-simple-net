@@ -72,5 +72,20 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
             self.assertFalse((root / "inside").exists())
 
 
+    def test_actual_source_outbound_build_to_queue_transfer(self):
+        source = (SCRIPT.parent.parent / "session.go").read_text()
+        patched = mod.patch_session(source)
+        self.assertEqual(patched.count("qa005Transferred := false"), 3)
+        self.assertEqual(patched.count("qa005Transferred = true"), 3)
+        self.assertEqual(patched.count("qa005Observed: true"), 3)
+        self.assertEqual(patched.count("qa005SubtractOwnedLocked(s, &s.qa005OwnedOutgoingApp"), 3)
+        self.assertIn("frame = make([]byte, length)", patched)
+        self.assertIn("qa005AddOwnedLocked(owner, &owner.qa005OwnedOutgoingApp", patched)
+        self.assertIn("payload, s)", patched)
+        self.assertEqual(source.count("qa005Transferred"), 0)
+        with self.assertRaisesRegex(ValueError, "frame builder optional observer"):
+            mod.patch_session(patched)
+
+
 if __name__ == "__main__":
     unittest.main()
