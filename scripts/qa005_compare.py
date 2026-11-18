@@ -30,6 +30,36 @@ DEADLINE_METRICS = {
 REQUIRED_ENV = ("go_version", "goos", "goarch", "gomaxprocs", "cpu_model",
                 "machine_id", "scenario_version", "workload_config",
                 "scenario_mode", "harness_sha256")
+# Exact selected workloads: count-only validation could accept substituted cases.
+# Keep synchronized with qa005Scenarios in qa005_qualification_benchmark_test.go;
+# the Python unit test independently compares all 24 Go declarations.
+EXPECTED_QA005_SCENARIOS = frozenset((
+    "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium",
+    "BenchmarkQA005Qualification/Core/NoWait-64B-S1-C1-medium",
+    "BenchmarkQA005Qualification/Core/RR-4096B-S32-C4-medium",
+    "BenchmarkQA005Qualification/Core/NoWait-4096B-S32-C4-medium",
+    "BenchmarkQA005Qualification/Core/RR-65536B-S1-C4-near",
+    "BenchmarkQA005Qualification/Core/NoWait-65536B-S1-C4-near",
+    "BenchmarkQA005Qualification/Core/RR-64B-S256-C1-near",
+    "BenchmarkQA005Qualification/Core/NoWait-4096B-S256-C4-near",
+    "BenchmarkQA005Qualification/Full/RR-64B-S1-C4-near",
+    "BenchmarkQA005Qualification/Full/NoWait-64B-S1-C4-near",
+    "BenchmarkQA005Qualification/Full/RR-65536B-S1-C1-medium",
+    "BenchmarkQA005Qualification/Full/NoWait-65536B-S1-C1-medium",
+    "BenchmarkQA005Qualification/Full/RR-64B-S32-C1-medium",
+    "BenchmarkQA005Qualification/Full/NoWait-64B-S32-C1-medium",
+    "BenchmarkQA005Qualification/Full/RR-4096B-S32-C1-near",
+    "BenchmarkQA005Qualification/Full/NoWait-4096B-S32-C1-near",
+    "BenchmarkQA005Qualification/Full/RR-65536B-S32-C4-near",
+    "BenchmarkQA005Qualification/Full/NoWait-65536B-S32-C4-near",
+    "BenchmarkQA005Qualification/Full/RR-64B-S256-C4-medium",
+    "BenchmarkQA005Qualification/Full/NoWait-64B-S256-C4-medium",
+    "BenchmarkQA005Qualification/Full/RR-4096B-S256-C1-near",
+    "BenchmarkQA005Qualification/Full/NoWait-4096B-S256-C1-near",
+    "BenchmarkQA005Qualification/Full/RR-65536B-S256-C1-medium",
+    "BenchmarkQA005Qualification/Full/NoWait-65536B-S256-C1-medium",
+))
+
 PAIRS = 10
 CONFIDENCE = 0.95
 P99_MIN_OBSERVATIONS = 1000
@@ -143,16 +173,9 @@ def complete_matrix(logs, mode):
         expected = {f"BenchmarkPendingDeadlineDetection/synthetic-pending={n}"
                     for n in (32, 128, 512, 2048, 8192)}
         return names == expected and all(set(run) == expected for run in logs)
-    expected_core = 8
-    expected_full = 0 if mode == "core" else 16
-    names = set(logs[0])
-    if len(names) != expected_core + expected_full:
-        return False
-    core_count = sum("/Core/" in name for name in names)
-    full_count = sum("/Full/" in name for name in names)
-    if core_count != expected_core or full_count != expected_full:
-        return False
-    return all(set(one_run) == names for one_run in logs)
+    expected = {name for name in EXPECTED_QA005_SCENARIOS
+                if mode == "full" or "/Core/" in name}
+    return all(set(one_run) == expected for one_run in logs)
 
 
 def main():

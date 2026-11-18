@@ -1,5 +1,6 @@
 import importlib.util
 import pathlib
+import re
 import subprocess
 import sys
 import json
@@ -47,7 +48,7 @@ class ComparatorTests(unittest.TestCase):
             self.assertEqual(next(iter(result.values()))["p99_ns"], 1300.0)
 
     def test_incomplete_matrix_cannot_qualify(self):
-        names = [f"BenchmarkQA005Qualification/Core/RR-64B-S1-C1-{i}" for i in range(8)]
+        names = sorted(name for name in MOD.EXPECTED_QA005_SCENARIOS if "/Core/" in name)
         one_run = {name: {} for name in names}
         logs = [dict(one_run) for _ in range(20)]
         self.assertTrue(MOD.complete_matrix(logs, "core"))
@@ -55,8 +56,7 @@ class ComparatorTests(unittest.TestCase):
         self.assertFalse(MOD.complete_matrix(logs, "core"))
 
     def test_full_requires_exact_8_core_16_full(self):
-        names = [f"BenchmarkQA005Qualification/Core/RR-64B-S1-C1-{i}" for i in range(8)]
-        names += [f"BenchmarkQA005Qualification/Full/RR-64B-S1-C1-{i}" for i in range(16)]
+        names = sorted(MOD.EXPECTED_QA005_SCENARIOS)
         logs = [{name: {} for name in names} for _ in range(20)]
         self.assertTrue(MOD.complete_matrix(logs, "full"))
         self.assertFalse(MOD.complete_matrix(logs, "core"))
@@ -114,6 +114,26 @@ class ComparatorTests(unittest.TestCase):
             metrics = next(iter(MOD.parse_benchmark(log).values()))
             self.assertEqual(metrics["cpu_ns_op"], 900)
             self.assertIsNone(metrics["retained_bytes"])
+
+    def test_go_fixture_and_exact_selected_scenarios_match(self):
+        fixture = FILE.parents[1] / "qa005_qualification_benchmark_test.go"
+        content = fixture.read_text(encoding="utf-8")
+        pattern = re.compile(
+            r'\\{"(Core|Full)", "(RR|NoWait)", (\\d+), (\\d+), (\\d+), "(medium|near)"\\}'
+        )
+        found = {
+            f"BenchmarkQA005Qualification/{m[1]}/{m[2]}-{m[3]}B-S{m[4]}-C{m[5]}-{m[6]}"
+            for m in pattern.finditer(content)
+        }
+        self.assertEqual(found, MOD.EXPECTED_QA005_SCENARIOS)
+        self.assertEqual(len(found), 24)
+
+    def test_substituted_scenario_is_rejected_even_with_correct_counts(self):
+        expected = sorted(name for name in MOD.EXPECTED_QA005_SCENARIOS if "/Core/" in name)
+        log = {name: {} for name in expected}
+        log.pop(expected[0])
+        log["BenchmarkQA005Qualification/Core/RR-64B-S1-C1-unapproved"] = {}
+        self.assertFalse(MOD.complete_matrix([log] * 20, "core"))
 
 
 if __name__ == "__main__":
