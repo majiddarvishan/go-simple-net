@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V2-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V3-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "resource_charges.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -235,6 +235,7 @@ BENCHMARK_HELPERS = """
 // The resulting global sample is NOT an atomic heap snapshot.
 // Overlay-only ownership set: Server lock is released before Session locks.
 func qa005OwnedSessions(env *benchmarkEnv) []*Session {
+    if env.qa005OwnedRegistry != nil { return env.qa005OwnedRegistry }
     env.server.mu.Lock()
     sessions := make([]*Session, 0, len(env.server.sessions)+len(env.sessions))
     for session := range env.server.sessions { sessions = append(sessions, session) }
@@ -244,16 +245,34 @@ func qa005OwnedSessions(env *benchmarkEnv) []*Session {
 
 // Reset each Session HWM at the start of the measured traffic window.
 func qa005ResetOwnedHighwaters(env *benchmarkEnv) {
-    for _, session := range qa005OwnedSessions(env) {
+    sessions := qa005OwnedSessions(env)
+    env.qa005OwnedRegistry = sessions
+    env.qa005OwnedIndex = make(map[*Session]struct{}, len(sessions))
+    for _, session := range sessions {
+        env.qa005OwnedIndex[session] = struct{}{}
+    }
+    for _, session := range sessions {
         session.mu.Lock()
         session.qa005OwnedPeak = session.qa005OwnedTotal
         session.mu.Unlock()
     }
 }
 
+// A Session removed from the Server's current map may still own callback bodies.
+func qa005OwnedRegistryComplete(env *benchmarkEnv) bool {
+    if env.qa005OwnedRegistry == nil { return false }
+    env.server.mu.Lock()
+    defer env.server.mu.Unlock()
+    for session := range env.server.sessions {
+        if _, known := env.qa005OwnedIndex[session]; !known { return false }
+    }
+    return true
+}
+
 // Sum of independently reached per-Session HWM values. This is an UPPER BOUND
 // over tracked sessions and NOT a simultaneous global peak or retained-attributed-B.
 func qa005OwnedPeakUpper(env *benchmarkEnv) (uint64, bool) {
+    if !qa005OwnedRegistryComplete(env) { return 0, false }
     var upper uint64
     for _, session := range qa005OwnedSessions(env) {
         session.mu.Lock()
@@ -269,6 +288,7 @@ func qa005OwnedPeakUpper(env *benchmarkEnv) (uint64, bool) {
 }
 
 func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
+    if !qa005OwnedRegistryComplete(env) { return 0, false }
     sessions := qa005OwnedSessions(env)
     var total uint64
     for _, session := range sessions {
@@ -540,11 +560,54 @@ func TestQA005OwnedOverlayPanicCleanup(t *testing.T) {
     }
 }
 
+
+// A Server Session disappears from the live map at Close but its active
+// callbacks can still own F2/F3. Frozen registry observes it; a newly admitted
+// unregistered Session makes the diagnostic invalid, not silently zero.
+func TestQA005OwnedOverlayFrozenRegistry(t *testing.T) {
+    serverSession := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    clientSession := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server := &Server{sessions: make(map[*Session]struct{})}
+    server.sessions[serverSession] = struct{}{}
+    env := &benchmarkEnv{server: server, sessions: []*Session{clientSession}}
+    qa005ResetOwnedHighwaters(env)
+    if len(env.qa005OwnedRegistry) != 2 || !qa005OwnedRegistryComplete(env) {
+        t.Fatal("initial owner Session registry incomplete")
+    }
+    serverSession.mu.Lock()
+    qa005AddOwnedLocked(serverSession, &serverSession.qa005OwnedIncomingApp, 17)
+    serverSession.mu.Unlock()
+    server.mu.Lock()
+    delete(server.sessions, serverSession)
+    server.mu.Unlock()
+    value, valid := qa005SampleOwnedBuffers(env)
+    if !valid || value != 17 { t.Fatalf("removed Session lost: value=%d valid=%v",value,valid) }
+    fresh := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server.mu.Lock()
+    server.sessions[fresh] = struct{}{}
+    server.mu.Unlock()
+    if _, valid := qa005SampleOwnedBuffers(env); valid {
+        t.Fatal("unregistered Server Session must invalidate memory observation")
+    }
+    serverSession.mu.Lock()
+    qa005SubtractOwnedLocked(serverSession, &serverSession.qa005OwnedIncomingApp, 17)
+    if serverSession.qa005OwnedTotal != 0 || serverSession.qa005OwnedFault {
+        serverSession.mu.Unlock(); t.Fatal("frozen Session failed final release")
+    }
+    serverSession.mu.Unlock()
+}
+
 """
 
 
 def patch_benchmark(content):
     patched = charge.patch_benchmark(content)
+    patched = replace_once(
+        patched, "type benchmarkEnv struct {\n",
+        "type benchmarkEnv struct {\n"
+        "\tqa005OwnedRegistry []*Session\n"
+        "\tqa005OwnedIndex map[*Session]struct{}\n",
+        "stable owned Session registry")
     patched = replace_once(
         patched, '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
         '    qa005ResetOwnedHighwaters(env)\n'

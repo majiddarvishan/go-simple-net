@@ -43,6 +43,8 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005OwnedTotal", patched)
         self.assertIn("qa005Enqueued = true", patched)
         self.assertIn("qa005AfterAllocation", patched)
+        self.assertIn("qa005OwnedRegistryComplete", mod.BENCHMARK_HELPERS)
+        self.assertIn("TestQA005OwnedOverlayFrozenRegistry", mod.BENCHMARK_HELPERS)
         self.assertIn("else if !item.qa005Observed", patched)
         self.assertIn("qa005OwnedIncomingReply", patched)
         self.assertIn("item.qa005Observed = false", patched)
