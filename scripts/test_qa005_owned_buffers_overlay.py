@@ -41,6 +41,8 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005OwnedOutgoingApp", patched)
         self.assertIn("qa005OwnedPeak", patched)
         self.assertIn("qa005OwnedTotal", patched)
+        self.assertIn("qa005Enqueued = true", patched)
+        self.assertIn("else if !item.qa005Observed", patched)
         self.assertIn("qa005OwnedIncomingReply", patched)
         self.assertIn("item.qa005Observed = false", patched)
         self.assertNotIn("retained-attributed-B", patched)

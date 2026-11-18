@@ -57,7 +57,7 @@ func qa005SubtractOwnedLocked(s *Session, counter *uint64, amount uint64) {
 def patch_internal(content):
     content = replace_once(
         content, "\tafterWrite         func()\n",
-        "\tafterWrite         func()\n\tqa005Observed      bool // overlay-only, one charge per accepted frame\n",
+        "\tafterWrite         func()\n\tqa005Observed      bool // overlay-only, one charge per tracked allocation\n\tqa005Enqueued      bool // overlay-only, detect duplicate queue admission\n",
         "outbound frame identity")
     content = replace_once(
         content, "\tactiveWrite               *outboundFrame\n",
@@ -81,10 +81,11 @@ def patch_internal(content):
     content = replace_once(
         content, "\ts.appQueue = append(s.appQueue, item)\n\ts.cond.Signal()",
         "\ts.appQueue = append(s.appQueue, item)\n"
-        "\tif item.qa005Observed { s.qa005OwnedFault = true } else {\n"
+        "\tif item.qa005Enqueued { s.qa005OwnedFault = true } else if !item.qa005Observed {\n"
         "\t\tqa005AddOwnedLocked(s, &s.qa005OwnedOutgoingApp, uint64(cap(item.bytes)))\n"
         "\t\titem.qa005Observed = true\n"
-        "\t}\n\ts.cond.Signal()",
+        "\t}\n"
+        "\titem.qa005Enqueued = true\n\ts.cond.Signal()",
         "application queue")
     content = replace_once(
         content,
@@ -394,6 +395,50 @@ def patch_benchmark(content):
         "owned reporting")
     return patched.rstrip() + "\n" + BENCHMARK_HELPERS
 
+
+// Regression: an F1 allocation is counted before Queue admission, and its
+// Queue -> Writer transfer must not count it again.
+func TestQA005OwnedOverlayPreQueueTransferAndRollback(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    payload := []byte("owned-frame")
+    frame, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload, s)
+    if err != nil { t.Fatal(err) }
+    expected := uint64(cap(frame))
+    s.mu.Lock()
+    if s.qa005OwnedOutgoingApp != expected || s.qa005OwnedTotal != expected {
+        s.mu.Unlock(); t.Fatal("F1 allocation not tracked before admission")
+    }
+    if err := s.reserveOutgoingApplicationLocked(uint64(len(frame))); err != nil {
+        s.mu.Unlock(); t.Fatal(err)
+    }
+    item := &outboundFrame{bytes: frame, applicationCharged: true, qa005Observed: true}
+    if err := s.enqueueApplicationLocked(item); err != nil {
+        s.mu.Unlock(); t.Fatal(err)
+    }
+    if s.qa005OwnedOutgoingApp != expected || !item.qa005Enqueued || s.qa005OwnedFault {
+        s.mu.Unlock(); t.Fatal("Queue must transfer, never duplicate, pre-owned F1")
+    }
+    s.activeWrite = item
+    if s.qa005OwnedOutgoingApp != expected { s.mu.Unlock(); t.Fatal("Writer transfer double counted") }
+    s.releaseFrameChargeLocked(item)
+    s.activeWrite = nil
+    s.releaseFrameChargeLocked(item)
+    if s.qa005OwnedOutgoingApp != 0 || s.qa005OwnedTotal != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("F1 writer return/double release invalid")
+    }
+    s.mu.Unlock()
+    orphan, err := buildStreamFrame(wire.CommandStreamRequest, wire.StatusOK, 0, payload, s)
+    if err != nil { t.Fatal(err) }
+    s.mu.Lock()
+    if s.qa005OwnedOutgoingApp != uint64(cap(orphan)) {
+        s.mu.Unlock(); t.Fatal("unqueued built frame missing")
+    }
+    qa005SubtractOwnedLocked(s, &s.qa005OwnedOutgoingApp, uint64(cap(orphan)))
+    if s.qa005OwnedTotal != 0 || s.qa005OwnedFault {
+        s.mu.Unlock(); t.Fatal("unqueued frame rollback failed")
+    }
+    s.mu.Unlock()
+}
 
 PATCHES = {
     "benchmark_test.go": patch_benchmark,
