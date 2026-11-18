@@ -148,7 +148,7 @@ func TestQA007ApplicationStartClaimCancelsUnstartedAndRecordsLatePanic(t *testin
 	qa007Await(t, started, "first Application start")
 	if !session.enqueueCallback(callbackApplication, callbackTask{
 		session: session, name: "OnRequest",
-		run: func() { called.Store(true) },
+		run:    func() { called.Store(true) },
 		cancel: func() { close(cancelled) },
 	}) {
 		t.Fatal("second Application not admitted")

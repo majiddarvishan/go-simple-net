@@ -83,8 +83,8 @@ type sessionConfig struct {
 	maxIncomingApplicationFrames uint32
 	maxOutgoingApplicationFrames uint32
 	maxOutstandingRequests       uint32
-	callbackPanicRingCapacity     uint32
-	callbackPanicByteBudget       uint64
+	callbackPanicRingCapacity    uint32
+	callbackPanicByteBudget      uint64
 	maxRetainedApplicationBytes  uint64
 	maxRetainedCompletionBytes   uint64
 	invalidOption                string
@@ -151,8 +151,8 @@ func defaultSessionConfig() sessionConfig {
 		maxIncomingApplicationFrames: defaultApplicationFrames,
 		maxOutgoingApplicationFrames: defaultApplicationFrames,
 		maxOutstandingRequests:       defaultSessionRequests,
-		callbackPanicRingCapacity:     defaultCallbackPanicRingCapacity,
-		callbackPanicByteBudget:       defaultCallbackPanicByteBudget,
+		callbackPanicRingCapacity:    defaultCallbackPanicRingCapacity,
+		callbackPanicByteBudget:      defaultCallbackPanicByteBudget,
 		maxRetainedApplicationBytes:  defaultRetainedApplicationBytes,
 		maxRetainedCompletionBytes:   defaultRetainedCompletionBytes,
 	}

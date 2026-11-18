@@ -494,7 +494,7 @@ func (s *Session) dispatchBound() {
 	}
 	task := callbackTask{
 		session: s,
-			name:    "OnBound",
+		name:    "OnBound",
 		run:     func() { s.handlers.onBound(s) },
 		cancel:  func() {},
 	}

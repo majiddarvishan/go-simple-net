@@ -60,12 +60,12 @@ func BenchmarkPendingDeadlineDetection(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				sequence := uint32(population+i+1)
+				sequence := uint32(population + i + 1)
 				session.mu.Lock()
 				session.pending[sequence] = &pendingRequest{
-					deadline: time.Now().Add(2 * time.Millisecond),
+					deadline:      time.Now().Add(2 * time.Millisecond),
 					writerClaimed: true,
-					completion: func(Response, error) {},
+					completion:    func(Response, error) {},
 				}
 				session.mu.Unlock()
 				session.signalControl()
