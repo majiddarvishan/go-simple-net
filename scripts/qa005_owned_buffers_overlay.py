@@ -35,15 +35,20 @@ SESSION_HELPERS = """
 func qa005AddOwnedLocked(s *Session, counter *uint64, amount uint64) {
     if amount == 0 { return }
     next, ok := checkedAddUint64(*counter, amount)
-    if !ok { s.qa005OwnedFault = true; return }
+    total, totalOK := checkedAddUint64(s.qa005OwnedTotal, amount)
+    if !ok || !totalOK { s.qa005OwnedFault = true; return }
     *counter = next
+    s.qa005OwnedTotal = total
+    if total > s.qa005OwnedPeak { s.qa005OwnedPeak = total }
 }
 
 func qa005SubtractOwnedLocked(s *Session, counter *uint64, amount uint64) {
     if amount == 0 { return }
     next, ok := checkedSubUint64(*counter, amount)
-    if !ok { s.qa005OwnedFault = true; return }
+    total, totalOK := checkedSubUint64(s.qa005OwnedTotal, amount)
+    if !ok || !totalOK { s.qa005OwnedFault = true; return }
     *counter = next
+    s.qa005OwnedTotal = total
 }
 """
 
@@ -60,7 +65,9 @@ def patch_internal(content):
         "\tqa005OwnedIncomingApp     uint64\n"
         "\tqa005OwnedIncomingReply   uint64\n"
         "\tqa005OwnedControl         uint64\n"
-        "\tqa005OwnedFault           bool\n",
+        "\tqa005OwnedFault           bool\n"
+        "\tqa005OwnedTotal           uint64\n"
+        "\tqa005OwnedPeak            uint64\n",
         "session storage counters")
     content = replace_once(
         content, "\ts.queuedControlBytes = next\n\tif item.barrier {",
@@ -145,12 +152,43 @@ def patch_transport(content):
 BENCHMARK_HELPERS = """
 // Overlay-only snapshot: briefly lock Server list, then each Session separately.
 // The resulting global sample is NOT an atomic heap snapshot.
-func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
+// Overlay-only ownership set: Server lock is released before Session locks.
+func qa005OwnedSessions(env *benchmarkEnv) []*Session {
     env.server.mu.Lock()
     sessions := make([]*Session, 0, len(env.server.sessions)+len(env.sessions))
     for session := range env.server.sessions { sessions = append(sessions, session) }
     env.server.mu.Unlock()
-    sessions = append(sessions, env.sessions...)
+    return append(sessions, env.sessions...)
+}
+
+// Reset each Session HWM at the start of the measured traffic window.
+func qa005ResetOwnedHighwaters(env *benchmarkEnv) {
+    for _, session := range qa005OwnedSessions(env) {
+        session.mu.Lock()
+        session.qa005OwnedPeak = session.qa005OwnedTotal
+        session.mu.Unlock()
+    }
+}
+
+// Sum of independently reached per-Session HWM values. This is an UPPER BOUND
+// over tracked sessions and NOT a simultaneous global peak or retained-attributed-B.
+func qa005OwnedPeakUpper(env *benchmarkEnv) (uint64, bool) {
+    var upper uint64
+    for _, session := range qa005OwnedSessions(env) {
+        session.mu.Lock()
+        peak := session.qa005OwnedPeak
+        fault := session.qa005OwnedFault || session.resourceAccountingFailed
+        session.mu.Unlock()
+        if fault { return 0, false }
+        next, ok := checkedAddUint64(upper, peak)
+        if !ok { return 0, false }
+        upper = next
+    }
+    return upper, true
+}
+
+func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
+    sessions := qa005OwnedSessions(env)
     var total uint64
     for _, session := range sessions {
         session.mu.Lock()
@@ -192,7 +230,7 @@ func TestQA005OwnedOverlayApplicationCompletionLifetimes(t *testing.T) {
     if s.qa005OwnedOutgoingApp != 32 { s.mu.Unlock(); t.Fatal("double counted writer claim") }
     s.releaseFrameChargeLocked(item)
     s.activeWrite = nil
-    if s.qa005OwnedOutgoingApp != 0 || item.qa005Observed || s.resourceAccountingFailed {
+    if s.qa005OwnedOutgoingApp != 0 || item.qa005Observed || s.qa005OwnedTotal != 0 || s.qa005OwnedPeak < 32 || s.resourceAccountingFailed {
         s.mu.Unlock(); t.Fatal("outgoing frame did not release exactly once")
     }
 
@@ -248,8 +286,13 @@ func TestQA005OwnedOverlayControlLifecycle(t *testing.T) {
 def patch_benchmark(content):
     patched = charge.patch_benchmark(content)
     patched = replace_once(
+        patched, '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
+        '    qa005ResetOwnedHighwaters(env)\n'
+        '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
+        "reset Session HWMs at traffic start")
+    patched = replace_once(
         patched, "    samples uint64\n    invalid bool\n",
-        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n",
+        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n",
         "sampler state")
     patched = replace_once(
         patched, "        p.samples++\n",
@@ -260,11 +303,16 @@ def patch_benchmark(content):
         "        p.ownedSamples++\n",
         "sample observation")
     patched = replace_once(
+        patched, "            case <-p.stop: observe(); return",
+        "            case <-p.stop: observe(); upper, valid := qa005OwnedPeakUpper(env); if !valid { p.invalid = true }; p.ownedUpper = upper; return",
+        "sample close peak upper")
+    patched = replace_once(
         patched,
         '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n',
         '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n'
         '    b.ReportMetric(float64(p.ownedPeak), "probe-owned-buffer-peak-B")\n'
-        '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n',
+        '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
+        '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n',
         "owned reporting")
     return patched.rstrip() + "\n" + BENCHMARK_HELPERS
 

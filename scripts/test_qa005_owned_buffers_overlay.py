@@ -39,6 +39,8 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertEqual(patched.count("item.qa005Observed = true"), 2)
         self.assertIn("uint64(cap(item.bytes))", patched)
         self.assertIn("qa005OwnedOutgoingApp", patched)
+        self.assertIn("qa005OwnedPeak", patched)
+        self.assertIn("qa005OwnedTotal", patched)
         self.assertIn("qa005OwnedIncomingReply", patched)
         self.assertIn("item.qa005Observed = false", patched)
         self.assertNotIn("retained-attributed-B", patched)
