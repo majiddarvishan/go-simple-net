@@ -1,0 +1,6 @@
+synthetic_pending,deadline_detection_p99_ns_median,deadline_detection_p99_run_cv_percent,deadline_detection_p99_min_ns,deadline_detection_p99_max_ns
+32,226035,1.74,221026,235157
+128,228317,2.91,210172,232342
+512,351829,2.50,333927,359558
+2048,795803,4.11,773765,883369
+8192,1482309.5,1.39,1441737,1498036
