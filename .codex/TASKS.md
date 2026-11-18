@@ -409,6 +409,16 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 
 **Release gate (2026-11-18 implementation update):** QA-001/002/003/006/007/008/009 are complete as evidenced (QA-007 remains feature-branch-only, not merged). QA-004/005 qualification, stable reference environment, absolute SLA and mandatory performance gate remain open. [Approved QA contracts](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md). Do not claim release readiness or create v1.0.0 Tag/Release without distinct owner authorization.
 
+## QA-005-MEM-001 — attributable retained memory (2026-11-19; B APPROVED, DESIGN DRAFT)
+
+- [x] **MEM-001 — Owner decision:** Hybrid Ownership Accounting (B), with no heavy new global hot-path atomic; confirmed on 2026-11-19. [Design](NETA_GO_QA005_ATTRIBUTABLE_MEMORY_OWNERSHIP_DESIGN_2026-11-19.md).
+- [x] **MEM-002 — Technical ownership audit:** inspected Session/owner ledger, inbound/outbound frames, pending and Completion/OnClose charge lifetimes, worker queues and Panic diagnostics; documented under/overcount risks and what the existing counts do not measure.
+- [ ] **MEM-003 — Measurement adapter and baseline compatibility specification:** document exact provenance, two-side instrumentation and reporting validity. No benchmark rerun.
+- [ ] **MEM-004 — Final metric and sampling coverage approval:** define precise gated metric/categorized exclusions and prove the approach; owner review required before Production instrumentation.
+- [ ] **MEM-005 — Minimal implementation, tests, measured overhead:** NOT STARTED. Work stage by stage in independent commits after final measurement contract review.
+- [ ] **MEM-006 — Reference-machine, numeric baseline, paired qualification, absolute SLAs, mandatory gate:** NOT APPROVED; gate DISABLED.
+- [x] **QA-007** remains CLOSED; **QA-004/005** remain OPEN. No PR/merge/tag/release.
+
 ## QA-004 / QA-005 / QA-007 — owner-approved design-to-implementation checklist (2026-11-18)
 
 - [x] Owner-approved QA-004.1–3, QA-005.1–8 and QA-007/.1–30 choices transcribed in the contract document (documentation-only branch).
