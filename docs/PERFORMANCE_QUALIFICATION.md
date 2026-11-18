@@ -100,6 +100,23 @@ Across these eight scenarios, mean sample P99 CV decreased from about **23.5%** 
 1s probe host telemetry: i5-12400, 12 logical CPUs, Go 1.27.0, `powersave` scaling governor. 1-minute load averages before/after ~1.73/4.94, CPU PSI `some avg10` ~2.67%/1.01%, I/O PSI `some avg10` ~0.78%/0.77%, `pswpin` +124 and `pswpout` +0, swap used ~7.2 GiB. A nonzero swap-in delta does not by itself prove sustained thrashing; governor, changing load and host contention may influence measurements but causation is unverified.
 
 **Next:** Evaluate QA-004 separately using `bash scripts/qa005_noise_probe.sh qa004` on the owner's workstation. This invokes the fixed `1200x` terminal-settlement P99 benchmark for five synthetic populations with 10 alternating A/A pairs and produces a single tarball. Do **not** set `NETA_QA005_BENCHTIME` for `qa004`; the runner intentionally rejects the override. Keep the Performance Gate DISABLED, reference machine NOT APPROVED and QA-004/QA-005 OPEN pending a valid cross-version baseline, retained-attributed memory method and absolute limits.
+## Owner-local QA-004 A/A noise probe (2026-11-18; independent 10-pair detection)
+
+Uploaded evidence: `aa-qa004-20261118T202222Z-2358305.tar.gz`. Both worktrees were **identical exact SHA** `ff38ceb29107fa156e0f87555f59bc6a5fa393d9`, Go 1.27.0, linux/amd64, Intel i5-12400. Mode `qa004`, workload configuration `loopback-1200x-cpu4-qa004`, matching harness digest `3ca4f929f3bd73004159d607ff02e60011dd2ac83ef190a3f932de3086f5d7bf`, machine marker `local-aa-probe`. All **10 alternating pairs**, **20 individual process logs**, and **5 benchmark cases/log** completed `PASS`: 100 selected benchmark-case rows, exactly 1,200 true terminal-settlement samples per row = **120,000** samples overall. The complete benchmark matrix and machine metadata validated.
+
+| Synthetic Pending | Median P99 baseline (µs) | Median P99 candidate (µs) | A/A sample P99 CV, 20 rows | Conservative upper CI regression bound | Relative metric status |
+|---:|---:|---:|---:|---:|---|
+| 32 | 227.99 | 228.76 | 1.52% | +2.97% | PASS |
+| 128 | 229.17 | 230.52 | 3.01% | +4.18% | PASS |
+| 512 | 349.88 | 352.03 | 2.28% | +2.64% | PASS |
+| 2048 | 797.93 | 797.79 | 2.70% | +3.60% | PASS |
+| 8192 | 1481.83 | 1483.62 | 0.93% | +1.46% | PASS |
+
+CV is the sample coefficient of variation for the 20 run-level P99 figures (not for the 24,000 individual settlement durations). The confidence limits are the exponentiated Bonferroni-adjusted paired log-ratio upper bounds against the previously approved **15% relative tolerance**; values are advisory **A/A measurement repeatability**, not an absolute timeout SLA. Populations 2048 and 8192 are **synthetic scan fixtures**, not single-Session outstanding Request credit capacity. The file's `comparison.json` correctly reports `relative_status=PASS` across all five P99 metrics, but **overall `status=INCONCLUSIVE`, `baseline_approved=false`, `performance_gate=DISABLED`** because this is same-SHA A/A, not an approved cross-version historical baseline comparison.
+
+Host snapshot before/after: CPU frequency governor `powersave` on all 12 logical CPUs, 1-min load average ~1.09 -> 1.70, CPU PSI some avg10 ~2.99 -> 2.92, I/O PSI some avg10 ~0.40 -> 0.59. `pswpin` +87, `pswpout` +0, major faults +321; pre-allocated swap ~7.3 GiB, no evidence of sustained swap-out thrashing. A/A success suggests QA-004 terminal-settlement P99 is **more repeatable on this host** than several prior QA-005 single-Session traffic P99 cases. It does not yet authorize the host as globally qualified reference equipment.
+
+**Remaining owner decisions / engineering work:** select and approve a reference setup and historical code baseline that can run identical fixtures, make and verify **ten cross-version matched pairs** (on the same host/toolchain), define and verify attributable retained-memory evidence for QA-005, and approve absolute SLA/zero-baseline acceptance rules. Existing QA-005 A/A Core 1s still had **4/8 P99 comparisons INCONCLUSIVE**, so do **not** generalize QA-004's stable results to QA-005. QA-007 remains closed. No production code, public API, wire contract, baseline approval, release or performance gate change.
 ## Statistical acceptance and baseline custody
 
 Relative tolerances: 10% for throughput and P50/P95, and 15% for P99, CPU/op, allocations/op, retained memory and deadline-detection P99. Three outcomes: PASS, FAIL or INCONCLUSIVE. A regressed metric fails only when its lower bound exceeds tolerance; passes only when the upper bound is within tolerance. Zero/near-zero baselines require an owner-approved meaningful absolute-delta policy, otherwise INCONCLUSIVE.
