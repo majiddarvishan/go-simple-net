@@ -926,8 +926,8 @@ func BenchmarkPendingDeadlineScan(b *testing.B) {
 			config := defaultSessionConfig()
 			config.enquireLinkIdleInterval = 0
 			session := &Session{
-				config: config,
-				state: SessionStateBound,
+				config:  config,
+				state:   SessionStateBound,
 				pending: make(map[uint32]*pendingRequest, pendingCount),
 			}
 			deadline := time.Now().Add(time.Minute)
