@@ -140,7 +140,40 @@ jobs:
             2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
           NETA_QA005_MEMORY_PROBE=1 go test \
             -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \
-            -run '^TestQA005OwnedOverlayControlLifecycle$' -count=1 -timeout=2m \
+            -run '^TestQA005OwnedOverlay(ControlLifecycle|ApplicationCompletionLifetimes) \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-lifecycle.log
+          NETA_QA005_MEMORY_PROBE=1 go test \
+            -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \
+            -run '^$' \
+            -bench '^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium$' \
+            -benchtime=1x -count=1 -cpu=4 -timeout=2m \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-1x-smoke.log
+          echo 'Owner-buffer backing bytes only; metadata/external refs excluded; NOT retained-attributed-B.' \
+            >> artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
+      - name: Declare advisory qualification limitations
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+ -race -count=1 -timeout=3m \
             2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-lifecycle.log
           NETA_QA005_MEMORY_PROBE=1 go test \
             -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \

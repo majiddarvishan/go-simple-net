@@ -170,10 +170,69 @@ func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
     return total, true
 }
 
+
+// The end of one queue is not the end of inbound Application responsibility:
+// its backing Body survives callback start and is freed at callback return.
+// A matched inbound Response similarly survives until Completion release.
+func TestQA005OwnedOverlayApplicationCompletionLifetimes(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    s.mu.Lock()
+    if err := s.reserveOutgoingApplicationLocked(16); err != nil {
+        s.mu.Unlock(); t.Fatal(err)
+    }
+    item := &outboundFrame{bytes: make([]byte, 16, 32), applicationCharged: true}
+    if err := s.enqueueApplicationLocked(item); err != nil {
+        s.mu.Unlock(); t.Fatal(err)
+    }
+    if s.qa005OwnedOutgoingApp != 32 {
+        s.mu.Unlock(); t.Fatalf("outgoing owned = %d, want backing cap 32", s.qa005OwnedOutgoingApp)
+    }
+    // A writer claim only moves the existing frame pointer; no second charge.
+    s.activeWrite = item
+    if s.qa005OwnedOutgoingApp != 32 { s.mu.Unlock(); t.Fatal("double counted writer claim") }
+    s.releaseFrameChargeLocked(item)
+    s.activeWrite = nil
+    if s.qa005OwnedOutgoingApp != 0 || item.qa005Observed || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("outgoing frame did not release exactly once")
+    }
+
+    app, err := s.reserveIncomingApplicationLocked(22)
+    if err != nil { s.mu.Unlock(); t.Fatal(err) }
+    app.qa005BodyBytes = 12
+    qa005AddOwnedLocked(s, &s.qa005OwnedIncomingApp, 12)
+    s.mu.Unlock()
+    app.releaseQueue()
+    s.mu.Lock()
+    if s.qa005OwnedIncomingApp != 12 || app.retainedReleased {
+        s.mu.Unlock(); t.Fatal("Application Body was lost at callback start")
+    }
+    s.mu.Unlock()
+    app.releaseRetained()
+    app.releaseRetained() // idempotent on callback completion
+    s.mu.Lock()
+    if s.qa005OwnedIncomingApp != 0 || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("Application Body was not released once")
+    }
+
+    completion := s.reserveCompletionLocked(22)
+    if completion == nil { s.mu.Unlock(); t.Fatal("Completion reservation rejected") }
+    completion.qa005BodyBytes = 12
+    qa005AddOwnedLocked(s, &s.qa005OwnedIncomingReply, 12)
+    if s.qa005OwnedIncomingReply != 12 { s.mu.Unlock(); t.Fatal("Completion Body missing") }
+    s.mu.Unlock()
+    completion.release()
+    completion.release() // idempotent on terminal return
+    s.mu.Lock()
+    if s.qa005OwnedIncomingReply != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("Completion Body ownership or accounting invalid")
+    }
+    s.mu.Unlock()
+}
+
 // Overlay-only lifecycle sanity: an accepted control allocation is counted once,
 // remains counted until release, and is not counted again at writer transfer.
 func TestQA005OwnedOverlayControlLifecycle(t *testing.T) {
-    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, sessionCallbackDispatcher{}, sessionHandlers{})
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
     s.mu.Lock()
     frame := &outboundFrame{control: true, bytes: make([]byte, 12, 32)}
     if err := s.enqueueControlLocked(frame); err != nil { s.mu.Unlock(); t.Fatal(err) }
