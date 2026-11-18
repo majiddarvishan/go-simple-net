@@ -5,6 +5,10 @@ set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 umask 077
+# The offline stats validator imports qa005_compare.py from the temporary
+# detached worktree. Disable .pyc writes so the import cannot create an
+# untracked scripts/__pycache__ and block a normal git worktree remove.
+export PYTHONDONTWRITEBYTECODE=1
 MODE="${1:-all}"
 if (( $# > 1 )); then echo "Usage: $0 [all|core|full|qa004]" >&2; exit 2; fi
 case "$MODE" in all|core|full|qa004) ;; *) echo "Invalid mode $MODE" >&2; exit 2;; esac
@@ -200,7 +204,7 @@ PY
             echo "Benchmark failed: $mode/$log.log" >&2; return 1
         fi
     done
-    python3 - "$SOURCE/scripts/qa005_compare.py" "$OUT/$mode" "$mode" "$ANCHOR" <<'PY'
+    python3 -B - "$SOURCE/scripts/qa005_compare.py" "$OUT/$mode" "$mode" "$ANCHOR" <<'PY'
 import hashlib,importlib.util,json,pathlib,statistics,sys
 spec=importlib.util.spec_from_file_location("neta_comparator",sys.argv[1])
 mod=importlib.util.module_from_spec(spec)
