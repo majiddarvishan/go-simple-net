@@ -65,6 +65,27 @@ class ComparatorTests(unittest.TestCase):
         self.assertFalse(MOD.complete_matrix([{ "unexpected": {} } for _ in range(20)], "full"))
         self.assertFalse(MOD.complete_matrix([{} for _ in range(19)], "core"))
 
+    def test_qa004_detection_is_not_a_qa005_traffic_metric(self):
+        self.assertIn("deadline_detection_p99_ns", MOD.DEADLINE_METRICS)
+        self.assertNotIn("deadline_detection_p99_ns", MOD.REQUIRED_METRICS)
+
+    def test_qa004_matrix_and_internal_settlement_parser(self):
+        names = [f"BenchmarkPendingDeadlineDetection/synthetic-pending={n}"
+                 for n in (32, 128, 512, 2048, 8192)]
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / "qa004.log"
+            path.write_text("\\n".join(
+                f"{name}-4 1200 2200000 ns/op 1200 detect-samples "
+                f"100000 detect-p50-ns 200000 detect-p95-ns "
+                f"350000 detect-p99-ns" for name in names) + "\\n"
+            )
+            parsed = MOD.parse_benchmark(path)
+            self.assertEqual(len(parsed), 5)
+            self.assertTrue(MOD.complete_matrix([parsed] * 20, "qa004"))
+            self.assertEqual(next(iter(parsed.values()))["observations"], 1200)
+            self.assertEqual(next(iter(parsed.values()))["deadline_detection_p99_ns"], 350000)
+            self.assertFalse(MOD.complete_matrix([parsed] * 20, "full"))
+
 
 if __name__ == "__main__":
     unittest.main()

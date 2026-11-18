@@ -21,6 +21,10 @@ REQUIRED_METRICS = {
     "cpu_ns_op": (0.15, "lower"),
     "allocs_op": (0.15, "lower"),
     "retained_bytes": (0.15, "lower"),
+}
+# Deadline detection belongs to QA-004, not to every QA-005 traffic case.
+# The only relative acceptance threshold approved for this metric is 15%.
+DEADLINE_METRICS = {
     "deadline_detection_p99_ns": (0.15, "lower"),
 }
 REQUIRED_ENV = ("go_version", "goos", "goarch", "gomaxprocs", "cpu_model",
@@ -62,7 +66,8 @@ def student_t_critical(alpha, degrees):
 def parse_benchmark(path):
     found = {}
     for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("BenchmarkQA005Qualification/"):
+        deadline_case = line.startswith("BenchmarkPendingDeadlineDetection/")
+        if not deadline_case and not line.startswith("BenchmarkQA005Qualification/"):
             continue
         parts = line.split()
         if len(parts) < 4:
@@ -80,6 +85,12 @@ def parse_benchmark(path):
                 metrics[parts[index + 1]] = float(parts[index])
             except ValueError:
                 continue
+        if deadline_case:
+            found[name] = {
+                "observations": metrics.get("detect-samples", 0),
+                "deadline_detection_p99_ns": metrics.get("detect-p99-ns"),
+            }
+            continue
         no_wait = "/NoWait-" in name
         prefix = "delivery-" if no_wait else ""
         found[name] = {
@@ -93,7 +104,6 @@ def parse_benchmark(path):
             # CPU/op and deadline P99 must come from matched dedicated evidence,
             # never be silently approximated from wall clock or callback start.
             "cpu_ns_op": metrics.get("cpu-ns/op"),
-            "deadline_detection_p99_ns": metrics.get("detect-p99-ns"),
         }
     return found
 
@@ -123,8 +133,13 @@ def complete_matrix(logs, mode):
     Ten matched pairs are not meaningful if either side silently omitted or
     substituted workloads, even when every observed metric looks favorable.
     """
-    if len(logs) != 2 * PAIRS or mode not in ("core", "full"):
+    if len(logs) != 2 * PAIRS or mode not in ("core", "full", "qa004"):
         return False
+    if mode == "qa004":
+        names = set(logs[0])
+        expected = {f"BenchmarkPendingDeadlineDetection/synthetic-pending={n}"
+                    for n in (32, 128, 512, 2048, 8192)}
+        return names == expected and all(set(run) == expected for run in logs)
     expected_core = 8
     expected_full = 0 if mode == "core" else 16
     names = set(logs[0])
@@ -189,12 +204,13 @@ def main():
                  for i in range(1, PAIRS + 1)]
     cases = sorted(set().union(*(set(log) for log in base_logs + cand_logs)))
     matrix_complete = complete_matrix(base_logs + cand_logs, baseline_meta.get("scenario_mode"))
-    number_tests = max(1, len(cases) * len(REQUIRED_METRICS))
+    metrics_to_check = DEADLINE_METRICS if baseline_meta.get("scenario_mode") == "qa004" else REQUIRED_METRICS
+    number_tests = max(1, len(cases) * len(metrics_to_check))
     critical = student_t_critical((1 - CONFIDENCE) / number_tests, PAIRS - 1)
     comparison = {}
     for case in cases:
         comparison[case] = {}
-        for metric, (tolerance, direction) in REQUIRED_METRICS.items():
+        for metric, (tolerance, direction) in metrics_to_check.items():
             pairs_base = [log.get(case, {}).get(metric) for log in base_logs]
             pairs_candidate = [log.get(case, {}).get(metric) for log in cand_logs]
             result = classify(pairs_base, pairs_candidate, tolerance, direction, critical)
