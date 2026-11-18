@@ -40,6 +40,27 @@ jobs:
           ARTIFACT_DIR: artifacts/performance-smoke
         run: make perf-smoke
 
+      - name: Measure pending deadline scan across in-flight populations
+        run: |
+          go test -run '^
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neta-go-correctness-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+ -bench '^BenchmarkPendingDeadlineScan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neta-go-correctness-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+ \
+            -benchmem -benchtime=200ms -count=3 -cpu=1,4
+
       - name: Upload correctness and example smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
