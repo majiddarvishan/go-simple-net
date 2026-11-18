@@ -4,9 +4,9 @@
 **مخزن:** `github.com/majiddarvishan/neta-go`  
 **شاخه مستقل:** `feature/qa004-qa005-qa007-implementation-2026-11-18`  
 **مبنای main (بدون تغییر):** `24b7c5f6eb4e001f30dd8a564a337ca1f506eac8` — PR #22  
-**HEAD کد اعتبارسنجی‌شده:** `eaf022357e369b8d484376a3385b16f2ce4fafd6`  
-**تعداد Commit تا HEAD کد اعتبارسنجی‌شده، نسبت به main:** 27  
-**CI معتبر برای همین کد:** https://github.com/majiddarvishan/neta-go/actions/runs/44310174076
+**HEAD کد اعتبارسنجی‌شده:** `99dd68848eb73dd15ccf0a178861aa7f7cf82fef`  
+**تعداد Commit تا HEAD کد اعتبارسنجی‌شده، نسبت به main:** 34  
+**CI معتبر برای همین کد:** https://github.com/majiddarvishan/neta-go/actions/runs/44313332548
 
 ## ۱. وضعیت دقیق
 
@@ -26,27 +26,27 @@
 
 ## ۳. شواهد CI نهایی
 
-Workflow Run [44310174076](https://github.com/majiddarvishan/neta-go/actions/runs/44310174076)، SHA `eaf022357e369b8d484376a3385b16f2ce4fafd6`:
+Workflow Run [44313332548](https://github.com/majiddarvishan/neta-go/actions/runs/44313332548)، SHA `99dd68848eb73dd15ccf0a178861aa7f7cf82fef`:
 
 - Go: **PASS** — `make verify` شامل gofmt، go vet، `go test -count=1 ./...` و `go test -race -count=1 ./...`.
 - Smoke و مثال‌ها: **PASS** — دو مثال، Request/Response، SendNoWait و Graceful Shutdown.
 - Pinned C++ V1 Golden و `go test ./internal/wire`: **PASS** (این شواهد جایگزین تست TCP واقعی C++ در محیط خصوصی نیستند).
-- QA-004 Scan و Detection با حداقل ۱۲۰۰ نمونه، QA-005 Core و Full (مجموعاً ۲۴ سناریو) advisory و ۱۲ Unit Test مقایسه‌گر پایتون: **PASS** به‌عنوان *اجرای ابزار*، نه عبور از Gate عملکرد.
+- QA-004 Scan و Detection با حداقل ۱۲۰۰ نمونه، QA-005 Core و Full (مجموعاً ۲۴ سناریو) advisory و ۱۶ Unit Test مقایسه‌گر پایتون: **PASS** به‌عنوان *اجرای ابزار*، نه عبور از Gate عملکرد.
 - Coverage بستهٔ اصلی: **80.2%**، Wire: **91.9%**.
 
 ### نمونهٔ نتایج QA-004 روی GitHub-hosted runner
 
 | Pending مصنوعی | Scan در ۱ CPU (ns/op) | Detection P50 (µs) | P95 (µs) | P99 (µs) | نمونه‌های Detection |
 |---:|---:|---:|---:|---:|---:|
-| 32 | 379.6 | 131.406 | 154.762 | 192.557 | 1,200 |
-| 128 | 1,403 | 141.516 | 154.065 | 178.933 | 1,200 |
-| 512 | 5,549 | 141.234 | 162.957 | 188.518 | 1,200 |
-| 2,048 | 23,687 | 205.053 | 229.740 | 253.144 | 1,200 |
-| 8,192 | 105,212 | 412.508 | 479.287 | 808.932 | 1,200 |
+| 32 | 523.0 | 155.434 | 201.033 | 269.739 | 1,200 |
+| 128 | 2,055 | 167.690 | 226.698 | 257.544 | 1,200 |
+| 512 | 8,873 | 167.714 | 211.196 | 259.540 | 1,200 |
+| 2,048 | 33,474 | 263.042 | 316.617 | 935.637 | 1,200 |
+| 8,192 | 140,368 | 530.695 | 675.858 | 808.792 | 1,200 |
 
-در Benchmark خالص Scan، **۰ allocs/op** ثبت شد (برای جمعیت ۸۱۹۲، ۳ B/op تحت CPU profiling)؛ Profile CPU برای Scan و Detection در Artifact موجود است. افزایش حجم نمونه به ۱۲۰۰ کیفیت مشاهدهٔ P99 را بهتر می‌کند ولی جایگزین مقایسهٔ آماری ۱۰ جفت روی سخت‌افزار مرجع نیست. هیچ سقف مطلق P99 یا Baseline مرجع مورد تأیید مالک وجود ندارد.
+در Benchmark خالص Scan، **۰ allocs/op و ۰ B/op** ثبت شد؛ Profile CPU برای Scan و Detection در Artifact موجود است. افزایش حجم نمونه به ۱۲۰۰ کیفیت مشاهدهٔ P99 را بهتر می‌کند ولی جایگزین مقایسهٔ آماری ۱۰ جفت روی سخت‌افزار مرجع نیست. هیچ سقف مطلق P99 یا Baseline مرجع مورد تأیید مالک وجود ندارد.
 
-QA-005 هر ۸ سناریوی Core و کل ۲۴ سناریوی Full (شامل همان ۸ Core) اجرا شد؛ نتایج Throughput/P50/P95/P99، تخصیص و **Linux CPU-ns/op** در Artifact موجود است. معیار حافظهٔ منسوب به خود کتابخانه هنوز مشاهدهٔ معتبر ندارد و به‌صورت INCONCLUSIVE حفظ می‌شود. **۱۰ جفت مرجع و آزمون ۳۰دقیقه‌ای NOT RUN**؛ Performance Gate همچنان خاموش است.
+QA-005 هر ۸ سناریوی Core و کل ۲۴ سناریوی Full (شامل همان ۸ Core) اجرا شد؛ نتایج Throughput/P50/P95/P99، تخصیص و **Linux CPU-ns/op** در Artifact موجود است. **۱۶ تست Python PASS**، کنترل دقیق فهرست سناریوها و داده‌های ناقص/نامعتبر به صورت INCONCLUSIVE، و Snapshot واقعی Owner Resource Accounting اضافه شد. در تمام **۳۲ سطر خروجی Core و Full**، پنج شاخص انتهای بار کاری شامل Retained App/Completion، Queued App، Outstanding Requests و OnClose Credits صفر بودند و ظرفیت ردشده صفر ثبت شد؛ این ارقام **Peak Memory نیستند** و صلاحیت Baseline را ثابت نمی‌کنند. معیار حافظهٔ نگه‌داری‌شدهٔ قابل انتساب هنوز برای قبول نسبی ۱۵٪ آماده نیست. **۱۰ جفت مرجع و آزمون ۳۰دقیقه‌ای NOT RUN**؛ Performance Gate همچنان خاموش است.
 
 ## ۴. موارد باز و سیاست مالک
 
