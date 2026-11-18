@@ -160,7 +160,7 @@ class ComparatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = pathlib.Path(folder) / "01.log"
             line = "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium-4 1200 900 ns/op"
-            path.write_text(line + "\\n" + line + "\\n")
+            path.write_text(line + "\n" + line + "\n")
             with self.assertRaisesRegex(ValueError, "duplicate benchmark"):
                 MOD.parse_benchmark(path)
 
