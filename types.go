@@ -119,6 +119,7 @@ type Server struct {
 	started    bool
 	stopping   bool
 	acceptDone chan struct{}
+	acceptErr  error
 	stopDone   chan struct{}
 	stopErr    error
 
