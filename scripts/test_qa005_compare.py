@@ -1,5 +1,8 @@
 import importlib.util
 import pathlib
+import subprocess
+import sys
+import json
 import tempfile
 import unittest
 
@@ -85,6 +88,32 @@ class ComparatorTests(unittest.TestCase):
             self.assertEqual(next(iter(parsed.values()))["observations"], 1200)
             self.assertEqual(next(iter(parsed.values()))["deadline_detection_p99_ns"], 350000)
             self.assertFalse(MOD.complete_matrix([parsed] * 20, "full"))
+
+    def test_missing_evidence_produces_parseable_inconclusive_json(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            report = root / "result.json"
+            result = subprocess.run([
+                sys.executable, str(FILE), "--baseline", str(root / "missing-base"),
+                "--candidate", str(root / "missing-candidate"),
+                "--output", str(report),
+            ], text=True, capture_output=True, check=True)
+            self.assertEqual(result.returncode, 0)
+            parsed = json.loads(report.read_text())
+            self.assertEqual(parsed["status"], "INCONCLUSIVE")
+            self.assertTrue(parsed["missing_files"])
+
+    def test_process_heap_is_not_attributable_retained_memory(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = pathlib.Path(folder) / "01.log"
+            log.write_text(
+                "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium-4 "
+                "1200 900 ns/op 10000 heap-live-B 900 cpu-ns/op "
+                "1000 ops/s 1 allocs/op 100 p50-ns 200 p95-ns 300 p99-ns\\n"
+            )
+            metrics = next(iter(MOD.parse_benchmark(log).values()))
+            self.assertEqual(metrics["cpu_ns_op"], 900)
+            self.assertIsNone(metrics["retained_bytes"])
 
 
 if __name__ == "__main__":

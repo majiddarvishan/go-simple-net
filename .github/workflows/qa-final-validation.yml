@@ -68,7 +68,7 @@ jobs:
       - run: go test ./internal/wire -count=1
 
   performance:
-    name: Advisory scan and Core qualification (no numeric gate)
+    name: Advisory scan and Core/Full qualification (no numeric gate)
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
