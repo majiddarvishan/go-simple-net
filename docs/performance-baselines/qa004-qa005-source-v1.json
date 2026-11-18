@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "baseline_id": "QA004-QA005-SOURCE-V1",
+  "decision_date": "2026-11-19",
+  "repository": "github.com/majiddarvishan/neta-go",
+  "branch_at_approval": "feature/qa004-qa005-qa007-implementation-2026-11-18",
+  "source_commit_sha": "9b7b2318f73d173a99d22489042f84f8ce58b745",
+  "owner_decision": "Option A: adopt the current code as the initial baseline for FUTURE changes, not retroactive regression proof against the older main",
+  "approval": {
+    "future_source_anchor_approved": true,
+    "reference_machine_approved": false,
+    "numeric_measurement_baseline_approved": false,
+    "absolute_sla_approved": false,
+    "attributable_retained_memory_method_approved": false,
+    "mandatory_performance_gate_enabled": false,
+    "historical_main_regression_proven": false
+  },
+  "comparison_policy": {
+    "reference_source": "9b7b2318f73d173a99d22489042f84f8ce58b745",
+    "future_candidate": "exact SHA of future code revision",
+    "required": "identical benchmark workload fixtures, matched hardware, matching Go/toolchain and workload configuration, 10 alternating paired baseline/candidate runs, valid evidence, separate owner-reviewed quantitative baseline",
+    "relative_tolerances": "existing approved 10%/15% tolerances; not automatic SLA or gate approval",
+    "initial_numeric_reference": "NOT_ESTABLISHED",
+    "this_file_is_not_a_qa005_compare_owner_approved_manifest": true,
+    "reference_logs_sha256": null
+  },
+  "owner_local_evidence": {
+    "qa007": "100x -race, 100x targeted coverage and make smoke PASS after test-only fix; 30m soak passed on previous code+test SHA",
+    "qa004_aa": "10 alternating same-source pairs; 5/5 relative P99 metrics PASS; overall qualification INCONCLUSIVE",
+    "qa005_core_aa": "10 pairs at 1s; 36 PASS / 12 INCONCLUSIVE / 0 FAIL measured non-retention comparisons; 8 uninstrumented retained-memory comparisons INCONCLUSIVE; overall qualification INCONCLUSIVE"
+  },
+  "constraints": [
+    "no production change",
+    "no GitHub PR/merge/tag/release",
+    "no reference baseline auto-promotion",
+    "no performance-gate activation"
+  ]
+}
