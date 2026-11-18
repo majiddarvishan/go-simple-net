@@ -97,8 +97,8 @@ func (c *completionReadCharge) release() {
 	}
 }
 
-// onCloseEventCharge makes the best-effort owner credit idempotent across
-// dispatcher cancellation paths.
+// onCloseEventCharge owns one pre-admission reserved owner credit. Its
+// release is idempotent across admission rollback and callback completion.
 type onCloseEventCharge struct {
 	owner *ownerResourceLedger
 	once  sync.Once

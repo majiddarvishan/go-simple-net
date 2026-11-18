@@ -167,6 +167,7 @@ func (s *Server) acceptLoop(listener net.Listener, ready chan<- struct{}, done c
 		s.mu.Lock()
 		if s.stopping {
 			s.mu.Unlock()
+			session.onCloseCredit.release()
 			_ = conn.Close()
 			s.releasePendingSocket()
 			return

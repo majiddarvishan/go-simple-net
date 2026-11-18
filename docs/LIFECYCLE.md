@@ -1,6 +1,6 @@
 # Lifecycle, Callbacks, Payload Ownership and Errors
 
-> **Runtime-versus-target notice (2026-11-18):** This guide's existing Forced Close Completion cancellation and best-effort OnClose skip text describes the **currently implemented runtime**, not the newly owner-approved QA-007 target behavior. The owner explicitly superseded those two policies, but their source implementation remains pending separate authorization. See [approved QA contracts](../.codex/NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md).
+> **QA-007 implementation branch (2026-11-18):** Source changes on the feature branch implement owner-approved retained Completion and admission-reserved OnClose. Full correctness, race and qualification evidence is still pending final validation; this is not a release statement.
 
 ## Construction and startup
 

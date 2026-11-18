@@ -120,6 +120,8 @@ type Session struct {
 	remoteAddr net.Addr
 	role       sessionRole
 	resources  *ownerResourceLedger
+	onCloseCredit *onCloseEventCharge
+	onCloseAdmissionFailed bool
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
 
@@ -210,6 +212,13 @@ func newSessionWithResources(conn net.Conn, config sessionConfig, identity sessi
 	if conn != nil {
 		s.remoteAddr = conn.RemoteAddr()
 	}
+	if handlers.onClose != nil {
+		if resources.reserveOnCloseEvent() {
+			s.onCloseCredit = &onCloseEventCharge{owner: resources}
+		} else {
+			s.onCloseAdmissionFailed = true
+		}
+	}
 	s.cond = sync.NewCond(&s.mu)
 	if identity.role == sessionRoleClient || identity.role == sessionRoleServer {
 		// A zero bind type is a valid uni-directional Bind. Callers that create
@@ -227,6 +236,10 @@ func newBoundSessionWithResources(conn net.Conn, config sessionConfig, identity 
 		return nil
 	}
 	s := newSessionWithResources(conn, config, identity, dispatcher, handlers, resources)
+	if s.onCloseAdmissionFailed {
+		_ = conn.Close()
+		return nil
+	}
 	s.mu.Lock()
 	s.state = SessionStateBound
 	s.lastActivity = time.Now()
@@ -279,6 +292,10 @@ func newClientBindingSessionWithResources(
 		handlers,
 		resources,
 	)
+	if s.onCloseAdmissionFailed {
+		_ = conn.Close()
+		return nil, ErrCapacity
+	}
 	s.mu.Lock()
 	sequence := s.nextSequenceLocked()
 	// Update only the Sequence in the prevalidated, already-encoded Frame.
@@ -291,6 +308,7 @@ func newClientBindingSessionWithResources(
 	err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, bindRequest: true})
 	s.mu.Unlock()
 	if err != nil {
+		s.onCloseCredit.release()
 		_ = conn.Close()
 		return nil, err
 	}
@@ -327,6 +345,9 @@ func newServerPreBindSessionUnstarted(conn net.Conn, config sessionConfig, accep
 		acceptedAt = time.Now()
 	}
 	s := newSessionWithResources(conn, config, sessionIdentity{role: sessionRoleServer}, dispatcher, handlers, resources)
+	if s.onCloseAdmissionFailed {
+		return nil, ErrCapacity
+	}
 	s.preBindDeadline = acceptedAt.Add(preBindTimeout)
 	return s, nil
 }
@@ -846,17 +867,19 @@ func (s *Session) finishClose() {
 		s.handlers.onDoneInternal(s, cause)
 	}
 	close(s.done)
-	if s.handlers.onClose != nil && s.resources != nil && s.resources.reserveOnCloseEvent() {
-		credit := &onCloseEventCharge{owner: s.resources}
+	if s.handlers.onClose != nil && s.onCloseCredit != nil {
+		// Reservation was made before this Session was admitted. Transfer
+		// the same credit to the post-Done callback; never re-reserve.
+		credit := s.onCloseCredit
 		task := callbackTask{
 			session: s,
+			name:    "OnClose",
 			run: func() {
 				defer credit.release()
 				s.handlers.onClose(s, cause)
 			},
 			cancel: credit.release,
 		}
-		// OnClose is best-effort and is eligible only after Done closes.
 		s.enqueueCallback(callbackOnClose, task)
 	}
 }

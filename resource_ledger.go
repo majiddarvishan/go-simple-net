@@ -220,8 +220,9 @@ func (l *ownerResourceLedger) releaseQueuedApplication(bytes uint64, frames uint
 	return true
 }
 
-// reserveOnCloseEvent is nonblocking. The caller permanently skips the event
-// when this owner-scoped queued+running population is full.
+// reserveOnCloseEvent is nonblocking. It must succeed before an eligible
+// Session is admitted. The credit covers live, queued and running OnClose
+// responsibilities, and is released only after the callback returns.
 func (l *ownerResourceLedger) reserveOnCloseEvent() bool {
 	if l == nil {
 		return false
