@@ -24,8 +24,11 @@ func (s *Server) Start() error {
 		return ErrClosed
 	}
 	if s.started {
+		// A terminal Accept failure is observable even if Start is called
+		// again. The existing listener cannot be silently resurrected.
+		err := s.acceptErr
 		s.mu.Unlock()
-		return nil
+		return err
 	}
 	s.mu.Unlock()
 
@@ -69,6 +72,31 @@ func (s *Server) Addr() net.Addr {
 	return s.addr
 }
 
+// AcceptDone closes when the Server's Accept loop exits, either after Stop or
+// because of a terminal listener error. It is nil before Start. Wait for it
+// before inspecting AcceptErr when monitoring a running Server.
+func (s *Server) AcceptDone() <-chan struct{} {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.acceptDone
+}
+
+// AcceptErr returns the first fatal listener Accept error, or nil while the
+// listener is healthy or after a normal Stop. An Accept error stops admission
+// of new sockets; already-bound Sessions continue until the owner calls Stop.
+// A failed Server is terminal: create a new Server to listen again.
+func (s *Server) AcceptErr() error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.acceptErr
+}
+
 func (s *Server) acceptLoop(listener net.Listener, ready chan<- struct{}, done chan<- struct{}) {
 	close(ready)
 	defer close(done)
@@ -79,7 +107,7 @@ func (s *Server) acceptLoop(listener net.Listener, ready chan<- struct{}, done c
 			s.mu.Lock()
 			stopping := s.stopping
 			s.mu.Unlock()
-			if stopping || errors.Is(err, net.ErrClosed) {
+			if stopping {
 				return
 			}
 			var netErr net.Error
@@ -88,6 +116,14 @@ func (s *Server) acceptLoop(listener net.Listener, ready chan<- struct{}, done c
 				<-timer.C
 				continue
 			}
+			// Even net.ErrClosed is unexpected if Stop did not close this
+			// listener. Publish the failure before AcceptDone is closed.
+			s.mu.Lock()
+			if !s.stopping && s.acceptErr == nil {
+				s.acceptErr = fmt.Errorf("neta: accept: %w", err)
+			}
+			s.mu.Unlock()
+			_ = listener.Close()
 			return
 		}
 

@@ -5,7 +5,8 @@
 `NewClient` and `NewServer` apply Functional Options, validate the final effective values and snapshot immutable configuration. They do not perform network I/O or start goroutines.
 
 - `Client.Connect(ctx)` performs TCP Dial and then the Bind handshake. It returns when Bound or when the attempt fails. The caller Context bounds the attempt; cancelling it after successful Connect does not close the Session.
-- `Server.Start()` opens the listener and returns when the Accept loop is ready. `Server.Addr()` exposes the actual listener address. A Server cannot be restarted after Stop.
+- `Server.Start()` opens the listener and returns when the Accept loop is ready. `Server.Addr()` exposes the last bound listener address. A Server cannot be restarted after Stop.
+- `Server.AcceptDone()` is a channel closed when the listener's Accept loop terminates (normally after `Stop`, or abnormally on a fatal `Accept` error). It is nil before `Start`. After the channel closes, `Server.AcceptErr()` returns the wrapped fatal error, or nil for a normal Stop. A terminal Accept failure stops **new** connections without forcibly closing existing bound Sessions; call `Server.Stop(ctx)` to clean up and create a fresh Server to restart. Calling `Start` on a failed Server returns the saved error.
 
 A Server may install a BindValidator. It receives the peer SystemID, BindType and actual RemoteAddr. When no validator is installed, otherwise valid Binds with unique System IDs are accepted. Duplicate System IDs and Bound-session capacity overflow are rejected without evicting existing Sessions.
 
