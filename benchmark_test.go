@@ -913,3 +913,37 @@ soakComplete:
 		maxHeapInuse, final.TotalAlloc-baseline.TotalAlloc, final.NumGC-baseline.NumGC,
 		runtime.NumGoroutine())
 }
+
+// Keep the result observable to prevent elimination of the measured scan.
+var deadlineScanBenchmarkSink time.Time
+
+// BenchmarkPendingDeadlineScan isolates the existing O(N) pending-deadline
+// search under the same Session mutex used by controlLoop. It deliberately
+// does not simulate network traffic or establish a production SLA.
+func BenchmarkPendingDeadlineScan(b *testing.B) {
+	for _, pendingCount := range []int{0, 1, 32, 128, 512} {
+		b.Run(fmt.Sprintf("pending=%d", pendingCount), func(b *testing.B) {
+			config := defaultSessionConfig()
+			config.enquireLinkIdleInterval = 0
+			session := &Session{
+				config:  config,
+				state:   SessionStateBound,
+				pending: make(map[uint32]*pendingRequest, pendingCount),
+			}
+			deadline := time.Now().Add(time.Minute)
+			for i := 1; i <= pendingCount; i++ {
+				session.pending[uint32(i)] = &pendingRequest{deadline: deadline}
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			var next time.Time
+			for i := 0; i < b.N; i++ {
+				session.mu.Lock()
+				next = session.nextDeadlineLocked()
+				session.mu.Unlock()
+			}
+			deadlineScanBenchmarkSink = next
+		})
+	}
+}
