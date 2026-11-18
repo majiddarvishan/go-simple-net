@@ -117,16 +117,36 @@ func interopFreeAddress(t *testing.T) string {
 	return address
 }
 
+// newLegacyNetaCPPClient centralizes the version required by the pinned
+// legacy C++ peer. Public neta-go Clients still default to V2.
+func newLegacyNetaCPPClient(address, systemID string, extra ...ClientOption) (*Client, error) {
+	options := []ClientOption{
+		WithClientAddress(address),
+		WithClientSystemID(systemID),
+	}
+	options = append(options, extra...)
+	options = append(options, WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)))
+	return NewClient(options...)
+}
+
+// The real C++ peer is optional in ordinary Go CI. This test still guards
+// legacy version selection even when its TCP integration test is skipped.
+func TestLegacyNetaCPPClientConfigUsesV1(t *testing.T) {
+	client, err := newLegacyNetaCPPClient("127.0.0.1:1", "legacy-test-peer")
+	if err != nil {
+		t.Fatalf("legacy Client constructor: %v", err)
+	}
+	if got := client.config.session.protocolVersion; got != ProtocolVersionV1 {
+		t.Fatalf("legacy peer protocol version = %d, want V1", got)
+	}
+}
+
 func TestNetaCPPServerWithGoClient(t *testing.T) {
 	binary := interopPeerBinary(t)
 	address := interopFreeAddress(t)
 	peer := startInteropNetaCPPServer(t, binary, address)
 
-	client, err := NewClient(
-		WithClientAddress(address),
-		WithClientSystemID("neta-go-client"),
-		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
-	)
+	client, err := newLegacyNetaCPPClient(address, "neta-go-client")
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
