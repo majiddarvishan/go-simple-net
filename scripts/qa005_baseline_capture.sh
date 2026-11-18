@@ -49,12 +49,34 @@ finish() {
     local prior=$?
     trap - EXIT
     local cleanup=0
-    if (( ADDED )); then git -C "$ROOT" worktree remove "$SOURCE" || cleanup=1; fi
-    if [[ -n "$TEMP" ]]; then rmdir "$TEMP" 2>/dev/null || true; fi
+    # Do not force-delete a worktree: preserve unexpected generated files for
+    # inspection, and include the precise Git error in the evidence archive.
+    if (( ADDED )); then
+        if ! git -C "$ROOT" worktree remove "$SOURCE" > "$OUT/worktree-cleanup.log" 2>&1; then
+            cleanup=1
+            {
+                echo "Worktree removal rejected; no forced cleanup attempted."
+                echo "Owned temporary worktree: $SOURCE"
+                git -C "$ROOT" worktree list --porcelain || true
+                if [[ -d "$SOURCE" ]]; then
+                    git -C "$SOURCE" status --short --ignored || true
+                fi
+            } >> "$OUT/worktree-cleanup.log" 2>&1
+        fi
+    fi
+    if [[ -n "$TEMP" ]]; then
+        if ! rmdir "$TEMP" 2>> "$OUT/worktree-cleanup.log"; then cleanup=1; fi
+    fi
+    local measurement=PASS
+    if (( prior != 0 || FAILURES != 0 )); then measurement=FAIL; fi
+    local cleanup_status=PASS
+    if (( cleanup != 0 )); then cleanup_status=FAIL; fi
     local result=PASS
-    if (( prior != 0 || cleanup != 0 || FAILURES != 0 )); then result=FAIL; fi
+    if [[ "$measurement" != PASS || "$cleanup_status" != PASS ]]; then result=FAIL; fi
     {
         echo "capture_status=$result"
+        echo "measurement_status=$measurement"
+        echo "worktree_cleanup_status=$cleanup_status"
         echo "source_baseline=QA004-QA005-SOURCE-V1"
         echo "source_sha=$ANCHOR"
         echo "modes=$MODE"
@@ -72,6 +94,7 @@ finish() {
     if tar -czf "$ARCHIVE" -C "$BASE" "$NAME"; then packed=1; fi
     echo "=============================================="
     echo "LOCAL NUMERIC EVIDENCE: $result (source $ANCHOR)"
+    echo "Measurement=$measurement; worktree cleanup=$cleanup_status"
     echo "Numerical baseline and performance gate: NOT APPROVED"
     if (( packed )); then echo "SEND THIS ONE FILE: $ARCHIVE"; fi
     echo "=============================================="
