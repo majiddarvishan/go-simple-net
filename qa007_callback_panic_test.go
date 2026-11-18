@@ -212,6 +212,7 @@ func TestQA007OnCloseCreditReservedBeforeAdmission(t *testing.T) {
 }
 
 type qa007HostileStringer struct{}
+
 func (qa007HostileStringer) String() string { panic("user stringer invoked") }
 
 func TestQA007SafePanicValueAndBoundedRecentRing(t *testing.T) {

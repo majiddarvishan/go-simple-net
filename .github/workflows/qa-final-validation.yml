@@ -84,6 +84,7 @@ jobs:
           mkdir -p artifacts/qa-final/perf
           go test -run '^$' -bench '^BenchmarkPendingDeadlineScan$' \
             -benchtime=150ms -benchmem -count=1 -cpu=1,4 \
+            -cpuprofile=artifacts/qa-final/perf/scan-cpu.pprof \
             -timeout=15m 2>&1 | tee artifacts/qa-final/perf/deadline-scan.log
       - name: QA-004 terminal detection-delay benchmark
         run: |

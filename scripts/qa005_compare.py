@@ -123,6 +123,23 @@ def main():
     cli.add_argument("--approved-manifest", type=Path)
     cli.add_argument("--output", required=True, type=Path)
     args = cli.parse_args()
+    required_files = [directory / "environment.json"
+                      for directory in (args.baseline, args.candidate)]
+    required_files += [directory / f"{i:02d}.log"
+                       for directory in (args.baseline, args.candidate)
+                       for i in range(1, PAIRS + 1)]
+    missing = [str(path) for path in required_files if not path.is_file()]
+    if missing:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        report = {
+            "status": "INCONCLUSIVE", "relative_status": "INCONCLUSIVE",
+            "performance_gate": "DISABLED — report-only",
+            "reason": "missing qualification evidence",
+            "missing_files": missing,
+        }
+        args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\\n")
+        print(json.dumps(report, indent=2))
+        return
     baseline_meta = json.loads((args.baseline / "environment.json").read_text())
     candidate_meta = json.loads((args.candidate / "environment.json").read_text())
     comparable = all(

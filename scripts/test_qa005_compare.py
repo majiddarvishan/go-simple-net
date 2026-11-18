@@ -23,7 +23,7 @@ class ComparatorTests(unittest.TestCase):
 
     def test_uncertain_results_inconclusive(self):
         baseline = [100.0] * 10
-        candidate = [110, 90, 100, 111, 89, 100, 110, 90, 105, 95]
+        candidate = [130, 90, 120, 100, 120, 90, 130, 95, 125, 90]
         result = MOD.classify(baseline, candidate, 0.10, "lower", MOD.student_t_critical(0.05, 9))
         self.assertEqual(result["status"], "INCONCLUSIVE")
 
