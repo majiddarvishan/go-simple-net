@@ -411,10 +411,15 @@ func benchmarkRunRequestResponse(b *testing.B, env *benchmarkEnv, payload []byte
 
 	b.ReportAllocs()
 	b.SetBytes(int64(2 * len(payload)))
+	cpuStart, cpuStartOK := benchmarkCPUTime()
 	b.ResetTimer()
 	close(start)
 	wg.Wait()
 	b.StopTimer()
+	cpuEnd, cpuEndOK := benchmarkCPUTime()
+	if cpuStartOK && cpuEndOK && b.N > 0 && cpuEnd >= cpuStart {
+		b.ReportMetric(float64((cpuEnd-cpuStart).Nanoseconds())/float64(b.N), "cpu-ns/op")
+	}
 	elapsed := b.Elapsed()
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32
@@ -512,10 +517,15 @@ func benchmarkRunSendNoWait(b *testing.B, env *benchmarkEnv, payload []byte, pro
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(payload)))
+	cpuStart, cpuStartOK := benchmarkCPUTime()
 	b.ResetTimer()
 	close(start)
 	wg.Wait()
 	b.StopTimer()
+	cpuEnd, cpuEndOK := benchmarkCPUTime()
+	if cpuStartOK && cpuEndOK && b.N > 0 && cpuEnd >= cpuStart {
+		b.ReportMetric(float64((cpuEnd-cpuStart).Nanoseconds())/float64(b.N), "cpu-ns/op")
+	}
 	elapsed := b.Elapsed()
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32

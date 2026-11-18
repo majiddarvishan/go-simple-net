@@ -100,7 +100,10 @@ def parse_benchmark(path):
             "p95_ns": metrics.get(prefix + "p95-ns"),
             "p99_ns": metrics.get(prefix + "p99-ns"),
             "allocs_op": metrics.get("allocs/op"),
-            "retained_bytes": metrics.get("heap-live-B"),
+            # HeapAlloc at one instant is not attributable retained payload memory.
+            # Require a separately measured owner-scoped retention metric
+            # before claiming a comparison result for this dimension.
+            "retained_bytes": metrics.get("retained-attributed-B"),
             # CPU/op and deadline P99 must come from matched dedicated evidence,
             # never be silently approximated from wall clock or callback start.
             "cpu_ns_op": metrics.get("cpu-ns/op"),
