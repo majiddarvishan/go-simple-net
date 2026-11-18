@@ -120,17 +120,16 @@ type Session struct {
 	remoteAddr net.Addr
 	role       sessionRole
 	resources  *ownerResourceLedger
-	onCloseCredit *onCloseEventCharge
-	onCloseAdmissionFailed bool
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
+
+	onCloseCredit          *onCloseEventCharge
+	onCloseAdmissionFailed bool
 
 	mu                        sync.Mutex
 	dispatchMu                sync.Mutex
 	panicMu                   sync.Mutex
 	panicLog                  callbackPanicStore
-	// Optional internal benchmark hook; nil on production Sessions.
-	deadlineSettlementObserver func(time.Time, time.Time)
 	cond                      *sync.Cond
 	state                     SessionState
 	systemID                  string
@@ -183,6 +182,9 @@ type Session struct {
 	closing   chan struct{}
 	closeOnce sync.Once
 	wg        sync.WaitGroup
+
+	// Optional internal benchmark hook; nil on production Sessions.
+	deadlineSettlementObserver func(time.Time, time.Time)
 }
 
 func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) *Session {
@@ -473,7 +475,7 @@ func (s *Session) markBound(systemID string, bindType wire.BindType) {
 	if s.handlers.onBound != nil {
 		task := callbackTask{
 			session: s,
-			name: "OnBound",
+			name:    "OnBound",
 			run:     func() { s.handlers.onBound(s) },
 			cancel:  func() {},
 		}
@@ -492,7 +494,7 @@ func (s *Session) dispatchBound() {
 	}
 	task := callbackTask{
 		session: s,
-			name: "OnBound",
+			name:    "OnBound",
 		run:     func() { s.handlers.onBound(s) },
 		cancel:  func() {},
 	}

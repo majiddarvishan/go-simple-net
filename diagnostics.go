@@ -43,14 +43,14 @@ type panicRecentEntry struct {
 }
 
 type callbackPanicStore struct {
-	first      *PanicRecord
-	firstRaw   any
-	onClose    *PanicRecord
-	onCloseRaw any
-	recent     []panicRecentEntry
+	first       *PanicRecord
+	firstRaw    any
+	onClose     *PanicRecord
+	onCloseRaw  any
+	recent      []panicRecentEntry
 	recentBytes uint64
-	dropped    uint64
-	sequence   uint64
+	dropped     uint64
+	sequence    uint64
 }
 
 // Diagnostics returns an independent snapshot. No Session state, network or

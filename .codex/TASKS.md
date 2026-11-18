@@ -1,3 +1,5 @@
+> **QA-004/005/007 implementation authorization — 2026-11-18:** Owner authorizes source, tests and single final validation only on `feature/qa004-qa005-qa007-implementation-2026-11-18` based on main `24b7c5f6eb4e001f30dd8a564a337ca1f506eac8`. Older docs-only restrictions are superseded for this scope. No PR, merge, release or tag is authorized. Changes are staged in logical commits but not yet verified. Keep all QA master checkboxes unchecked; Performance Gate remains DISABLED until stable reference hardware, immutable baseline and absolute SLA receive owner approval.
+
 # neta-go — Canonical Implementation Task Tracker
 
 **Repository:** `github.com/majiddarvishan/neta-go`  
@@ -497,3 +499,17 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - Go CI [44078517718](https://github.com/majiddarvishan/neta-go/actions/runs/44078517718) PASS: gofmt, vet, unit tests and race tests.
 - Pinex Wire Compatibility [44078517770](https://github.com/majiddarvishan/neta-go/actions/runs/44078517770) PASS: pinned C++ 1.5.0 golden fixtures.
 - Phase 6 P6-01..P6-11 are COMPLETE. Phase 7 live TCP interoperability, Phase 8 performance and Phase 9 release remain NOT AUTHORIZED.
+
+
+## 2026-11-18 QA-004/005/007 implementation branch tracker
+
+- [x] Check main HEAD, read approved contracts and create isolated feature branch.
+- [x] Prepare bounded typed QA-007 panic diagnostics, recovery, Completion and OnClose lifecycle changes with targeted unit tests.
+- [x] Prepare QA-004 linear-scan 32/128/512/2048/8192 synthetic benchmarks and internal terminal deadline detection timestamps.
+- [x] Prepare QA-005 8 Core/24 Full benchmark matrix, 10-pair 95% comparator and 30-minute soak support.
+- [ ] Verify full Go formatting, correctness, race, lifecycle, accounting, protocol and panic tests on exact feature HEAD.
+- [ ] Record actual QA-004 and QA-005 measurements on matched environment; do not invent absolute SLA.
+- [ ] Run qualified 30-minute soak and 10-pair comparison on owner-approved stable hardware (otherwise NOT RUN).
+- [ ] Obtain separate PR/Merge permission; no release/tag.
+
+**QA-004, QA-005, QA-007 stay [ ] until validated.**

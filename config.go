@@ -38,8 +38,9 @@ const (
 	defaultSessionRequests     = uint32(128)
 	defaultOwnerRequests       = uint32(32768)
 	defaultOnCloseEventCredits = uint32(1024)
+
 	defaultCallbackPanicRingCapacity = uint32(8)
-	defaultCallbackPanicByteBudget = uint64(256 << 10)
+	defaultCallbackPanicByteBudget   = uint64(256 << 10)
 
 	minRetainedBytes = uint64(10)
 	maxFrameSize     = uint64(1 << 20) // Total wire frame, including the 10-byte header.
@@ -51,9 +52,11 @@ const (
 	maxOnCloseWorkers             = uint32(128)
 	maxSessionCallbackConcurrency = uint32(32)
 	maxOnCloseEventCredits        = uint32(4096)
+
 	maxCallbackPanicRingCapacity = uint32(32)
-	minCallbackPanicByteBudget = uint64(64 << 10)
-	maxCallbackPanicByteBudget = uint64(2 << 20)
+	minCallbackPanicByteBudget   = uint64(64 << 10)
+	maxCallbackPanicByteBudget   = uint64(2 << 20)
+
 	maxSessionApplicationFrames   = uint32(1024)
 	maxAggregateApplicationFrames = uint32(262144)
 	maxSessionRequests            = uint32(512)
