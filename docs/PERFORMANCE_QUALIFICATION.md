@@ -2,6 +2,9 @@
 
 **Status:** instrumentation and comparison tooling implemented; no reference environment or mandatory performance gate approved. GitHub-hosted results are advisory only.
 
+**Most recent owner-local evidence:** [source-v1 draft numeric capture, 370 benchmark rows](performance-baselines/QA004_QA005_SOURCE_V1_NUMERIC_CAPTURE_2026-11-18.md); 30/30 benchmark processes and source/digest checks complete, but overall collector exit **FAIL from temporary worktree cleanup**. Benchmark numeric data is **DRAFT/ADVISORY**, not owner-approved. Do not auto-promote or infer reference hardware stability from the completed capture.
+
+
 ## Measurement population
 
 QA-004 preserves the existing linear pending deadline scan, shared bounded timer manager and absolute Request deadlines. `BenchmarkPendingDeadlineScan` measures the scan at pending populations 32/128/512/2048/8192, along with historical 0/1 cases. `BenchmarkPendingDeadlineDetection` timestamps the internal terminal Timeout settlement separately from Completion callback start; 2048/8192 are explicitly synthetic Session fixtures, never valid single-Session admitted traffic. Per-Session real outstanding Request credit remains capped at 512.
