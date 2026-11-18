@@ -68,25 +68,25 @@ func qa005Producers(s qa005Scenario) int {
 // These are POST-WORKLOAD snapshots, not a measured peak or a heap-retention
 // footprint. In particular they are NOT the comparator's retained-attributed-B.
 func qa005ReportPostRunUsage(b *testing.B, env *benchmarkEnv) {
-    b.Helper()
-    var retainedApplication, retainedCompletion, queuedApplication uint64
-    var outstanding, onCloseCredits uint64
-    include := func(usage ownerResourceUsage) {
-        retainedApplication += usage.retainedApplicationBytes
-        retainedCompletion += usage.retainedCompletionBytes
-        queuedApplication += usage.queuedApplicationBytes
-        outstanding += uint64(usage.outstandingRequests)
-        onCloseCredits += uint64(usage.onCloseEventCredits)
-    }
-    include(env.server.resources.snapshot())
-    for _, client := range env.clients {
-        include(client.resources.snapshot())
-    }
-    b.ReportMetric(float64(retainedApplication), "post-retained-app-B")
-    b.ReportMetric(float64(retainedCompletion), "post-retained-completion-B")
-    b.ReportMetric(float64(queuedApplication), "post-queued-app-B")
-    b.ReportMetric(float64(outstanding), "post-outstanding-requests")
-    b.ReportMetric(float64(onCloseCredits), "post-onclose-credits")
+	b.Helper()
+	var retainedApplication, retainedCompletion, queuedApplication uint64
+	var outstanding, onCloseCredits uint64
+	include := func(usage ownerResourceUsage) {
+		retainedApplication += usage.retainedApplicationBytes
+		retainedCompletion += usage.retainedCompletionBytes
+		queuedApplication += usage.queuedApplicationBytes
+		outstanding += uint64(usage.outstandingRequests)
+		onCloseCredits += uint64(usage.onCloseEventCredits)
+	}
+	include(env.server.resources.snapshot())
+	for _, client := range env.clients {
+		include(client.resources.snapshot())
+	}
+	b.ReportMetric(float64(retainedApplication), "post-retained-app-B")
+	b.ReportMetric(float64(retainedCompletion), "post-retained-completion-B")
+	b.ReportMetric(float64(queuedApplication), "post-queued-app-B")
+	b.ReportMetric(float64(outstanding), "post-outstanding-requests")
+	b.ReportMetric(float64(onCloseCredits), "post-onclose-credits")
 }
 
 func BenchmarkQA005Qualification(b *testing.B) {
