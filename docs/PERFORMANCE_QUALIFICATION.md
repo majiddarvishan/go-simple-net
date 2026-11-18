@@ -51,6 +51,26 @@ The probe requires a clean tracked source tree and no untracked Go files. It use
 A/A comparison is a **measurement-noise characterization only**. `comparison.json` is intentionally `INCONCLUSIVE` on qualification without an owner-approved manifest, and `noise-summary.json` separately counts observed PASS/FAIL/INCONCLUSIVE relative metrics **excluding absent attributable-retained-memory measurements**. An A/A FAIL suggests instability or measurement noise; an A/A PASS does **not** prove reference-machine suitability, nor does any A/A result compare historical baseline against new code. A changing CPU governor, active swap movement, nontrivial system pressure and background load can undermine reproducibility; do not claim a qualified machine from CPU/RAM specifications alone. The probe changes neither the QA-004/QA-005 Task states nor the disabled performance gate.
 
 The first owner-run full local suite (Go 1.27, Intel Core i5-12400, 12 logical CPUs, approximately 31 GiB RAM) is valuable correctness and advisory performance evidence, but its 30-minute soak does not establish low benchmark variance. A separate, approved historical baseline revision with the **same benchmark fixtures**, unchanged toolchain and environment, statistically paired runs, an attributable retained-memory method and explicit absolute SLAs remain necessary for final qualification. Do not fabricate a baseline by comparing incompatible benchmark fixtures or approving A/A as a regression baseline.
+## Owner-local A/A Core evidence (2026-11-18, 10 pairs)
+
+Owner-uploaded archive: `aa-core-20261118T150600Z-1846220.tar.gz`. Source SHA on **both** sides: `a6c2b1373e01b716bf8bf8f89d71abe0708630fe`. Local environment: Go 1.27.0/linux-amd64, Intel i5-12400, benchmark `-cpu=4`, baseline/candidate metadata equal; 8 Core workloads × 20 logs = 160 scenario output rows, matrix complete, 0 observed capacity rejections, and zero post-workload tracked owner-resource counters in all 160 rows. All ten pairs were executed in alternating order. No data establishes retained-attributed peak memory, a historical regression, absolute SLA, or approved reference baseline.
+
+| Metric | A/A PASS | A/A INCONCLUSIVE | A/A FAIL |
+|---|---:|---:|---:|
+| Throughput | 5 | 3 | 0 |
+| P50 | 6 | 2 | 0 |
+| P95 | 3 | 5 | 0 |
+| P99 | 4 | 4 | 0 |
+| CPU/op | 5 | 3 | 0 |
+| Allocs/op | 8 | 0 | 0 |
+| **Measured subtotal** | **31** | **17** | **0** |
+| Attributable retained memory (not instrumented) | 0 | 8 | 0 |
+
+**Noise finding:** Among 20 independent runs per scenario, P99 sample coefficient of variation was ~3.8% for RR 4KiB/32 Sessions, ~4.4% for NoWait 4KiB/256 Sessions, but ~38.5% for RR 64B/1 Session, ~43% for NoWait 64B/1 Session, ~38.3% for NoWait 64KiB/1 Session and ~49.8% for RR 64KiB/1 Session. These are sample variability indicators, not regression values or guaranteed limits. A/A comparator overall `status=INCONCLUSIVE`, `baseline_approved=false`, `environment_comparable=true`, `matrix_complete=true`, `performance_gate=DISABLED`.
+
+**Host-condition observations:** All 12 logical CPUs reported `powersave` scaling governor; memory ~31 GiB, about 7.2 GiB swap allocated both before and after. Between the two system snapshots, `pswpin` increased by only 6 and `pswpout` by 0; this does **not** establish active swap thrashing. CPU PSI `some` ~3% at start and lower at end, plus nonzero I/O PSI; simultaneous CPU governor/load/thermal or scheduler interference may contribute, but cannot be attributed conclusively without repeated controlled runs.
+
+**Next diagnostic, not a decision:** run the same A/A Core protocol with a longer per-benchmark duration while holding source SHA/host otherwise stable. For Core or Full only, `NETA_QA005_BENCHTIME=1s bash scripts/qa005_noise_probe.sh core` is supported by a **new optional qualification-runner override** (commit `24c057c85c113dc248263ae8e38957469e6cd9a6`); default remains 250ms. The runner records the new effective duration in metadata, making a 1s dataset explicitly non-interchangeable with prior 250ms A/A evidence. QA-004 retains fixed 1200x samples and rejects this override. Collect before/after machine telemetry again. Neither an A/A improvement nor a 1s probe automatically approves the reference environment.
 ## Statistical acceptance and baseline custody
 
 Relative tolerances: 10% for throughput and P50/P95, and 15% for P99, CPU/op, allocations/op, retained memory and deadline-detection P99. Three outcomes: PASS, FAIL or INCONCLUSIVE. A regressed metric fails only when its lower bound exceeds tolerance; passes only when the upper bound is within tolerance. Zero/near-zero baselines require an owner-approved meaningful absolute-delta policy, otherwise INCONCLUSIVE.

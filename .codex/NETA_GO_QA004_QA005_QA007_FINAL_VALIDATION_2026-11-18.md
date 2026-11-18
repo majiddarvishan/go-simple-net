@@ -78,3 +78,13 @@ Commit تستی `2db90faf67923ea796ed611629390197cffb0e43` فقط انتظار �
 - ورودی پیش‌فرض `core` و حالت‌های اختیاری `full` / `qa004`؛ اجرای **۱۰ جفت متناوب A/A** با دو Worktree موقت Detached از SHA یکسان؛ Capture Governor/CPU/Memory/PSI/Swap؛ خروجی `comparison.json`، `noise-summary.json` و تنها یک `.tar.gz` برای بازبینی.
 - هدف: سنجش نوسان دستگاه مرجع پیشنهادی **بدون** مقایسهٔ نسخهٔ تاریخی، امضای Baseline، فعال‌سازی Gate، اجرای GitHub CI یا اعمال تغییر در Production.
 - **تأکید:** A/A حتی در صورت عملکرد خوب، جای ۱۰ جفت مقایسهٔ بین نسخه‌های مختلف با Fixture یکسان، تأیید مالک، متریک حافظهٔ قابل انتساب و SLAهای مطلق را نمی‌گیرد. QA-004/005 همچنان باز، QA-007 بسته و Performance Gate غیرفعال است.
+
+## ۷. نتیجهٔ A/A Core روی سیستم مالک — 2026-11-18
+
+فایل بارگذاری‌شده: `aa-core-20261118T150600Z-1846220.tar.gz`، دو طرف با SHA یکسان `a6c2b1373e01b716bf8bf8f89d71abe0708630fe`، ۱۰ جفت کامل، ۸ سناریو Core، جمعاً ۱۶۰ سطر سناریوی معتبر. Environment comparable و Matrix complete. هیچ Capacity Rejection و هیچ شمارندهٔ انتهای بار کاری غیرصفر در این ۱۶۰ سطر ثبت نشد.
+
+- شش معیارِ قابل اندازه‌گیری برای هشت سناریو: **۳۱ PASS، ۱۷ INCONCLUSIVE، صفر FAIL**. هشت معیار Retained Attributable Memory جداگانه **INCONCLUSIVE** هستند چون اصلاً Instrument نشده‌اند.
+- نوسان زیاد P99 برای برخی سناریوهای یک Session: RR-64B حدود **۳۸٫۵٪**، NoWait-64B حدود **۴۳٪**، NoWait-64KiB حدود **۳۸٫۳٪** و RR-64KiB حدود **۴۹٫۸٪** (Sample CV در ۲۰ اجرا). در مقابل RR-4KiB-S32 حدود **۳٫۸٪** و NoWait-4KiB-S256 حدود **۴٫۴٪** بودند.
+- Governor پردازنده برای همهٔ CPUها `powersave` بود؛ Swap حدود ۷٫۲ GiB استفاده‌شده ولی در طول تست فقط شش واحد `pswpin` افزایش و `pswpout` بدون تغییر گزارش شد؛ شواهد کافی برای نسبت‌دادن علت نوسان به Swap وجود ندارد.
+- **نتیجهٔ رسمی: A/A Collector PASS، Qualification INCONCLUSIVE، دستگاه مرجع فعلاً تأیید نشده، Baseline مصوب ندارد، Performance Gate همچنان DISABLED.**
+- برای تشخیص بهتر اثر طول نمونه، گزینهٔ اختیاری `NETA_QA005_BENCHTIME=1s` فقط برای `core/full` به `qa005_qualify.sh` افزوده شد (Commit `24c057c85c113dc248263ae8e38957469e6cd9a6`)، بدون تغییر پیش‌فرض 250ms یا Fixtureها. اجرای تشخیصی بعدی فقط محلی و نیازمند ارسال فایل خروجی است؛ هیچ نتیجه‌ای از پیش PASS اعلام نشده است.
