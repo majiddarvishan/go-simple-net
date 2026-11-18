@@ -71,6 +71,35 @@ Owner-uploaded archive: `aa-core-20261118T150600Z-1846220.tar.gz`. Source SHA on
 **Host-condition observations:** All 12 logical CPUs reported `powersave` scaling governor; memory ~31 GiB, about 7.2 GiB swap allocated both before and after. Between the two system snapshots, `pswpin` increased by only 6 and `pswpout` by 0; this does **not** establish active swap thrashing. CPU PSI `some` ~3% at start and lower at end, plus nonzero I/O PSI; simultaneous CPU governor/load/thermal or scheduler interference may contribute, but cannot be attributed conclusively without repeated controlled runs.
 
 **Next diagnostic, not a decision:** run the same A/A Core protocol with a longer per-benchmark duration while holding source SHA/host otherwise stable. For Core or Full only, `NETA_QA005_BENCHTIME=1s bash scripts/qa005_noise_probe.sh core` is supported by a **new optional qualification-runner override** (commit `24c057c85c113dc248263ae8e38957469e6cd9a6`); default remains 250ms. The runner records the new effective duration in metadata, making a 1s dataset explicitly non-interchangeable with prior 250ms A/A evidence. QA-004 retains fixed 1200x samples and rejects this override. Collect before/after machine telemetry again. Neither an A/A improvement nor a 1s probe automatically approves the reference environment.
+## Second owner-local A/A Core probe: 1s vs 250ms (2026-11-18)
+
+Uploaded evidence: `aa-core-20261118T152119Z-1872550.tar.gz` (new, **1s**) and `aa-core-20261118T150600Z-1846220.tar.gz` (prior, **250ms**). Both complete 10 paired baseline/candidate runs with 8 Core cases, a total of 160 benchmark rows per archive, matching environment metadata within each probe, exact scenario matrix, and **identical code SHA on both sides of each A/A probe**. The previous A/A source SHA was `a6c2b1373e01b716bf8bf8f89d71abe0708630fe`, the 1s probe SHA `193d9c2e58e021319a92b4abb37cce69d8074dc1`, but their benchmark-fixture SHA-256 is **identical** (`6a3adf62a50508f5c5aef8ac6e062176523d20e9fae95c11e225bf1e1e937172`). The changed code between these revisions consists of tooling/docs, not the production performance workload.
+
+| Status for 48 observable non-retained-memory metrics | 250ms | 1s |
+|---|---:|---:|
+| PASS | 31 | 36 |
+| INCONCLUSIVE | 17 | 12 |
+| FAIL | 0 | 0 |
+| Uninstrumented retained-attributed memory (additional) | 8 INCONCLUSIVE | 8 INCONCLUSIVE |
+
+Exact 1s metric statuses across 8 scenarios: throughput 6 PASS / 2 INCONCLUSIVE; P50 7/1; P95 5/3; **P99 4/4 (unchanged from the 250ms probe)**; CPU/op 6/2; allocations/op 8/0. A/A comparison `status` and `relative_status` remain `INCONCLUSIVE`, while `matrix_complete=true`, `environment_comparable=true`, `baseline_approved=false`, `performance_gate=DISABLED`.
+
+| P99 scenario, per-run sample CV across both A/A sides | 250ms | 1s |
+|---|---:|---:|
+| RR 64B, 1 Session | 38.5% | 16.3% |
+| NoWait 64B, 1 Session | 43.0% | 16.9% |
+| RR 64KiB, 1 Session | 49.8% | **33.8%** |
+| NoWait 64KiB, 1 Session | 38.3% | 17.1% |
+| RR 4KiB, 32 Sessions | 3.8% | 1.6% |
+| NoWait 4KiB, 32 Sessions | 5.0% | 1.7% |
+| RR 64B, 256 Sessions | 5.3% | 3.7% |
+| NoWait 4KiB, 256 Sessions | 4.4% | 3.4% |
+
+Across these eight scenarios, mean sample P99 CV decreased from about **23.5%** to **11.8%** in separate runs. This supports **better observed reproducibility**, not a controlled proof that longer `-benchtime` alone caused the change. Significant P99 variability remains, notably RR-64KiB-S1; the median P99 for that case also changed substantially between the two different capture periods (~7.01ms to ~3.34ms). **Neither run meets full reference qualification**.
+
+1s probe host telemetry: i5-12400, 12 logical CPUs, Go 1.27.0, `powersave` scaling governor. 1-minute load averages before/after ~1.73/4.94, CPU PSI `some avg10` ~2.67%/1.01%, I/O PSI `some avg10` ~0.78%/0.77%, `pswpin` +124 and `pswpout` +0, swap used ~7.2 GiB. A nonzero swap-in delta does not by itself prove sustained thrashing; governor, changing load and host contention may influence measurements but causation is unverified.
+
+**Next:** Evaluate QA-004 separately using `bash scripts/qa005_noise_probe.sh qa004` on the owner's workstation. This invokes the fixed `1200x` terminal-settlement P99 benchmark for five synthetic populations with 10 alternating A/A pairs and produces a single tarball. Do **not** set `NETA_QA005_BENCHTIME` for `qa004`; the runner intentionally rejects the override. Keep the Performance Gate DISABLED, reference machine NOT APPROVED and QA-004/QA-005 OPEN pending a valid cross-version baseline, retained-attributed memory method and absolute limits.
 ## Statistical acceptance and baseline custody
 
 Relative tolerances: 10% for throughput and P50/P95, and 15% for P99, CPU/op, allocations/op, retained memory and deadline-detection P99. Three outcomes: PASS, FAIL or INCONCLUSIVE. A regressed metric fails only when its lower bound exceeds tolerance; passes only when the upper bound is within tolerance. Zero/near-zero baselines require an owner-approved meaningful absolute-delta policy, otherwise INCONCLUSIVE.
