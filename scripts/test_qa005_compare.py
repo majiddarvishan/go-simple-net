@@ -119,7 +119,7 @@ class ComparatorTests(unittest.TestCase):
         fixture = FILE.parents[1] / "qa005_qualification_benchmark_test.go"
         content = fixture.read_text(encoding="utf-8")
         pattern = re.compile(
-            r'\\{"(Core|Full)", "(RR|NoWait)", (\\d+), (\\d+), (\\d+), "(medium|near)"\\}'
+            r'\{"(Core|Full)", "(RR|NoWait)", (\d+), (\d+), (\d+), "(medium|near)"\}'
         )
         found = {
             f"BenchmarkQA005Qualification/{m[1]}/{m[2]}-{m[3]}B-S{m[4]}-C{m[5]}-{m[6]}"
@@ -134,6 +134,35 @@ class ComparatorTests(unittest.TestCase):
         log.pop(expected[0])
         log["BenchmarkQA005Qualification/Core/RR-64B-S1-C1-unapproved"] = {}
         self.assertFalse(MOD.complete_matrix([log] * 20, "core"))
+
+    def test_invalid_metadata_is_inconclusive_without_traceback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            baseline, candidate = root / "baseline", root / "candidate"
+            for side in (baseline, candidate):
+                side.mkdir()
+                (side / "environment.json").write_text("{not-json\\n")
+                for index in range(1, MOD.PAIRS + 1):
+                    (side / f"{index:02d}.log").write_text("not benchmark evidence\\n")
+            report = root / "comparison.json"
+            completed = subprocess.run([
+                sys.executable, str(FILE),
+                "--baseline", str(baseline),
+                "--candidate", str(candidate),
+                "--output", str(report),
+            ], text=True, capture_output=True, check=True)
+            parsed = json.loads(report.read_text())
+            self.assertEqual(parsed["status"], "INCONCLUSIVE")
+            self.assertIn("malformed", parsed["reason"])
+            self.assertNotIn("Traceback", completed.stderr)
+
+    def test_duplicate_benchmark_in_one_log_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / "01.log"
+            line = "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium-4 1200 900 ns/op"
+            path.write_text(line + "\\n" + line + "\\n")
+            with self.assertRaisesRegex(ValueError, "duplicate benchmark"):
+                MOD.parse_benchmark(path)
 
 
 if __name__ == "__main__":

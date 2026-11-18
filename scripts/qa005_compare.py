@@ -202,32 +202,46 @@ def main():
         args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(json.dumps(report, indent=2))
         return
-    baseline_meta = json.loads((args.baseline / "environment.json").read_text())
-    candidate_meta = json.loads((args.candidate / "environment.json").read_text())
-    comparable = all(
-        baseline_meta.get(key) is not None and
-        baseline_meta.get(key) == candidate_meta.get(key)
-        for key in REQUIRED_ENV
-    )
-    baseline_digest = hashlib.sha256(
-        b"".join((args.baseline / f"{i:02d}.log").read_bytes()
-                 for i in range(1, PAIRS + 1))
-    ).hexdigest()
-    owner_approved = False
-    if args.approved_manifest is not None:
-        manifest = json.loads(args.approved_manifest.read_text())
-        owner_approved = (
-            manifest.get("owner_approved") is True and
-            manifest.get("baseline_source_sha") == baseline_meta.get("source_sha") and
-            manifest.get("benchmark_sha256") == baseline_digest and
-            manifest.get("reference_environment") == {
-                key: baseline_meta.get(key) for key in REQUIRED_ENV
-            }
+    # Evidence is untrusted until parsed. Corrupt metadata/logs must be a
+    # machine-readable INCONCLUSIVE, never a traceback or accidental PASS.
+    try:
+        baseline_meta = json.loads((args.baseline / "environment.json").read_text())
+        candidate_meta = json.loads((args.candidate / "environment.json").read_text())
+        comparable = all(
+            baseline_meta.get(key) is not None and
+            baseline_meta.get(key) == candidate_meta.get(key)
+            for key in REQUIRED_ENV
         )
-    base_logs = [parse_benchmark(args.baseline / f"{i:02d}.log")
-                 for i in range(1, PAIRS + 1)]
-    cand_logs = [parse_benchmark(args.candidate / f"{i:02d}.log")
-                 for i in range(1, PAIRS + 1)]
+        baseline_digest = hashlib.sha256(
+            b"".join((args.baseline / f"{i:02d}.log").read_bytes()
+                     for i in range(1, PAIRS + 1))
+        ).hexdigest()
+        owner_approved = False
+        if args.approved_manifest is not None:
+            manifest = json.loads(args.approved_manifest.read_text())
+            owner_approved = (
+                manifest.get("owner_approved") is True and
+                manifest.get("baseline_source_sha") == baseline_meta.get("source_sha") and
+                manifest.get("benchmark_sha256") == baseline_digest and
+                manifest.get("reference_environment") == {
+                    key: baseline_meta.get(key) for key in REQUIRED_ENV
+                }
+            )
+        base_logs = [parse_benchmark(args.baseline / f"{i:02d}.log")
+                     for i in range(1, PAIRS + 1)]
+        cand_logs = [parse_benchmark(args.candidate / f"{i:02d}.log")
+                     for i in range(1, PAIRS + 1)]
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError) as exc:
+        report = {
+            "status": "INCONCLUSIVE", "relative_status": "INCONCLUSIVE",
+            "performance_gate": "DISABLED — report-only",
+            "reason": "malformed or unreadable qualification evidence",
+            "detail": str(exc),
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+        print(json.dumps(report, indent=2))
+        return
     cases = sorted(set().union(*(set(log) for log in base_logs + cand_logs)))
     matrix_complete = complete_matrix(base_logs + cand_logs, baseline_meta.get("scenario_mode"))
     metrics_to_check = DEADLINE_METRICS if baseline_meta.get("scenario_mode") == "qa004" else REQUIRED_METRICS
