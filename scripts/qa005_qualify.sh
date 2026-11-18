@@ -40,6 +40,12 @@ for source_dir in "$BASELINE" "$CANDIDATE"; do
         echo "INCONCLUSIVE: tracked source changes in $source_dir; require an immutable exact-SHA checkout" >&2
         exit 2
     fi
+    # Untracked Go files are compiled by 'go test' but absent from the
+    # recorded commit and fixture digest: reject this silent source drift.
+    if [[ -n "$(git -C "$source_dir" ls-files --others --exclude-standard -- '*.go' '**/*.go')" ]]; then
+        echo "INCONCLUSIVE: untracked Go source in $source_dir; use clean exact-SHA worktrees" >&2
+        exit 2
+    fi
 done
 for fixture in "${FIXTURES[@]}"; do
     if ! cmp -s "$BASELINE/$fixture" "$CANDIDATE/$fixture"; then
