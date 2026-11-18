@@ -2,6 +2,8 @@
 
 **Status:** instrumentation and comparison tooling implemented; no reference environment or mandatory performance gate approved. GitHub-hosted results are advisory only.
 
+**Worktree cleanup finding:** Owner follow-up `git status --short --ignored` on the detached source checkout showed only `?? scripts/__pycache__/`. The offline Python `importlib` stats validator had generated untracked bytecode in that worktree. Commit `68c861233a280cac3929c0d3db85e9d10dbe94cf` disables writing bytecode in future local reference captures; this does not alter the pinned benchmark source SHA, collected metric values or qualification status. Old temporary cache cleanup remains a local action, not performed by this repository edit.
+
 **Most recent owner-local evidence:** [source-v1 draft numeric capture, 370 benchmark rows](performance-baselines/QA004_QA005_SOURCE_V1_NUMERIC_CAPTURE_2026-11-18.md); 30/30 benchmark processes and source/digest checks complete, but overall collector exit **FAIL from temporary worktree cleanup**. Benchmark numeric data is **DRAFT/ADVISORY**, not owner-approved. Do not auto-promote or infer reference hardware stability from the completed capture.
 
 
