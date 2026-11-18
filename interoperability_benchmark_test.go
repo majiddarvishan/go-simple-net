@@ -130,6 +130,7 @@ func BenchmarkInteropCppServer(b *testing.B) {
 				client, err = NewClient(
 					WithClientAddress(address),
 					WithClientSystemID("benchmark-neta-cpp-client"),
+					WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 					WithClientApplicationWorkerIdleGrace(10*time.Millisecond),
 					WithClientCompletionWorkerIdleGrace(10*time.Millisecond),
 					WithClientOnCloseWorkerIdleGrace(10*time.Millisecond),

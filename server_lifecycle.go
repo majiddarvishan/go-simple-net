@@ -163,7 +163,25 @@ func (s *Server) handleBind(session *Session) {
 
 	var admissionErr error
 	if s.config.bindValidator != nil {
+		// Session timeouts free socket credits, not user-function execution.
+		// Retain validator credits across expired Session generations.
+		select {
+		case <-session.closing:
+			return
+		case s.validatorSlots <- struct{}{}:
+		}
+		defer func() { <-s.validatorSlots }()
+		select {
+		case <-session.closing:
+			return
+		default:
+		}
 		admissionErr = s.config.bindValidator(event.info)
+		select {
+		case <-session.closing:
+			return
+		default:
+		}
 	}
 	if admissionErr == nil {
 		admissionErr = s.reserveBoundIdentity(session, event.info.SystemID)
@@ -177,6 +195,11 @@ func (s *Server) reserveBoundIdentity(session *Session, systemID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopping {
+		return ErrClosing
+	}
+	// A slow validator can return after sessionDone removed this Session.
+	// Refuse re-admission after cleanup, or the ID would remain reserved.
+	if _, registered := s.sessions[session]; !registered {
 		return ErrClosing
 	}
 	if existing := s.boundIDs[systemID]; existing != nil {

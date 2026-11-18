@@ -125,6 +125,7 @@ func TestNetaCPPServerWithGoClient(t *testing.T) {
 	client, err := NewClient(
 		WithClientAddress(address),
 		WithClientSystemID("neta-go-client"),
+		WithClientSessionOptions(WithProtocolVersion(ProtocolVersionV1)),
 	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -141,6 +142,9 @@ func TestNetaCPPServerWithGoClient(t *testing.T) {
 	}
 	if session.SystemID() != "neta-cpp-server" {
 		t.Fatalf("neta-cpp server SystemID = %q", session.SystemID())
+	}
+	if session.ProtocolVersion() != ProtocolVersionV1 {
+		t.Fatalf("legacy peer Session version = %d, want V1", session.ProtocolVersion())
 	}
 
 	type completion struct {
