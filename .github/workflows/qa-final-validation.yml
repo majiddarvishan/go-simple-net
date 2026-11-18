@@ -89,12 +89,17 @@ jobs:
       - name: QA-004 terminal detection-delay benchmark
         run: |
           go test -run '^$' -bench '^BenchmarkPendingDeadlineDetection$' \
-            -benchtime=100ms -benchmem -count=1 -cpu=4 \
-            -timeout=15m 2>&1 | tee artifacts/qa-final/perf/deadline-detection.log
+            -benchtime=1200x -benchmem -count=1 -cpu=4 \
+            -cpuprofile=artifacts/qa-final/perf/detection-cpu.pprof \
+            -timeout=20m 2>&1 | tee artifacts/qa-final/perf/deadline-detection.log
       - name: QA-005 Core report-only workload
         env:
           ARTIFACT_DIR: artifacts/qa-final/perf/core
         run: bash scripts/qa005_report.sh
+      - name: QA-005 Full report-only workload (24 selected scenarios)
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/perf/full
+        run: bash scripts/qa005_report.sh full
       - name: QA-005 comparator unit tests
         run: python3 -m unittest discover -s scripts -p 'test_qa005_compare.py'
       - name: Declare advisory qualification limitations
@@ -103,6 +108,8 @@ jobs:
           mkdir -p artifacts/qa-final/perf
           echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
             > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
           echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
             >> artifacts/qa-final/perf/qualification-status.txt
           echo '30-minute stability: NOT RUN by this CI.' \
