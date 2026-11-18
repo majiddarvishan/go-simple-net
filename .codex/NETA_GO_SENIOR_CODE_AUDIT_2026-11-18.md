@@ -104,3 +104,13 @@ The Go check invokes `scripts/ci-check.sh verify`, which runs uncached `go test`
 **Audit status: OPEN — DO NOT CLAIM BUG-FREE OR PRODUCTION-READY ON CI PASS ALONE.** Resolve or explicitly mitigate QA-001, QA-002 and QA-003 before release signoff. Treat QA-004 as measured optimization, QA-005/QA-009 as qualification gaps, and QA-006/QA-007/QA-008 as resilience/design/cleanup. Priority levels are engineering triage recommendations, not owner approvals.
 
 For every fix: add a focused failing regression test first where feasible; run `make verify`, `make smoke`, `make perf-smoke` and both protected PR checks; after merge verify the exact new main SHA. For performance changes, run `make benchmark` and compare profiles on matched hardware. Do not change frozen protocol or public default without explicit architecture approval. Do not create a tag or GitHub Release without separate owner authorization.
+
+## Remediation update — PR #15, 2026-11-18
+
+The original findings above describe `main` at `0fadd380...`. They are retained as historical audit evidence, not silently rewritten as if fixes had already been present.
+
+- **QA-001 partial:** Go Client legacy peer test and benchmark now share explicit V1 configuration. Added a non-skipped Go configuration test. The true private C++ Client/Server E2E job is **not** supplied by regular CI, which only validates pinned golden bytes. Leave QA-001 open.
+- **QA-002 remediated:** bounded Server validator lifetime permits held until user callbacks return; waiting handshakes exit on Session close; late callback cannot re-reserve an identity after `sessionDone`. User-blocked functions cannot be forcibly cancelled, so application-side timeouts remain mandatory.
+- **QA-003 remediated:** reject Bind Body lengths greater than 21 before allocating/reading. Header-only malicious-client and malicious-server tests included.
+- The initial Go CI failure was gofmt-only, corrected in follow-up. [Go PR run 44208242381](https://github.com/majiddarvishan/neta-go/actions/runs/44208242381) and [wire PR run 44208242378](https://github.com/majiddarvishan/neta-go/actions/runs/44208242378) PASS on the formatted implementation. The additional shared legacy-peer configuration test is committed on PR #15 and its final CI must also pass before merge.
+- No change to default V2, the fixed 10-byte Header, serialized payloads, or the public BindValidator signature. Release/tag remains separately unauthorized.

@@ -379,11 +379,11 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 
 ## Independent senior engineering audit — 2026-11-18
 
-**Review-only findings; implementation NOT YET AUTHORIZED.** Source HEAD `0fadd380d558028a85333fa044eeb4c93ae5c11f`. [Full findings, exact paths and regression plans](NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md). Current exact-SHA Go [44202868979](https://github.com/majiddarvishan/neta-go/actions/runs/44202868979), wire [44202868919](https://github.com/majiddarvishan/neta-go/actions/runs/44202868919), full performance [44202869096](https://github.com/majiddarvishan/neta-go/actions/runs/44202869096) CI all PASS. These do not cover every scenario below.
+**Original review-only findings; QA-001..QA-003 remediation authorized 2026-11-18 and in progress in PR #15.** Source HEAD `0fadd380d558028a85333fa044eeb4c93ae5c11f`. [Full findings, exact paths and regression plans](NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md). Current exact-SHA Go [44202868979](https://github.com/majiddarvishan/neta-go/actions/runs/44202868979), wire [44202868919](https://github.com/majiddarvishan/neta-go/actions/runs/44202868919), full performance [44202869096](https://github.com/majiddarvishan/neta-go/actions/runs/44202869096) CI all PASS. These do not cover every scenario below.
 
-- [ ] **QA-001 / P1 — Live C++ interop test regression:** Go Client test and benchmark must explicitly select V1 for the pinned V1 peer; verify real TCP in both directions with a non-skipped CI job.
-- [ ] **QA-002 / P1 — Blocked BindValidator lifecycle:** bound validator execution lifetime and repeated pre-Bind timeout must not accumulate unbounded goroutines; define compatible cancellation/capacity policy and negative test.
-- [ ] **QA-003 / P2 — Early Bind length guard:** reject Bind Body lengths above 21 bytes before reading/allocating large payloads; add malicious-header/alloc tests.
+- [ ] **QA-001 / P1 — Legacy C++ live interoperability:** Go Client test/benchmark now explicitly select V1 via shared helper, and an uncached Go unit test verifies the setting. **Still OPEN:** the real C++ TCP tests are skipped without `NETA_CPP_PEER_BIN`; pinned C++ source is private, so ordinary CI verifies golden wire bytes but not the real C++ Client/Server. A securely provisioned non-skipped two-direction E2E run is required for closure.
+- [x] **QA-002 / P1 — Bound BindValidator lifetime and stale identity:** Server-owned permits (ceiling = `maxPendingPreBindSessions`) are held for each running validator until it actually returns, even after TCP timeout. Waiting validators exit when their Session closes. A retired Session cannot reserve an ID after `sessionDone`. Negative tests cover repeated timed-out Binds, Stop while validators block, late return and ID reuse. Arbitrarily blocked user functions cannot be forcibly cancelled; callers must enforce downstream deadlines.
+- [x] **QA-003 / P2 — Early Bind length guard:** reject Bind Request/Response bodies >21 bytes after Header parse, before reading or allocating the Body. Header-only transport regression tests cover both Client and Server; the existing exact-limit V1/V2 tests still apply.
 - [ ] **QA-004 / P2 — Pending deadline scan:** benchmark and profile O(N) control loop against 1/32/128/512 outstanding requests; optimize only on evidence.
 - [ ] **QA-005 / P2 — Performance acceptance:** get owner workload/SLA baselines and define noise-tolerant numeric regression acceptance.
 - [ ] **QA-006 / P2 — Fatal Accept handling:** surface unexpected listener failure and add injected-error regression test.
@@ -391,7 +391,7 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 - [ ] **QA-008 / P3 — Clean code/docs:** update stale release readiness evidence and remove duplicate initial Bind serialization without changing semantics.
 - [ ] **QA-009 / P2 — Broader verification:** make fuzz mutation campaigns and actual C++ peer TCP tests executable in scheduled/authorized CI (in addition to golden wire checks).
 
-**Release gate:** QA-001..QA-003 must be resolved or explicitly risk-accepted; all other open findings need a disposition before `v1.0.0` publication. **P9-06 still NOT AUTHORIZED.** No production code was changed by this audit.
+**Release gate:** QA-002 and QA-003 now have source-level remediation and passing PR CI evidence; QA-001 still requires real private C++ peer E2E verification, and remaining findings require disposition. Verify final protected-main post-merge CI before release review. **P9-06 still NOT AUTHORIZED.** The historical audit itself made no production changes; PR #15 includes the authorized fixes.
 
 ## Verification and update log
 

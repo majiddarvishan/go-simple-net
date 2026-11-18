@@ -6,8 +6,8 @@
 
 - [x] Public Client/Server/Session API and resource-admission behavior implemented.
 - [x] Client and Server examples compiled and exercised together: Request/Response, one-way delivery and graceful shutdown.
-- [x] Go correctness, vet, race, coverage and example smoke CI passed on protected `main` commit `f67c91565c3ed8c08f454588efd97b1e3b619ad2`: [Go run 44193142488](https://github.com/majiddarvishan/neta-go/actions/runs/44193142488).
-- [x] Wire golden-vector verification passed on the same commit: [wire CI run 44193142668](https://github.com/majiddarvishan/neta-go/actions/runs/44193142668).
+- [x] Go correctness, vet, race, coverage and example smoke CI passed on protected `main` commit `0fadd380d558028a85333fa044eeb4c93ae5c11f`: [Go run 44202868979](https://github.com/majiddarvishan/neta-go/actions/runs/44202868979). Additional QA-002/QA-003 regression tests passed in PR #15: [Go run 44208242381](https://github.com/majiddarvishan/neta-go/actions/runs/44208242381).
+- [x] Wire golden-vector verification passed on the same protected-main commit: [wire CI run 44202868919](https://github.com/majiddarvishan/neta-go/actions/runs/44202868919). PR #15: [wire run 44208242378](https://github.com/majiddarvishan/neta-go/actions/runs/44208242378).
 - [x] V2 default, NUL-free V2 Bind, V2 20-byte SystemID limit, V1 encoding and unchanged 10-byte Header are covered by tests.
 - [x] `main` is protected and both mandatory CI checks were enforced on previously merged Pull Requests.
 - [x] Minimum Go toolchain 1.23 and CI-tested Ubuntu 24.04 / Linux amd64 documented in [SUPPORT.md](SUPPORT.md).
@@ -17,7 +17,8 @@ The separate C++ golden-vector workflow is an internal wire regression check. It
 
 ## Pending publication gates
 
-- [ ] Complete the repository naming/documentation cleanup PR and verify both required CI checks on its final protected-`main` SHA.
+- [x] Repository naming/documentation cleanup merged in PRs #10–#13 and verified on protected `main` (`0fadd380d558028a85333fa044eeb4c93ae5c11f`).
+- [ ] Complete [independent QA audit](../.codex/NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md) remediation and requalification: QA-001 real C++ E2E is still unverified, QA-002/QA-003 fixes are in PR #15, and QA-004..QA-009 await disposition.
 - [ ] Obtain **fresh owner approval** for the revised [Unreleased changelog](../CHANGELOG.md), including V1/V2 behavior. An earlier approval does not cover these changes.
 - [ ] Independently inspect strict/up-to-date and administrator-bypass branch-protection settings (full settings are not readable through the connected integration).
 - [ ] Confirm GitHub Release creation permissions and publishing settings under the intended publisher account.
