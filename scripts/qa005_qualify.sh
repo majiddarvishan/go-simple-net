@@ -17,13 +17,36 @@ if [[ "$MODE" != core && "$MODE" != full ]]; then
 fi
 SELECTOR='^BenchmarkQA005Qualification/Core/'
 if [[ "$MODE" == full ]]; then SELECTOR='^BenchmarkQA005Qualification/'; fi
+
+# Never run expensive pairs against a source that lacks the benchmark or has
+# a differently defined workload. A missing baseline harness (including the
+# original main before QA-005) is not a valid comparison.
+for source_dir in "$BASELINE" "$CANDIDATE"; do
+    for fixture in qa005_qualification_benchmark_test.go benchmark_test.go; do
+        if [[ ! -f "$source_dir/$fixture" ]]; then
+            echo "INCONCLUSIVE: missing $fixture in $source_dir; no benchmark pairs executed" >&2
+            exit 2
+        fi
+    done
+    if [[ -n "$(git -C "$source_dir" status --porcelain --untracked-files=no)" ]]; then
+        echo "INCONCLUSIVE: tracked source changes in $source_dir; require an immutable exact-SHA checkout" >&2
+        exit 2
+    fi
+done
+for fixture in qa005_qualification_benchmark_test.go benchmark_test.go; do
+    if ! cmp -s "$BASELINE/$fixture" "$CANDIDATE/$fixture"; then
+        echo "INCONCLUSIVE: workload fixture $fixture differs between exact-SHA checkouts" >&2
+        exit 2
+    fi
+done
+
 for side in baseline candidate; do
     mkdir -p "$OUTPUT/$side"
     if [[ "$side" == baseline ]]; then source_dir="$BASELINE"; else source_dir="$CANDIDATE"; fi
     (
         cd "$source_dir"
         python3 - "$OUTPUT/$side/environment.json" <<'PY'
-import json, os, platform, subprocess, sys
+import hashlib, json, os, pathlib, platform, subprocess, sys
 def command(*args):
     return subprocess.check_output(args, text=True).strip()
 cpu_model = ""
@@ -41,6 +64,11 @@ metadata = {
     "cpu_model": cpu_model,
     "machine_id": os.environ.get("NETA_QA005_REFERENCE_MACHINE", platform.node()),
     "scenario_version": "qa005-selected-v1",
+    "scenario_mode": os.environ["QA005_MODE"],
+    "harness_sha256": hashlib.sha256(
+        b"".join(pathlib.Path(name).read_bytes() for name in
+                 ("qa005_qualification_benchmark_test.go", "benchmark_test.go"))
+    ).hexdigest(),
     "workload_config": os.environ.get("NETA_QA005_WORKLOAD_CONFIG", "loopback-250ms-cpu4-" + os.environ["QA005_MODE"]),
 }
 with open(sys.argv[1], "w") as output:
