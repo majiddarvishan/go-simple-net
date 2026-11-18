@@ -68,7 +68,7 @@ def patch_internal(content):
         "\tqa005OwnedControl         uint64\n"
         "\tqa005OwnedFault           bool\n"
         "\tqa005OwnedTotal           uint64\n"
-        "\tqa005OwnedPeak            uint64\n",
+        "\tqa005OwnedPeak            uint64\n\tqa005AfterAllocation      func() // deterministic overlay-only close interleaving\n",
         "session storage counters")
     content = replace_once(
         content, "\ts.queuedControlBytes = next\n\tif item.barrier {",
@@ -155,7 +155,9 @@ def patch_session(content):
         "\t\towner.mu.Lock()\n"
         "\t\tframe = make([]byte, length)\n"
         "\t\tqa005AddOwnedLocked(owner, &owner.qa005OwnedOutgoingApp, uint64(cap(frame)))\n"
+        "\t\tafter := owner.qa005AfterAllocation\n"
         "\t\towner.mu.Unlock()\n"
+        "\t\tif after != nil { after() }\n"
         "\t}\n",
         "registered frame allocation")
     starts = (
@@ -403,6 +405,141 @@ func TestQA005OwnedOverlayPreQueueTransferAndRollback(t *testing.T) {
     }
     s.mu.Unlock()
 }
+
+// Forced Close racing a real SendNoWait after make must keep the built F1
+// allocation counted until the Send method returns and its defer runs.
+func TestQA005OwnedOverlayForcedCloseDuringBuild(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    allocated := make(chan struct{})
+    resume := make(chan struct{})
+    s.mu.Lock()
+    s.state = SessionStateBound
+    s.qa005AfterAllocation = func() { close(allocated); <-resume }
+    s.mu.Unlock()
+    results := make(chan error, 1)
+    go func() {
+        _, err := s.SendNoWait([]byte("close-race"))
+        results <- err
+    }()
+    select {
+    case <-allocated:
+    case <-time.After(2*time.Second):
+        t.Fatal("SendNoWait failed to allocate during test")
+    }
+    s.mu.Lock()
+    if s.qa005OwnedOutgoingApp == 0 || s.admissionCount != 1 || s.qa005OwnedFault {
+        s.mu.Unlock(); t.Fatal("built frame not owned during in-flight admission")
+    }
+    s.mu.Unlock()
+    s.beginClose(ErrClosed, true)
+    select {
+    case <-s.Done(): t.Fatal("Done closed before in-flight Send release")
+    default:
+    }
+    close(resume)
+    select {
+    case err := <-results:
+        if !errors.Is(err, ErrClosed) { t.Fatalf("SendNoWait after Close = %v, want ErrClosed", err) }
+    case <-time.After(2*time.Second):
+        t.Fatal("in-flight SendNoWait did not return")
+    }
+    select {
+    case <-s.Done():
+    case <-time.After(2*time.Second): t.Fatal("Done did not follow admission cleanup")
+    }
+    s.mu.Lock()
+    if s.qa005OwnedOutgoingApp != 0 || s.qa005OwnedTotal != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("Close-raced F1 allocation not released exactly once")
+    }
+    s.mu.Unlock()
+}
+
+// The Queue charge ends at callback start; both F2 and F3 must survive Done
+// while a user callback remains active, then release when that callback returns.
+func TestQA005OwnedOverlayCallbacksAfterDone(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    s.mu.Lock()
+    app, err := s.reserveIncomingApplicationLocked(32)
+    if err != nil { s.mu.Unlock(); t.Fatal(err) }
+    completion := s.reserveCompletionLocked(32)
+    if completion == nil { s.mu.Unlock(); t.Fatal("completion reservation rejected") }
+    app.qa005BodyBytes = 23
+    completion.qa005BodyBytes = 19
+    qa005AddOwnedLocked(s, &s.qa005OwnedIncomingApp, app.qa005BodyBytes)
+    qa005AddOwnedLocked(s, &s.qa005OwnedIncomingReply, completion.qa005BodyBytes)
+    s.mu.Unlock()
+    app.releaseQueue()
+    entered := make(chan struct{},2)
+    resume := make(chan struct{})
+    var active sync.WaitGroup
+    active.Add(2)
+    go func() {
+        defer active.Done()
+        s.invokeUserCallback("OnRequest", func() {
+            defer app.releaseRetained()
+            entered <- struct{}{}
+            <-resume
+        })
+    }()
+    go func() {
+        defer active.Done()
+        s.invokeUserCallback("Completion", func() {
+            defer completion.release()
+            entered <- struct{}{}
+            <-resume
+        })
+    }()
+    for i:=0; i<2; i++ {
+        select {
+        case <-entered:
+        case <-time.After(2*time.Second): t.Fatal("callback did not start")
+        }
+    }
+    s.beginClose(ErrClosed,true)
+    select {
+    case <-s.Done():
+    case <-time.After(2*time.Second): t.Fatal("Close did not complete internal teardown")
+    }
+    s.mu.Lock()
+    if s.qa005OwnedIncomingApp != 23 || s.qa005OwnedIncomingReply != 19 || s.qa005OwnedTotal != 42 {
+        s.mu.Unlock(); t.Fatal("Done prematurely released active callback payloads")
+    }
+    s.mu.Unlock()
+    close(resume)
+    active.Wait()
+    s.mu.Lock()
+    if s.qa005OwnedTotal != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("active callback retention did not finish on return")
+    }
+    s.mu.Unlock()
+}
+
+// Panic recovery must run callback defers and release owned bodies while
+// raw arbitrary recovered objects remain excluded from byte attribution.
+func TestQA005OwnedOverlayPanicCleanup(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    s.mu.Lock()
+    app, err := s.reserveIncomingApplicationLocked(30)
+    if err != nil { s.mu.Unlock(); t.Fatal(err) }
+    app.qa005BodyBytes = 20
+    qa005AddOwnedLocked(s, &s.qa005OwnedIncomingApp, 20)
+    s.mu.Unlock()
+    app.releaseQueue()
+    s.invokeUserCallback("OnRequest", func() {
+        defer app.releaseRetained()
+        panic("qa005-test-only")
+    })
+    s.mu.Lock()
+    if s.qa005OwnedIncomingApp != 0 || s.qa005OwnedTotal != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("callback Panic leaked retained body accounting")
+    }
+    s.mu.Unlock()
+    select {
+    case <-s.Done():
+    case <-time.After(2*time.Second): t.Fatal("Panic did not terminate the Session")
+    }
+}
+
 """
 
 

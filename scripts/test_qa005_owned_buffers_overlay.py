@@ -42,6 +42,7 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005OwnedPeak", patched)
         self.assertIn("qa005OwnedTotal", patched)
         self.assertIn("qa005Enqueued = true", patched)
+        self.assertIn("qa005AfterAllocation", patched)
         self.assertIn("else if !item.qa005Observed", patched)
         self.assertIn("qa005OwnedIncomingReply", patched)
         self.assertIn("item.qa005Observed = false", patched)
@@ -84,6 +85,8 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("frame = make([]byte, length)", patched)
         self.assertIn("qa005AddOwnedLocked(owner, &owner.qa005OwnedOutgoingApp", patched)
         self.assertIn("payload, s)", patched)
+        self.assertIn("after := owner.qa005AfterAllocation", patched)
+        self.assertIn("TestQA005OwnedOverlayForcedCloseDuringBuild", mod.BENCHMARK_HELPERS)
         self.assertEqual(source.count("qa005Transferred"), 0)
         with self.assertRaisesRegex(ValueError, "frame builder optional observer"):
             mod.patch_session(patched)
