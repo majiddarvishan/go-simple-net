@@ -176,7 +176,7 @@ def main():
             "reason": "missing qualification evidence",
             "missing_files": missing,
         }
-        args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\\n")
+        args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(json.dumps(report, indent=2))
         return
     baseline_meta = json.loads((args.baseline / "environment.json").read_text())

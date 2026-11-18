@@ -37,7 +37,7 @@ class ComparatorTests(unittest.TestCase):
             log = pathlib.Path(dirname) / "01.log"
             log.write_text(
                 "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium-4 1200 900 ns/op "
-                "250 allocs/op 300000 ops/s 400 p50-ns 900 p95-ns 1300 p99-ns 0.5 gc-cycles\\n"
+                "250 allocs/op 300000 ops/s 400 p50-ns 900 p95-ns 1300 p99-ns 0.5 gc-cycles\n"
             )
             result = MOD.parse_benchmark(log)
             self.assertEqual(len(result), 1)
@@ -74,10 +74,10 @@ class ComparatorTests(unittest.TestCase):
                  for n in (32, 128, 512, 2048, 8192)]
         with tempfile.TemporaryDirectory() as folder:
             path = pathlib.Path(folder) / "qa004.log"
-            path.write_text("\\n".join(
+            path.write_text("\n".join(
                 f"{name}-4 1200 2200000 ns/op 1200 detect-samples "
                 f"100000 detect-p50-ns 200000 detect-p95-ns "
-                f"350000 detect-p99-ns" for name in names) + "\\n"
+                f"350000 detect-p99-ns" for name in names) + "\n"
             )
             parsed = MOD.parse_benchmark(path)
             self.assertEqual(len(parsed), 5)

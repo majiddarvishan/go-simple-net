@@ -100,8 +100,10 @@ jobs:
         env:
           ARTIFACT_DIR: artifacts/qa-final/perf/full
         run: bash scripts/qa005_report.sh full
-      - name: QA-005 comparator unit tests
-        run: python3 -m unittest discover -s scripts -p 'test_qa005_compare.py'
+      - name: Qualification shell syntax and comparator unit tests
+        run: |
+          bash -n scripts/qa005_qualify.sh scripts/qa005_report.sh
+          python3 -m unittest discover -s scripts -p 'test_qa005_compare.py'
       - name: Declare advisory qualification limitations
         if: always()
         run: |
