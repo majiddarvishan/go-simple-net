@@ -359,42 +359,6 @@ func TestQA005OwnedOverlayControlLifecycle(t *testing.T) {
     if s.qa005OwnedControl != 0 || frame.qa005Observed { s.mu.Unlock(); t.Fatal("control storage must be released") }
     s.mu.Unlock()
 }
-"""
-
-
-def patch_benchmark(content):
-    patched = charge.patch_benchmark(content)
-    patched = replace_once(
-        patched, '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
-        '    qa005ResetOwnedHighwaters(env)\n'
-        '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
-        "reset Session HWMs at traffic start")
-    patched = replace_once(
-        patched, "    samples uint64\n    invalid bool\n",
-        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n",
-        "sampler state")
-    patched = replace_once(
-        patched, "        p.samples++\n",
-        "        p.samples++\n"
-        "        owned, valid := qa005SampleOwnedBuffers(env)\n"
-        "        if !valid { p.invalid = true; return }\n"
-        "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
-        "        p.ownedSamples++\n",
-        "sample observation")
-    patched = replace_once(
-        patched, "            case <-p.stop: observe(); return",
-        "            case <-p.stop: observe(); upper, valid := qa005OwnedPeakUpper(env); if !valid { p.invalid = true }; p.ownedUpper = upper; return",
-        "sample close peak upper")
-    patched = replace_once(
-        patched,
-        '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n',
-        '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n'
-        '    b.ReportMetric(float64(p.ownedPeak), "probe-owned-buffer-peak-B")\n'
-        '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
-        '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n',
-        "owned reporting")
-    return patched.rstrip() + "\n" + BENCHMARK_HELPERS
-
 
 // Regression: an F1 allocation is counted before Queue admission, and its
 // Queue -> Writer transfer must not count it again.
@@ -439,6 +403,42 @@ func TestQA005OwnedOverlayPreQueueTransferAndRollback(t *testing.T) {
     }
     s.mu.Unlock()
 }
+"""
+
+
+def patch_benchmark(content):
+    patched = charge.patch_benchmark(content)
+    patched = replace_once(
+        patched, '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
+        '    qa005ResetOwnedHighwaters(env)\n'
+        '    p := &qa005ChargeProbe{stop: make(chan struct{}), done: make(chan struct{})}',
+        "reset Session HWMs at traffic start")
+    patched = replace_once(
+        patched, "    samples uint64\n    invalid bool\n",
+        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n",
+        "sampler state")
+    patched = replace_once(
+        patched, "        p.samples++\n",
+        "        p.samples++\n"
+        "        owned, valid := qa005SampleOwnedBuffers(env)\n"
+        "        if !valid { p.invalid = true; return }\n"
+        "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
+        "        p.ownedSamples++\n",
+        "sample observation")
+    patched = replace_once(
+        patched, "            case <-p.stop: observe(); return",
+        "            case <-p.stop: observe(); upper, valid := qa005OwnedPeakUpper(env); if !valid { p.invalid = true }; p.ownedUpper = upper; return",
+        "sample close peak upper")
+    patched = replace_once(
+        patched,
+        '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n',
+        '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n'
+        '    b.ReportMetric(float64(p.ownedPeak), "probe-owned-buffer-peak-B")\n'
+        '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
+        '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n',
+        "owned reporting")
+    return patched.rstrip() + "\n" + BENCHMARK_HELPERS
+
 
 PATCHES = {
     "benchmark_test.go": patch_benchmark,
