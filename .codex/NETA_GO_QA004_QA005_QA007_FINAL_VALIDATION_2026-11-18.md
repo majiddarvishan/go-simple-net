@@ -7,6 +7,7 @@
 **HEAD کد اعتبارسنجی‌شده:** `99dd68848eb73dd15ccf0a178861aa7f7cf82fef`  
 **تعداد Commit تا HEAD کد اعتبارسنجی‌شده، نسبت به main:** 34  
 **CI معتبر برای همین کد:** https://github.com/majiddarvishan/neta-go/actions/runs/44313332548
+**آخرین SHA پس از اصلاح فقط تست QA-007:** `2db90faf67923ea796ed611629390197cffb0e43` — ارزیابی مجدد محلی مطابق خروجی ارسال‌شده توسط مالک (Go Race ×100، Coverage ×100 و `make smoke` همگی PASS؛ کد Production تغییر نکرده).
 
 ## ۱. وضعیت دقیق
 
@@ -56,3 +57,17 @@ QA-005 هر ۸ سناریوی Core و کل ۲۴ سناریوی Full (شامل ه
 - [ ] تصمیم جداگانهٔ مالک برای PR، Merge، Tag و Release. هیچ‌کدام ایجاد نشده‌اند.
 
 **نکته:** دو اجرای اولیهٔ CI به‌ترتیب به‌دلیل gofmt و ناسازگاری تست‌های قدیمی با قراردادهای جدید شکست خوردند و با Commitهای اصلاحی برطرف شدند. فقط Run نهایی فوق معتبر است. Commit نهاییِ مستندسازی، در صورت ثبت با `[skip ci]`، تغییر کد ندارد و از CI تکراری جلوگیری می‌کند.
+
+## ۵. تأیید مجدد QA-007 روی سیستم مالک — 2026-11-18
+
+اولین اجرای `scripts/local-final-validation.sh` روی سیستم مالک نشان داد که اجرای مستقل `go-smoke` در تست `TestQA007ForcedClosePreservesAllCompletionAndCredit` با پیام `Completion panic not recorded` شکست خورد؛ سایر ده مرحله، از جمله Soak کامل ۳۰دقیقه‌ای، موفق بودند. بررسی مسیر اجرای Callback مشخص کرد آزاد شدن Request Credit پیش از ثبت Diagnostics در بازیابی Panic انجام می‌شود. بررسی فوری Diagnostics در تست یک پنجرهٔ زمان‌بندی حساس داشت.
+
+Commit تستی `2db90faf67923ea796ed611629390197cffb0e43` فقط انتظار محدود حداکثر سه‌ثانیه‌ای و بررسی نام Callback/Stack را در `qa007_callback_panic_test.go` اصلاح کرد؛ هیچ کد تولیدی تغییر نکرد.
+
+**شواهد تکمیلی (گزارش خروجی کنسول توسط مالک؛ اجرای مستقل توسط دستیار انجام نشده):**
+
+- `go test -race -count=100 -run '^TestQA007ForcedClosePreservesAllCompletionAndCredit$' .` → **PASS**؛ `ok github.com/majiddarvishan/neta-go 1.078s`.
+- `go test -cover -count=100 -run '^TestQA007ForcedClosePreservesAllCompletionAndCredit$' .` → **PASS**؛ Coverage تست محدود 25.0% (پوشش کل کتابخانه نیست).
+- `make smoke` → **PASS**؛ کل package اصلی Coverage **82.7%**، `internal/wire` Coverage **92.0%**؛ Build مثال‌ها، Bind/Loopback، Request/Response، یک‌طرفه و Graceful Shutdown موفق شدند.
+
+**تصمیم ثبت:** مورد Flaky Local QA-007 **CLOSED**؛ QA-007 در Feature Branch همچنان **[x]** است. نتایج QA-004 و QA-005، ۳۰دقیقه Soak و صفر بودن Ledger بعد از بار کاری از اجرای قبلی نگهداری می‌شوند؛ به‌عنوان اجرای مجدد روی Commit جدید معرفی نمی‌شوند. Baseline مرجع، ده جفت مقایسهٔ معتبر، Peak Retained Memory و SLA مطلق هنوز تأیید نشده‌اند؛ QA-004/005 و Performance Gate بسته/فعال نشده‌اند.
