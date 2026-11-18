@@ -253,7 +253,7 @@ func TestWorkerPerSessionConcurrencyIsAnIndependentLimit(t *testing.T) {
 	}, "serial callbacks to settle")
 }
 
-func TestWorkerForcedCloseCancelsQueuedButNotRunningCallbacks(t *testing.T) {
+func TestWorkerForcedCloseCancelsOnlyUnstartedApplicationCallbacks(t *testing.T) {
 	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
 	session := newWorkerTestSession(dispatcher, 2, 2, nil, nil)
 
@@ -294,16 +294,16 @@ func TestWorkerForcedCloseCancelsQueuedButNotRunningCallbacks(t *testing.T) {
 
 	session.Close()
 	waitDone(t, session)
-	if applicationCancelled.Load() != 1 || completionCancelled.Load() != 1 {
-		t.Fatalf("queued callback cancellations: Application=%d Completion=%d, want one each",
+	if applicationCancelled.Load() != 1 || completionCancelled.Load() != 0 {
+		t.Fatalf("queued callback cancellations: Application=%d Completion=%d, want 1/0",
 			applicationCancelled.Load(), completionCancelled.Load())
 	}
-	if applicationSecondRan.Load() != 0 || completionSecondRan.Load() != 0 {
-		t.Fatal("a queued callback ran after Forced Close cancellation")
+	if applicationSecondRan.Load() != 0 {
+		t.Fatal("an unstarted Application callback ran after Forced Close")
 	}
 	if dispatcher.application.snapshot().ActiveCallbacks != 1 ||
 		dispatcher.completion.snapshot().ActiveCallbacks != 1 {
-		t.Fatal("Forced Close released a started callback's active permit before return")
+		t.Fatal("Forced Close released a running callback's permit before return")
 	}
 
 	close(releaseApplication)
@@ -318,9 +318,13 @@ func TestWorkerForcedCloseCancelsQueuedButNotRunningCallbacks(t *testing.T) {
 			return s.ActiveCallbacks == 0 && s.QueuedCallbacks == 0
 		}, name+" callback release")
 	}
+	if completionSecondRan.Load() != 1 || completionCancelled.Load() != 0 {
+		t.Fatalf("unstarted Completion was lost: started=%d cancelled=%d",
+			completionSecondRan.Load(), completionCancelled.Load())
+	}
 }
 
-func TestWorkerOnCloseRunsAfterDoneAndSkipsAtEventCapacity(t *testing.T) {
+func TestWorkerOnCloseRunsAfterDoneAndRejectsAtAdmissionCapacity(t *testing.T) {
 	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
 	resources := newOwnerResourceLedger(ownerResourceLimits{maxOnCloseEventCredits: 1})
 	firstStarted := make(chan struct{})
@@ -336,6 +340,15 @@ func TestWorkerOnCloseRunsAfterDoneAndSkipsAtEventCapacity(t *testing.T) {
 	second := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
 		close(secondRan)
 	})
+	if first.onCloseAdmissionFailed || first.onCloseCredit == nil {
+		t.Fatal("first Session failed OnClose pre-admission reservation")
+	}
+	if !second.onCloseAdmissionFailed || second.onCloseCredit != nil {
+		t.Fatal("second Session must not be admitted without owner OnClose credit")
+	}
+	if got := resources.snapshot().onCloseEventCredits; got != 1 {
+		t.Fatalf("OnClose credits before Session closing = %d, want 1", got)
+	}
 
 	first.Close()
 	waitDone(t, first)
@@ -343,13 +356,10 @@ func TestWorkerOnCloseRunsAfterDoneAndSkipsAtEventCapacity(t *testing.T) {
 	if got := resources.snapshot().onCloseEventCredits; got != 1 {
 		t.Fatalf("OnClose event credits while callback runs = %d, want 1", got)
 	}
-
-	second.Close()
-	waitDone(t, second)
 	select {
 	case <-secondRan:
-		t.Fatal("OnClose ran despite owner event-credit saturation")
-	case <-time.After(20 * time.Millisecond):
+		t.Fatal("rejected Session executed its OnClose")
+	default:
 	}
 
 	close(releaseFirst)
@@ -746,7 +756,7 @@ func TestWorkerOwnerPermitSurvivesSessionDoneUntilCallbackReturns(t *testing.T) 
 	}, "owner Application permit release")
 }
 
-func TestWorkerOnCloseEventCreditsCountQueuedAndRunning(t *testing.T) {
+func TestWorkerOnCloseCreditsIncludeLiveQueuedAndRunning(t *testing.T) {
 	dispatcher := newOwnerCallbackDispatcher(workerTestOwnerConfig(1, 1, 1, 20*time.Millisecond))
 	resources := newOwnerResourceLedger(ownerResourceLimits{maxOnCloseEventCredits: 2})
 
@@ -769,6 +779,15 @@ func TestWorkerOnCloseEventCreditsCountQueuedAndRunning(t *testing.T) {
 	third := newWorkerTestSession(dispatcher, 1, 1, resources, func(*Session, error) {
 		close(thirdStarted)
 	})
+	if first.onCloseAdmissionFailed || second.onCloseAdmissionFailed {
+		t.Fatal("first two Sessions must reserve OnClose credits before admission")
+	}
+	if !third.onCloseAdmissionFailed || third.onCloseCredit != nil {
+		t.Fatal("third Session must fail admission instead of dropping future OnClose")
+	}
+	if got := resources.snapshot().onCloseEventCredits; got != 2 {
+		t.Fatalf("live OnClose reservation credits = %d, want 2", got)
+	}
 
 	first.Close()
 	waitDone(t, first)
@@ -782,18 +801,11 @@ func TestWorkerOnCloseEventCreditsCountQueuedAndRunning(t *testing.T) {
 	if got := resources.snapshot().onCloseEventCredits; got != 2 {
 		t.Fatalf("queued + running OnClose credits = %d, want 2", got)
 	}
-
-	third.Close()
-	waitDone(t, third)
 	select {
 	case <-thirdStarted:
-		t.Fatal("third OnClose ran after queued + running events exhausted the owner budget")
+		t.Fatal("rejected third Session executed OnClose")
 	default:
 	}
-	if got := resources.snapshot().onCloseEventCredits; got != 2 {
-		t.Fatalf("OnClose credits changed after saturated event was skipped: %d, want 2", got)
-	}
-
 	close(releaseFirst)
 	waitForWorkerSignal(t, firstReturned, "first OnClose callback return")
 	waitForWorkerSignal(t, secondStarted, "queued second OnClose callback")
