@@ -186,27 +186,37 @@ func clientOptions(config clientConfig) ([]neta.ClientOption, error) {
 	}
 	if config.ConnectTimeout != nil {
 		d, err := parseDuration("connect_timeout", config.ConnectTimeout)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		options = append(options, neta.WithConnectTimeout(d))
 	}
 	if config.BindResponseTimeout != nil {
 		d, err := parseDuration("bind_response_timeout", config.BindResponseTimeout)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		options = append(options, neta.WithBindResponseTimeout(d))
 	}
 	if config.RequestTimeout != nil {
 		d, err := parseDuration("request_timeout", config.RequestTimeout)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		sessionOptions = append(sessionOptions, neta.WithRequestTimeout(d))
 	}
 	if config.WriteTimeout != nil {
 		d, err := parseDuration("write_timeout", config.WriteTimeout)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		sessionOptions = append(sessionOptions, neta.WithWriteTimeout(d))
 	}
 	if config.EnquireIdle != nil {
 		d, err := parseDuration("enquire_link_idle_interval", config.EnquireIdle)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		sessionOptions = append(sessionOptions, neta.WithEnquireLinkIdleInterval(d))
 	}
 	if config.MaxOutstanding != nil {
@@ -229,42 +239,63 @@ func clientOptions(config clientConfig) ([]neta.ClientOption, error) {
 
 func run(ctx context.Context, args []string) error {
 	config, err := parseClientArgs(args)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	opts, err := clientOptions(config)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	opts = append(opts, neta.WithClientOnBoundHandler(func(s *neta.Session) {
 		log.Printf("bound: version=%d system_id=%q", s.ProtocolVersion(), s.SystemID())
 	}))
 	client, err := neta.NewClient(opts...)
-	if err != nil { return fmt.Errorf("validate client config: %w", err) }
+	if err != nil {
+		return fmt.Errorf("validate client config: %w", err)
+	}
 	defer func() {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := client.Stop(stopCtx); err != nil { log.Printf("Client.Stop: %v", err) }
+		if err := client.Stop(stopCtx); err != nil {
+			log.Printf("Client.Stop: %v", err)
+		}
 	}()
 	connectCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	err = client.Connect(connectCtx)
 	cancel()
-	if err != nil { return fmt.Errorf("Connect: %w", err) }
+	if err != nil {
+		return fmt.Errorf("Connect: %w", err)
+	}
 	session, ok := client.CurrentSession()
-	if !ok { return fmt.Errorf("Connect returned no Bound Session") }
+	if !ok {
+		return fmt.Errorf("Connect returned no Bound Session")
+	}
 
-	type result struct { response neta.Response; err error }
+	type result struct {
+		response neta.Response
+		err      error
+	}
 	resultCh := make(chan result, 1)
 	seq, err := session.SendRequest([]byte("hello from client-config"), func(r neta.Response, completionErr error) {
 		resultCh <- result{response: r, err: completionErr}
 	})
-	if err != nil { return fmt.Errorf("SendRequest: %w", err) }
+	if err != nil {
+		return fmt.Errorf("SendRequest: %w", err)
+	}
 	log.Printf("Request sequence=%d admitted locally (not a delivery receipt)", seq)
 	select {
 	case r := <-resultCh:
-		if r.err != nil { return fmt.Errorf("Completion sequence=%d: %w", seq, r.err) }
-		if r.response.Status != 0 { return fmt.Errorf("Completion sequence=%d status=%d", seq, r.response.Status) }
+		if r.err != nil {
+			return fmt.Errorf("Completion sequence=%d: %w", seq, r.err)
+		}
+		if r.response.Status != 0 {
+			return fmt.Errorf("Completion sequence=%d status=%d", seq, r.response.Status)
+		}
 		log.Printf("Completion sequence=%d payload=%q", r.response.Sequence, r.response.Payload)
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(60*time.Second):
+	case <-time.After(60 * time.Second):
 		return fmt.Errorf("example completion deadline exceeded")
 	}
 }

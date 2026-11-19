@@ -62,23 +62,36 @@ func run(args []string) error {
 		),
 		neta.WithClientOnCloseHandler(func(s *neta.Session, cause error) {
 			log.Printf("OnClose: session=%p cause=%v", s, cause)
-			select { case closed <- cause: default: }
+			select {
+			case closed <- cause:
+			default:
+			}
 		}),
 	)
-	if err != nil { return fmt.Errorf("NewClient: %w", err) }
+	if err != nil {
+		return fmt.Errorf("NewClient: %w", err)
+	}
 	defer func() {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer stopCancel()
-		if stopErr := client.Stop(stopCtx); stopErr != nil { log.Printf("Client.Stop: %v", stopErr) }
+		if stopErr := client.Stop(stopCtx); stopErr != nil {
+			log.Printf("Client.Stop: %v", stopErr)
+		}
 	}()
 	connectCtx, connectCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = client.Connect(connectCtx)
 	connectCancel()
-	if err != nil { return fmt.Errorf("Connect: %w", err) }
+	if err != nil {
+		return fmt.Errorf("Connect: %w", err)
+	}
 	session, ok := client.CurrentSession()
-	if !ok { return fmt.Errorf("no Bound Session") }
+	if !ok {
+		return fmt.Errorf("no Bound Session")
+	}
 	payload := []byte("diagnostics:echo")
-	if *mode == "timeout" { payload = []byte("no-response:demo") }
+	if *mode == "timeout" {
+		payload = []byte("no-response:demo")
+	}
 	resultCh := make(chan completionResult, 1)
 	seq, err := session.SendRequest(payload, func(r neta.Response, completionErr error) {
 		if *mode == "panic" {
@@ -86,7 +99,9 @@ func run(args []string) error {
 		}
 		resultCh <- completionResult{response: r, err: completionErr}
 	})
-	if err != nil { return fmt.Errorf("SendRequest admission: %w", err) }
+	if err != nil {
+		return fmt.Errorf("SendRequest admission: %w", err)
+	}
 	log.Printf("sequence=%d locally admitted; waiting for Completion (not proof of delivery)", seq)
 
 	if *mode == "panic" {
@@ -114,7 +129,7 @@ func run(args []string) error {
 			if !errors.Is(cause, neta.ErrCallbackPanic) {
 				return fmt.Errorf("unexpected OnClose cause after panic: %v", cause)
 			}
-		case <-time.After(3*time.Second):
+		case <-time.After(3 * time.Second):
 			log.Print("OnClose callback has not returned; Session.Done does not join callbacks")
 		}
 		return nil

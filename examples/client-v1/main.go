@@ -64,7 +64,10 @@ func run(args []string) error {
 	if !ok || session.ProtocolVersion() != neta.ProtocolVersionV1 {
 		return fmt.Errorf("V1 Client not Bound as V1")
 	}
-	type result struct { response neta.Response; err error }
+	type result struct {
+		response neta.Response
+		err      error
+	}
 	done := make(chan result, 1)
 	sequence, err := session.SendRequest([]byte("hello over V1"), func(r neta.Response, e error) {
 		done <- result{response: r, err: e}
@@ -85,7 +88,7 @@ func run(args []string) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(15*time.Second):
+	case <-time.After(15 * time.Second):
 		return fmt.Errorf("V1 Completion timed out")
 	}
 }
