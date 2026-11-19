@@ -112,4 +112,4 @@ The maximum neta-go Frame is **1,048,576 bytes total**, including the 10-byte He
 
 ## Runnable settings demonstrations
 
-See [twelve Client/Server examples](../examples/README.md) for strict optional JSON, CLI precedence, defaults, error cases and scenario-specific Functional Options.
+See [runnable Client/Server examples](../examples/README.md) for strict optional JSON, CLI precedence, defaults, error cases and scenario-specific Functional Options.

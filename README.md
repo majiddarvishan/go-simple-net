@@ -56,7 +56,9 @@ A default V2 Server accepts V1 or V2 Bind requests and replies using the detecte
 
 See the [wire protocol reference](docs/PROTOCOL.md) for the full Frame structure, commands, boundaries and version semantics.
 
-The [twelve-example guide](examples/README.md) covers CLI/JSON configuration, concurrent Client/Server workloads, reconnect, explicit V1 and Diagnostics.
+The [example guide](examples/README.md) covers CLI/JSON configuration, concurrent Client/Server workloads, reconnect, explicit V1 and Diagnostics.
+
+For the SMSC internal listener with several connected Message Engines, see the [multi-ME Server routing example](examples/server-smpp-multi-me/README.md); the current Client API still lacks an inbound Request callback, so this is not yet a complete bidirectional business flow.
 
 ## Development
 
