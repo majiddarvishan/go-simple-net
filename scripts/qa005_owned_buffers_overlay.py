@@ -5,7 +5,7 @@ F1/F2/F3/F4 backing storage is tracked by Session under its existing mutex.
 This is an UNQUALIFIED diagnostic. Metadata/closures/Panic objects are excluded,
 and time sampling can miss fast peaks. Never emit retained-attributed-B.
 No repository source file is edited by this script.
-V2 additionally tracks F1 during build/copy and rolls back rejected frames.
+V8 additionally tracks F5 unreserved inbound Body through read/handler; all categories remain incomplete.
 """
 import argparse
 import hashlib

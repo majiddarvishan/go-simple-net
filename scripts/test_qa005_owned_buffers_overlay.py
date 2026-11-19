@@ -27,6 +27,7 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
     def test_allocation_uses_capacity_and_release_is_once(self):
         internal = (
             "type outboundFrame struct {\n\tafterWrite         func()\n}\n"
+            "type inboundFrame struct {\n\tcompletionCapacityErr bool\n}\n"
             "type Session struct {\n\tactiveWrite               *outboundFrame\n}\n"
             "func (s *Session) enqueueControlLocked(item *outboundFrame) error {\n"
             "\ts.queuedControlBytes = next\n\tif item.barrier {\n"
@@ -67,10 +68,7 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         patched = mod.patch_charges(charges)
         self.assertIn("qa005SubtractOwnedLocked(s, &s.qa005OwnedIncomingApp", patched)
         self.assertIn("qa005SubtractOwnedLocked(s, &s.qa005OwnedIncomingReply", patched)
-        transport = (
-            "func read() {\n\t\tbody = make([]byte, bodyLength)\n"
-            "\t\tif _, err := io.ReadFull(s.conn, body); err != nil {\n}\n"
-        )
+        transport = (SCRIPT.parent.parent / "session_transport.go").read_text()
         patched = mod.patch_transport(transport)
         self.assertLess(patched.find("qa005AddOwnedLocked("), patched.find("io.ReadFull("))
 
