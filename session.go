@@ -360,6 +360,7 @@ func (s *Session) completionTaskLocked(sequence uint32, pending *pendingRequest,
 func (s *Session) completionTaskWithChargeLocked(sequence uint32, pending *pendingRequest, response Response, resultErr error, charge *completionReadCharge) callbackTask {
 	return callbackTask{
 		session: s,
+		name:    "Completion",
 		run: func() {
 			defer s.releasePending(sequence, pending)
 			defer charge.release()

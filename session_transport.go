@@ -406,6 +406,7 @@ func (s *Session) handleBoundInboundFrame(inbound inboundFrame, role sessionRole
 		charge := inbound.applicationCharge
 		task := callbackTask{
 			session: s,
+			name:    "OnRequest",
 			run: func() {
 				charge.releaseQueue()
 				defer charge.releaseRetained()

@@ -1,0 +1,15 @@
+{
+  "address": "127.0.0.1:2775",
+  "system_id": "neta-client-config",
+  "protocol_version": "v2",
+  "bind_type": "bi",
+  "connect_timeout": "10s",
+  "bind_response_timeout": "10s",
+  "request_timeout": "15s",
+  "write_timeout": "10s",
+  "enquire_link_idle_interval": "30s",
+  "auto_reconnect": false,
+  "max_outstanding_requests_per_session": 32,
+  "application_workers": 4,
+  "max_retained_application_bytes": 1048576
+}

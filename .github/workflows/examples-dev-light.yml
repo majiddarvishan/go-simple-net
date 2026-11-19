@@ -1,0 +1,51 @@
+name: neta-go examples development — light validation
+
+# Does not run QA-004/QA-005 benchmarks, soak, fuzz or performance gate.
+# Validation branch is isolated; production feature/main refs stay unchanged.
+on:
+  push:
+    branches:
+      - ci/neta-go-examples-fast-2026-11-19
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  examples:
+    name: Focused example format, unit, build and loopback smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Format only the example sources in isolated CI workspace
+        run: find examples -name '*.go' -print0 | xargs -0 gofmt -w
+      - name: Vet the public examples
+        run: go vet ./examples/...
+      - name: Run bounded all-examples smoke
+        env:
+          ARTIFACT_DIR: artifacts/examples-dev
+        run: bash scripts/examples-dev-smoke.sh
+      - name: Save formatted example sources on validation branch only
+        if: success() && github.ref_name == 'ci/neta-go-examples-fast-2026-11-19'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- examples
+          if ! git diff --cached --quiet; then
+            git commit -m "style(ci): gofmt example snapshot [skip ci]"
+            git push origin HEAD:refs/heads/ci/neta-go-examples-fast-2026-11-19
+          fi
+      - name: Upload lightweight logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: example-dev-${ github.sha }}
+          path: artifacts/examples-dev/
+          if-no-files-found: warn

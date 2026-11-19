@@ -63,6 +63,8 @@ Options are applied before final validation. The resulting configuration is immu
 | Option | Default | Validation / behavior |
 |---|---:|---|
 | `WithProtocolVersion` | `ProtocolVersionV2` | Only `ProtocolVersionV1` / `ProtocolVersionV2`. V1 uses NUL-terminated Bind; V2 omits the NUL in Bind Request/Response. A new Go V2 Server accepts both and replies in kind; a V1-only Server rejects V2. Clients must explicitly choose V1 for V1-only peers. No automatic fallback. |
+| `WithCallbackPanicRingCapacity` | 8 | 1..32 recent panic records; lazily allocated on first panic |
+| `WithCallbackPanicByteBudget` | 256 KiB | 64 KiB..2 MiB recent record-text budget; First/OnClose and foreign graphs excluded |
 | `WithRequestTimeout` | 30s | Positive; starts after successful local Request FIFO admission |
 | `WithFrameAssemblyTimeout` | 30s | Positive absolute inbound Frame assembly deadline |
 | `WithUnbindTimeout` | 10s | Positive absolute Graceful Unbind deadline |
@@ -107,3 +109,7 @@ There are intentionally no product constraints requiring an owner budget to equa
 ## Fixed protocol limit
 
 The maximum neta-go Frame is **1,048,576 bytes total**, including the 10-byte Header. The maximum Body is 1,048,566 bytes. This limit is fixed and cannot be raised by configuration. Queue and retained-byte limits are separate from the protocol Frame maximum.
+
+## Runnable settings demonstrations
+
+See [twelve Client/Server examples](../examples/README.md) for strict optional JSON, CLI precedence, defaults, error cases and scenario-specific Functional Options.

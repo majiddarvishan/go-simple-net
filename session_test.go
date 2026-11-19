@@ -1083,7 +1083,7 @@ func TestSessionLateResponseCannotResurrectTimedOutRequest(t *testing.T) {
 	waitDone(t, session)
 }
 
-func TestSessionForcedCloseCancelsQueuedCompletionCallback(t *testing.T) {
+func TestSessionForcedClosePreservesQueuedCompletionCallback(t *testing.T) {
 	local, peer := net.Pipe()
 	dispatcher := &testSessionDispatcher{}
 	called := make(chan struct{}, 1)
@@ -1106,13 +1106,23 @@ func TestSessionForcedCloseCancelsQueuedCompletionCallback(t *testing.T) {
 
 	session.Close()
 	waitDone(t, session)
-	if got := dispatcher.completionCount(); got != 0 {
-		t.Fatalf("queued Completion callbacks after Forced Close = %d", got)
+	if got := dispatcher.completionCount(); got != 1 {
+		t.Fatalf("queued Completion callbacks after Forced Close = %d, want 1", got)
 	}
 	select {
 	case <-called:
-		t.Fatal("unstarted Completion callback ran during Forced Close")
+		t.Fatal("queued Completion ran without worker start")
 	default:
+	}
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	select {
+	case <-called:
+	default:
+		t.Fatal("admitted Completion was lost after Forced Close")
+	}
+	if got := dispatcher.completionCount(); got != 0 {
+		t.Fatalf("duplicate Completion tasks after delivery = %d", got)
 	}
 }
 
@@ -1863,8 +1873,12 @@ func TestSessionCompletionCapacityDrainUsesOriginalFrameDeadline(t *testing.T) {
 	session := newTestBoundSessionWithResources(local, config, dispatcher, sessionHandlers{}, owner)
 	defer peer.Close()
 
-	sequence, err := session.SendRequest(nil, func(Response, error) {
-		t.Error("capacity Completion must not be emitted when scratch drain times out")
+	completionCount := 0
+	sequence, err := session.SendRequest(nil, func(_ Response, resultErr error) {
+		completionCount++
+		if !errors.Is(resultErr, context.DeadlineExceeded) {
+			t.Errorf("terminal Completion cause = %v, want original frame deadline", resultErr)
+		}
 	})
 	if err != nil {
 		t.Fatalf("SendRequest: %v", err)
@@ -1878,14 +1892,19 @@ func TestSessionCompletionCapacityDrainUsesOriginalFrameDeadline(t *testing.T) {
 		t.Fatalf("write partial Response: %v", err)
 	}
 	waitDone(t, session)
-	if got := owner.snapshot(); got.retainedCompletionBytes != 0 || got.outstandingRequests != 0 {
-		t.Fatalf("owner charges after timed-out scratch drain = %+v", got)
-	}
-	if dispatcher.completionCount() != 0 {
-		t.Fatal("scratch-drain timeout emitted a Completion callback")
-	}
 	if !errors.Is(session.Err(), context.DeadlineExceeded) {
 		t.Fatalf("Session terminal cause = %v, want frame deadline", session.Err())
+	}
+	if got := owner.snapshot(); got.retainedCompletionBytes != 0 || got.outstandingRequests != 1 {
+		t.Fatalf("owner charges before mandatory Completion delivery = %+v", got)
+	}
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	if completionCount != 1 {
+		t.Fatalf("terminal Completion count = %d, want 1", completionCount)
+	}
+	if got := owner.snapshot(); got.outstandingRequests != 0 || got.retainedCompletionBytes != 0 {
+		t.Fatalf("owner charges after terminal Completion return = %+v", got)
 	}
 }
 
@@ -1902,29 +1921,47 @@ func TestSessionOnCloseEventCreditIsOwnerScoped(t *testing.T) {
 	first := newTestBoundSessionWithResources(local1, config, dispatcher1, sessionHandlers{
 		onClose: func(*Session, error) {},
 	}, owner)
+	if first == nil {
+		t.Fatal("first OnClose-eligible Session was rejected")
+	}
 	second := newTestBoundSessionWithResources(local2, config, dispatcher2, sessionHandlers{
 		onClose: func(*Session, error) {},
 	}, owner)
 	defer peer1.Close()
 	defer peer2.Close()
+	if second != nil {
+		second.Close()
+		t.Fatal("second OnClose-eligible Session must be rejected at admission")
+	}
+	if got := owner.snapshot().onCloseEventCredits; got != 1 {
+		t.Fatalf("pre-admission reserved owner credits = %d, want 1", got)
+	}
 
 	first.Close()
 	waitDone(t, first)
 	task := waitForTask(t, dispatcher1.takeOnClose)
 	if got := owner.snapshot().onCloseEventCredits; got != 1 {
-		t.Fatalf("OnClose credits after first close = %d, want 1", got)
-	}
-	second.Close()
-	waitDone(t, second)
-	if _, ok := dispatcher2.takeOnClose(); ok {
-		t.Fatal("second OnClose should be skipped at owner event capacity")
-	}
-	if got := owner.snapshot().onCloseEventCredits; got != 1 {
-		t.Fatalf("OnClose credits after skipped event = %d, want 1", got)
+		t.Fatalf("owner OnClose credit while queued after Done = %d, want 1", got)
 	}
 	task.run()
 	if got := owner.snapshot().onCloseEventCredits; got != 0 {
-		t.Fatalf("OnClose credits after callback return = %d", got)
+		t.Fatalf("OnClose credit after callback return = %d", got)
+	}
+
+	local3, peer3 := net.Pipe()
+	defer peer3.Close()
+	third := newTestBoundSessionWithResources(local3, config, dispatcher2, sessionHandlers{
+		onClose: func(*Session, error) {},
+	}, owner)
+	if third == nil {
+		t.Fatal("owner OnClose capacity not reusable after callback return")
+	}
+	third.Close()
+	waitDone(t, third)
+	task = waitForTask(t, dispatcher2.takeOnClose)
+	task.run()
+	if got := owner.snapshot().onCloseEventCredits; got != 0 {
+		t.Fatalf("OnClose credit after replacement callback = %d", got)
 	}
 }
 
@@ -1960,7 +1997,7 @@ func TestSessionForcedCloseCancelsQueuedIncomingApplicationCharge(t *testing.T) 
 	}
 }
 
-func TestSessionForcedCloseCancelsQueuedCompletionAndReleasesCredits(t *testing.T) {
+func TestSessionForcedCloseRetainsQueuedCompletionAndCredits(t *testing.T) {
 	owner := newOwnerResourceLedger(ownerResourceLimits{
 		maxOutstandingRequests:      1,
 		maxRetainedApplicationBytes: 1024,
@@ -1974,8 +2011,12 @@ func TestSessionForcedCloseCancelsQueuedCompletionAndReleasesCredits(t *testing.
 	session := newTestBoundSessionWithResources(local, config, dispatcher, sessionHandlers{}, owner)
 	defer peer.Close()
 
-	sequence, err := session.SendRequest([]byte("q"), func(Response, error) {
-		t.Error("cancelled Completion callback ran")
+	completionCount := 0
+	sequence, err := session.SendRequest([]byte("q"), func(_ Response, err error) {
+		completionCount++
+		if err != nil {
+			t.Errorf("pre-settled Completion terminal result changed: %v", err)
+		}
 	})
 	if err != nil {
 		t.Fatalf("SendRequest: %v", err)
@@ -1989,8 +2030,16 @@ func TestSessionForcedCloseCancelsQueuedCompletionAndReleasesCredits(t *testing.
 	}
 	session.Close()
 	waitDone(t, session)
+	if got := owner.snapshot(); got.outstandingRequests != 1 || got.retainedCompletionBytes != 11 {
+		t.Fatalf("Forced Close prematurely released queued Completion charges = %+v", got)
+	}
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	if completionCount != 1 {
+		t.Fatalf("retained Completion count = %d, want 1", completionCount)
+	}
 	if got := owner.snapshot(); got.outstandingRequests != 0 || got.retainedCompletionBytes != 0 {
-		t.Fatalf("owner charges after Completion cancellation = %+v", got)
+		t.Fatalf("owner charges after Completion callback return = %+v", got)
 	}
 }
 
@@ -2037,10 +2086,15 @@ func TestSessionPartialCompletionReadReleasesReservations(t *testing.T) {
 	config.enquireLinkIdleInterval = 0
 	config.maxRetainedCompletionBytes = 1024
 	local, peer := net.Pipe()
-	session := newTestBoundSessionWithResources(local, config, &testSessionDispatcher{}, sessionHandlers{}, owner)
+	dispatcher := &testSessionDispatcher{}
+	session := newTestBoundSessionWithResources(local, config, dispatcher, sessionHandlers{}, owner)
 
-	sequence, err := session.SendRequest(nil, func(Response, error) {
-		t.Error("partial Response must not complete")
+	completionCount := 0
+	sequence, err := session.SendRequest(nil, func(_ Response, err error) {
+		completionCount++
+		if err == nil {
+			t.Error("partial Response must have terminal transport error")
+		}
 	})
 	if err != nil {
 		t.Fatalf("SendRequest: %v", err)
@@ -2052,8 +2106,16 @@ func TestSessionPartialCompletionReadReleasesReservations(t *testing.T) {
 	}
 	_ = peer.Close()
 	waitDone(t, session)
+	if got := owner.snapshot(); got.retainedCompletionBytes != 0 || got.outstandingRequests != 1 {
+		t.Fatalf("owner charges before terminal Completion callback = %+v", got)
+	}
+	task := waitForTask(t, dispatcher.takeCompletion)
+	task.run()
+	if completionCount != 1 {
+		t.Fatalf("terminal Completion count = %d, want 1", completionCount)
+	}
 	if got := owner.snapshot(); got.retainedCompletionBytes != 0 || got.outstandingRequests != 0 {
-		t.Fatalf("owner charges after partial Completion read failure = %+v", got)
+		t.Fatalf("owner charges after terminal Completion callback = %+v", got)
 	}
 }
 

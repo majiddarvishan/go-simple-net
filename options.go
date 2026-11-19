@@ -72,7 +72,8 @@ func WithClientOnBoundHandler(handler OnBoundHandler) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.onBound = handler }}
 }
 
-// WithClientOnCloseHandler sets the best-effort callback invoked after a Client Session is Done. The event may be skipped if the Client's OnClose event capacity is exhausted.
+// WithClientOnCloseHandler configures an OnClose callback after Session Done.
+// Eligible Session admission is rejected if no owner OnClose credit is free.
 func WithClientOnCloseHandler(handler OnCloseHandler) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.onClose = handler }}
 }
@@ -124,7 +125,7 @@ func WithClientOnCloseWorkerIdleGrace(grace time.Duration) ClientOption {
 	return clientOwnerOption(func(c *ownerConfig) { c.onCloseWorkerIdleGrace = grace })
 }
 
-// WithClientOnCloseEventCredits sets the Client-wide budget for queued and running OnClose events. The default is 1024; the valid range is 1..4096.
+// WithClientOnCloseEventCredits sets the Client-wide budget for eligible live Sessions and queued/running OnClose events. The default is 1024; the valid range is 1..4096.
 func WithClientOnCloseEventCredits(limit uint32) ClientOption {
 	return clientOwnerOption(func(c *ownerConfig) { c.onCloseEventCredits = limit })
 }
@@ -164,7 +165,8 @@ func WithServerOnRequestHandler(handler OnRequestHandler) ServerOption {
 	return ServerOption{apply: func(c *serverConfig) { c.onRequest = handler }}
 }
 
-// WithServerOnCloseHandler sets the best-effort callback invoked after a Server Session is Done. The event may be skipped if the Server's OnClose event capacity is exhausted.
+// WithServerOnCloseHandler configures an OnClose callback after Session Done.
+// Eligible Session admission is rejected if no owner OnClose credit is free.
 func WithServerOnCloseHandler(handler OnCloseHandler) ServerOption {
 	return ServerOption{apply: func(c *serverConfig) { c.onClose = handler }}
 }
@@ -241,7 +243,7 @@ func WithServerOnCloseWorkerIdleGrace(grace time.Duration) ServerOption {
 	return serverOwnerOption(func(c *ownerConfig) { c.onCloseWorkerIdleGrace = grace })
 }
 
-// WithServerOnCloseEventCredits sets the Server-wide budget for queued and running OnClose events. The default is 1024; the valid range is 1..4096.
+// WithServerOnCloseEventCredits sets the Server-wide budget for eligible live Sessions and queued/running OnClose events. The default is 1024; the valid range is 1..4096.
 func WithServerOnCloseEventCredits(limit uint32) ServerOption {
 	return serverOwnerOption(func(c *ownerConfig) { c.onCloseEventCredits = limit })
 }
@@ -259,6 +261,19 @@ func WithServerMaxRetainedApplicationBytes(limit uint64) ServerOption {
 // WithServerMaxRetainedCompletionBytes sets the Server-wide retained Completion payload byte budget. The default is 256 MiB; the valid range is 10 bytes..1 GiB.
 func WithServerMaxRetainedCompletionBytes(limit uint64) ServerOption {
 	return serverOwnerOption(func(c *ownerConfig) { c.maxRetainedCompletionBytes = limit })
+}
+
+// WithCallbackPanicRingCapacity sets the number of recent callback panics retained
+// per Session (1..32, default 8). Storage is allocated only on first panic.
+func WithCallbackPanicRingCapacity(limit uint32) SessionOption {
+	return sessionOption(func(c *sessionConfig) { c.callbackPanicRingCapacity = limit })
+}
+
+// WithCallbackPanicByteBudget sets the total recent callback-panic record byte
+// budget per Session (64 KiB..2 MiB, default 256 KiB). First and OnClose
+// records are independent of this budget.
+func WithCallbackPanicByteBudget(limit uint64) SessionOption {
+	return sessionOption(func(c *sessionConfig) { c.callbackPanicByteBudget = limit })
 }
 
 // WithRequestTimeout sets the absolute timeout for an admitted Request. The default is 30s; the duration must be positive.

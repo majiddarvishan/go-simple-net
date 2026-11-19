@@ -411,10 +411,15 @@ func benchmarkRunRequestResponse(b *testing.B, env *benchmarkEnv, payload []byte
 
 	b.ReportAllocs()
 	b.SetBytes(int64(2 * len(payload)))
+	cpuStart, cpuStartOK := benchmarkCPUTime()
 	b.ResetTimer()
 	close(start)
 	wg.Wait()
 	b.StopTimer()
+	cpuEnd, cpuEndOK := benchmarkCPUTime()
+	if cpuStartOK && cpuEndOK && b.N > 0 && cpuEnd >= cpuStart {
+		b.ReportMetric(float64((cpuEnd-cpuStart).Nanoseconds())/float64(b.N), "cpu-ns/op")
+	}
 	elapsed := b.Elapsed()
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32
@@ -512,10 +517,15 @@ func benchmarkRunSendNoWait(b *testing.B, env *benchmarkEnv, payload []byte, pro
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(payload)))
+	cpuStart, cpuStartOK := benchmarkCPUTime()
 	b.ResetTimer()
 	close(start)
 	wg.Wait()
 	b.StopTimer()
+	cpuEnd, cpuEndOK := benchmarkCPUTime()
+	if cpuStartOK && cpuEndOK && b.N > 0 && cpuEnd >= cpuStart {
+		b.ReportMetric(float64((cpuEnd-cpuStart).Nanoseconds())/float64(b.N), "cpu-ns/op")
+	}
 	elapsed := b.Elapsed()
 	appSnapshot := env.server.callbacks.application.snapshot()
 	var completionWorkerCount uint32
@@ -784,11 +794,11 @@ func BenchmarkScaleSessions(b *testing.B) {
 func TestMemoryStabilitySoak(t *testing.T) {
 	rawDuration := os.Getenv("NETA_SOAK_SECONDS")
 	if rawDuration == "" {
-		t.Skip("set NETA_SOAK_SECONDS to run the five-minute mixed-payload memory soak")
+		t.Skip("set NETA_SOAK_SECONDS=1800 to run the 30-minute mixed-payload stability soak")
 	}
 	seconds, err := strconv.Atoi(rawDuration)
-	if err != nil || seconds < 300 || seconds > 600 {
-		t.Fatalf("NETA_SOAK_SECONDS must be between 300 and 600, got %q", rawDuration)
+	if err != nil || seconds < 300 || seconds > 1800 {
+		t.Fatalf("NETA_SOAK_SECONDS must be between 300 and 1800, got %q", rawDuration)
 	}
 
 	env := newBenchmarkEnv(t, 8, 1, 1, true, false)
@@ -921,7 +931,7 @@ var deadlineScanBenchmarkSink time.Time
 // search under the same Session mutex used by controlLoop. It deliberately
 // does not simulate network traffic or establish a production SLA.
 func BenchmarkPendingDeadlineScan(b *testing.B) {
-	for _, pendingCount := range []int{0, 1, 32, 128, 512} {
+	for _, pendingCount := range []int{0, 1, 32, 128, 512, 2048, 8192} {
 		b.Run(fmt.Sprintf("pending=%d", pendingCount), func(b *testing.B) {
 			config := defaultSessionConfig()
 			config.enquireLinkIdleInterval = 0

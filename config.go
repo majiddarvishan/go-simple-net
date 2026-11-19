@@ -39,6 +39,9 @@ const (
 	defaultOwnerRequests       = uint32(32768)
 	defaultOnCloseEventCredits = uint32(1024)
 
+	defaultCallbackPanicRingCapacity = uint32(8)
+	defaultCallbackPanicByteBudget   = uint64(256 << 10)
+
 	minRetainedBytes = uint64(10)
 	maxFrameSize     = uint64(1 << 20) // Total wire frame, including the 10-byte header.
 )
@@ -49,6 +52,11 @@ const (
 	maxOnCloseWorkers             = uint32(128)
 	maxSessionCallbackConcurrency = uint32(32)
 	maxOnCloseEventCredits        = uint32(4096)
+
+	maxCallbackPanicRingCapacity = uint32(32)
+	minCallbackPanicByteBudget   = uint64(64 << 10)
+	maxCallbackPanicByteBudget   = uint64(2 << 20)
+
 	maxSessionApplicationFrames   = uint32(1024)
 	maxAggregateApplicationFrames = uint32(262144)
 	maxSessionRequests            = uint32(512)
@@ -75,6 +83,8 @@ type sessionConfig struct {
 	maxIncomingApplicationFrames uint32
 	maxOutgoingApplicationFrames uint32
 	maxOutstandingRequests       uint32
+	callbackPanicRingCapacity    uint32
+	callbackPanicByteBudget      uint64
 	maxRetainedApplicationBytes  uint64
 	maxRetainedCompletionBytes   uint64
 	invalidOption                string
@@ -141,6 +151,8 @@ func defaultSessionConfig() sessionConfig {
 		maxIncomingApplicationFrames: defaultApplicationFrames,
 		maxOutgoingApplicationFrames: defaultApplicationFrames,
 		maxOutstandingRequests:       defaultSessionRequests,
+		callbackPanicRingCapacity:    defaultCallbackPanicRingCapacity,
+		callbackPanicByteBudget:      defaultCallbackPanicByteBudget,
 		maxRetainedApplicationBytes:  defaultRetainedApplicationBytes,
 		maxRetainedCompletionBytes:   defaultRetainedCompletionBytes,
 	}
@@ -251,6 +263,12 @@ func validateSessionConfig(c sessionConfig) error {
 		return err
 	}
 	if err := validateRangeUint32("max_outstanding_requests_per_session", c.maxOutstandingRequests, 1, maxSessionRequests); err != nil {
+		return err
+	}
+	if err := validateRangeUint32("callback_panic_ring_capacity", c.callbackPanicRingCapacity, 1, maxCallbackPanicRingCapacity); err != nil {
+		return err
+	}
+	if err := validateRangeUint64("callback_panic_byte_budget", c.callbackPanicByteBudget, minCallbackPanicByteBudget, maxCallbackPanicByteBudget); err != nil {
 		return err
 	}
 	if err := validateRangeUint64("max_retained_application_bytes_per_session", c.maxRetainedApplicationBytes, minRetainedBytes, maxSessionRetainedBytes); err != nil {

@@ -32,6 +32,8 @@ var (
 	ErrUnbindTimeout = errors.New("neta: unbind timed out")
 	// ErrBindRejected indicates that the peer rejected the Bind Request.
 	ErrBindRejected = errors.New("neta: bind rejected")
+	// ErrCallbackPanic indicates that a user callback panicked and initiated Session close.
+	ErrCallbackPanic = errors.New("neta: callback panic")
 	// ErrProtocol indicates a malformed or directionally invalid protocol operation.
 	ErrProtocol = errors.New("neta: protocol error")
 )

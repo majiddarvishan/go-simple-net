@@ -50,6 +50,10 @@ func (s *Session) controlLoop() {
 					continue
 				}
 				pending.settled = true
+				if s.deadlineSettlementObserver != nil {
+					// Internal terminal settlement time, never user callback start.
+					s.deadlineSettlementObserver(pending.deadline, time.Now())
+				}
 				if !pending.writerClaimed {
 					s.removeQueuedRequestLocked(sequence)
 				}

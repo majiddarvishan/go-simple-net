@@ -1,0 +1,209 @@
+name: QA-004/005/007 Final Verification
+
+# This workflow runs only after the completed implementation commit is moved
+# to the isolated feature branch. No stage-by-stage CI or performance gate.
+on:
+  push:
+    branches:
+      - feature/qa004-qa005-qa007-implementation-2026-11-18
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-final-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  correctness:
+    name: Go format, vet, tests, race, lifecycle and protocol
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Run exact-SHA Go final verification
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/go
+        run: make verify
+      - name: Build and run paired examples
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/examples
+        run: make smoke
+      - name: Upload final Go evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-go-${{ github.sha }}
+          path: artifacts/qa-final/
+          if-no-files-found: warn
+
+  wire:
+    name: Pinned neta-cpp V1 golden compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile pinned C++ fixture generator
+        run: |
+          g++ -std=c++20 -O2 -Wall -Wextra \
+            -I testdata/neta-cpp-1.5.0/source/include \
+            testdata/neta-cpp-1.5.0/golden.cpp \
+            -o /tmp/neta-cpp-wire-golden
+      - name: Compare byte-exact C++ fixture
+        run: |
+          /tmp/neta-cpp-wire-golden > /tmp/neta-cpp-wire-golden.txt
+          diff -u testdata/neta-cpp-1.5.0/golden.txt /tmp/neta-cpp-wire-golden.txt
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - run: go test ./internal/wire -count=1
+
+  performance:
+    name: Advisory scan and Core/Full qualification (no numeric gate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: QA-004 linear scan 32 to 8192 pending
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          go test -run '^$' -bench '^BenchmarkPendingDeadlineScan$' \
+            -benchtime=150ms -benchmem -count=1 -cpu=1,4 \
+            -cpuprofile=artifacts/qa-final/perf/scan-cpu.pprof \
+            -timeout=15m 2>&1 | tee artifacts/qa-final/perf/deadline-scan.log
+      - name: QA-004 terminal detection-delay benchmark
+        run: |
+          go test -run '^$' -bench '^BenchmarkPendingDeadlineDetection$' \
+            -benchtime=1200x -benchmem -count=1 -cpu=4 \
+            -cpuprofile=artifacts/qa-final/perf/detection-cpu.pprof \
+            -timeout=20m 2>&1 | tee artifacts/qa-final/perf/deadline-detection.log
+      - name: QA-005 Core report-only workload
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/perf/core
+        run: bash scripts/qa005_report.sh
+      - name: QA-005 Full report-only workload (24 selected scenarios)
+        env:
+          ARTIFACT_DIR: artifacts/qa-final/perf/full
+        run: bash scripts/qa005_report.sh full
+      - name: Qualification shell syntax and comparator unit tests
+        run: |
+          bash -n scripts/qa005_qualify.sh scripts/qa005_report.sh
+          python3 -m unittest discover -s scripts -p 'test_qa005_compare.py'
+      # Prototype-only source/fixture compatibility check. Not a numerical gate.
+      - name: QA-005 memory overlay compiler smoke (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p 'test_qa005_memory_overlay.py' \
+            2>&1 | tee artifacts/qa-final/perf/memory-overlay-unit-tests.log
+          python3 -B scripts/qa005_memory_overlay.py \
+            --source "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/qa005-memory-probe" \
+            2>&1 | tee artifacts/qa-final/perf/memory-overlay-manifest.log
+          NETA_QA005_MEMORY_PROBE=1 go test \
+            -overlay "$RUNNER_TEMP/qa005-memory-probe/overlay.json" \
+            -run '^$' \
+            -bench '^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium$' \
+            -benchtime=1x -count=1 -cpu=4 -timeout=2m \
+            2>&1 | tee artifacts/qa-final/perf/memory-overlay-1x-smoke.log
+          echo 'Exploratory owner charge probe ONLY. This is not retained-attributed-B.' \
+            >> artifacts/qa-final/perf/memory-overlay-manifest.log
+      # Read-only Go source overlay: buffer backing sizes only, NOT memory gate.
+      - name: QA-005 owned-buffer overlay smoke (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p 'test_qa005_owned_buffers_overlay.py' \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-unit-tests.log
+          python3 -B scripts/qa005_owned_buffers_overlay.py \
+            --source "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/qa005-owned-buffer-probe" \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
+          NETA_QA005_MEMORY_PROBE=1 go test \
+            -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \
+            -run '^TestQA005OwnedOverlay(ControlLifecycle|ApplicationCompletionLifetimes|PreQueueTransferAndRollback|ForcedCloseDuringBuild|CallbacksAfterDone|PanicCleanup|FrozenRegistry|PreQueueControlTransferAndReject|DeduplicatesSessionIdentity|TransientAdmissionChurn|TransientInboundBindLifecycle|CategoryReconciliation|D1StackTextRetention|M1PendingIdentityLifetime|M1PendingStructFootprint|M1WorkerQueueBackingLifetime|M1WorkerStructFootprint|M1RealWorkerQueueLifecycle|ClientTransientGenerationChurn|ClientCurrentAndInFlightInvalidation|ClientRealReconnectInvalidatesWindow)$' -race -count=1 -timeout=3m \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-lifecycle.log
+          NETA_QA005_MEMORY_PROBE=1 go test \
+            -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \
+            -run '^$' \
+            -bench '^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium$' \
+            -benchtime=1x -count=1 -cpu=4 -timeout=2m \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-1x-smoke.log
+          echo 'Owner-buffer backing bytes only; metadata/external refs excluded; NOT retained-attributed-B.' \
+            >> artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
+      # Exact-source adapter byte equivalence; advisory and no numerical measurements.
+      - name: QA-005 exact source-anchor overlay compatibility (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p test_qa005_overlay_compatibility.py 2>&1 | tee artifacts/qa-final/perf/owned-buffer-compatibility-unit-tests.log
+          ANCHOR_SHA=9b7b2318f73d173a99d22489042f84f8ce58b745
+          ANCHOR_DIR="$RUNNER_TEMP/qa005-source-anchor"
+          test ! -e "$ANCHOR_DIR"
+          git fetch --no-tags origin "$ANCHOR_SHA"
+          git worktree add --detach "$ANCHOR_DIR" "$ANCHOR_SHA"
+          trap 'git worktree remove "$ANCHOR_DIR"' EXIT
+          test "$(git -C "$ANCHOR_DIR" rev-parse HEAD)" = "$ANCHOR_SHA"
+          python3 -B scripts/qa005_owned_buffers_overlay.py --source "$ANCHOR_DIR" --output "$RUNNER_TEMP/qa005-owned-anchor" 2>&1 | tee artifacts/qa-final/perf/owned-anchor-manifest.log
+          python3 -B scripts/qa005_overlay_compatibility.py --baseline "$RUNNER_TEMP/qa005-owned-anchor/manifest.json" --candidate "$RUNNER_TEMP/qa005-owned-buffer-probe/manifest.json" 2>&1 | tee artifacts/qa-final/perf/owned-buffer-compatibility-result.json
+          (cd "$ANCHOR_DIR" && go test -overlay "$RUNNER_TEMP/qa005-owned-anchor/overlay.json" -run TestQA005OwnedOverlay -race -count=1 -timeout=3m) 2>&1 | tee artifacts/qa-final/perf/owned-anchor-go-race.log
+      # Three modes on identical checkout, one scenario; unqualified instrument cost preview.
+      - name: QA-005 instrumentation A/A three-mode feasibility (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p test_qa005_overhead_advisory.py 2>&1 | tee artifacts/qa-final/perf/overhead-preview-unit-tests.log
+          SELECTOR='^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium$'
+          LOGDIR=artifacts/qa-final/perf
+          NETA_QA005_MEMORY_PROBE=0 go test -run '^$' -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-source.log"
+          NETA_QA005_MEMORY_PROBE=0 go test -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" -run '^$' -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-overlay-off.log"
+          NETA_QA005_MEMORY_PROBE=1 go test -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" -run '^$' -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-overlay-on.log"
+          python3 -B scripts/qa005_overhead_advisory.py --source "$LOGDIR/overhead-source.log" --overlay-off "$LOGDIR/overhead-overlay-off.log" --overlay-on "$LOGDIR/overhead-overlay-on.log" --manifest "$RUNNER_TEMP/qa005-owned-buffer-probe/manifest.json" --source-sha "$GITHUB_SHA" --go-version "$(go version)" --benchtime 25x --output "$LOGDIR/overhead-preview.json"
+      - name: Declare advisory qualification limitations
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn

@@ -38,6 +38,8 @@ func (c *Client) Stop(ctx context.Context) error
 func (s *Server) Start() error
 func (s *Server) Addr() net.Addr
 func (s *Server) Stop(ctx context.Context) error
+func (s *Server) AcceptDone() <-chan struct{}
+func (s *Server) AcceptErr() error
 ```
 
 - `Start` opens the configured TCP listener and returns after the Accept loop is ready. A Server is terminal after Stop and cannot be restarted.
@@ -45,6 +47,8 @@ func (s *Server) Stop(ctx context.Context) error
 - `Stop` is terminal and idempotent. It closes the listener, closes Pre-Bind Sessions, gracefully Unbinds Bound Sessions and forces remaining Sessions if the caller Context expires. It waits for internal teardown, not user callbacks.
 
 `WithBindValidator` is optional. If omitted, otherwise valid Binds with unique System IDs are accepted. Duplicate System IDs are rejected; an existing Session is never evicted to admit a duplicate.
+
+`AcceptDone()` closes after the listener's Accept loop exits. `AcceptErr()` reports its terminal listener failure, if any, after `AcceptDone()`; a normal Stop leaves it nil.
 
 ## Session
 
@@ -60,6 +64,7 @@ func (s *Session) State() SessionState
 func (s *Session) ProtocolVersion() ProtocolVersion
 func (s *Session) SystemID() string
 func (s *Session) RemoteAddr() net.Addr
+func (s *Session) Diagnostics() SessionDiagnostics
 ```
 
 ### Sending
@@ -76,6 +81,7 @@ func (s *Session) RemoteAddr() net.Addr
 - `Done` closes after transport loops, timers and internal Session state have been torn down and the terminal cause is immutable. It is not a user-callback join.
 - `Err` returns the terminal cause and is immutable after Done. A clean graceful Unbind may have a nil cause.
 - `State`, `ProtocolVersion`, `SystemID` and `RemoteAddr` expose Session state, selected wire version and peer identity/address.
+- `Diagnostics()` returns a typed `SessionDiagnostics` snapshot: `CallbackPanicDiagnostics` contains `First`, `Recent`, `OnClose`, `Dropped` and safe rendered `PanicRecord` values. It does not expose raw recovered graphs. The Recent text budget does not bound all heap memory.
 
 ## Public data and callback types
 
@@ -86,7 +92,7 @@ func (s *Session) RemoteAddr() net.Addr
 - `CompletionHandler`: `func(Response, error)`.
 - `OnBoundHandler`: `func(*Session)`.
 - `OnRequestHandler`: `func(*Session, Request)`.
-- `OnCloseHandler`: `func(*Session, error)`.
+- `OnCloseHandler`: `func(*Session, error)`. The feature's pre-admission OnClose credit is reserved for eligible Sessions; callbacks start after `Done`, but `Done` and owner Stop do not join arbitrary user callbacks.
 - `BindValidator`: `func(BindInfo) error`.
 
 See [Configuration](CONFIGURATION.md) for every Functional Option and its default/range, and [Lifecycle](LIFECYCLE.md) for callback, ownership, timeout and shutdown semantics.

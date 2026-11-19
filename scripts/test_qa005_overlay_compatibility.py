@@ -1,0 +1,106 @@
+"""No implied numerical gate: only exact source/effective adapter equivalence."""
+import copy
+import importlib.util
+import pathlib
+import unittest
+
+SCRIPT = pathlib.Path(__file__).with_name("qa005_overlay_compatibility.py")
+spec = importlib.util.spec_from_file_location("qa005_overlay_compatibility", SCRIPT)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+
+def fixture():
+    return {
+        "adapter_id": mod.ADAPTER_ID,
+        "qualification": "DIAGNOSTIC_ONLY",
+        "measurement_qualifies_retained_attributed_memory": False,
+        "source_tree_mutated": False,
+        "coverage_status": "PARTIAL_INCONCLUSIVE",
+        "covered_categories": [],
+        "observed_partial_categories": ["F1", "F2", "F3", "F4"],
+        "excluded_categories": ["metadata", "foreign graphs"],
+        "coverage_exclusions_detail": {"M1": "unknown"},
+        "sampler_interval_ms": 5,
+        "source_file_sha256": {k: "a"*64 for k in mod.SOURCE_FILES},
+        "effective_file_sha256": {k: "b"*64 for k in mod.SOURCE_FILES},
+        "source_fixture_sha256": "c"*64,
+        "effective_fixture_sha256": "d"*64,
+    }
+
+
+class OverlayCompatibilityTest(unittest.TestCase):
+    def test_identical_source_and_effective_contract_is_compatibility_only(self):
+        a = fixture()
+        status = mod.check_pair(a, copy.deepcopy(a))
+        self.assertEqual(status["source_effective_compatibility"], "PASS")
+        self.assertEqual(status["attributable_memory_qualification"], "INCONCLUSIVE")
+        self.assertEqual(status["performance_gate"], "DISABLED")
+
+    def test_rejects_original_source_and_effective_adapter_drift(self):
+        for field in ("source_fixture_sha256", "effective_fixture_sha256"):
+            with self.subTest(field=field):
+                a, b = fixture(), fixture()
+                b[field] = "e"*64
+                with self.assertRaisesRegex(ValueError, "mismatch"):
+                    mod.check_pair(a, b)
+        a, b = fixture(), fixture()
+        b["effective_file_sha256"]["session_control.go"] = "e"*64
+        with self.assertRaisesRegex(ValueError, "effective_file_sha256"):
+            mod.check_pair(a, b)
+
+    def test_rejects_empty_or_incomplete_coverage_claim(self):
+        for key, value in (("coverage_status", "COMPLETE"), ("covered_categories", ["F1"]),
+                           ("measurement_qualifies_retained_attributed_memory", True)):
+            with self.subTest(key=key):
+                a = fixture()
+                a[key] = value
+                with self.assertRaises(ValueError):
+                    mod.check_manifest(a, "baseline")
+
+    def test_rejects_missing_digests_unreviewed_version(self):
+        a = fixture()
+        del a["source_file_sha256"]["session.go"]
+        with self.assertRaisesRegex(ValueError, "file set"):
+            mod.check_manifest(a, "baseline")
+        b = fixture()
+        b["adapter_id"] = "V0"
+        with self.assertRaisesRegex(ValueError, "adapter version"):
+            mod.check_manifest(b, "candidate")
+
+
+    def test_worker_scheduler_original_and_effective_sha_are_mandatory(self):
+        self.assertIn("worker_scheduler.go", mod.SOURCE_FILES)
+        first, second = fixture(), fixture()
+        second["source_file_sha256"]["worker_scheduler.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "source_file_sha256"):
+            mod.check_pair(first, second)
+        first, second = fixture(), fixture()
+        second["effective_file_sha256"]["worker_scheduler.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "effective_file_sha256"):
+            mod.check_pair(first, second)
+        invalid = fixture()
+        del invalid["effective_file_sha256"]["worker_scheduler.go"]
+        with self.assertRaisesRegex(ValueError, "file set"):
+            mod.check_manifest(invalid, "candidate")
+
+
+    def test_client_connect_lifecycle_are_pinned_source_contract(self):
+        self.assertIn("client_connect.go", mod.SOURCE_FILES)
+        self.assertIn("client_lifecycle.go", mod.SOURCE_FILES)
+        a, b = fixture(), fixture()
+        b["source_file_sha256"]["client_connect.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "source_file_sha256"):
+            mod.check_pair(a, b)
+        a, b = fixture(), fixture()
+        b["effective_file_sha256"]["client_lifecycle.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "effective_file_sha256"):
+            mod.check_pair(a, b)
+        bad = fixture()
+        bad["source_file_sha256"].pop("client_connect.go")
+        with self.assertRaisesRegex(ValueError, "file set"):
+            mod.check_manifest(bad, "baseline")
+
+
+if __name__ == "__main__":
+    unittest.main()

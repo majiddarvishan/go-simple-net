@@ -35,6 +35,7 @@ const (
 
 type callbackTask struct {
 	session *Session
+	name    string
 	run     func()
 	cancel  func()
 }
@@ -122,8 +123,13 @@ type Session struct {
 	dispatcher sessionCallbackDispatcher
 	handlers   sessionHandlers
 
+	onCloseCredit          *onCloseEventCharge
+	onCloseAdmissionFailed bool
+
 	mu                        sync.Mutex
 	dispatchMu                sync.Mutex
+	panicMu                   sync.Mutex
+	panicLog                  callbackPanicStore
 	cond                      *sync.Cond
 	state                     SessionState
 	systemID                  string
@@ -176,6 +182,9 @@ type Session struct {
 	closing   chan struct{}
 	closeOnce sync.Once
 	wg        sync.WaitGroup
+
+	// Optional internal benchmark hook; nil on production Sessions.
+	deadlineSettlementObserver func(time.Time, time.Time)
 }
 
 func newSession(conn net.Conn, config sessionConfig, identity sessionIdentity, dispatcher sessionCallbackDispatcher, handlers sessionHandlers) *Session {
@@ -207,6 +216,13 @@ func newSessionWithResources(conn net.Conn, config sessionConfig, identity sessi
 	if conn != nil {
 		s.remoteAddr = conn.RemoteAddr()
 	}
+	if handlers.onClose != nil {
+		if resources.reserveOnCloseEvent() {
+			s.onCloseCredit = &onCloseEventCharge{owner: resources}
+		} else {
+			s.onCloseAdmissionFailed = true
+		}
+	}
 	s.cond = sync.NewCond(&s.mu)
 	if identity.role == sessionRoleClient || identity.role == sessionRoleServer {
 		// A zero bind type is a valid uni-directional Bind. Callers that create
@@ -224,6 +240,10 @@ func newBoundSessionWithResources(conn net.Conn, config sessionConfig, identity 
 		return nil
 	}
 	s := newSessionWithResources(conn, config, identity, dispatcher, handlers, resources)
+	if s.onCloseAdmissionFailed {
+		_ = conn.Close()
+		return nil
+	}
 	s.mu.Lock()
 	s.state = SessionStateBound
 	s.lastActivity = time.Now()
@@ -276,6 +296,10 @@ func newClientBindingSessionWithResources(
 		handlers,
 		resources,
 	)
+	if s.onCloseAdmissionFailed {
+		_ = conn.Close()
+		return nil, ErrCapacity
+	}
 	s.mu.Lock()
 	sequence := s.nextSequenceLocked()
 	// Update only the Sequence in the prevalidated, already-encoded Frame.
@@ -288,6 +312,7 @@ func newClientBindingSessionWithResources(
 	err = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, bindRequest: true})
 	s.mu.Unlock()
 	if err != nil {
+		s.onCloseCredit.release()
 		_ = conn.Close()
 		return nil, err
 	}
@@ -324,6 +349,9 @@ func newServerPreBindSessionUnstarted(conn net.Conn, config sessionConfig, accep
 		acceptedAt = time.Now()
 	}
 	s := newSessionWithResources(conn, config, sessionIdentity{role: sessionRoleServer}, dispatcher, handlers, resources)
+	if s.onCloseAdmissionFailed {
+		return nil, ErrCapacity
+	}
 	s.preBindDeadline = acceptedAt.Add(preBindTimeout)
 	return s, nil
 }
@@ -447,6 +475,7 @@ func (s *Session) markBound(systemID string, bindType wire.BindType) {
 	if s.handlers.onBound != nil {
 		task := callbackTask{
 			session: s,
+			name:    "OnBound",
 			run:     func() { s.handlers.onBound(s) },
 			cancel:  func() {},
 		}
@@ -465,6 +494,7 @@ func (s *Session) dispatchBound() {
 	}
 	task := callbackTask{
 		session: s,
+		name:    "OnBound",
 		run:     func() { s.handlers.onBound(s) },
 		cancel:  func() {},
 	}
@@ -485,7 +515,7 @@ func (s *Session) enqueueCallbackWithDispatchLock(class callbackClass, task call
 	s.mu.Lock()
 	forcedClose := s.state >= SessionStateClosing && s.closeForced
 	s.mu.Unlock()
-	if forcedClose && class != callbackOnClose {
+	if forcedClose && class == callbackApplication {
 		if task.cancel != nil {
 			task.cancel()
 		}
@@ -761,26 +791,22 @@ func (s *Session) beginClose(cause error, forced bool) {
 		s.closeForced = forced
 		close(s.closing)
 
-		var gracefulTasks []callbackTask
-		if forced {
-			for _, pending := range s.pending {
-				if !pending.settled {
-					pending.settled = true
-					s.releaseRequestCreditLocked(pending)
-				}
+		// Every locally accepted Request owns exactly one eventual Completion.
+		// Forced Close only cancels unstarted Application callbacks; it never
+		// cancels or releases Completion responsibility prematurely.
+		terminalErr := cause
+		if terminalErr == nil {
+			terminalErr = ErrClosed
+		}
+		var terminalTasks []callbackTask
+		for sequence, pending := range s.pending {
+			if pending.settled {
+				continue
 			}
-		} else {
-			terminalErr := cause
-			if terminalErr == nil {
-				terminalErr = ErrClosed
-			}
-			for sequence, pending := range s.pending {
-				if pending.settled {
-					continue
-				}
-				pending.settled = true
-				gracefulTasks = append(gracefulTasks, s.completionTaskLocked(sequence, pending, Response{Sequence: sequence}, terminalErr))
-			}
+			pending.settled = true
+			terminalTasks = append(terminalTasks, s.completionTaskLocked(
+				sequence, pending, Response{Sequence: sequence}, terminalErr,
+			))
 		}
 
 		for _, item := range s.appQueue {
@@ -814,10 +840,10 @@ func (s *Session) beginClose(cause error, forced bool) {
 		if conn != nil {
 			_ = conn.Close()
 		}
-		if forced && s.dispatcher != nil {
-			s.dispatcher.cancelUnstarted(s, callbackMaskApplication|callbackMaskCompletion)
+		if s.dispatcher != nil {
+			s.dispatcher.cancelUnstarted(s, callbackMaskApplication)
 		}
-		for _, task := range gracefulTasks {
+		for _, task := range terminalTasks {
 			s.enqueueCallbackWithDispatchLock(callbackCompletion, task)
 		}
 		s.dispatchMu.Unlock()
@@ -845,17 +871,19 @@ func (s *Session) finishClose() {
 		s.handlers.onDoneInternal(s, cause)
 	}
 	close(s.done)
-	if s.handlers.onClose != nil && s.resources != nil && s.resources.reserveOnCloseEvent() {
-		credit := &onCloseEventCharge{owner: s.resources}
+	if s.handlers.onClose != nil && s.onCloseCredit != nil {
+		// Reservation was made before this Session was admitted. Transfer
+		// the same credit to the post-Done callback; never re-reserve.
+		credit := s.onCloseCredit
 		task := callbackTask{
 			session: s,
+			name:    "OnClose",
 			run: func() {
 				defer credit.release()
 				s.handlers.onClose(s, cause)
 			},
 			cancel: credit.release,
 		}
-		// OnClose is best-effort and is eligible only after Done closes.
 		s.enqueueCallback(callbackOnClose, task)
 	}
 }

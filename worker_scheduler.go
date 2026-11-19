@@ -384,6 +384,25 @@ func (p *callbackWorkerPool) dispatchCandidate(queue *callbackSessionQueue) {
 		return
 	}
 
+	// An Application start claim is linearized against Closing by dispatchMu.
+	// The callback can begin physically after Close if its claim won.
+	if p.class == callbackApplication {
+		session.mu.Lock()
+		closing := session.state >= SessionStateClosing
+		session.mu.Unlock()
+		if closing {
+			cancelled := queue.drain()
+			p.cleanupSessionQueueLocked(queue)
+			p.mu.Unlock()
+			session.dispatchMu.Unlock()
+			for _, task := range cancelled {
+				if task.cancel != nil {
+					task.cancel()
+				}
+			}
+			return
+		}
+	}
 	task := queue.pop()
 	queue.active++
 	p.activeCallbacks++
@@ -394,7 +413,18 @@ func (p *callbackWorkerPool) dispatchCandidate(queue *callbackSessionQueue) {
 	session.dispatchMu.Unlock()
 
 	defer p.finishCallback(queue)
-	task.run()
+	name := task.name
+	if name == "" {
+		switch p.class {
+		case callbackApplication:
+			name = "Application"
+		case callbackCompletion:
+			name = "Completion"
+		case callbackOnClose:
+			name = "OnClose"
+		}
+	}
+	session.invokeUserCallback(name, task.run)
 }
 
 func (p *callbackWorkerPool) finishCallback(queue *callbackSessionQueue) {

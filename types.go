@@ -61,7 +61,8 @@ type BindInfo struct {
 }
 
 // CompletionHandler receives the terminal result of one accepted SendRequest.
-// A queued Completion callback may be cancelled if Forced Close wins before it starts.
+// Every admitted Request retains exactly one terminal Completion responsibility
+// across all forms of Close; callbacks can outlive Session.Done.
 type CompletionHandler func(Response, error)
 
 // OnBoundHandler receives a Session after its Bind has succeeded.
@@ -72,7 +73,8 @@ type OnBoundHandler func(*Session)
 type OnRequestHandler func(*Session, Request)
 
 // OnCloseHandler receives the terminal cause after Session.Done. Delivery is
-// best-effort and may be skipped when the owner's OnClose event budget is full.
+// backed by a credit reserved before Session admission and starts after Done.
+// A blocked OnClose can hold this owner credit indefinitely.
 type OnCloseHandler func(*Session, error)
 
 // BindValidator validates the peer identity and transport details before the

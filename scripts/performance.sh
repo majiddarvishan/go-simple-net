@@ -22,11 +22,11 @@ command -v "$GO_BIN" >/dev/null 2>&1 || {
 
 if [[ "$MODE" == "soak" || "$MODE" == "full" ]]; then
     if ! [[ "$SOAK_SECONDS" =~ ^[0-9]+$ ]]; then
-        echo "NETA_SOAK_SECONDS must be an integer between 300 and 600." >&2
+        echo "NETA_SOAK_SECONDS must be an integer between 300 and 1800." >&2
         exit 2
     fi
     SOAK_NUM=$((10#$SOAK_SECONDS))
-    if (( SOAK_NUM < 300 || SOAK_NUM > 600 )); then
+    if (( SOAK_NUM < 300 || SOAK_NUM > 1800 )); then
         echo "NETA_SOAK_SECONDS must be an integer between 300 and 600." >&2
         exit 2
     fi
