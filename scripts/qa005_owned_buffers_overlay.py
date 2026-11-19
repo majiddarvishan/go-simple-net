@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V12-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V13-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -351,6 +351,70 @@ def patch_transport(content):
 
 
 BENCHMARK_HELPERS = """
+// M1 Worker/Queue test-only read-only observation. Lock one owner worker
+// pool at a time and NEVER acquire Session.mu while holding the pool lock.
+// The queue struct itself is a neta-owned object while in p.sessions;
+// task backing capacity is retained even if q.head has advanced. cap(tasks)
+// (not queued task count) is the logical Go backing-array footprint.
+// Counting the allocator's size class, worker goroutine stack, callback
+// closure captures or application data is explicitly out of scope.
+// A queue, pool or backing start pointer unexpectedly shared between two
+// distinct ownership lanes is fail-closed instead of double counted.
+func qa005M1WorkerQueueSample(env *benchmarkEnv) (slotBytes, laneBytes, workers, lanes uint64, valid bool) {
+    if !qa005OwnedRegistryComplete(env) { return 0, 0, 0, 0, false }
+    seenPools := make(map[*callbackWorkerPool]struct{})
+    seenLanes := make(map[*callbackSessionQueue]struct{})
+    seenBacking := make(map[*callbackTask]struct{})
+    taskSize := uint64(unsafe.Sizeof(callbackTask{}))
+    laneSize := uint64(unsafe.Sizeof(callbackSessionQueue{}))
+    if taskSize == 0 || laneSize == 0 { return 0, 0, 0, 0, false }
+    measurePool := func(pool *callbackWorkerPool) bool {
+        if pool == nil { return true }
+        if _, duplicated := seenPools[pool]; duplicated { return true }
+        seenPools[pool] = struct{}{}
+        pool.mu.Lock()
+        defer pool.mu.Unlock()
+        nextWorkers, ok := checkedAddUint64(workers, uint64(pool.workerCount))
+        if !ok { return false }
+        workers = nextWorkers
+        for session, queue := range pool.sessions {
+            if session == nil || queue == nil || queue.session != session ||
+                queue.head < 0 || queue.head > len(queue.tasks) { return false }
+            if _, duplicated := seenLanes[queue]; duplicated { return false }
+            seenLanes[queue] = struct{}{}
+            nextLanes, ok := checkedAddUint64(lanes, 1)
+            if !ok { return false }
+            lanes = nextLanes
+            nextLaneBytes, ok := checkedAddUint64(laneBytes, laneSize)
+            if !ok { return false }
+            laneBytes = nextLaneBytes
+            if cap(queue.tasks) == 0 { continue }
+            backing := unsafe.SliceData(queue.tasks)
+            if backing == nil { return false }
+            if _, duplicated := seenBacking[backing]; duplicated { return false }
+            seenBacking[backing] = struct{}{}
+            capacity := uint64(cap(queue.tasks))
+            if capacity > ^uint64(0)/taskSize { return false }
+            nextSlots, ok := checkedAddUint64(slotBytes, capacity*taskSize)
+            if !ok { return false }
+            slotBytes = nextSlots
+        }
+        return true
+    }
+    measureOwner := func(owner *ownerCallbackDispatcher) bool {
+        return owner == nil ||
+            (measurePool(owner.application) && measurePool(owner.completion) &&
+                measurePool(owner.onClose))
+    }
+    if !measureOwner(env.server.callbacks) { return 0, 0, 0, 0, false }
+    for _, client := range env.clients {
+        if client == nil || !measureOwner(client.callbacks) {
+            return 0, 0, 0, 0, false
+        }
+    }
+    return slotBytes, laneBytes, workers, lanes, true
+}
+
 // M1 per-Session identity count is independent of observed F1-F5 backing
 // bytes. Pending map removal is not object-lifetime release: active Completion
 // closures may retain objects after Session.Done and map reset.
@@ -1140,6 +1204,75 @@ func TestQA005OwnedOverlayM1PendingStructFootprint(t *testing.T) {
     if !valid || !ok || bytes != 0 { t.Fatal("logical object bytes survived Completion release") }
 }
 
+
+// A queue retains the *capacity* of the callbackTask backing slice while
+// head advances. Shared owner and duplicate Client entries are counted once.
+// Queue struct survives even with zero queued tasks while callback is active.
+// Cross-queue shared backing aliases are rejected (not summed twice).
+func TestQA005OwnedOverlayM1WorkerQueueBackingLifetime(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    pool := newCallbackWorkerPool(callbackApplication, 0, time.Hour)
+    tasks := make([]callbackTask, 4, 8)
+    lane := &callbackSessionQueue{session:s, tasks:tasks, head:3, active:1}
+    pool.sessions[s] = lane
+    owner := &ownerCallbackDispatcher{application:pool}
+    server := &Server{sessions:map[*Session]struct{}{s:{}}, callbacks:owner}
+    client := &Client{callbacks:owner} // same pool, NOT a second allocation
+    env := &benchmarkEnv{server:server, clients:[]*Client{client,client}}
+    qa005ResetOwnedHighwaters(env)
+    slotSize := uint64(unsafe.Sizeof(callbackTask{}))
+    laneSize := uint64(unsafe.Sizeof(callbackSessionQueue{}))
+    slots, structB, workers, lanes, valid := qa005M1WorkerQueueSample(env)
+    if !valid || slots != 8*slotSize || structB != laneSize || lanes != 1 || workers != 0 {
+        t.Fatalf("queue backing, owner alias or head count wrong: slots=%d laneBytes=%d lanes=%d workers=%d valid=%v",
+            slots,structB,lanes,workers,valid)
+    }
+    // The actual library's callbackTask.pop clears q.tasks when all tasks
+    // have been claimed, but the Session lane remains while a callback runs.
+    pool.mu.Lock()
+    lane.tasks = nil
+    lane.head = 0
+    pool.mu.Unlock()
+    slots, structB, _, lanes, valid = qa005M1WorkerQueueSample(env)
+    if !valid || slots != 0 || structB != laneSize || lanes != 1 {
+        t.Fatalf("active worker lane should retain queue struct, not slots: slots=%d lane=%d count=%d valid=%v",slots,structB,lanes,valid)
+    }
+    pool.mu.Lock()
+    delete(pool.sessions,s) // last callback finished: cleanupSessionQueueLocked
+    pool.mu.Unlock()
+    slots, structB, _, lanes, valid = qa005M1WorkerQueueSample(env)
+    if !valid || slots != 0 || structB != 0 || lanes != 0 {
+        t.Fatalf("removed lane still attributed: slots=%d struct=%d lanes=%d valid=%v",slots,structB,lanes,valid)
+    }
+    // Restore and inject conflicting ownership for exactly one backing array.
+    pool.mu.Lock()
+    lane.tasks = tasks
+    lane.head = 1
+    pool.sessions[s] = lane
+    pool.mu.Unlock()
+    completion := newCallbackWorkerPool(callbackCompletion, 0, time.Hour)
+    alias := &callbackSessionQueue{session:s,tasks:tasks}
+    completion.sessions[s] = alias
+    owner.completion = completion
+    if _,_,_,_,valid := qa005M1WorkerQueueSample(env); valid {
+        t.Fatal("shared task backing across two owner queues must fail closed")
+    }
+    completion.mu.Lock()
+    delete(completion.sessions,s)
+    completion.mu.Unlock()
+    slots, structB, _, lanes, valid = qa005M1WorkerQueueSample(env)
+    if !valid || slots != 8*slotSize || structB != laneSize || lanes != 1 {
+        t.Fatal("removing alias must restore unique ownership")
+    }
+    // A corrupt head is not safe to use for memory qualification.
+    pool.mu.Lock()
+    lane.head = len(lane.tasks)+1
+    pool.mu.Unlock()
+    if _,_,_,_,valid := qa005M1WorkerQueueSample(env); valid {
+        t.Fatal("corrupt queue head accepted")
+    }
+}
+
 """
 
 
@@ -1186,6 +1319,9 @@ def patch_benchmark(content):
         "    d1StackPeak uint64\n    d1StackSamples uint64\n"
         "    m1PendingPeak uint64\n    m1PendingSamples uint64\n"
         "    m1PendingStructPeak uint64\n"
+        "    m1WorkerSlotPeak uint64\n    m1WorkerLaneBytesPeak uint64\n"
+        "    m1WorkerLaneCountPeak uint64\n    m1WorkerCountPeak uint64\n"
+        "    m1WorkerQueueSamples uint64\n"
         "    ownedLastSampleAt time.Time\n"
         "    ownedMaxSampleGap time.Duration\n"
         "    ownedMaxSnapshotDuration time.Duration\n",
@@ -1203,16 +1339,22 @@ def patch_benchmark(content):
         "        d1Text, d1OK := qa005D1StackTextSample(env)\n"
         "        pendingCount, pendingOK := qa005M1PendingCount(env)\n"
         "        pendingStructBytes, pendingStructOK := qa005M1PendingStructFootprint(pendingCount)\n"
+        "        workerSlotB, workerLaneB, workers, lanes, workerOK := qa005M1WorkerQueueSample(env)\n"
         "        snapshotDuration := time.Since(sampleStartedAt)\n"
         "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
-        "        if !valid || !d1OK || !pendingOK || !pendingStructOK { p.invalid = true; return }\n"
+        "        if !valid || !d1OK || !pendingOK || !pendingStructOK || !workerOK { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
         "        p.ownedSamples++\n"
         "        if d1Text > p.d1StackPeak { p.d1StackPeak = d1Text }\n"
         "        p.d1StackSamples++\n"
         "        if pendingCount > p.m1PendingPeak { p.m1PendingPeak = pendingCount }\n"
         "        p.m1PendingSamples++\n"
-        "        if pendingStructBytes > p.m1PendingStructPeak { p.m1PendingStructPeak = pendingStructBytes }\n",
+        "        if pendingStructBytes > p.m1PendingStructPeak { p.m1PendingStructPeak = pendingStructBytes }\n"
+        "        if workerSlotB > p.m1WorkerSlotPeak { p.m1WorkerSlotPeak = workerSlotB }\n"
+        "        if workerLaneB > p.m1WorkerLaneBytesPeak { p.m1WorkerLaneBytesPeak = workerLaneB }\n"
+        "        if lanes > p.m1WorkerLaneCountPeak { p.m1WorkerLaneCountPeak = lanes }\n"
+        "        if workers > p.m1WorkerCountPeak { p.m1WorkerCountPeak = workers }\n"
+        "        p.m1WorkerQueueSamples++\n",
         "sample observation")
     patched = replace_once(
         patched, "            case <-p.stop: observe(); return",
@@ -1229,6 +1371,11 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.m1PendingPeak), "probe-m1-pending-object-peak-count")\n'
         '    b.ReportMetric(float64(p.m1PendingStructPeak), "probe-m1-pending-struct-logical-peak-B")\n'
         '    b.ReportMetric(float64(p.m1PendingSamples), "probe-m1-pending-samples")\n'
+        '    b.ReportMetric(float64(p.m1WorkerSlotPeak), "probe-m1-worker-task-slots-logical-peak-B")\n'
+        '    b.ReportMetric(float64(p.m1WorkerLaneBytesPeak), "probe-m1-worker-queue-struct-logical-peak-B")\n'
+        '    b.ReportMetric(float64(p.m1WorkerLaneCountPeak), "probe-m1-worker-queue-peak-count")\n'
+        '    b.ReportMetric(float64(p.m1WorkerCountPeak), "probe-m1-worker-live-peak-count")\n'
+        '    b.ReportMetric(float64(p.m1WorkerQueueSamples), "probe-m1-worker-queue-samples")\n'
         '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
         '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
         '    b.ReportMetric(float64(p.ownedMaxSnapshotDuration.Nanoseconds()), "probe-owned-max-snapshot-ns")\n',
@@ -1280,7 +1427,8 @@ def prepare(source, output):
                                         "F3-inbound-response-body", "F4-outbound-control",
                                         "F5-unreserved-inbound-body",
                                         "D1-owned-panic-stack-text-only",
-                                        "M1-pending-object-identity-only"],
+                                        "M1-pending-object-identity-only",
+                                        "M1-worker-queue-struct-and-task-slice-logical-only"],
         "coverage_status": "PARTIAL_INCONCLUSIVE",
         "coverage_exclusions_detail": {
             "F1": "pre-Queue build observed; allocator overhead/foreign refs excluded",
@@ -1288,7 +1436,7 @@ def prepare(source, output):
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
-            "M1": "accepted pendingRequest identity count and unsafe.Sizeof(pendingRequest) logical struct footprint ONLY; map buckets, closure/foreign graphs, runtime allocator padding and other M1 unmeasured",
+            "M1": "pendingRequest static struct logical bytes; worker queue lane struct and task slice capacity × Go slot-size under per-pool mutex, deduplicated; NOT allocator sizes, map buckets, closures, goroutine stacks, client-generation completeness or whole M1",
             "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
@@ -1307,6 +1455,8 @@ def prepare(source, output):
         "observes_d1_unique_stack_text_only": True,
         "observes_m1_pending_object_identity_count_not_bytes": True,
         "m1_pending_struct_logical_footprint_is_not_allocator_bytes": True,
+        "m1_worker_queue_observation_dedups_pools_lanes_and_backing": True,
+        "m1_worker_queue_sizes_are_logical_not_allocator_bytes": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

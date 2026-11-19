@@ -208,5 +208,22 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn('ReportMetric(float64(p.m1PendingStructPeak), "retained-attributed-B")', benchmark)
 
 
+    def test_worker_queue_capacity_dedup_observer_is_logical_only(self):
+        h = mod.BENCHMARK_HELPERS
+        self.assertIn("func qa005M1WorkerQueueSample(env *benchmarkEnv)",h)
+        self.assertIn("pool.mu.Lock()", h)
+        self.assertIn("seenPools := make(map[*callbackWorkerPool]struct{})",h)
+        self.assertIn("seenLanes := make(map[*callbackSessionQueue]struct{})",h)
+        self.assertIn("seenBacking := make(map[*callbackTask]struct{})",h)
+        self.assertIn("unsafe.SliceData(queue.tasks)",h)
+        self.assertIn("capacity*taskSize",h)
+        self.assertIn("TestQA005OwnedOverlayM1WorkerQueueBackingLifetime",h)
+        patched = mod.patch_benchmark((SCRIPT.parent.parent / "benchmark_test.go").read_text())
+        self.assertIn("probe-m1-worker-task-slots-logical-peak-B",patched)
+        self.assertIn("probe-m1-worker-queue-struct-logical-peak-B",patched)
+        self.assertNotIn('ReportMetric(float64(p.m1WorkerSlotPeak), "retained-attributed-B")',patched)
+        self.assertIn('"m1_worker_queue_sizes_are_logical_not_allocator_bytes": True',SCRIPT.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
