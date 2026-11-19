@@ -16,7 +16,7 @@ func TestConfigDefaultJSONCLIAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.MessageEngines) != 2 || cfg.Routes["east"] != "me-east-01" {
+	if len(cfg.Peers) != 2 || cfg.Routes["east"] != "peer-east-01" {
 		t.Fatalf("unexpected default routing: %+v", cfg)
 	}
 	name := filepath.Join(t.TempDir(), "server.json")
@@ -44,11 +44,11 @@ func TestConfigRejectsUnsafeOrUnroutableMEs(t *testing.T) {
 		name string
 		edit func(*demoConfig)
 	}{
-		{"duplicate bind", func(c *demoConfig) { c.MessageEngines[1].BindSystemID = c.MessageEngines[0].BindSystemID }},
-		{"duplicate ME", func(c *demoConfig) { c.MessageEngines[1].ID = c.MessageEngines[0].ID }},
-		{"unknown route", func(c *demoConfig) { c.Routes["east"] = "not-a-me" }},
-		{"invalid route", func(c *demoConfig) { c.Routes["east west"] = "me-east-01" }},
-		{"overlong bind", func(c *demoConfig) { c.MessageEngines[0].BindSystemID = "this-exceeds-20-bytes-me" }},
+		{"duplicate bind", func(c *demoConfig) { c.Peers[1].BindSystemID = c.Peers[0].BindSystemID }},
+		{"duplicate peer", func(c *demoConfig) { c.Peers[1].ID = c.Peers[0].ID }},
+		{"unknown route", func(c *demoConfig) { c.Routes["east"] = "not-a-peer" }},
+		{"invalid route", func(c *demoConfig) { c.Routes["east west"] = "peer-east-01" }},
+		{"overlong bind", func(c *demoConfig) { c.Peers[0].BindSystemID = "this-exceeds-20-bytes-peer" }},
 		{"too few slots", func(c *demoConfig) { c.MaxBoundSessions = 1 }},
 		{"zero dispatch", func(c *demoConfig) { c.MaxInflight = 0 }},
 		{"bad request timeout", func(c *demoConfig) { c.RequestTimeout = "0s" }},
@@ -65,12 +65,15 @@ func TestConfigRejectsUnsafeOrUnroutableMEs(t *testing.T) {
 	}
 }
 
-func connectTestME(t *testing.T, addr, bindID string) *neta.Client {
+func connectTestPeer(t *testing.T, addr, bindID string) *neta.Client {
 	t.Helper()
 	client, err := neta.NewClient(
 		neta.WithClientAddress(addr),
 		neta.WithClientSystemID(bindID),
 		neta.WithClientBindType(neta.BindTypeBiDirectional),
+		neta.WithClientOnRequestHandler(func(s *neta.Session, request neta.Request) {
+			_ = s.SendResponse(request.Sequence, append([]byte("ack:"), request.Payload...), 0)
+		}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +91,7 @@ func connectTestME(t *testing.T, addr, bindID string) *neta.Client {
 	return client
 }
 
-func waitMEOnline(t *testing.T, registry *meRegistry, route string) *neta.Session {
+func waitPeerOnline(t *testing.T, registry *peerRegistry, route string) *neta.Session {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -97,16 +100,16 @@ func waitMEOnline(t *testing.T, registry *meRegistry, route string) *neta.Sessio
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("route %q did not get a Bound ME Session", route)
+	t.Fatalf("route %q did not get a Bound peer Session", route)
 	return nil
 }
 
-func TestTwoMEsBoundAndRoutedWithoutFallback(t *testing.T) {
+func TestTwoPeersBoundAndRoutedWithoutFallback(t *testing.T) {
 	cfg := defaults()
 	cfg.ListenAddress = "127.0.0.1:0"
 	cfg.RequestTimeout = "250ms"
 	cfg.MaxInflight = 1
-	registry := newMERegistry(cfg)
+	registry := newPeerRegistry(cfg)
 	srv, err := buildServer(cfg, registry)
 	if err != nil {
 		t.Fatal(err)
@@ -120,68 +123,76 @@ func TestTwoMEsBoundAndRoutedWithoutFallback(t *testing.T) {
 		_ = srv.Stop(ctx)
 	})
 	addr := srv.Addr().String()
-	a := connectTestME(t, addr, "me-east")
-	_ = connectTestME(t, addr, "me-west")
-	east := waitMEOnline(t, registry, "east")
-	west := waitMEOnline(t, registry, "west")
+	a := connectTestPeer(t, addr, "peer-east")
+	_ = connectTestPeer(t, addr, "peer-west")
+	east := waitPeerOnline(t, registry, "east")
+	west := waitPeerOnline(t, registry, "west")
 	if east == west {
-		t.Fatal("two ME routes selected the same Session")
+		t.Fatal("two peer routes selected the same Session")
 	}
 	if _, _, err := registry.lookup("missing"); !errors.Is(err, errUnknownRoute) {
 		t.Fatalf("missing route: got %v", err)
 	}
 	if len(registry.peers()) != 2 {
-		t.Fatal("registry must list both known MEs")
+		t.Fatal("registry must list both known peers")
 	}
 
-	completion := make(chan error, 1)
-	meID, seq, err := registry.dispatch("east", []byte("from-smpp-internal-router"), func(_ neta.Response, e error) {
-		completion <- e
+	completion := make(chan struct {
+		response neta.Response
+		err error
+	}, 1)
+	release := make(chan struct{})
+	peerID, seq, err := registry.dispatch("east", []byte("from-peer-router"), func(response neta.Response, resultErr error) {
+		defer func() { <-release }()
+		completion <- struct {
+			response neta.Response
+			err error
+		}{response, resultErr}
 	})
-	if err != nil || seq == 0 || meID != "me-east-01" {
-		t.Fatalf("dispatch got me=%q seq=%d err=%v", meID, seq, err)
+	if err != nil || seq == 0 || peerID != "peer-east-01" {
+		t.Fatalf("dispatch got peer=%q seq=%d err=%v", peerID, seq, err)
 	}
-	// Client-side inbound Request delivery is NOT available in current
-	// neta-go public API. Thus success means local admission only; the
-	// completion must time out rather than invent an application ACK.
+	// The first Completion retains the bounded global in-flight credit until
+	// the application callback returns; another route must not bypass it.
 	if _, _, err := registry.dispatch("west", []byte("second"), func(neta.Response, error) {}); !errors.Is(err, errDispatchBusy) {
 		t.Fatalf("bounded inflight: got %v", err)
 	}
 	select {
 	case got := <-completion:
-		if !errors.Is(got, neta.ErrRequestTimeout) {
-			t.Fatalf("unexpected completion: %v", got)
+		if got.err != nil || got.response.Sequence != seq || string(got.response.Payload) != "ack:from-peer-router" {
+			t.Fatalf("unexpected bidirectional Completion: %+v", got)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("timed-out unhandled Request was not settled")
+		t.Fatal("bidirectional Request did not receive its Response")
 	}
+	close(release)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	_ = a.Stop(ctx)
 	cancel()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, _, err := registry.lookup("east"); errors.Is(err, errMEOffline) {
+		if _, _, err := registry.lookup("east"); errors.Is(err, errPeerOffline) {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if _, _, err := registry.lookup("east"); !errors.Is(err, errMEOffline) {
+	if _, _, err := registry.lookup("east"); !errors.Is(err, errPeerOffline) {
 		t.Fatalf("offline route must fail closed, got %v", err)
 	}
 	if _, _, err := registry.lookup("west"); err != nil {
-		t.Fatalf("unrelated ME must remain available: %v", err)
+		t.Fatalf("unrelated peer must remain available: %v", err)
 	}
 }
 
-func TestBindRejectsUnknownAndUnidirectionalMEs(t *testing.T) {
-	registry := newMERegistry(defaults())
+func TestBindRejectsUnknownAndUnidirectionalPeers(t *testing.T) {
+	registry := newPeerRegistry(defaults())
 	if err := registry.validateBind(neta.BindInfo{SystemID: "unknown", BindType: uint8(neta.BindTypeBiDirectional)}); err == nil {
 		t.Fatal("unknown identity accepted")
 	}
-	if err := registry.validateBind(neta.BindInfo{SystemID: "me-east", BindType: uint8(neta.BindTypeUniDirectional)}); err == nil {
-		t.Fatal("unidirectional ME accepted")
+	if err := registry.validateBind(neta.BindInfo{SystemID: "peer-east", BindType: uint8(neta.BindTypeUniDirectional)}); err == nil {
+		t.Fatal("unidirectional peer accepted")
 	}
-	if err := registry.validateBind(neta.BindInfo{SystemID: "me-east", BindType: uint8(neta.BindTypeBiDirectional)}); err != nil {
+	if err := registry.validateBind(neta.BindInfo{SystemID: "peer-east", BindType: uint8(neta.BindTypeBiDirectional)}); err != nil {
 		t.Fatal(err)
 	}
 }
