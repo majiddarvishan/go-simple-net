@@ -2,6 +2,8 @@
 
 **Status: approved Go/toolchain and CI-tested platform baseline (2026-11-17).**
 
+**Latest merged-main CI (2026-11-19):** [Go 44547311083](https://github.com/majiddarvishan/neta-go/actions/runs/44547311083) PASS on SHA `fb57668e182dc102f94044393b3d8f2a33aeddae`. The original 2026-11-17 toolchain/platform evidence below remains a dated baseline; this does not expand supported GOOS/GOARCH or authorize a release.
+
 ## Verified evidence
 
 | Dimension | Verified evidence |

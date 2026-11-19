@@ -72,12 +72,14 @@ Generated logs and profiles live in ignored `artifacts/` directories.
 
 ## Documentation
 
+- [Documentation index and current status](docs/README.md)
 - [Public API](docs/API.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Lifecycle and callbacks](docs/LIFECYCLE.md)
 - [Wire protocol](docs/PROTOCOL.md)
 - [Go and platform support](docs/SUPPORT.md)
-- [Release readiness](docs/RELEASE_READINESS.md)
+- [Performance qualification methodology](docs/PERFORMANCE_QUALIFICATION.md)
+- [Release readiness and pending approval gates](docs/RELEASE_READINESS.md)
 - [Changelog](CHANGELOG.md)
 - [Implementation tasks](.codex/TASKS.md)
 
