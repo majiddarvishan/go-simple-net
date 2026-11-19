@@ -150,6 +150,7 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient", transport)
         self.assertIn("qa005SubtractOwnedLocked(s, &s.qa005OwnedInboundTransient", transport)
         self.assertIn("qa005TransientBodyBytes: qa005TransientBodyBytes", transport)
+        self.assertIn("s.mu.Lock()\\n\\t\\t\\tqa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient", transport)
         self.assertIn("TestQA005OwnedOverlayTransientInboundBindLifecycle", mod.BENCHMARK_HELPERS)
         self.assertIn('"F5-unreserved-inbound-body"', SCRIPT.read_text())
         self.assertNotIn("qa005TransientBodyBytes", (source / "session_internal.go").read_text())

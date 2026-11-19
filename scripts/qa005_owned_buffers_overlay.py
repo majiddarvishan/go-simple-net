@@ -273,7 +273,9 @@ def patch_transport(content):
         "\t\t\ts.mu.Unlock()\n"
         "\t\t} else {\n"
         "\t\t\tqa005TransientBodyBytes = uint64(cap(body))\n"
+        "\t\t\ts.mu.Lock()\n"
         "\t\t\tqa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient, qa005TransientBodyBytes)\n"
+        "\t\t\ts.mu.Unlock()\n"
         "\t\t}\n"
         "\t\tif _, err := io.ReadFull(s.conn, body);",
         "inbound body allocation")
