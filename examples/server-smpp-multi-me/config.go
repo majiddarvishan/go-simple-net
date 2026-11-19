@@ -16,25 +16,25 @@ type engineConfig struct {
 }
 
 type demoConfig struct {
-	ListenAddress     string            `json:"listen_address"`
-	ProtocolVersion   string            `json:"protocol_version"`
-	PreBindTimeout    string            `json:"pre_bind_handshake_timeout"`
-	FrameTimeout      string            `json:"frame_assembly_timeout"`
-	WriteTimeout      string            `json:"write_timeout"`
-	RequestTimeout    string            `json:"request_timeout"`
-	MaxBoundSessions  uint32            `json:"max_bound_sessions"`
-	MaxPendingPreBind uint32            `json:"max_pending_pre_bind_sessions"`
-	ApplicationWorkers uint32           `json:"application_workers"`
-	CompletionWorkers uint32            `json:"completion_workers"`
-	OnCloseWorkers    uint32            `json:"on_close_workers"`
-	OnCloseCredits    uint32            `json:"on_close_event_credits"`
-	QueueBytes        uint64            `json:"aggregate_queued_application_bytes"`
-	QueueFrames       uint32            `json:"aggregate_queued_application_frames"`
-	AppConcurrency    uint32            `json:"application_callback_concurrency"`
-	MaxIncomingFrames uint32            `json:"max_incoming_application_frames"`
-	MaxInflight       uint32            `json:"max_inflight_dispatches"`
-	MessageEngines    []engineConfig    `json:"message_engines"`
-	Routes            map[string]string `json:"routes"`
+	ListenAddress      string            `json:"listen_address"`
+	ProtocolVersion    string            `json:"protocol_version"`
+	PreBindTimeout     string            `json:"pre_bind_handshake_timeout"`
+	FrameTimeout       string            `json:"frame_assembly_timeout"`
+	WriteTimeout       string            `json:"write_timeout"`
+	RequestTimeout     string            `json:"request_timeout"`
+	MaxBoundSessions   uint32            `json:"max_bound_sessions"`
+	MaxPendingPreBind  uint32            `json:"max_pending_pre_bind_sessions"`
+	ApplicationWorkers uint32            `json:"application_workers"`
+	CompletionWorkers  uint32            `json:"completion_workers"`
+	OnCloseWorkers     uint32            `json:"on_close_workers"`
+	OnCloseCredits     uint32            `json:"on_close_event_credits"`
+	QueueBytes         uint64            `json:"aggregate_queued_application_bytes"`
+	QueueFrames        uint32            `json:"aggregate_queued_application_frames"`
+	AppConcurrency     uint32            `json:"application_callback_concurrency"`
+	MaxIncomingFrames  uint32            `json:"max_incoming_application_frames"`
+	MaxInflight        uint32            `json:"max_inflight_dispatches"`
+	MessageEngines     []engineConfig    `json:"message_engines"`
+	Routes             map[string]string `json:"routes"`
 }
 
 func defaults() demoConfig {
