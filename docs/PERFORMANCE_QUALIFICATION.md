@@ -1,6 +1,8 @@
 # QA-004 / QA-005 — performance qualification protocol
 
-**Status:** instrumentation and comparison tooling implemented; no reference environment or mandatory performance gate approved. GitHub-hosted results are advisory only.
+**Current qualification status (reviewed 2026-11-20):** implementation and comparison tooling are on protected `main` after [PR #24](https://github.com/majiddarvishan/neta-go/pull/24), but **QA-004 / QA-005 and MEM-004/005/006 remain OPEN**. The automatic [Performance Benchmarks 44547311004](https://github.com/majiddarvishan/neta-go/actions/runs/44547311004) workflow passed on merged `main` SHA `fb57668e182dc102f94044393b3d8f2a33aeddae` as **hosted advisory evidence only**. No owner-approved reference machine, accepted cross-version matched comparisons, attributable retained-memory metric, absolute SLA or mandatory Performance Gate exists. The Gate remains **DISABLED**. See [current release readiness](RELEASE_READINESS.md) for the owner/publication gates.
+
+**Historical measurement notes below:** these dated A/A, partial overlay and Source-V1 experiments are preserved as their own evidence; they must not be mistaken for a new post-merge qualified run.
 
 **Worktree cleanup finding:** Owner follow-up `git status --short --ignored` on the detached source checkout showed only `?? scripts/__pycache__/`. The offline Python `importlib` stats validator had generated untracked bytecode in that worktree. Commit `68c861233a280cac3929c0d3db85e9d10dbe94cf` disables writing bytecode in future local reference captures; this does not alter the pinned benchmark source SHA, collected metric values or qualification status. Old temporary cache cleanup remains a local action, not performed by this repository edit.
 
