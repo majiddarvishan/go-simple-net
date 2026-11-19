@@ -31,7 +31,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("client-diagnostics", flag.ContinueOnError)
 	addr := fs.String("addr", "127.0.0.1:2775", "paired server-diagnostics TCP address")
 	id := fs.String("system-id", "neta-diagnostics", "Bind SystemID")
-	mode := fs.String("mode", "ok", "ok, timeout, or panic (panic is opt-in)")
+	mode := fs.String("mode", "ok", "ok, timeout, panic or server-panic (panics are opt-in)")
 	timeout := fs.Duration("timeout", 2*time.Second, "RequestTimeout, must be positive")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -43,9 +43,9 @@ func run(args []string) error {
 		return fmt.Errorf("-timeout must be between 1ns and 1m")
 	}
 	switch *mode {
-	case "ok", "timeout", "panic":
+	case "ok", "timeout", "panic", "server-panic":
 	default:
-		return fmt.Errorf("-mode must be ok, timeout or panic")
+		return fmt.Errorf("-mode must be ok, timeout, panic or server-panic")
 	}
 	rootCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
@@ -91,6 +91,9 @@ func run(args []string) error {
 	payload := []byte("diagnostics:echo")
 	if *mode == "timeout" {
 		payload = []byte("no-response:demo")
+	}
+	if *mode == "server-panic" {
+		payload = []byte("panic:demo")
 	}
 	resultCh := make(chan completionResult, 1)
 	seq, err := session.SendRequest(payload, func(r neta.Response, completionErr error) {
@@ -138,6 +141,10 @@ func run(args []string) error {
 	case result := <-resultCh:
 		if result.err != nil {
 			log.Printf("Completion sequence=%d error=%v", seq, result.err)
+			if *mode == "server-panic" {
+				log.Printf("expected peer callback panic terminated transport; the peer Session owns the panic record")
+				return nil
+			}
 			if *mode != "timeout" || !errors.Is(result.err, neta.ErrRequestTimeout) {
 				return fmt.Errorf("unexpected Completion error: %w", result.err)
 			}
@@ -146,6 +153,9 @@ func run(args []string) error {
 		}
 		if *mode == "timeout" {
 			return fmt.Errorf("timeout mode received Response; paired server must use -drop-timeout-demo=true")
+		}
+		if *mode == "server-panic" {
+			return fmt.Errorf("server-panic unexpectedly returned a Response; pair with -panic-on-request=true")
 		}
 		if result.response.Sequence != seq || result.response.Status != 0 {
 			return fmt.Errorf("Completion: mismatched sequence/status %d/%d", result.response.Sequence, result.response.Status)
