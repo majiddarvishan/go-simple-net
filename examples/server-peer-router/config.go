@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type engineConfig struct {
+type peerConfig struct {
 	ID           string `json:"id"`
 	BindSystemID string `json:"bind_system_id"`
 }
@@ -33,7 +33,7 @@ type demoConfig struct {
 	AppConcurrency     uint32            `json:"application_callback_concurrency"`
 	MaxIncomingFrames  uint32            `json:"max_incoming_application_frames"`
 	MaxInflight        uint32            `json:"max_inflight_dispatches"`
-	MessageEngines     []engineConfig    `json:"message_engines"`
+	Peers              []peerConfig      `json:"peers"`
 	Routes             map[string]string `json:"routes"`
 }
 
@@ -56,11 +56,11 @@ func defaults() demoConfig {
 		AppConcurrency:     2,
 		MaxIncomingFrames:  64,
 		MaxInflight:        16,
-		MessageEngines: []engineConfig{
-			{ID: "me-east-01", BindSystemID: "me-east"},
-			{ID: "me-west-01", BindSystemID: "me-west"},
+		Peers: []peerConfig{
+			{ID: "peer-east-01", BindSystemID: "peer-east"},
+			{ID: "peer-west-01", BindSystemID: "peer-west"},
 		},
-		Routes: map[string]string{"east": "me-east-01", "west": "me-west-01"},
+		Routes: map[string]string{"east": "peer-east-01", "west": "peer-west-01"},
 	}
 }
 
@@ -92,10 +92,10 @@ func loadJSON(path string, cfg *demoConfig) error {
 // CLI explicitly set flags override JSON, which overrides library-style defaults.
 func parseConfig(args []string) (demoConfig, error) {
 	cfg := defaults()
-	fs := flag.NewFlagSet("server-smpp-multi-me", flag.ContinueOnError)
+	fs := flag.NewFlagSet("server-peer-router", flag.ContinueOnError)
 	configPath := fs.String("config", "", "optional strict JSON configuration")
 	listen := fs.String("listen", "", "internal neta TCP listen address")
-	maxBound := fs.Uint("max-bound", 0, "max simultaneous ME Sessions")
+	maxBound := fs.Uint("max-bound", 0, "max simultaneous peer Sessions")
 	appWorkers := fs.Uint("app-workers", 0, "owner-wide Application workers")
 	appConcurrency := fs.Uint("app-concurrency", 0, "per-Session Application callbacks")
 	queueFrames := fs.Uint("queue-frames", 0, "aggregate queued Application frames")
@@ -189,9 +189,9 @@ func validateConfig(cfg demoConfig) error {
 		cfg.MaxInflight == 0 || cfg.MaxInflight > 65536 {
 		return fmt.Errorf("capacity or worker setting outside documented bounds")
 	}
-	if len(cfg.MessageEngines) == 0 || len(cfg.MessageEngines) > 512 ||
-		uint32(len(cfg.MessageEngines)) > cfg.MaxBoundSessions {
-		return fmt.Errorf("message_engines must fit max_bound_sessions (1..512 configured)")
+	if len(cfg.Peers) == 0 || len(cfg.Peers) > 512 ||
+		uint32(len(cfg.Peers)) > cfg.MaxBoundSessions {
+		return fmt.Errorf("peers must fit max_bound_sessions (1..512 configured)")
 	}
 	knownIDs := make(map[string]bool)
 	knownBinds := make(map[string]bool)
@@ -199,22 +199,22 @@ func validateConfig(cfg demoConfig) error {
 	if cfg.ProtocolVersion == "v1" {
 		maxBindID = 19
 	}
-	for _, me := range cfg.MessageEngines {
-		if !validLabel(me.ID, 64) || !validLabel(me.BindSystemID, maxBindID) {
-			return fmt.Errorf("ME identifiers must be ASCII labels; bind ID max %d bytes", maxBindID)
+	for _, peer := range cfg.Peers {
+		if !validLabel(peer.ID, 64) || !validLabel(peer.BindSystemID, maxBindID) {
+			return fmt.Errorf("peer identifiers must be ASCII labels; bind ID max %d bytes", maxBindID)
 		}
-		if knownIDs[me.ID] || knownBinds[me.BindSystemID] {
-			return fmt.Errorf("duplicate ME ID or Bind SystemID in configuration")
+		if knownIDs[peer.ID] || knownBinds[peer.BindSystemID] {
+			return fmt.Errorf("duplicate peer ID or Bind SystemID in configuration")
 		}
-		knownIDs[me.ID] = true
-		knownBinds[me.BindSystemID] = true
+		knownIDs[peer.ID] = true
+		knownBinds[peer.BindSystemID] = true
 	}
 	if len(cfg.Routes) == 0 || len(cfg.Routes) > 1024 {
 		return fmt.Errorf("routes must contain 1..1024 exact keys")
 	}
 	for key, id := range cfg.Routes {
 		if !validLabel(key, 64) || !knownIDs[id] {
-			return fmt.Errorf("route %q references invalid or unknown ME %q", key, id)
+			return fmt.Errorf("route %q references invalid or unknown peer %q", key, id)
 		}
 	}
 	return nil

@@ -19,6 +19,7 @@ Options are applied before final validation. The resulting configuration is immu
 | `WithBindResponseTimeout` | 30s | Positive duration; absolute Bind handshake deadline |
 | `WithAutoReconnect` | false | Explicit opt-in |
 | `WithClientOnBoundHandler` | nil | Optional Bound-generation callback |
+| `WithClientOnRequestHandler` | nil | Handles inbound peer Stream Requests on a bidirectional Client Session; nil drains/ignores; non-nil is incompatible with `BindTypeUniDirectional` |
 | `WithClientOnCloseHandler` | nil | Optional best-effort OnClose callback |
 | `WithClientSessionOptions` | Session defaults | Applies copied Session options to every Client generation |
 | `WithClientApplicationWorkers` | GOMAXPROCS-derived | 1..512 active Application workers per Client |

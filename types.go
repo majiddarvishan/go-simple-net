@@ -29,7 +29,7 @@ const (
 	ProtocolVersionV2 ProtocolVersion = 2
 )
 
-// Request is an inbound Application Request delivered to a Server handler.
+// Request is an inbound Application Request delivered to a Client or Server handler.
 // Payload is an owned snapshot and may be retained after the handler returns.
 type Request struct {
 	// Sequence is the peer-assigned Stream Request sequence.

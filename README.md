@@ -8,6 +8,7 @@ It provides Client, Server and Session APIs without requiring applications to ma
 
 - TCP Client and Server with a Bind handshake, graceful Unbind and explicit Close.
 - Request/Response and one-way messages using raw byte payloads.
+- Bidirectional Sessions with Client and Server inbound Request callbacks (`WithClientOnRequestHandler` / `WithServerOnRequestHandler`).
 - Nonblocking queue admission with configurable Session and owner resource budgets.
 - Separate bounded Application, Completion and OnClose callback workers.
 - Optional Client reconnect without automatic message replay.
@@ -58,7 +59,7 @@ See the [wire protocol reference](docs/PROTOCOL.md) for the full Frame structure
 
 The [example guide](examples/README.md) covers CLI/JSON configuration, concurrent Client/Server workloads, reconnect, explicit V1 and Diagnostics.
 
-For the SMSC internal listener with several connected Message Engines, see the [multi-ME Server routing example](examples/server-smpp-multi-me/README.md); the current Client API still lacks an inbound Request callback, so this is not yet a complete bidirectional business flow.
+For multiple connected peers and application-selected routing, see the [generic peer-router Server example](examples/server-peer-router/README.md) and [paired bidirectional Client](examples/client-peer-router/main.go). Both Client and Server can now handle and respond to inbound Requests.
 
 ## Development
 

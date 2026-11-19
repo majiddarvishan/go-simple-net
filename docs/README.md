@@ -9,7 +9,7 @@ Use this directory for the **current public contracts** and release/qualificatio
 - [Configuration and defaults](CONFIGURATION.md) — typed Functional Options, worker, timeout and resource limits
 - [Lifecycle, ownership, callback and error semantics](LIFECYCLE.md) — including the merged QA-007 behavior
 - [Wire protocol and V1/V2 Bind](PROTOCOL.md) — fixed Header, version differences and limits
-- [Runnable Client/Server examples (13 commands)](../examples/README.md) — CLI, JSON, concurrency, reconnect, V1 and diagnostics
+- [Runnable Client/Server examples (14 commands)](../examples/README.md) — CLI, JSON, concurrency, reconnect, V1 and diagnostics
 - [Toolchain and platform support](SUPPORT.md) — verified versus unverified targets
 
 ## Qualification and release
@@ -18,7 +18,7 @@ Use this directory for the **current public contracts** and release/qualificatio
 - [Performance qualification method and historical evidence](PERFORMANCE_QUALIFICATION.md) — QA-004 P99, QA-005 Core/Full matrix, A/A versus cross-version comparisons, retained-memory exclusions and sampling requirements.
 - [Unreleased changelog](../CHANGELOG.md) — draft release notes; owner approval of the current wording is separate from any release authorization.
 
-**At the 2026-11-20 documentation review:** Development is merged via [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) (16/16 Phase-D tasks done; one additive internal SMSC Server example is tracked separately); **QA-007 is implemented/merged**, while QA-004/005 and MEM-004/005/006 reference qualification are still open; the mandatory Performance Gate is **DISABLED** and `v1.0.0` is **not authorized** for publication. Check [Release readiness](RELEASE_READINESS.md) for the actual evidence and remaining preflight.
+**At the 2026-11-20 documentation review:** Development is merged via [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) (16/16 Phase-D tasks done; two generic bidirectional peer-router examples added separately); **QA-007 is implemented/merged**, while QA-004/005 and MEM-004/005/006 reference qualification are still open; the mandatory Performance Gate is **DISABLED** and `v1.0.0` is **not authorized** for publication. Check [Release readiness](RELEASE_READINESS.md) for the actual evidence and remaining preflight.
 
 ## Engineering records (dated snapshots)
 

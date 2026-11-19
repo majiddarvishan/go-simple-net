@@ -31,6 +31,8 @@ func (c *Client) Stop(ctx context.Context) error
 - `CurrentSession` returns only the active Bound generation. It returns `(nil, false)` while disconnected, connecting, unbinding or stopped.
 - `Stop` is terminal and idempotent. It cancels Connect/reconnect, gracefully Unbinds the current Bound Session and waits for internal teardown. It does not join arbitrary user callbacks.
 - Automatic reconnect is disabled by default. When enabled, the Client uses the approved bounded Full-Jitter policy and never replays or resends an accepted Request.
+- `WithClientOnRequestHandler(handler)` enables delivery of peer-originated Stream Requests to a bidirectional Client Session. Respond with `session.SendResponse(request.Sequence, payload, status)` using the supplied sequence. The handler uses the same bounded Application callback lane and ownership rules as the Server handler. A nil handler preserves the previous ignore/drain behavior. Combining a non-nil handler with `BindTypeUniDirectional` is rejected as invalid configuration.
+- Requests and Responses may flow in both directions concurrently over a bidirectional Session; each side tracks its own outgoing Request sequences. A successful `SendRequest` or `SendResponse` admission is **not** a remote business acknowledgement.
 
 ## Server
 
@@ -86,7 +88,7 @@ func (s *Session) Diagnostics() SessionDiagnostics
 ## Public data and callback types
 
 - `BindType`: `BindTypeUniDirectional` or `BindTypeBiDirectional`. A uni-directional Client is requester-only: it sends Stream Requests, ignores incoming peer Requests and rejects `SendResponse` with `ErrProtocol`.
-- `Request`: inbound Sequence and owned Payload delivered to a Server OnRequest handler.
+- `Request`: inbound Sequence and owned Payload delivered to a Server or bidirectional Client OnRequest handler.
 - `Response`: matching Sequence, raw Status and owned Payload delivered to a Completion handler.
 - `BindInfo`: peer SystemID, raw BindType and RemoteAddr supplied to BindValidator.
 - `CompletionHandler`: `func(Response, error)`.

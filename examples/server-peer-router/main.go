@@ -1,6 +1,6 @@
-// Command server-smpp-multi-me demonstrates a config-driven neta-go
-// listener with bounded concurrency and routing to multiple ME Sessions.
-// This is internal TCP + opaque application payload, NOT the SMPP protocol.
+// Command server-peer-router demonstrates a config-driven neta-go
+// listener with bounded concurrency and routing to multiple peer Sessions.
+// It is independent of any particular application protocol.
 package main
 
 import (
@@ -17,7 +17,7 @@ import (
 	neta "github.com/majiddarvishan/neta-go"
 )
 
-func buildServer(cfg demoConfig, registry *meRegistry) (*neta.Server, error) {
+func buildServer(cfg demoConfig, registry *peerRegistry) (*neta.Server, error) {
 	preBind, _ := time.ParseDuration(cfg.PreBindTimeout)
 	frameTimeout, _ := time.ParseDuration(cfg.FrameTimeout)
 	writeTimeout, _ := time.ParseDuration(cfg.WriteTimeout)
@@ -48,15 +48,15 @@ func buildServer(cfg demoConfig, registry *meRegistry) (*neta.Server, error) {
 		neta.WithBindValidator(registry.validateBind),
 		neta.WithServerOnBoundHandler(func(s *neta.Session) {
 			registry.onBound(s)
-			log.Printf("ME Bound: bind_id=%q protocol=%d", s.SystemID(), s.ProtocolVersion())
+			log.Printf("peer Bound: bind_id=%q protocol=%d", s.SystemID(), s.ProtocolVersion())
 		}),
 		neta.WithServerOnCloseHandler(func(s *neta.Session, cause error) {
 			registry.onClose(s)
-			log.Printf("ME Closed: bind_id=%q cause=%v", s.SystemID(), cause)
+			log.Printf("peer Closed: bind_id=%q cause=%v", s.SystemID(), cause)
 		}),
 		neta.WithServerOnRequestHandler(func(s *neta.Session, r neta.Request) {
 			// An echo keeps the existing example Client usable for a demo.
-			// Real SMSC handlers must use the approved application Protobuf,
+			// Real application handlers must use the approved application Protobuf,
 			// durable outcomes, bounded handoff and business correlation IDs.
 			if bytes.HasPrefix(r.Payload, []byte("event:")) {
 				return
@@ -69,7 +69,7 @@ func buildServer(cfg demoConfig, registry *meRegistry) (*neta.Server, error) {
 	return neta.NewServer(options...)
 }
 
-func consoleCommands(ctx context.Context, registry *meRegistry) {
+func consoleCommands(ctx context.Context, registry *peerRegistry) {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 1024), 64<<10)
 	log.Printf("demo commands: list | send <route-key> <text> | help; Ctrl-C to stop")
@@ -83,8 +83,8 @@ func consoleCommands(ctx context.Context, registry *meRegistry) {
 			continue
 		}
 		if line == "list" {
-			for _, me := range registry.peers() {
-				log.Printf("ME id=%s bind=%s online=%t", me.MEID, me.SystemID, me.Online)
+			for _, peer := range registry.peers() {
+				log.Printf("peer id=%s bind=%s online=%t", peer.PeerID, peer.SystemID, peer.Online)
 			}
 			continue
 		}
@@ -95,15 +95,15 @@ func consoleCommands(ctx context.Context, registry *meRegistry) {
 			}
 			continue
 		}
-		meID, seq, err := registry.dispatch(parts[1], []byte(parts[2]), func(resp neta.Response, completionErr error) {
+		peerID, seq, err := registry.dispatch(parts[1], []byte(parts[2]), func(resp neta.Response, completionErr error) {
 			log.Printf("outbound completion: response_seq=%d status=%d err=%v (not a business ACK)",
 				resp.Sequence, resp.Status, completionErr)
 		})
 		if err != nil {
-			log.Printf("route=%q me=%q not admitted: %v", parts[1], meID, err)
+			log.Printf("route=%q peer=%q not admitted: %v", parts[1], peerID, err)
 		} else {
-			log.Printf("route=%q me=%q sequence=%d locally admitted (not delivered/processed)",
-				parts[1], meID, seq)
+			log.Printf("route=%q peer=%q sequence=%d locally admitted (not delivered/processed)",
+				parts[1], peerID, seq)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -116,7 +116,7 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	registry := newMERegistry(cfg)
+	registry := newPeerRegistry(cfg)
 	srv, err := buildServer(cfg, registry)
 	if err != nil {
 		return fmt.Errorf("NewServer: %w", err)
@@ -131,7 +131,7 @@ func run(ctx context.Context, args []string) error {
 			log.Printf("Server.Stop: %v", err)
 		}
 	}()
-	log.Printf("internal neta listener=%s configured_MEs=%d routes=%d", srv.Addr(), len(cfg.MessageEngines), len(cfg.Routes))
+	log.Printf("internal neta listener=%s configured_peers=%d routes=%d", srv.Addr(), len(cfg.Peers), len(cfg.Routes))
 	go consoleCommands(ctx, registry)
 	select {
 	case <-ctx.Done():

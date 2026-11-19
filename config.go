@@ -112,6 +112,7 @@ type clientConfig struct {
 	bindResponseTimeout time.Duration
 	autoReconnect       bool
 	onBound             OnBoundHandler
+	onRequest           OnRequestHandler
 	onClose             OnCloseHandler
 	session             sessionConfig
 	owner               ownerConfig
@@ -351,6 +352,9 @@ func validateClientConfig(c clientConfig) error {
 	}
 	if c.bindType != BindTypeUniDirectional && c.bindType != BindTypeBiDirectional {
 		return newConfigError("bind_type", fmt.Sprint(c.bindType), "must be a supported BindType")
+	}
+	if c.bindType == BindTypeUniDirectional && c.onRequest != nil {
+		return newConfigError("on_request_handler", "configured", "requires BindTypeBiDirectional")
 	}
 	if c.connectTimeout <= 0 {
 		return newConfigError("connect_timeout", c.connectTimeout.String(), "must be a positive duration")

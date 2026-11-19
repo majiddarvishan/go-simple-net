@@ -72,6 +72,17 @@ func WithClientOnBoundHandler(handler OnBoundHandler) ClientOption {
 	return ClientOption{apply: func(c *clientConfig) { c.onBound = handler }}
 }
 
+// WithClientOnRequestHandler sets the callback for peer-originated Stream
+// Requests received on a bidirectional Client Session. The same bounded
+// Application callback workers, per-Session concurrency and payload-ownership
+// rules used by Server OnRequest apply. A nil handler disables delivery.
+//
+// WithClientBindType(BindTypeUniDirectional) cannot be combined with a
+// non-nil handler because that Bind makes the Client requester-only.
+func WithClientOnRequestHandler(handler OnRequestHandler) ClientOption {
+	return ClientOption{apply: func(c *clientConfig) { c.onRequest = handler }}
+}
+
 // WithClientOnCloseHandler configures an OnClose callback after Session Done.
 // Eligible Session admission is rejected if no owner OnClose credit is free.
 func WithClientOnCloseHandler(handler OnCloseHandler) ClientOption {

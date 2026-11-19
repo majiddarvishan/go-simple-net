@@ -16,18 +16,18 @@
   "application_callback_concurrency": 2,
   "max_incoming_application_frames": 64,
   "max_inflight_dispatches": 16,
-  "message_engines": [
+  "peers": [
     {
-      "id": "me-east-01",
-      "bind_system_id": "me-east"
+      "id": "peer-east-01",
+      "bind_system_id": "peer-east"
     },
     {
-      "id": "me-west-01",
-      "bind_system_id": "me-west"
+      "id": "peer-west-01",
+      "bind_system_id": "peer-west"
     }
   ],
   "routes": {
-    "east": "me-east-01",
-    "west": "me-west-01"
+    "east": "peer-east-01",
+    "west": "peer-west-01"
   }
 }
