@@ -56,6 +56,8 @@ A default V2 Server accepts V1 or V2 Bind requests and replies using the detecte
 
 See the [wire protocol reference](docs/PROTOCOL.md) for the full Frame structure, commands, boundaries and version semantics.
 
+The [twelve-example guide](examples/README.md) covers CLI/JSON configuration, concurrent Client/Server workloads, reconnect, explicit V1 and Diagnostics.
+
 ## Development
 
 ```bash
