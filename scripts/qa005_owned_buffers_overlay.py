@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V15-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V16-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -1316,6 +1316,67 @@ func TestQA005OwnedOverlayM1WorkerStructFootprint(t *testing.T) {
     if !ok || workerCount != 2 { t.Fatalf("duplicate owner count=%d valid=%v",workerCount,ok) }
     measured,ok := qa005M1WorkerStructFootprint(workerCount)
     if !ok || measured != 2*unit { t.Fatal("logical worker bytes double counted") }
+}
+
+
+// Verify the actual worker_scheduler implementation, not only synthetic
+// queue structs. A running callback holds the only worker; the next queued
+// callback owns real task-slice storage. Both lane+backing disappear after
+// callback completion, and the worker retires after its idle grace.
+func TestQA005OwnedOverlayM1RealWorkerQueueLifecycle(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    pool := newCallbackWorkerPool(callbackApplication, 1, 25*time.Millisecond)
+    owner := &ownerCallbackDispatcher{application:pool}
+    env := &benchmarkEnv{server:&Server{
+        sessions:map[*Session]struct{}{s:{}},callbacks:owner,
+    }}
+    qa005ResetOwnedHighwaters(env)
+    started := make(chan struct{})
+    release := make(chan struct{})
+    done := make(chan struct{})
+    defer func() {
+        select { case <-release: default: close(release) }
+    }()
+    if !pool.enqueue(callbackTask{session:s,run:func(){close(started); <-release}}) {
+        t.Fatal("worker initial enqueue rejected")
+    }
+    select {
+    case <-started:
+    case <-time.After(3*time.Second): t.Fatal("worker failed to start callback")
+    }
+    if !pool.enqueue(callbackTask{session:s,run:func(){close(done)}}) {
+        t.Fatal("worker queued callback rejected")
+    }
+    slots, queueBytes, live, lanes, valid := qa005M1WorkerQueueSample(env)
+    if !valid || slots < uint64(unsafe.Sizeof(callbackTask{})) ||
+        queueBytes != uint64(unsafe.Sizeof(callbackSessionQueue{})) || live!=1 || lanes!=1 {
+        t.Fatalf("blocked worker queue not retained: slots=%d queue=%d workers=%d lanes=%d valid=%v",
+            slots,queueBytes,live,lanes,valid)
+    }
+    close(release)
+    select {
+    case <-done:
+    case <-time.After(3*time.Second): t.Fatal("queued callback remained stranded")
+    }
+    deadline := time.Now().Add(3*time.Second)
+    for {
+        slots,queueBytes,_,lanes,valid = qa005M1WorkerQueueSample(env)
+        if !valid { t.Fatal("worker queue snapshot invalid after completion") }
+        if slots==0 && queueBytes==0 && lanes==0 { break }
+        if time.Now().After(deadline) {
+            t.Fatalf("lane/backing retained after completion slots=%d queue=%d lanes=%d",slots,queueBytes,lanes)
+        }
+        time.Sleep(time.Millisecond)
+    }
+    for {
+        _,_,live,_,valid = qa005M1WorkerQueueSample(env)
+        if !valid { t.Fatal("worker snapshot invalid while retiring") }
+        if live==0 { break }
+        if time.Now().After(deadline) {
+            t.Fatalf("idle worker did not retire: count=%d",live)
+        }
+        time.Sleep(time.Millisecond)
+    }
 }
 
 """

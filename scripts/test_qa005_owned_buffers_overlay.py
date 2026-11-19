@@ -242,5 +242,13 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn('"m1_worker_struct_footprint_excludes_stacks_channels_allocator": True',SCRIPT.read_text())
 
 
+    def test_real_worker_queue_lifetime_uses_scheduler_not_synthetic_only(self):
+        self.assertIn("TestQA005OwnedOverlayM1RealWorkerQueueLifecycle",mod.BENCHMARK_HELPERS)
+        self.assertIn("newCallbackWorkerPool(callbackApplication, 1, 25*time.Millisecond)",mod.BENCHMARK_HELPERS)
+        self.assertIn("slots==0 && queueBytes==0 && lanes==0",mod.BENCHMARK_HELPERS)
+        self.assertIn("if live==0 { break }",mod.BENCHMARK_HELPERS)
+        self.assertIn("worker_scheduler.go",SCRIPT.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
