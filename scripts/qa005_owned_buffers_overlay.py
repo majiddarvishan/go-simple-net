@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V5-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V6-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -734,12 +734,23 @@ def patch_benchmark(content):
         "reset Session HWMs at traffic start")
     patched = replace_once(
         patched, "    samples uint64\n    invalid bool\n",
-        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n",
+        "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n"
+        "    ownedLastSampleAt time.Time\n"
+        "    ownedMaxSampleGap time.Duration\n"
+        "    ownedMaxSnapshotDuration time.Duration\n",
         "sampler state")
     patched = replace_once(
         patched, "        p.samples++\n",
         "        p.samples++\n"
+        "        sampleStartedAt := time.Now()\n"
+        "        if !p.ownedLastSampleAt.IsZero() {\n"
+        "            gap := sampleStartedAt.Sub(p.ownedLastSampleAt)\n"
+        "            if gap > p.ownedMaxSampleGap { p.ownedMaxSampleGap = gap }\n"
+        "        }\n"
+        "        p.ownedLastSampleAt = sampleStartedAt\n"
         "        owned, valid := qa005SampleOwnedBuffers(env)\n"
+        "        snapshotDuration := time.Since(sampleStartedAt)\n"
+        "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
         "        if !valid { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
         "        p.ownedSamples++\n",
@@ -754,7 +765,9 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n'
         '    b.ReportMetric(float64(p.ownedPeak), "probe-owned-buffer-peak-B")\n'
         '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
-        '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n',
+        '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
+        '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
+        '    b.ReportMetric(float64(p.ownedMaxSnapshotDuration.Nanoseconds()), "probe-owned-max-snapshot-ns")\n',
         "owned reporting")
     return patched.rstrip() + "\n" + BENCHMARK_HELPERS
 
@@ -813,6 +826,8 @@ def prepare(source, output):
                                 "application-references", "unclassified-frame-bodies"],
         "primary_metric": "probe-owned-buffer-peak-B",
         "sampler_interval_ms": 5,
+        "sampler_max_gap_policy": "NOT_APPROVED_DIAGNOSTIC_ONLY",
+        "snapshot_duration_metric": "probe-owned-max-snapshot-ns",
         "source_tree_mutated": False,
         "tracks_pre_enqueue_allocated_F1": True,
         "tracks_prequeue_registered_F4_unbind_enquire": True,

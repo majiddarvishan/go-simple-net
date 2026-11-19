@@ -115,6 +115,15 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn('"observed_partial_categories"', SCRIPT.read_text())
         self.assertNotIn('b.ReportMetric(float64(p.ownedPeak), "retained-attributed-B")', mod.BENCHMARK_HELPERS)
 
+    def test_gap_and_snapshot_cost_are_diagnostic_only(self):
+        source = (SCRIPT.parent.parent / "benchmark_test.go").read_text()
+        patched = mod.patch_benchmark(source)
+        self.assertIn('probe-owned-max-sample-gap-ns', patched)
+        self.assertIn('probe-owned-max-snapshot-ns', patched)
+        self.assertIn('ownedLastSampleAt time.Time', patched)
+        self.assertIn('sampleStartedAt.Sub(p.ownedLastSampleAt)', patched)
+        self.assertNotIn('ReportMetric(float64(p.ownedPeak), "retained-attributed-B")', patched)
+
 
 if __name__ == "__main__":
     unittest.main()
