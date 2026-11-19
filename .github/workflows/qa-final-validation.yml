@@ -169,6 +169,113 @@ jobs:
           python3 -B scripts/qa005_owned_buffers_overlay.py --source "$ANCHOR_DIR" --output "$RUNNER_TEMP/qa005-owned-anchor" 2>&1 | tee artifacts/qa-final/perf/owned-anchor-manifest.log
           python3 -B scripts/qa005_overlay_compatibility.py --baseline "$RUNNER_TEMP/qa005-owned-anchor/manifest.json" --candidate "$RUNNER_TEMP/qa005-owned-buffer-probe/manifest.json" 2>&1 | tee artifacts/qa-final/perf/owned-buffer-compatibility-result.json
           (cd "$ANCHOR_DIR" && go test -overlay "$RUNNER_TEMP/qa005-owned-anchor/overlay.json" -run TestQA005OwnedOverlay -race -count=1 -timeout=3m) 2>&1 | tee artifacts/qa-final/perf/owned-anchor-go-race.log
+      # Three modes on one checkout/source and one exact scenario, structural feasibility only.
+      - name: QA-005 instrumentation A/A three-mode feasibility (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p test_qa005_overhead_advisory.py 2>&1 | tee artifacts/qa-final/perf/overhead-preview-unit-tests.log
+          SELECTOR='^BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+
+          LOGDIR=artifacts/qa-final/perf
+          NETA_QA005_MEMORY_PROBE=0 go test -run '^
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+ -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-source.log"
+          NETA_QA005_MEMORY_PROBE=0 go test -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" -run '^
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+ -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-overlay-off.log"
+          NETA_QA005_MEMORY_PROBE=1 go test -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" -run '^
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+ -bench "$SELECTOR" -benchtime=25x -count=1 -benchmem -cpu=4 -timeout=3m 2>&1 | tee "$LOGDIR/overhead-overlay-on.log"
+          python3 -B scripts/qa005_overhead_advisory.py --source "$LOGDIR/overhead-source.log" --overlay-off "$LOGDIR/overhead-overlay-off.log" --overlay-on "$LOGDIR/overhead-overlay-on.log" --manifest "$RUNNER_TEMP/qa005-owned-buffer-probe/manifest.json" --source-sha "$GITHUB_SHA" --go-version "$(go version)" --benchtime 25x --output "$LOGDIR/overhead-preview.json"
       - name: Declare advisory qualification limitations
         if: always()
         run: |
