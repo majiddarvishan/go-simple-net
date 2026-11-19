@@ -1,6 +1,6 @@
 # QA-005 MEM-004 M1/D1 — source-grounded ownership-scope audit
 Date: 2026-11-19
-Status: DESIGN / COVERAGE AUDIT ONLY — NO NEW OWNER POLICY APPROVED
+Status: DESIGN / COVERAGE AUDIT; OWNER APPROVED SCOPE OPTION B ON 2026-11-19 — NOT A QUALIFIED BYTE METRIC
 Branch: feature/qa004-qa005-qa007-implementation-2026-11-18
 Immutable Source-V1: 9b7b2318f73d173a99d22489042f84f8ce58b745
 Latest verified owned-buffer adapter: QA005-OWNED-BUFFER-OVERLAY-V9-UNQUALIFIED
@@ -10,8 +10,7 @@ Latest verified owned-buffer adapter: QA005-OWNED-BUFFER-OVERLAY-V9-UNQUALIFIED
 The owner approved MEM-001 Option B: Hybrid Ownership Accounting. The V9
 test-only adapter verifies F1–F5 buffer backing responsibility and per-Session
 counter consistency; it **does not** have proof of actual neta-owned M1/D1
-metadata bytes. This audit is not an instrumentation authorization, a full
-coverage declaration, an absolute SLA or permission to enable a gate.
+metadata bytes. The owner subsequently approved incremental **test-only** M1/D1 attribution under Option B; this audit is NOT a full coverage declaration, an absolute SLA or permission to enable a gate.
 
 **Do not** use policy reservations, sizeof(map/slice header), `len(map)`,
 `cap(slice)`, callback-credit ceilings or Go process heap/RSS as a substitute
@@ -80,7 +79,7 @@ These are **proposals only**, not decisions:
 
 - A — Keep M1/D1 excluded. Least overhead and robust partial diagnostic,
   but cannot claim full retained-attributed library memory.
-- B — Incrementally instrument only provably neta-allocated M1 structures
+- **B — APPROVED**: Incrementally instrument only provably neta-allocated M1 structures
   and D1 rendered record storage with alias-dedup and ownership transitions;
   keep foreign raw graphs / Go runtime storage excluded and coverage
   INCONCLUSIVE until the final metric contract is approved.
@@ -88,8 +87,11 @@ These are **proposals only**, not decisions:
   complexity and perturbation; likely conflicts with low overhead and
   source-only comparison unless independently authorized.
 
-**Technical recommendation: B as a future reviewed scope**, with A as the
-safe immediate status. No new scope is selected in this document.
+**Owner selected Option B (2026-11-19)**: incrementally prove neta-created
+structural M1 and internally rendered D1 ownership, dedup aliases and
+validate lifetimes via versioned test-only overlays; external raw graphs,
+runtime overhead and unsupported byte estimates stay excluded. See
+DECISION_LOG §77. Incomplete coverage remains PARTIAL_INCONCLUSIVE.
 
 ## Provenance
 
