@@ -46,6 +46,8 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005RegisterControlLocked", mod.SESSION_HELPERS)
         self.assertIn("qa005DiscardControlBeforeQueueLocked", mod.SESSION_HELPERS)
         self.assertIn("TestQA005OwnedOverlayPreQueueControlTransferAndReject", mod.BENCHMARK_HELPERS)
+        self.assertIn("TestQA005OwnedOverlayDeduplicatesSessionIdentity", mod.BENCHMARK_HELPERS)
+        self.assertIn("seen := make(map[*Session]struct{}", mod.BENCHMARK_HELPERS)
         self.assertIn("qa005OwnedRegistryComplete", mod.BENCHMARK_HELPERS)
         self.assertIn("TestQA005OwnedOverlayFrozenRegistry", mod.BENCHMARK_HELPERS)
         self.assertIn("else if !item.qa005Observed", patched)
@@ -106,6 +108,12 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005DiscardControlBeforeQueueLocked(s, item)", control)
         self.assertIn("session_control.go", mod.SOURCE_FILES)
         self.assertNotIn('retained-attributed-B")', session)
+
+    def test_partial_manifest_is_fail_closed(self):
+        self.assertIn('"covered_categories": []', SCRIPT.read_text())
+        self.assertIn('"coverage_status": "PARTIAL_INCONCLUSIVE"', SCRIPT.read_text())
+        self.assertIn('"observed_partial_categories"', SCRIPT.read_text())
+        self.assertNotIn('b.ReportMetric(float64(p.ownedPeak), "retained-attributed-B")', mod.BENCHMARK_HELPERS)
 
 
 if __name__ == "__main__":

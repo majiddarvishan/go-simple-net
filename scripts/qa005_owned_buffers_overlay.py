@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V4-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V5-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -279,9 +279,21 @@ func qa005OwnedSessions(env *benchmarkEnv) []*Session {
     if env.qa005OwnedRegistry != nil { return env.qa005OwnedRegistry }
     env.server.mu.Lock()
     sessions := make([]*Session, 0, len(env.server.sessions)+len(env.sessions))
-    for session := range env.server.sessions { sessions = append(sessions, session) }
+    seen := make(map[*Session]struct{}, len(env.server.sessions)+len(env.sessions))
+    for session := range env.server.sessions {
+        if _, exists := seen[session]; !exists {
+            seen[session] = struct{}{}
+            sessions = append(sessions, session)
+        }
+    }
     env.server.mu.Unlock()
-    return append(sessions, env.sessions...)
+    for _, session := range env.sessions {
+        if _, exists := seen[session]; !exists {
+            seen[session] = struct{}{}
+            sessions = append(sessions, session)
+        }
+    }
+    return sessions
 }
 
 // Reset each Session HWM at the start of the measured traffic window.
@@ -301,7 +313,10 @@ func qa005ResetOwnedHighwaters(env *benchmarkEnv) {
 
 // A Session removed from the Server's current map may still own callback bodies.
 func qa005OwnedRegistryComplete(env *benchmarkEnv) bool {
-    if env.qa005OwnedRegistry == nil { return false }
+    if len(env.qa005OwnedRegistry) == 0 { return false }
+    for _, session := range env.qa005OwnedRegistry {
+        if session == nil { return false }
+    }
     env.server.mu.Lock()
     defer env.server.mu.Unlock()
     for session := range env.server.sessions {
@@ -675,6 +690,32 @@ func TestQA005OwnedOverlayPreQueueControlTransferAndReject(t *testing.T) {
     s.mu.Unlock()
 }
 
+
+// A Session reachable from both a Server set and an env slice is the same
+// backing object, not two allocations; the snapshot must count it only once.
+func TestQA005OwnedOverlayDeduplicatesSessionIdentity(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server := &Server{sessions: make(map[*Session]struct{})}
+    server.sessions[s] = struct{}{}
+    env := &benchmarkEnv{server: server, sessions: []*Session{s, s}}
+    qa005ResetOwnedHighwaters(env)
+    if len(env.qa005OwnedRegistry) != 1 || !qa005OwnedRegistryComplete(env) {
+        t.Fatal("duplicate Session identity not removed from observer registry")
+    }
+    s.mu.Lock()
+    qa005AddOwnedLocked(s, &s.qa005OwnedOutgoingApp, 31)
+    s.mu.Unlock()
+    observed, valid := qa005SampleOwnedBuffers(env)
+    upper, upperValid := qa005OwnedPeakUpper(env)
+    if !valid || !upperValid || observed != 31 || upper != 31 {
+        t.Fatalf("same owned object counted multiple times: sampled=%d valid=%v upper=%d upperValid=%v", observed,valid,upper,upperValid)
+    }
+    s.mu.Lock()
+    qa005SubtractOwnedLocked(s, &s.qa005OwnedOutgoingApp, 31)
+    if s.qa005OwnedFault || s.qa005OwnedTotal != 0 { s.mu.Unlock(); t.Fatal("duplicate identity release fault") }
+    s.mu.Unlock()
+}
+
 """
 
 
@@ -755,8 +796,18 @@ def prepare(source, output):
         "source_file_sha256": original_sha,
         "effective_file_sha256": effective_sha,
         "measurement_qualifies_retained_attributed_memory": False,
-        "covered_categories": ["F1-outbound-app", "F2-inbound-request-body",
-                               "F3-inbound-response-body", "F4-outbound-control"],
+        "covered_categories": [],
+        "observed_partial_categories": ["F1-outbound-app", "F2-inbound-request-body",
+                                        "F3-inbound-response-body", "F4-outbound-control"],
+        "coverage_status": "PARTIAL_INCONCLUSIVE",
+        "coverage_exclusions_detail": {
+            "F1": "pre-Queue build observed; allocator overhead/foreign refs excluded",
+            "F2": "reserved inbound Request bodies only; unclassified reads excluded",
+            "F3": "matched Completion bodies only; ignored and drained frames excluded",
+            "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
+            "M1": "worker/queue/pending/Session/map metadata not accurately measured",
+            "D1": "diagnostic strings/shared records and raw panic foreign graphs not accurately measured",
+        },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
                                 "goroutine-stacks", "runtime-allocator-overhead",
                                 "application-references", "unclassified-frame-bodies"],
