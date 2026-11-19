@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V9-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V10-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -318,6 +318,47 @@ def patch_transport(content):
 
 
 BENCHMARK_HELPERS = """
+// D1: observe only neta-created string(debug.Stack()) retained by PanicRecord.
+// First, OnClose, Recent can reference the SAME record. Dedup by unique
+// per-Session PanicRecord.Sequence; ignore raw recovered foreign object graphs.
+// This is requested text length, NOT allocator physical size or total D1 bytes.
+func qa005D1StackTextSession(s *Session) (uint64, bool) {
+    if s == nil { return 0, false }
+    s.panicMu.Lock()
+    defer s.panicMu.Unlock()
+    seen := make(map[uint64]string, len(s.panicLog.recent)+2)
+    var sum uint64
+    add := func(r *PanicRecord) bool {
+        if r == nil { return true }
+        if r.Sequence == 0 || len(r.Stack) == 0 { return false }
+        if old, ok := seen[r.Sequence]; ok { return old == r.Stack }
+        next, ok := checkedAddUint64(sum, uint64(len(r.Stack)))
+        if !ok { return false }
+        seen[r.Sequence] = r.Stack
+        sum = next
+        return true
+    }
+    if !add(s.panicLog.first) || !add(s.panicLog.onClose) { return 0, false }
+    for i := range s.panicLog.recent {
+        if !add(&s.panicLog.recent[i].record) { return 0, false }
+    }
+    return sum, true
+}
+
+// Independent D1 and F1-F5 samples are NOT an atomic combined memory peak.
+// No nested panicMu and Session.mu locks; same frozen owner-registry policy.
+func qa005D1StackTextSample(env *benchmarkEnv) (uint64, bool) {
+    if !qa005OwnedRegistryComplete(env) { return 0, false }
+    var total uint64
+    for _, s := range qa005OwnedSessions(env) {
+        amount, ok := qa005D1StackTextSession(s)
+        if !ok { return 0, false }
+        total, ok = checkedAddUint64(total, amount)
+        if !ok { return 0, false }
+    }
+    return total, true
+}
+
 // Stronger observation integrity (test-only): a Session's category storage
 // must reconcile exactly with its own atomic-under-mutex total. This does
 // NOT imply that the categories cover every allocation owned by neta-go.
@@ -905,6 +946,68 @@ func TestQA005OwnedOverlayCategoryReconciliation(t *testing.T) {
     s.mu.Unlock()
 }
 
+
+// First/Recent and OnClose/Recent aliases charge one neta Stack allocation,
+// independent of raw panic object size. Eviction must preserve First/OnClose.
+func TestQA005OwnedOverlayD1StackTextRetention(t *testing.T) {
+    cfg := defaultSessionConfig()
+    cfg.callbackPanicRingCapacity = 1
+    cfg.callbackPanicByteBudget = 1<<20
+    s := newSession(nil, cfg, sessionIdentity{}, nil, sessionHandlers{})
+    foreign := &struct{ payload []byte }{payload: make([]byte, 1<<18)}
+    s.recordCallbackPanic("OnRequest", foreign)
+    first, valid := qa005D1StackTextSession(s)
+    if !valid || first == 0 { t.Fatal("missing First stack") }
+    s.panicMu.Lock()
+    if len(s.panicLog.recent)!=1 || s.panicLog.first.Sequence != s.panicLog.recent[0].record.Sequence ||
+        s.panicLog.firstRaw != foreign { s.panicMu.Unlock(); t.Fatal("First/Recent alias or raw ownership") }
+    firstSize := len(s.panicLog.first.Stack)
+    s.panicMu.Unlock()
+    if first != uint64(firstSize) { t.Fatalf("double charged First/Recent: %d", first) }
+    s.recordCallbackPanic("OnClose", foreign)
+    s.panicMu.Lock()
+    if len(s.panicLog.recent)!=1 || s.panicLog.onCloseRaw != foreign ||
+        s.panicLog.onClose.Sequence != s.panicLog.recent[0].record.Sequence {
+        s.panicMu.Unlock(); t.Fatal("OnClose/Recent alias or raw ownership")
+    }
+    onCloseSize := len(s.panicLog.onClose.Stack)
+    s.panicMu.Unlock()
+    got, valid := qa005D1StackTextSession(s)
+    if !valid || got != uint64(firstSize+onCloseSize) { t.Fatalf("alias sum %d valid=%v", got,valid) }
+    s.recordCallbackPanic("OnRequest", "evict")
+    s.panicMu.Lock()
+    if len(s.panicLog.recent)!=1 { s.panicMu.Unlock(); t.Fatal("Recent ring missing") }
+    recent := s.panicLog.recent[0].record
+    s.panicLog.recent[0].record.Sequence = s.panicLog.first.Sequence
+    s.panicLog.recent[0].record.Stack = "invalid-alias"
+    s.panicMu.Unlock()
+    if _,valid := qa005D1StackTextSession(s); valid { t.Fatal("conflicting alias accepted") }
+    s.panicMu.Lock()
+    s.panicLog.recent[0].record = recent
+    s.panicMu.Unlock()
+    got, valid = qa005D1StackTextSession(s)
+    want := uint64(firstSize+onCloseSize+len(recent.Stack))
+    if !valid || got != want { t.Fatalf("eviction retained %d, want %d, valid=%v",got,want,valid) }
+    server := &Server{sessions: map[*Session]struct{}{s: {}}}
+    env := &benchmarkEnv{server:server}
+    qa005ResetOwnedHighwaters(env)
+    sampled,valid := qa005D1StackTextSample(env)
+    if !valid || sampled!=want || sampled>=uint64(len(foreign.payload)) {
+        t.Fatalf("external graph wrongly included or alias wrong: %d valid=%v",sampled,valid)
+    }
+    limited := defaultSessionConfig()
+    limited.callbackPanicRingCapacity = 1
+    limited.callbackPanicByteBudget = 1
+    small := newSession(nil,limited,sessionIdentity{},nil,sessionHandlers{})
+    small.recordCallbackPanic("OnRequest",foreign)
+    small.panicMu.Lock()
+    firstOnly := uint64(len(small.panicLog.first.Stack))
+    hasRecent := len(small.panicLog.recent) > 0
+    small.panicMu.Unlock()
+    measured,valid := qa005D1StackTextSession(small)
+    if hasRecent || !valid || measured != firstOnly { t.Fatal("First must survive Recent budget rejection") }
+}
+
 """
 
 
@@ -945,6 +1048,7 @@ def patch_benchmark(content):
     patched = replace_once(
         patched, "    samples uint64\n    invalid bool\n",
         "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n"
+        "    d1StackPeak uint64\n    d1StackSamples uint64\n"
         "    ownedLastSampleAt time.Time\n"
         "    ownedMaxSampleGap time.Duration\n"
         "    ownedMaxSnapshotDuration time.Duration\n",
@@ -959,11 +1063,14 @@ def patch_benchmark(content):
         "        }\n"
         "        p.ownedLastSampleAt = sampleStartedAt\n"
         "        owned, valid := qa005SampleOwnedBuffers(env)\n"
+        "        d1Text, d1OK := qa005D1StackTextSample(env)\n"
         "        snapshotDuration := time.Since(sampleStartedAt)\n"
         "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
-        "        if !valid { p.invalid = true; return }\n"
+        "        if !valid || !d1OK { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
-        "        p.ownedSamples++\n",
+        "        p.ownedSamples++\n"
+        "        if d1Text > p.d1StackPeak { p.d1StackPeak = d1Text }\n"
+        "        p.d1StackSamples++\n",
         "sample observation")
     patched = replace_once(
         patched, "            case <-p.stop: observe(); return",
@@ -975,6 +1082,8 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.samples), "probe-owner-charge-samples")\n'
         '    b.ReportMetric(float64(p.ownedPeak), "probe-owned-buffer-peak-B")\n'
         '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
+        '    b.ReportMetric(float64(p.d1StackPeak), "probe-d1-unique-stack-text-peak-B")\n'
+        '    b.ReportMetric(float64(p.d1StackSamples), "probe-d1-stack-text-samples")\n'
         '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
         '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
         '    b.ReportMetric(float64(p.ownedMaxSnapshotDuration.Nanoseconds()), "probe-owned-max-snapshot-ns")\n',
@@ -1024,7 +1133,8 @@ def prepare(source, output):
         "covered_categories": [],
         "observed_partial_categories": ["F1-outbound-app", "F2-inbound-request-body",
                                         "F3-inbound-response-body", "F4-outbound-control",
-                                        "F5-unreserved-inbound-body"],
+                                        "F5-unreserved-inbound-body",
+                                        "D1-owned-panic-stack-text-only"],
         "coverage_status": "PARTIAL_INCONCLUSIVE",
         "coverage_exclusions_detail": {
             "F1": "pre-Queue build observed; allocator overhead/foreign refs excluded",
@@ -1033,7 +1143,7 @@ def prepare(source, output):
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
             "M1": "worker/queue/pending/Session/map metadata not accurately measured",
-            "D1": "diagnostic strings/shared records and raw panic foreign graphs not accurately measured",
+            "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
                                 "goroutine-stacks", "runtime-allocator-overhead",
@@ -1048,6 +1158,7 @@ def prepare(source, output):
         "invalidates_transient_server_admission_churn": True,
         "tracks_unreserved_inbound_body_lifetime": True,
         "reconciles_all_observed_categories_to_session_total": True,
+        "observes_d1_unique_stack_text_only": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

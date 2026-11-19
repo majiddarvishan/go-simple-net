@@ -171,5 +171,17 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn('"reconciles_all_observed_categories_to_session_total": True', SCRIPT.read_text())
 
 
+    def test_d1_stack_only_alias_dedup_and_no_complete_memory_claim(self):
+        h = mod.BENCHMARK_HELPERS
+        self.assertIn("func qa005D1StackTextSession(s *Session) (uint64, bool)", h)
+        self.assertIn("seen := make(map[uint64]string", h)
+        self.assertIn("s.panicMu.Lock()", h)
+        self.assertIn("TestQA005OwnedOverlayD1StackTextRetention", h)
+        self.assertIn("probe-d1-unique-stack-text-peak-B",
+                      mod.patch_benchmark((SCRIPT.parent.parent / "benchmark_test.go").read_text()))
+        self.assertIn('"observes_d1_unique_stack_text_only": True', SCRIPT.read_text())
+        self.assertNotIn('ReportMetric(float64(p.d1StackPeak), "retained-attributed-B")', h)
+
+
 if __name__ == "__main__":
     unittest.main()
