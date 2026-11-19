@@ -1,3 +1,5 @@
+> **OWNER DECISIONS (2026-11-20):** OD-ENV-01 **Option A** = dedicated controlled qualification host (policy selection only, not host acceptance); OD-MEM-01 **Option A** = fail-closed `retained-attributed-B` **INCONCLUSIVE** until coverage/ownership/sampling/bias evidence is valid (does not replace M1/D1 instrumentation Option B). Both decisions are `[x]` in the active register; **open unique packages now 20 = 10 Qualification + 7 Owner Decisions + 3 Release**. Heavy Phase Q remains unauthorized, Performance Gate DISABLED, numeric baseline/absolute SLA unapproved. [Decision Log §79](DECISION_LOG.md).
+
 > **CURRENT VERIFIED MAIN STATUS (2026-11-20; SHA `bd8421cf3cabc5cb72263ed964434a48bf54ef22`):** [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) (Phase D/QA), [#25](https://github.com/majiddarvishan/neta-go/pull/25) (readiness), [#26](https://github.com/majiddarvishan/neta-go/pull/26) (multi-peer Server) and [#27](https://github.com/majiddarvishan/neta-go/pull/27) (generic peer routing and Client OnRequest) are **ALL MERGED**. **Phase D 16/16 complete; 14 runnable examples** (2 original, 10 Phase D, 2 generic routers). Additive `WithClientOnRequestHandler` is merged for bidirectional Client Sessions with V1/V2 real TCP tests, nil handler compatibility, and rejection of non-nil handler for one-way Bind. Exact current main SHA required [Go CI 44630477642](https://github.com/majiddarvishan/neta-go/actions/runs/44630477642) and [C++ wire 44630477596](https://github.com/majiddarvishan/neta-go/actions/runs/44630477596) both **SUCCESS**. QA-007 **MERGED/CLOSED**; QA-004/005 and MEM-004/005/006 **OPEN/INCONCLUSIVE**; Performance Gate **DISABLED**, no numeric baseline or `v1.0.0` release authorization. [Normalized Phase-Q/Owner/Release backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md). Older dated sections below are historical, not current merge status.
 
 > **OWNER-LOCAL QA-004 A/A (2026-11-18, exact SHA `ff38ceb29107fa156e0f87555f59bc6a5fa393d9`):** Received `aa-qa004-20261118T202222Z-2358305.tar.gz`: complete **10 alternating A/A pairs**, 5 synthetic Pending populations, 100 successful benchmark rows × 1200 internal terminal-settlement samples = **120,000 observations**; all **5/5 relative P99 metrics PASS** with run-level P99 CV 0.93–3.01%. Host i5-12400/Go 1.27, `powersave`, load increased 1.09 -> 1.70, pswpin +87 and pswpout +0. **A/A comparator status remains INCONCLUSIVE, baseline_approved=false, performance gate DISABLED** despite relative_status=PASS. Distinguish from QA-005's 1s A/A (P99 4/8 INCONCLUSIVE). QA-004/005 Task qualification remain OPEN, QA-007 CLOSED. This tool evidence does not approve a reference machine, absolute SLA or historical baseline. See docs/PERFORMANCE_QUALIFICATION.md.
@@ -55,7 +57,7 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 
 ## Active work register — normalized and deduplicated (2026-11-20)
 
-**Authority:** protected `main` `bd8421cf3cabc5cb72263ed964434a48bf54ef22`. Historical task checkboxes later in this file may describe earlier snapshots or repeat the same work. **Canonical distinct open packages = 22: Qualification 10 + Owner Decisions 9 + Release 3.** Each package below counts once. See the [Phase-Q execution backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md) for acceptance evidence, dependency order and reference-host needs.
+**Authority:** protected `main` `bd8421cf3cabc5cb72263ed964434a48bf54ef22`. Historical task checkboxes later in this file may describe earlier snapshots or repeat the same work. **Canonical distinct open packages = 20: Qualification 10 + Owner Decisions 7 + Release 3.** Two previously open owner-policy choices (OD-ENV-01 and OD-MEM-01) are now CLOSED with Option A. Concrete host acceptance, sampling proof and testing remain open. Each package below counts once. See the [Phase-Q execution backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md) for acceptance evidence, dependency order and reference-host needs.
 
 ### Development and examples — COMPLETE
 
@@ -77,10 +79,10 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 - [ ] **MEM-005 P0:** validate instrumentation observer overhead and sampling gaps/bias on accepted reference host.
 - [ ] **MEM-006 P1:** qualify 30-minute long soak, memory stability and worker/Session teardown on accepted reference host.
 
-### Owner Decisions — OPEN (9)
+### Owner Decisions — 2 CLOSED, 7 OPEN
 
-- [ ] **OD-ENV-01 P0:** approve reference machine/Go version and stable-host admission criteria.
-- [ ] **OD-MEM-01 P0:** decide permitted Hybrid-B exclusions, peak and sample-gap/bias validity, else fail closed as INCONCLUSIVE.
+- [x] **OD-ENV-01 P0 — OWNER OPTION A APPROVED (2026-11-20):** dedicated, controlled reference machine selected as policy. Actual hardware identity, Go toolchain/environment stability and A/A acceptance remain **OPEN under Q-ENV-01**. [Decision §79](DECISION_LOG.md).
+- [x] **OD-MEM-01 P0 — OWNER OPTION A APPROVED (2026-11-20):** fail closed as **INCONCLUSIVE** until coverage, ownership/aliases, simultaneous peak, sampling gap and observer bias are proved. M1/D1 incremental Option B remains unchanged. **MEM-004/005 remain OPEN**; no canonical retained-attributed-B emitted. [Decision §79](DECISION_LOG.md).
 - [ ] **OD-BASE-01 P0:** approve immutable numerical baseline and exact evidence/manifest, distinct from frozen Source-V1 SHA.
 - [ ] **OD-SLA-01 P0:** approve absolute QA-004 P99 and relevant throughput/latency SLAs, with measured evidence.
 - [ ] **OD-GATE-01 P2:** choose whether/when to activate mandatory Performance Gate; presently **DISABLED**.
