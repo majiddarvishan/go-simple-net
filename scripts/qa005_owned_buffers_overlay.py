@@ -763,10 +763,10 @@ def patch_types(content):
 def patch_server_lifecycle(content):
     return replace_once(
         content,
-        "\ts.sessions[session] = struct{}{}\n\ts.preBind[session] = struct{}{}",
-        "\ts.sessions[session] = struct{}{}\n"
-        "\ts.qa005OwnedAdmissionEpoch++ // test overlay; Server.mu held\n"
-        "\ts.preBind[session] = struct{}{}",
+        "\t\ts.sessions[session] = struct{}{}\n\t\ts.preBind[session] = struct{}{}",
+        "\t\ts.sessions[session] = struct{}{}\n"
+        "\t\ts.qa005OwnedAdmissionEpoch++ // test overlay; Server.mu held\n"
+        "\t\ts.preBind[session] = struct{}{}",
         "Server Session registration epoch")
 
 
