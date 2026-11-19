@@ -1,6 +1,6 @@
 # neta-go — Phase Q execution backlog and decision gates (2026-11-20)
 
-**Status: PLAN ONLY / PHASE Q NOT AUTHORIZED.** No benchmark, soak, stress, extended fuzz or full qualification was executed for this reconciliation. This is the unique **normalized actionable work-package inventory** linked by [TASKS.md](TASKS.md); older checkboxes in historical sections can refer to the same package and must not be double counted.
+**Status: PLAN ONLY / PHASE Q NOT AUTHORIZED.** Owner decisions **OD-ENV-01=A** (dedicated controlled host policy) and **OD-MEM-01=A** (fail-closed memory validity) were approved 2026-11-20; no actual machine or canonical metric was qualified. No benchmark, soak, stress, extended fuzz or full qualification was executed for this reconciliation. This is the unique **normalized actionable work-package inventory** linked by [TASKS.md](TASKS.md); older checkboxes in historical sections can refer to the same package and must not be double counted.
 
 - Evidence baseline: protected `main` at `bd8421cf3cabc5cb72263ed964434a48bf54ef22`, with [PRs #24–#27](https://github.com/majiddarvishan/neta-go/pulls?q=is%3Apr+is%3Amerged) merged. On that exact SHA, [Go 44630477642](https://github.com/majiddarvishan/neta-go/actions/runs/44630477642) and [C++ wire 44630477596](https://github.com/majiddarvishan/neta-go/actions/runs/44630477596) are SUCCESS. Required contexts remain `test` and `Verify Go wire codec against pinned Pinex C++ 1.5.0`.
 - Approved immutable source comparator anchor: `9b7b2318f73d173a99d22489042f84f8ce58b745` (`QA004-QA005-SOURCE-V1`). This is **source identity only**, not an approved numeric benchmark baseline.
@@ -8,7 +8,7 @@
 - QA-004/005, MEM-004/005/006 and heavy Phase Q acceptance remain OPEN. Existing hosted CI, partial owned-buffer adapters and earlier owner-local A/A probes are **historic or advisory**; no new `retained-attributed-B` approval is implied.
 - Performance Gate **DISABLED**; tag, release, production changes, new numeric baseline and anchor changes **NOT AUTHORIZED**.
 
-## Normalized open backlog: 10 Qualification + 9 owner decisions + 3 Release = 22 distinct packages
+## Normalized open backlog: 10 Qualification + 7 owner decisions + 3 Release = 20 distinct packages
 
 Each ID is one work package, even if several historical `[ ]` entries in TASKS.md refer to it. The phase-Q table lists required execution (all currently `[ ]`); owner decisions are tracked independently and need not all block the initial V1 release. `Reference host` describes whether a stable owner-approved comparison machine is required for acceptance, **not** permission to run.
 
@@ -27,12 +27,12 @@ Each ID is one work package, even if several historical `[ ]` entries in TASKS.m
 | MEM-005 / P0 | Observer overhead and sampling accuracy | MEM-004 adapter/fixture design, Q-ENV-01 | YES | Three-mode source/overlay OFF/ON matched measurements, ten credible pairs, variability/CI and measured sampling max-gap/snapshot duration; test observer GC/liveness bias and short peaks; approve overhead and temporal error bounds or return INCONCLUSIVE. |
 | MEM-006 / P1 | Qualified 30-minute soak | Q-ENV-01, Q-COR-01, MEM-004/005 validity | YES | At least 30 min with accepted traffic/teardown, worker/Session lifecycle and retained-memory series, leak/regression checks, immutable logs, identical run configuration, explicit exit and errors; no inference from short CI or earlier different-SHA soak. |
 
-### Owner decisions — 9 independent packages
+### Owner decisions — 2 approved (closed), 7 remain open
 
 | ID / priority | Question requiring owner action | Options or boundary |
 |---|---|---|
-| OD-ENV-01 / P0 | Approve reference machine / CPU isolation, governor, Go version and stability criteria | A: dedicated pinned Linux machine (recommended for reproducibility); B: existing workstation subject to accepted A/A + strict isolation; C: hosted shared CI only (not recommended for numerical baseline). Approval is distinct from a passing probe. |
-| OD-MEM-01 / P0 | Approve measured/excluded Hybrid-B category coverage and acceptable max-gap, observer bias and missing-short-peak bounds | A: maintain fail-closed INCONCLUSIVE for incomplete categories (recommended until proof); B: accept narrower formally versioned partial metric **after** explicit contract review, not under existing full metric name; C: extend observation instrumentation within newly approved scope. Current Option-B M1/D1 ownership does not preapprove any incomplete value. |
+| OD-ENV-01 / P0 — **CLOSED OPTION A** | Dedicated and controlled reference host policy | **OWNER APPROVED 2026-11-20**; [Decision Log §79](DECISION_LOG.md). No physical machine/toolchain has yet been accepted. The concrete environment, governor/frequency/isolation, stability envelope and A/A evidence remain **Q-ENV-01 OPEN**. |
+| OD-MEM-01 / P0 — **CLOSED OPTION A** | Fail-closed attributable-memory qualification disposition | **OWNER APPROVED 2026-11-20**; [Decision Log §79](DECISION_LOG.md). Missing category coverage, alias/lifetime, global simultaneous peak, sample-gap or observer-bias validity => **INCONCLUSIVE**, never a canonical metric. The separate M1/D1 incremental ownership Option B is unchanged (§77). MEM-004/005 proof still OPEN. |
 | OD-BASE-01 / P0 | Approve actual immutable numerical reference logs + manifest (`owner_approved=true`) | Required after qualified Q-ENV-01/MEM validity; source anchor approval alone is insufficient. |
 | OD-SLA-01 / P0 | Approve absolute QA-004 P99 and other applicable throughput/latency limits | Requires stable measured evidence; keep current relative policies (10% and 15%) unchanged meanwhile. |
 | OD-GATE-01 / P2 | Decide whether and when to turn mandatory Performance Gate ON | Optional, **DISABLED** until independently approved host, numbers and CI policy; never an automatic consequence of green CI. |
@@ -51,7 +51,7 @@ Each ID is one work package, even if several historical `[ ]` entries in TASKS.m
 
 ## Dependency / execution order
 
-1. **Before Phase Q permission (allowed now):** review this backlog, inspect source/CI evidence, resolve owner choices OD-ENV-01 and OD-MEM-01, propose objective admission criteria. No heavy runner starts.
+1. **Before Phase Q permission (allowed now):** owner has approved **OD-ENV-01=A** and **OD-MEM-01=A**; document the actual dedicated-host specification and proposed objective A/A + memory sampling admission criteria. These implementation/validity requirements remain open; no heavy runner starts.
 2. **On explicit Phase Q authorization:** Q-COR-01 and Q-ENV-01 can proceed independently; then Q-COR-02/03/04 and source/fixture-equivalent MEM-004 diagnostics. If a qualified metric is infeasible, report INCONCLUSIVE and return the narrow choice to the owner.
 3. **On an accepted reference host and reviewed metric contract:** MEM-005 overhead → MEM-006 soak; QA-004 P99 and QA-005 matched matrix with immutable evidence. Baseline and absolute SLA need OD-BASE-01 and OD-SLA-01; do not set either unilaterally.
 4. **Release candidate:** R-01, OD-NOTES-01, R-02 and then separate P9-06 approval. OD-GATE-01 and future PV-02/04/05, OD-CHECK-01 are distinct decisions, not permission to silently modify the V1 release.
@@ -63,7 +63,7 @@ Each ID is one work package, even if several historical `[ ]` entries in TASKS.m
 | Authorized Phase D | 16 | 0 | 6 DEV + 5 EX-C + 5 EX-S |
 | Extra peer-router examples | 2 | 0 | PR #27 completes end-to-end pairing, distinct from the historical 12-command CI |
 | Qualification work packages | 0 accepted in Phase Q | 10 | Historic light CI and prototypes do not count as Phase Q closure |
-| Owner decisions | 0 new approvals for these gates | 9 | Includes 2 future PV categories and optional gate/job rename |
+| Owner decisions | 2 (OD-ENV-01=A, OD-MEM-01=A) | 7 | Host identity/qualification and memory measurement proof remain under Q-ENV-01/MEM-004/005; includes 2 future PV categories and optional gate/job rename |
 | Release work packages | 0 | 3 | Nothing published |
 
-**22 open packages** is a normalized planning count, not the number of raw `[ ]` markers scattered throughout historic implementation notes. Work packages count once even when the same requirement appears in QA-005, MEM-006, Phase 9 or an older checklist. Source changes/implementation fixes found during Phase Q must become separately authorized concrete tasks, not be silently assumed complete.
+**20 open packages** is a normalized planning count, not the number of raw `[ ]` markers scattered throughout historic implementation notes. Work packages count once even when the same requirement appears in QA-005, MEM-006, Phase 9 or an older checklist. Source changes/implementation fixes found during Phase Q must become separately authorized concrete tasks, not be silently assumed complete.
