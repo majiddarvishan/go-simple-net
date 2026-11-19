@@ -1,0 +1,17 @@
+{
+  "listen_address": "127.0.0.1:2775",
+  "protocol_version": "v2",
+  "pre_bind_handshake_timeout": "10s",
+  "frame_assembly_timeout": "30s",
+  "write_timeout": "10s",
+  "max_bound_sessions": 32,
+  "max_pending_pre_bind_sessions": 16,
+  "application_workers": 8,
+  "completion_workers": 4,
+  "on_close_workers": 2,
+  "on_close_event_credits": 64,
+  "aggregate_queued_application_bytes": 1048576,
+  "aggregate_queued_application_frames": 128,
+  "application_callback_concurrency": 2,
+  "max_incoming_application_frames": 64
+}
