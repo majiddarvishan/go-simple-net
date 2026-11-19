@@ -43,6 +43,9 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005OwnedTotal", patched)
         self.assertIn("qa005Enqueued = true", patched)
         self.assertIn("qa005AfterAllocation", patched)
+        self.assertIn("qa005RegisterControlLocked", mod.SESSION_HELPERS)
+        self.assertIn("qa005DiscardControlBeforeQueueLocked", mod.SESSION_HELPERS)
+        self.assertIn("TestQA005OwnedOverlayPreQueueControlTransferAndReject", mod.BENCHMARK_HELPERS)
         self.assertIn("qa005OwnedRegistryComplete", mod.BENCHMARK_HELPERS)
         self.assertIn("TestQA005OwnedOverlayFrozenRegistry", mod.BENCHMARK_HELPERS)
         self.assertIn("else if !item.qa005Observed", patched)
@@ -92,6 +95,17 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertEqual(source.count("qa005Transferred"), 0)
         with self.assertRaisesRegex(ValueError, "frame builder optional observer"):
             mod.patch_session(patched)
+
+    def test_control_paths_patch_in_real_sources(self):
+        source = SCRIPT.parent.parent
+        session = mod.patch_session((source / "session.go").read_text())
+        control = mod.patch_control((source / "session_control.go").read_text())
+        self.assertIn("qa005RegisterControlLocked(s, control)", session)
+        self.assertIn("qa005DiscardControlBeforeQueueLocked(s, control)", session)
+        self.assertIn("qa005RegisterControlLocked(s, item)", control)
+        self.assertIn("qa005DiscardControlBeforeQueueLocked(s, item)", control)
+        self.assertIn("session_control.go", mod.SOURCE_FILES)
+        self.assertNotIn('retained-attributed-B")', session)
 
 
 if __name__ == "__main__":

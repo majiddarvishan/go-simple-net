@@ -18,8 +18,8 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V3-UNQUALIFIED"
-SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "resource_charges.go")
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V4-UNQUALIFIED"
+SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
 
@@ -41,6 +41,28 @@ func qa005AddOwnedLocked(s *Session, counter *uint64, amount uint64) {
     *counter = next
     s.qa005OwnedTotal = total
     if total > s.qa005OwnedPeak { s.qa005OwnedPeak = total }
+}
+
+// Control allocation may precede Queue admission, without transferring a
+// duplicate allocation when admitted. Requires s.mu already held.
+func qa005RegisterControlLocked(s *Session, frame *outboundFrame) {
+    if frame == nil || !frame.control || frame.qa005Observed || frame.qa005Enqueued {
+        s.qa005OwnedFault = true
+        return
+    }
+    qa005AddOwnedLocked(s, &s.qa005OwnedControl, uint64(cap(frame.bytes)))
+    frame.qa005Observed = true
+}
+
+// Release only a rejected, never-enqueued Control frame; the normal writer
+// path owns the release after FIFO admission. Requires s.mu held.
+func qa005DiscardControlBeforeQueueLocked(s *Session, frame *outboundFrame) {
+    if frame == nil || !frame.control || frame.qa005Enqueued || !frame.qa005Observed {
+        s.qa005OwnedFault = true
+        return
+    }
+    qa005SubtractOwnedLocked(s, &s.qa005OwnedControl, uint64(cap(frame.bytes)))
+    frame.qa005Observed = false
 }
 
 func qa005SubtractOwnedLocked(s *Session, counter *uint64, amount uint64) {
@@ -73,10 +95,11 @@ def patch_internal(content):
     content = replace_once(
         content, "\ts.queuedControlBytes = next\n\tif item.barrier {",
         "\ts.queuedControlBytes = next\n"
-        "\tif item.qa005Observed { s.qa005OwnedFault = true } else {\n"
+        "\tif item.qa005Enqueued { s.qa005OwnedFault = true } else if !item.qa005Observed {\n"
         "\t\tqa005AddOwnedLocked(s, &s.qa005OwnedControl, uint64(cap(item.bytes)))\n"
         "\t\titem.qa005Observed = true\n"
-        "\t}\n\tif item.barrier {",
+        "\t}\n"
+        "\titem.qa005Enqueued = true\n\tif item.barrier {",
         "control admission")
     content = replace_once(
         content, "\ts.appQueue = append(s.appQueue, item)\n\ts.cond.Signal()",
@@ -207,7 +230,25 @@ def patch_session(content):
         segment = (segment[:last_finish] + "\tqa005Transferred = true\n" +
                    segment[last_finish:])
         content = content[:begin] + segment + content[after:]
+    content = replace_once(
+        content,
+        "\t\tadmissionErr = s.enqueueControlLocked(&outboundFrame{bytes: frame, control: true, barrier: true, unbindRequest: true})",
+        "\t\tcontrol := &outboundFrame{bytes: frame, control: true, barrier: true, unbindRequest: true}\n"
+        "\t\tqa005RegisterControlLocked(s, control)\n"
+        "\t\tadmissionErr = s.enqueueControlLocked(control)\n"
+        "\t\tif admissionErr != nil { qa005DiscardControlBeforeQueueLocked(s, control) }",
+        "Unbind control pre-Queue responsibility")
     return content
+
+
+def patch_control(content):
+    return replace_once(
+        content,
+        "\t\t\t\t\tif err := s.enqueueControlLocked(item); err != nil {",
+        "\t\t\t\t\tqa005RegisterControlLocked(s, item)\n"
+        "\t\t\t\t\tif err := s.enqueueControlLocked(item); err != nil {\n"
+        "\t\t\t\t\t\tqa005DiscardControlBeforeQueueLocked(s, item)",
+        "Enquire Link pre-Queue ownership")
 
 
 def patch_transport(content):
@@ -597,6 +638,43 @@ func TestQA005OwnedOverlayFrozenRegistry(t *testing.T) {
     serverSession.mu.Unlock()
 }
 
+
+// F4 is counted once from pre-Queue registration through FIFO/Writer transfer.
+// A rejected Control frame must release its pre-Queue backing storage.
+func TestQA005OwnedOverlayPreQueueControlTransferAndReject(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    s.mu.Lock()
+    frame := &outboundFrame{control: true, bytes: make([]byte, 12, 64)}
+    qa005RegisterControlLocked(s, frame)
+    if s.qa005OwnedControl != 64 || s.qa005OwnedTotal != 64 {
+        s.mu.Unlock(); t.Fatal("control pre-Queue registration missing")
+    }
+    if err := s.enqueueControlLocked(frame); err != nil { s.mu.Unlock(); t.Fatal(err) }
+    if !frame.qa005Enqueued || s.qa005OwnedControl != 64 || s.qa005OwnedFault {
+        s.mu.Unlock(); t.Fatal("control Queue admission duplicated pre-owned backing")
+    }
+    s.activeWrite = frame
+    if s.qa005OwnedControl != 64 { s.mu.Unlock(); t.Fatal("control Writer transfer duplicated ownership") }
+    s.releaseFrameChargeLocked(frame)
+    s.activeWrite = nil
+    if s.qa005OwnedTotal != 0 || s.qa005OwnedFault || s.resourceAccountingFailed {
+        s.mu.Unlock(); t.Fatal("successful Control release wrong")
+    }
+    s.config.maxQueuedControlBytes = 1
+    rejected := &outboundFrame{control: true, bytes: make([]byte, 12, 48)}
+    qa005RegisterControlLocked(s, rejected)
+    if s.qa005OwnedControl != 48 { s.mu.Unlock(); t.Fatal("rejected control not counted before Queue") }
+    if err := s.enqueueControlLocked(rejected); !errors.Is(err, ErrCapacity) {
+        s.mu.Unlock(); t.Fatalf("unexpected Control rejection: %v", err)
+    }
+    qa005DiscardControlBeforeQueueLocked(s, rejected)
+    if s.qa005OwnedControl != 0 || s.qa005OwnedTotal != 0 || s.qa005OwnedFault ||
+        rejected.qa005Enqueued || rejected.qa005Observed {
+        s.mu.Unlock(); t.Fatal("Control rejection released incorrectly")
+    }
+    s.mu.Unlock()
+}
+
 """
 
 
@@ -645,6 +723,7 @@ PATCHES = {
     "session_internal.go": patch_internal,
     "session.go": patch_session,
     "session_transport.go": patch_transport,
+    "session_control.go": patch_control,
     "resource_charges.go": patch_charges,
 }
 
@@ -655,7 +734,7 @@ def prepare(source, output):
     if source == output or source in output.parents:
         raise ValueError("overlay output must be outside source checkout")
     original = {name: (source / name).read_bytes() for name in
-                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "resource_charges.go")}
+                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")}
     edited = {name: PATCHES[name](original[name].decode("utf-8")).encode("utf-8")
               for name in SOURCE_FILES}
     output.mkdir(parents=True, exist_ok=False)
@@ -685,6 +764,7 @@ def prepare(source, output):
         "sampler_interval_ms": 5,
         "source_tree_mutated": False,
         "tracks_pre_enqueue_allocated_F1": True,
+        "tracks_prequeue_registered_F4_unbind_enquire": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
