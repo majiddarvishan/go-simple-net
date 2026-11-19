@@ -70,6 +70,9 @@ run_pair() {
     timeout)
       server_args+=(-drop-timeout-demo=true)
       ;;
+    server-panic)
+      server_args+=(-panic-on-request=true)
+      ;;
   esac
 
   "$tmp/$server" "${server_args[@]}" >"$server_log" 2>&1 &
@@ -112,12 +115,28 @@ run_pair() {
     panic)
       client_args+=(-mode=panic)
       ;;
+    server-panic)
+      client_args+=(-mode=server-panic)
+      ;;
+    bind-reject)
+      client_args+=(-system-id=unknown-demo)
+      ;;
+    v2-reject)
+      client_args+=(-system-id=v2-not-supported)
+      ;;
   esac
   echo "== $scenario: $server $client on $address =="
-  timeout --signal=INT --kill-after=3s 35s "$tmp/$client" "${client_args[@]}" >"$client_log" 2>&1 || {
-    echo "$scenario: client failed or exceeded 35s" >&2
-    return 1
-  }
+  if [[ "$scenario" == "bind-reject" || "$scenario" == "v2-reject" ]]; then
+    if timeout --signal=INT --kill-after=3s 35s "$tmp/$client" "${client_args[@]}" >"$client_log" 2>&1; then
+      echo "$scenario: unexpected Bind success" >&2
+      return 1
+    fi
+  else
+    timeout --signal=INT --kill-after=3s 35s "$tmp/$client" "${client_args[@]}" >"$client_log" 2>&1 || {
+      echo "$scenario: client failed or exceeded 35s" >&2
+      return 1
+    }
+  fi
 
   case "$scenario" in
     config|config-json|bind) grep -q "Completion sequence=" "$client_log" ;;
@@ -127,6 +146,17 @@ run_pair() {
     diagnostics) grep -q 'diagnostics: recent_panics=' "$client_log" ;;
     timeout) grep -q 'expected RequestTimeout occurred' "$client_log" ;;
     panic) grep -q 'recovered Completion panic:' "$client_log" ;;
+    bind-reject) grep -q 'Bind rejected by demo allowlist' "$server_log" ;;
+    v2-reject) grep -q 'Connect:' "$client_log" ;;
+    server-panic)
+      grep -q 'expected peer callback panic terminated transport' "$client_log"
+      local seen=0
+      for ((i=0; i<100; i++)); do
+        if grep -q 'first recovered callback="OnRequest"' "$server_log"; then seen=1; break; fi
+        sleep 0.05
+      done
+      [[ "$seen" == 1 ]] || { echo "server did not record OnRequest callback panic" >&2; return 1; }
+      ;;
     *) echo "unsupported smoke scenario $scenario" >&2; return 1 ;;
   esac
 
@@ -196,12 +226,15 @@ run_pair config server-config client-config
 run_pair config-json server-config client-config
 run_pair concurrent server-concurrency client-concurrent
 run_pair bind server-bind-validator client-config
+run_pair bind-reject server-bind-validator client-config
 run_pair reconnect server-bind-validator client-reconnect
 run_pair v1 server-v1 client-v1
+run_pair v2-reject server-v1 client-config
 run_pair diagnostics server-diagnostics client-diagnostics
 run_pair timeout server-diagnostics client-diagnostics
 run_pair panic server-diagnostics client-diagnostics
+run_pair server-panic server-diagnostics client-diagnostics
 run_reconnect_restart
 
 echo "EXAMPLE_DEV_SMOKE=PASS" >"$ARTIFACT_DIR/summary.txt"
-echo "PASS: twelve example builds, unit tests and nine bounded loopback pairs plus real restart/reconnect"
+echo "PASS: twelve example builds, unit tests and twelve bounded loopback pairs plus real restart/reconnect"
