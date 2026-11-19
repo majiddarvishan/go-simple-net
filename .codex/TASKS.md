@@ -552,3 +552,33 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - [ ] Obtain separate PR/Merge permission; no release/tag.
 
 **QA-007 = [x] after all required Go/race tests PASS. QA-004 = [ ] and QA-005 = [ ] until full reference qualification.**
+
+## Development-First: complete authorized code and 12 example programs before heavy QA (owner 2026-11-19)
+
+**Current phase = DEV; no heavy QA-004/QA-005 qualification or mandatory Performance Gate.** [Detailed file-level tasks, dependencies and acceptance criteria](NETA_GO_DEVELOPMENT_FIRST_EXAMPLES_BACKLOG_2026-11-19.md). Date-scoped source audit: feature HEAD `7866125c264cc97491785fca94278efe8d81d191`, protected-main HEAD `24b7c5f6eb4e001f30dd8a564a337ca1f506eac8`. Exactly **2 existing executable examples**, `examples/client` and `examples/server`, both preserved.
+
+**Development closure tasks (6 total; counts below exclude approval-blocked future features):**
+- [ ] **DEV-01 (P0):** audit production feature-vs-main and classify every outstanding issue as authorized coding, qualification, owner decision or release. Record actual unmet file-level implementation requirements; do not fabricate extra features.
+- [ ] **DEV-02 (P0):** bounded owner-approved MEM-004 F1–F5/M1/D1 measurement *implementation* coverage/explicit-exclusion audit; resolve code gaps without inventing owned bytes or indefinitely adding V-numbered micro tools. Qualifying attribution, overhead and true peak evidence remain Phase Q.
+- [ ] **DEV-03 (P0):** freeze compatibility of the current basic Client/Server CLIs, output and loopback `scripts/example-smoke.sh` while defining simple stdlib-only example layout.
+- [ ] **DEV-04 (P1):** bounded, lightweight build and loopback smoke for all example packages, deterministic startup, termination and logs; not full benchmark/race/fuzz/soak.
+- [ ] **DEV-05 (P1):** `examples/README.md` scenario matrix, runnable commands, optional JSON config files, links from README and docs/CONFIGURATION.md; note defaults and V1/V2 incompatibility.
+- [ ] **DEV-06 (P0):** owner-reviewable DEV_READY_FOR_QUALIFICATION report: all authorized DEV and EX tasks individually DONE with lightweight evidence, no missing production behavior concealed under QA-005 and no blocked future features auto-approved.
+
+**Five NEW Client examples (the current `examples/client` remains unchanged):**
+- [ ] **EX-C01 (P0):** `examples/client-config`: typed Functional Options configured through explicit CLI flags + optional strict JSON, durations, V1/V2, timeouts, auto-reconnect, worker/queue limits; explicit CLI > JSON > library defaults.
+- [ ] **EX-C02 (P1):** `examples/client-concurrent`: bounded parallel SendRequest/Completion, count/inflight flags, correlation and capacity/cancellation handling.
+- [ ] **EX-C03 (P1):** `examples/client-reconnect`: opt-in reconnect, generation-aware OnBound/OnClose/CurrentSession; **no automatic message replay**.
+- [ ] **EX-C04 (P1):** `examples/client-v1`: explicit ProtocolVersionV1, SystemID max 19 bytes, no automatic downgrade.
+- [ ] **EX-C05 (P2):** `examples/client-diagnostics`: Completion error, OnClose, Session.Diagnostics() and safe bounded lifecycle.
+
+**Five NEW Server examples (the current `examples/server` remains unchanged):**
+- [ ] **EX-S01 (P0):** `examples/server-config`: strict CLI/JSON config using public Server/Session Options, max Sessions, admission, callback workers, budgets/timeouts.
+- [ ] **EX-S02 (P1):** `examples/server-bind-validator`: explicit demo-only allowlist and duplicate/invalid identity rejection, without claiming production authentication.
+- [ ] **EX-S03 (P1):** `examples/server-concurrency`: concurrent Sessions with separate per-Session/owner bounded worker and queue capacity; paired with EX-C02.
+- [ ] **EX-S04 (P1):** `examples/server-v1`: V1-only Server paired with EX-C04, reject default V2, no invented protocol negotiation.
+- [ ] **EX-S05 (P2):** `examples/server-diagnostics`: OnBound/Request/OnClose, bounded Panic diagnostics with controlled optional trigger, Server.Stop(ctx).
+
+**Not executable DEV blockers without owner permission:** PV-02/PV-04/PV-05 protocol negotiation & capabilities, protection-required-check renaming, release-note owner approvals, PR/Merge/Tag/Release. Track them separately as `BLOCKED BY OWNER/RELEASE`, not as hidden Done tasks.
+
+**Phase Q parked after DEV completion (not started by this request):** QA-004 reference P99, QA-005 approved Core/Full 8/24 matrix, 10-pair/95% comparison, measured MEM-004 attributable bytes and MEM-005 overhead validity, 30-minute soak, reference-machine, absolute SLA and optional owner-approved performance gate. Historical completed CI evidence is not erased and must not be reported as new final Q evidence. No full heavy suites in the DEV plan; targeted compilation/individual smoke is permitted. **No new PR, merge, tag, release or production code from this planning change.**
