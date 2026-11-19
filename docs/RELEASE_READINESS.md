@@ -1,34 +1,56 @@
 # neta-go release readiness
 
-**Status:** The `v1.0.0` candidate is **not published**. Engineering evidence is linked below with its exact tested commits. Publication requires fresh verification on the actual tag-target SHA and separate explicit owner authorization.
+**Status (reviewed 2026-11-20): `v1.0.0` is NOT approved for publication.** Development is merged to protected `main`, but QA-004/QA-005 reference qualification and independent release authorization remain open. This page summarizes the *current* release gates; dated engineering/owner evidence remains in [`.codex/`](../.codex/README.md).
 
-## Verified engineering gates
+**Reviewed `main` SHA:** `fb57668e182dc102f94044393b3d8f2a33aeddae`, merged through [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) on 2026-11-19. This is an evidence snapshot, **not** an approved release tag target: re-evaluate the actual head and checks before any publication.
 
-- [x] Public Client/Server/Session API and resource-admission behavior implemented.
-- [x] Client and Server examples compiled and exercised together: Request/Response, one-way delivery and graceful shutdown.
-- [x] Go correctness, vet, race, coverage and example smoke CI passed on protected `main` commit `1f2fb281f26e9502b457a98f6fb4e5fc9270cc45`: [Go run 44261035349](https://github.com/majiddarvishan/neta-go/actions/runs/44261035349).
-- [x] Wire golden-vector verification passed on the same protected-main commit: [wire CI run 44261035440](https://github.com/majiddarvishan/neta-go/actions/runs/44261035440).
-- [x] V2 default, NUL-free V2 Bind, V2 20-byte SystemID limit, V1 encoding and unchanged 10-byte Header are covered by tests.
-- [x] `main` is protected and both mandatory CI checks were enforced on previously merged Pull Requests.
-- [x] Minimum Go toolchain 1.23 and CI-tested Ubuntu 24.04 / Linux amd64 documented in [SUPPORT.md](SUPPORT.md).
-- [x] Apache-2.0 license, Copyright 2026 Majid Darvishan, is committed.
+## Readiness at a glance
 
-The separate C++ golden-vector workflow is an internal wire regression check. Its check name remains unchanged because branch protection requires that exact context; the library does not require a C++ dependency.
+| Scope | Current disposition | Evidence / remaining boundary |
+|---|---|---|
+| Development-first scope | **COMPLETE — 16/16** | 6 DEV tasks + 10 new runnable examples, added to the 2 existing examples; [Development closeout](../.codex/NETA_GO_DEV_READY_FOR_QUALIFICATION_2026-11-19.md) and [example guide](../examples/README.md) |
+| QA-007 callback/close semantics | **IMPLEMENTED AND MERGED** | Completion preservation, recovered callback panic diagnostics, pre-admission OnClose credits; [Lifecycle](LIFECYCLE.md), [approved contracts](../.codex/NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md) |
+| Main-branch correctness CI | **PASS at reviewed SHA** | Go and C++ wire workflows linked below |
+| Hosted performance workflow | **PASS, ADVISORY ONLY** | No approved reference host/baseline or acceptance threshold; **not** a QA-004/QA-005 qualification PASS |
+| QA-004 pending-timeout P99 | **OPEN / NOT QUALIFIED** | Stable reference environment, historical comparator and owner-approved absolute SLA still required |
+| QA-005 performance acceptance | **OPEN / NOT QUALIFIED** | 8 Core / 24 Full qualified workload comparison, ten matched baseline/candidate pairs, accepted metrics and absolute thresholds pending |
+| MEM-004 / MEM-005 / MEM-006 | **OPEN / PARTIAL_INCONCLUSIVE** | Full attributable retained memory, observer overhead/temporal accuracy and qualified long soak not accepted |
+| Mandatory performance gate | **DISABLED** | No authorization or approved numerical limits to activate it |
+| Release/tag/publication | **NOT AUTHORIZED** | Revised `Unreleased` notes and release-specific checks need fresh owner approval |
 
-## Pending publication gates
+A merged feature, a green CI run or a completed Development checklist is **not** a release approval.
 
-- [x] Repository naming/documentation cleanup merged in PRs #10–#13 (historical CI in the PRs); current protected-main Go/Wire CI is linked above.
-- [x] Verify real two-direction TCP interoperability against pinned C++ 1.5.0 via a **private** workflow (normal and `-race`): [run 44260379077](https://github.com/majiddarvishan/pinex/actions/runs/44260379077) on neta-go `0824a70127594df72f78d1048cc360e33f57bd5b`. Details in the [QA-001 evidence](../.codex/NETA_GO_QA001_REAL_TCP_VERIFICATION_2026-11-18.md). This is **not** a required status gate on public neta-go PRs.
-- [x] Validate QA-006 terminal Accept error handling on protected `main`: [Go CI 44259964992](https://github.com/majiddarvishan/neta-go/actions/runs/44259964992) and [Wire CI 44259965112](https://github.com/majiddarvishan/neta-go/actions/runs/44259965112) PASS.
-- [x] Complete QA-008 cleanup in [PR #19](https://github.com/majiddarvishan/neta-go/pull/19) (single Bind encoding, early validation, preserved connection ownership). Protected-main SHA `5b7b61fcb78d99e5b489670a328cb13f6adbfd6b`: [Go 44266450962](https://github.com/majiddarvishan/neta-go/actions/runs/44266450962) and [Wire 44266450928](https://github.com/majiddarvishan/neta-go/actions/runs/44266450928) PASS.
-- [x] Make parser mutation fuzz campaigns executable in PR and scheduled CI with V1/V2 Bind coverage: [QA-009 verification](../.codex/NETA_GO_QA009_MUTATION_FUZZ_CI_2026-11-18.md), [first mutation run 44266748134](https://github.com/majiddarvishan/neta-go/actions/runs/44266748134) PASS. Separate real C++ TCP verification runs weekly in the authorized private repository.
-- [ ] Complete the [independent QA audit](../.codex/NETA_GO_SENIOR_CODE_AUDIT_2026-11-18.md) disposition: QA-001/002/003/006/008/009 are closed. QA-004/005 require measured workload/SLA decisions; QA-007 requires explicit callback panic contract.
-- [ ] Obtain **fresh owner approval** for the revised [Unreleased changelog](../CHANGELOG.md), including V1/V2 behavior. An earlier approval does not cover these changes.
-- [ ] Independently inspect strict/up-to-date and administrator-bypass branch-protection settings (full settings are not readable through the connected integration).
-- [ ] Confirm GitHub Release creation permissions and publishing settings under the intended publisher account.
-- [ ] Recheck the intended tag target SHA and all required CI immediately before publication.
-- [ ] Obtain **separate, explicit owner permission** to create the `v1.0.0` tag and GitHub Release.
+## Verified integration and CI evidence
 
-Keep the changelog under `Unreleased` and do not create a tag or Release without the final permission.
+- [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) merged the 2026-11-18 feature to protected `main` with the two required checks passing, along with the bounded V1/V2 parser-mutation workflow. The merge commit's tree matches the complete Feature source tree; the temporary integration commit did not change files.
+- **On the merged `main` SHA `fb57668e182dc102f94044393b3d8f2a33aeddae`:** [Go CI 44547311083](https://github.com/majiddarvishan/neta-go/actions/runs/44547311083) **PASS**; [Pinex C++ wire compatibility 44547311177](https://github.com/majiddarvishan/neta-go/actions/runs/44547311177) **PASS**; [Performance Benchmarks 44547311004](https://github.com/majiddarvishan/neta-go/actions/runs/44547311004) **PASS as hosted advisory CI only**.
+- **On the reviewed PR head `920d37ce7a746ef9878c0be9f13c8714d0c289ff`:** [Go 44547010827](https://github.com/majiddarvishan/neta-go/actions/runs/44547010827), [C++ wire 44547010760](https://github.com/majiddarvishan/neta-go/actions/runs/44547010760) and [bounded parser mutation 44547010745](https://github.com/majiddarvishan/neta-go/actions/runs/44547010745) **PASS**.
+- **Examples:** the [bounded 12-example smoke 44542311954](https://github.com/majiddarvishan/neta-go/actions/runs/44542311954) **PASS** includes configuration, negative cases, explicit V1, panic/timeout diagnostics and a real Server kill/restart and Client reconnect. The [Development closeout](../.codex/NETA_GO_DEV_READY_FOR_QUALIFICATION_2026-11-19.md) records source-tree parity with the merged Feature contents; this does **not** replace full qualification.
+- The C++ workflow checks wire compatibility; it does not make C++ a runtime dependency of the Go library. [Supported Go/platform baseline](SUPPORT.md) remains Go 1.23+ and CI-tested Ubuntu 24.04 / Linux amd64.
 
-Historical engineering decisions and test evidence remain in [`.codex/`](../.codex/README.md); they are not part of the public API contract.
+Earlier green feature/`main` runs and completed QA-001/002/003/006/008/009 remain valid **historical evidence on their own exact SHAs**, not substitutes for a new release preflight. See [QA tasks](../.codex/TASKS.md) and [Performance qualification protocol](PERFORMANCE_QUALIFICATION.md).
+
+## Open engineering qualification gates
+
+- [ ] **QA-004:** approve a stable reference environment and executable historical/candidate comparison; run/validate the specified pending-deadline terminal-settlement P99 matrix and separately approve an **absolute** P99 SLA. Existing A/A and hosted results are advisory, not cross-version qualification.
+- [ ] **QA-005:** approve the reference machine, equivalent benchmark source and immutable numeric baseline; collect ten alternating matched baseline/candidate pairs for the approved 8 Core / 24 Full scenarios, including 95% statistical checks and any separately approved absolute limits.
+- [ ] **MEM-004:** finish the owner-approved Hybrid-B owned-byte attribution model with category coverage, alias/lifetime consistency, and defensible concurrent observation/sampling; existing F1–F5/M1/D1 adapters are only partially attributable. Do not emit a canonical `retained-attributed-B` from an incomplete snapshot.
+- [ ] **MEM-005 / MEM-006:** qualify the observer's overhead and temporal validity, and perform/accept the required 30-minute memory-stability soak on the approved reference machine and reviewed source. Earlier short or different-SHA runs do not close these gates.
+- [ ] Obtain separate owner decisions on the reference environment, numeric baseline, absolute limits and whether/when any **mandatory** Performance Gate may be enabled. Until then it stays **DISABLED**.
+
+Do not change the frozen QA004-QA005 Source-V1 anchor (`9b7b2318f73d173a99d22489042f84f8ce58b745`), historical numerical evidence or benchmark acceptance policy as a side effect of documentation cleanup.
+
+## Release-specific approval and publication gates
+
+- [ ] Obtain **fresh owner approval** of the current [`Unreleased` changelog](../CHANGELOG.md), including default V2, NUL-free Bind, the V2 20-byte/V1 19-byte SystemID contract, and post-approval feature/diagnostics/example changes. Approval of an older draft does not approve amended notes.
+- [ ] Independently verify protected-main required checks and strict/up-to-date / administrator-bypass policy through an authorized administrator. The connected GitHub integration cannot read all classic branch-protection settings; do not claim full administrator-level verification from `protected=true` alone.
+- [ ] Verify the intended publisher's tag and GitHub Release permissions and the absence/conflict of an existing `v1.0.0` tag at the **time of publication**. The GitHub Releases listing contained **no published release** at this review; tag existence was not independently rechecked.
+- [ ] Recheck the **exact proposed tag-target SHA**, required CI and approved qualification evidence, then obtain **separate explicit owner permission** to publish. Do not create the tag or GitHub Release until these conditions hold.
+
+**No tag or GitHub Release is created by this document.** Keep `CHANGELOG.md` under `Unreleased` pending approval. The prior Phase 9 checklist [P9-06](../.codex/TASKS.md) remains open.
+
+## Documentation map
+
+- Current API and usage: [API](API.md), [Configuration](CONFIGURATION.md), [Lifecycle](LIFECYCLE.md), [Protocol](PROTOCOL.md), [Examples](../examples/README.md).
+- Measurement methodology, exclusions and dated numeric evidence: [Performance qualification](PERFORMANCE_QUALIFICATION.md).
+- Historical implementation decisions and task evidence: [`.codex/`](../.codex/README.md). Historical files can say “not merged” or “PR unauthorized” because they describe a **past checkpoint**; this page records the 2026-11-19 merged state.
