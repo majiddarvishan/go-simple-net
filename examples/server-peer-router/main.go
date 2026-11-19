@@ -1,6 +1,6 @@
 // Command server-peer-router demonstrates a config-driven neta-go
 // listener with bounded concurrency and routing to multiple peer Sessions.
-// This is internal TCP + opaque application payload, NOT the application protocol.
+// It is independent of any particular application protocol.
 package main
 
 import (
@@ -131,7 +131,7 @@ func run(ctx context.Context, args []string) error {
 			log.Printf("Server.Stop: %v", err)
 		}
 	}()
-	log.Printf("internal neta listener=%s configured_MEs=%d routes=%d", srv.Addr(), len(cfg.Peers), len(cfg.Routes))
+	log.Printf("internal neta listener=%s configured_peers=%d routes=%d", srv.Addr(), len(cfg.Peers), len(cfg.Routes))
 	go consoleCommands(ctx, registry)
 	select {
 	case <-ctx.Done():

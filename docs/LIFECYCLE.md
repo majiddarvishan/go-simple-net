@@ -51,7 +51,7 @@ User callbacks are dispatched asynchronously; they never execute inline in the t
 
 Each Client and Server owns three isolated bounded callback lanes:
 
-- Application: Server OnRequest and Bound notifications.
+- Application: Client and Server OnRequest callbacks and Bound notifications. An enabled bidirectional Client OnRequest has the same callback concurrency, payload-ownership and forced-close rules as Server OnRequest.
 - Completion: per-Request Completion callbacks.
 - OnClose: terminal notifications after Session.Done.
 

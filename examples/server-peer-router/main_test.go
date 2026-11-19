@@ -39,7 +39,7 @@ func TestConfigDefaultJSONCLIAndValidation(t *testing.T) {
 	}
 }
 
-func TestConfigRejectsUnsafeOrUnroutableMEs(t *testing.T) {
+func TestConfigRejectsUnsafeOrUnroutablePeers(t *testing.T) {
 	cases := []struct {
 		name string
 		edit func(*demoConfig)
