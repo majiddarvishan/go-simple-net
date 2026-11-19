@@ -226,7 +226,7 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
 
 
     def test_worker_scheduler_is_immutable_digest_dependency(self):
-        self.assertIn('"worker_scheduler.go")', SCRIPT.read_text())
+        self.assertIn('"worker_scheduler.go", "client_connect.go", "client_lifecycle.go")', SCRIPT.read_text())
         self.assertIn('"worker_scheduler_source_sha_is_compatibility_dependency": True', SCRIPT.read_text())
         self.assertNotIn("worker_scheduler.go", mod.PATCHES)
 
