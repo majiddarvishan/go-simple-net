@@ -150,6 +150,58 @@ jobs:
             2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-1x-smoke.log
           echo 'Owner-buffer backing bytes only; metadata/external refs excluded; NOT retained-attributed-B.' \
             >> artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
+      # Strict two-source evidence; compare effective bytes, never historical numeric runs.
+      - name: QA-005 exact source-anchor overlay compatibility (advisory only)
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-final/perf
+          python3 -B -m unittest discover -s scripts -p 'test_qa005_overlay_compatibility.py' \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-compatibility-unit-tests.log
+          ANCHOR_SHA=9b7b2318f73d173a99d22489042f84f8ce58b745
+          ANCHOR_DIR="$RUNNER_TEMP/qa005-source-anchor"
+          test ! -e "$ANCHOR_DIR"
+          git fetch --no-tags origin "$ANCHOR_SHA"
+          git worktree add --detach "$ANCHOR_DIR" "$ANCHOR_SHA"
+          trap 'git worktree remove "$ANCHOR_DIR"' EXIT
+          test "$(git -C "$ANCHOR_DIR" rev-parse HEAD)" = "$ANCHOR_SHA"
+          python3 -B scripts/qa005_owned_buffers_overlay.py \
+            --source "$ANCHOR_DIR" --output "$RUNNER_TEMP/qa005-owned-anchor" \
+            2>&1 | tee artifacts/qa-final/perf/owned-anchor-manifest.log
+          python3 -B scripts/qa005_overlay_compatibility.py \
+            --baseline "$RUNNER_TEMP/qa005-owned-anchor/manifest.json" \
+            --candidate "$RUNNER_TEMP/qa005-owned-buffer-probe/manifest.json" \
+            2>&1 | tee artifacts/qa-final/perf/owned-buffer-compatibility-result.json
+          (cd "$ANCHOR_DIR" && go test \
+            -overlay "$RUNNER_TEMP/qa005-owned-anchor/overlay.json" \
+            -run '^TestQA005OwnedOverlay(DeduplicatesSessionIdentity|PreQueueControlTransferAndReject)
+        if: always()
+        run: |
+          mkdir -p artifacts/qa-final/perf
+          echo 'GitHub-hosted runner: advisory only; no approved reference baseline.' \
+            > artifacts/qa-final/perf/qualification-status.txt
+          echo 'Full 24 selected benchmark workloads: advisory only, no reference baseline.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '10 paired stable-hardware runs: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo '30-minute stability: NOT RUN by this CI.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Absolute P99 SLA: UNSET; no mandatory performance gate.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+          echo 'Attributable retained library memory: NOT QUALIFIED; overlay is only policy-charge probe.' \
+            >> artifacts/qa-final/perf/qualification-status.txt
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-performance-advisory-${{ github.sha }}
+          path: artifacts/qa-final/perf/
+          if-no-files-found: warn
+ \
+            -race -count=1 -timeout=3m) \
+            2>&1 | tee artifacts/qa-final/perf/owned-anchor-go-race.log
       - name: Declare advisory qualification limitations
         if: always()
         run: |
