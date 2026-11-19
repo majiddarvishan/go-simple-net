@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V11-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V12-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -371,6 +371,17 @@ func qa005M1PendingCount(env *benchmarkEnv) (uint64, bool) {
         sum = next
     }
     return sum, true
+}
+
+// This is the Go language-level requested struct footprint of one known
+// neta-owned pendingRequest, including inline padding but excluding allocator
+// size-class rounding, map buckets, callback closure/captures and foreign graphs.
+// It is not a physical HeapAlloc estimate nor the qualified retained metric.
+func qa005M1PendingStructFootprint(count uint64) (uint64, bool) {
+    unit := uint64(unsafe.Sizeof(pendingRequest{}))
+    if unit == 0 { return 0, false }
+    if count > ^uint64(0)/unit { return 0, false }
+    return count * unit, true
 }
 
 // D1: observe only neta-created string(debug.Stack()) retained by PanicRecord.
@@ -1103,6 +1114,32 @@ func TestQA005OwnedOverlayM1PendingIdentityLifetime(t *testing.T) {
     if _,ok := qa005M1PendingCount(env2); ok { t.Fatal("unregistered pending owner accepted") }
 }
 
+
+// Only the known static Go object payload is counted; no map or callback heap.
+// Check arithmetic overflow fails closed instead of wrapping.
+func TestQA005OwnedOverlayM1PendingStructFootprint(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    pending := &pendingRequest{}
+    s.mu.Lock()
+    s.pending[7] = pending
+    qa005RegisterPendingLocked(s, pending)
+    s.mu.Unlock()
+    env := &benchmarkEnv{server:&Server{sessions:map[*Session]struct{}{s:{}}}}
+    qa005ResetOwnedHighwaters(env)
+    count, valid := qa005M1PendingCount(env)
+    if !valid || count != 1 { t.Fatalf("identity mismatch: %d valid=%v",count,valid) }
+    bytes, valid := qa005M1PendingStructFootprint(count)
+    expected := uint64(unsafe.Sizeof(pendingRequest{}))
+    if !valid || bytes != expected || bytes == 0 {
+        t.Fatalf("wrong logical Go struct footprint: %d want %d valid=%v",bytes,expected,valid)
+    }
+    if _, ok := qa005M1PendingStructFootprint(^uint64(0)); ok { t.Fatal("overflow accepted") }
+    s.releasePending(7,pending)
+    count, valid = qa005M1PendingCount(env)
+    bytes, ok := qa005M1PendingStructFootprint(count)
+    if !valid || !ok || bytes != 0 { t.Fatal("logical object bytes survived Completion release") }
+}
+
 """
 
 
@@ -1129,6 +1166,9 @@ def patch_server_lifecycle(content):
 def patch_benchmark(content):
     patched = charge.patch_benchmark(content)
     patched = replace_once(
+        patched, '\t"sync/atomic"\n', '\t"sync/atomic"\n\t"unsafe"\n',
+        "test-only static pendingRequest struct footprint")
+    patched = replace_once(
         patched, "type benchmarkEnv struct {\n",
         "type benchmarkEnv struct {\n"
         "\tqa005OwnedBaselineAdmissionEpoch uint64\n"
@@ -1145,6 +1185,7 @@ def patch_benchmark(content):
         "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n"
         "    d1StackPeak uint64\n    d1StackSamples uint64\n"
         "    m1PendingPeak uint64\n    m1PendingSamples uint64\n"
+        "    m1PendingStructPeak uint64\n"
         "    ownedLastSampleAt time.Time\n"
         "    ownedMaxSampleGap time.Duration\n"
         "    ownedMaxSnapshotDuration time.Duration\n",
@@ -1161,15 +1202,17 @@ def patch_benchmark(content):
         "        owned, valid := qa005SampleOwnedBuffers(env)\n"
         "        d1Text, d1OK := qa005D1StackTextSample(env)\n"
         "        pendingCount, pendingOK := qa005M1PendingCount(env)\n"
+        "        pendingStructBytes, pendingStructOK := qa005M1PendingStructFootprint(pendingCount)\n"
         "        snapshotDuration := time.Since(sampleStartedAt)\n"
         "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
-        "        if !valid || !d1OK || !pendingOK { p.invalid = true; return }\n"
+        "        if !valid || !d1OK || !pendingOK || !pendingStructOK { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
         "        p.ownedSamples++\n"
         "        if d1Text > p.d1StackPeak { p.d1StackPeak = d1Text }\n"
         "        p.d1StackSamples++\n"
         "        if pendingCount > p.m1PendingPeak { p.m1PendingPeak = pendingCount }\n"
-        "        p.m1PendingSamples++\n",
+        "        p.m1PendingSamples++\n"
+        "        if pendingStructBytes > p.m1PendingStructPeak { p.m1PendingStructPeak = pendingStructBytes }\n",
         "sample observation")
     patched = replace_once(
         patched, "            case <-p.stop: observe(); return",
@@ -1184,6 +1227,7 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.d1StackPeak), "probe-d1-unique-stack-text-peak-B")\n'
         '    b.ReportMetric(float64(p.d1StackSamples), "probe-d1-stack-text-samples")\n'
         '    b.ReportMetric(float64(p.m1PendingPeak), "probe-m1-pending-object-peak-count")\n'
+        '    b.ReportMetric(float64(p.m1PendingStructPeak), "probe-m1-pending-struct-logical-peak-B")\n'
         '    b.ReportMetric(float64(p.m1PendingSamples), "probe-m1-pending-samples")\n'
         '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
         '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
@@ -1244,7 +1288,7 @@ def prepare(source, output):
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
-            "M1": "only accepted pendingRequest object identities until Completion release observed as COUNT, not bytes; other metadata, map buckets, instrumented ledger allocation excluded",
+            "M1": "accepted pendingRequest identity count and unsafe.Sizeof(pendingRequest) logical struct footprint ONLY; map buckets, closure/foreign graphs, runtime allocator padding and other M1 unmeasured",
             "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
@@ -1262,6 +1306,7 @@ def prepare(source, output):
         "reconciles_all_observed_categories_to_session_total": True,
         "observes_d1_unique_stack_text_only": True,
         "observes_m1_pending_object_identity_count_not_bytes": True,
+        "m1_pending_struct_logical_footprint_is_not_allocator_bytes": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

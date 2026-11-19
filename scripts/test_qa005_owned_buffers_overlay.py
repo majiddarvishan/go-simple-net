@@ -197,5 +197,16 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn("unsafe.Sizeof", mod.SESSION_HELPERS)
 
 
+    def test_m1_static_struct_footprint_remains_separate_unqualified_diagnostic(self):
+        source = SCRIPT.parent.parent
+        benchmark = mod.patch_benchmark((source / "benchmark_test.go").read_text())
+        self.assertIn('"unsafe"', benchmark)
+        self.assertIn("probe-m1-pending-struct-logical-peak-B", benchmark)
+        self.assertIn("unsafe.Sizeof(pendingRequest{})", mod.BENCHMARK_HELPERS)
+        self.assertIn("TestQA005OwnedOverlayM1PendingStructFootprint", mod.BENCHMARK_HELPERS)
+        self.assertIn('"m1_pending_struct_logical_footprint_is_not_allocator_bytes": True', SCRIPT.read_text())
+        self.assertNotIn('ReportMetric(float64(p.m1PendingStructPeak), "retained-attributed-B")', benchmark)
+
+
 if __name__ == "__main__":
     unittest.main()

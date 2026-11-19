@@ -12,7 +12,7 @@ import math
 import re
 from pathlib import Path
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V11-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V12-UNQUALIFIED"
 BENCHMARK = "BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium"
 MODES = ("source", "overlay_off", "overlay_on")
 METRICS = ("ns/op", "B/op", "allocs/op", "cpu-ns/op")
