@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -79,6 +80,13 @@ func run(args []string) error {
 			// neta-go additionally rejects duplicate active SystemIDs;
 			// this callback does not override its admission ledger.
 			return nil
+		}),
+		neta.WithServerOnCloseHandler(func(s *neta.Session, cause error) {
+			if errors.Is(cause, neta.ErrBindRejected) {
+				log.Printf("Bind rejected by admission (duplicate identity or capacity)")
+			} else {
+				log.Printf("Session closed: cause=%v", cause)
+			}
 		}),
 		neta.WithServerOnBoundHandler(func(s *neta.Session) {
 			log.Printf("Bound: system_id=%q protocol=%d", s.SystemID(), s.ProtocolVersion())
