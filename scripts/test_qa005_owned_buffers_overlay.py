@@ -225,5 +225,11 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn('"m1_worker_queue_sizes_are_logical_not_allocator_bytes": True',SCRIPT.read_text())
 
 
+    def test_worker_scheduler_is_immutable_digest_dependency(self):
+        self.assertIn('"worker_scheduler.go")', SCRIPT.read_text())
+        self.assertIn('"worker_scheduler_source_sha_is_compatibility_dependency": True', SCRIPT.read_text())
+        self.assertNotIn("worker_scheduler.go", mod.PATCHES)
+
+
 if __name__ == "__main__":
     unittest.main()

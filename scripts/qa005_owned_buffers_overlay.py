@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V13-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V14-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -1401,7 +1401,7 @@ def prepare(source, output):
     if source == output or source in output.parents:
         raise ValueError("overlay output must be outside source checkout")
     original = {name: (source / name).read_bytes() for name in
-                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")}
+                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go", "worker_scheduler.go")}
     edited = {name: PATCHES[name](original[name].decode("utf-8")).encode("utf-8")
               for name in SOURCE_FILES}
     output.mkdir(parents=True, exist_ok=False)
@@ -1457,6 +1457,7 @@ def prepare(source, output):
         "m1_pending_struct_logical_footprint_is_not_allocator_bytes": True,
         "m1_worker_queue_observation_dedups_pools_lanes_and_backing": True,
         "m1_worker_queue_sizes_are_logical_not_allocator_bytes": True,
+        "worker_scheduler_source_sha_is_compatibility_dependency": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

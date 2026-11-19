@@ -69,5 +69,21 @@ class OverlayCompatibilityTest(unittest.TestCase):
             mod.check_manifest(b, "candidate")
 
 
+    def test_worker_scheduler_original_and_effective_sha_are_mandatory(self):
+        self.assertIn("worker_scheduler.go", mod.SOURCE_FILES)
+        first, second = fixture(), fixture()
+        second["source_file_sha256"]["worker_scheduler.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "source_file_sha256"):
+            mod.check_pair(first, second)
+        first, second = fixture(), fixture()
+        second["effective_file_sha256"]["worker_scheduler.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "effective_file_sha256"):
+            mod.check_pair(first, second)
+        invalid = fixture()
+        del invalid["effective_file_sha256"]["worker_scheduler.go"]
+        with self.assertRaisesRegex(ValueError, "file set"):
+            mod.check_manifest(invalid, "candidate")
+
+
 if __name__ == "__main__":
     unittest.main()
