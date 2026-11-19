@@ -183,5 +183,19 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn('ReportMetric(float64(p.d1StackPeak), "retained-attributed-B")', h)
 
 
+    def test_m1_pending_identity_hooks_and_no_unapproved_byte_estimator(self):
+        source = SCRIPT.parent.parent
+        session = mod.patch_session((source / "session.go").read_text())
+        internal = mod.patch_internal((source / "session_internal.go").read_text())
+        self.assertIn("qa005RegisterPendingLocked(s, pending)", session)
+        self.assertIn("qa005ReleasePendingLocked(s, pending)", session)
+        self.assertIn("qa005M1PendingLive map[*pendingRequest]struct{}", internal)
+        self.assertIn("TestQA005OwnedOverlayM1PendingIdentityLifetime", mod.BENCHMARK_HELPERS)
+        fixture = mod.patch_benchmark((source / "benchmark_test.go").read_text())
+        self.assertIn("probe-m1-pending-object-peak-count", fixture)
+        self.assertIn('"observes_m1_pending_object_identity_count_not_bytes": True', SCRIPT.read_text())
+        self.assertNotIn("unsafe.Sizeof", mod.SESSION_HELPERS)
+
+
 if __name__ == "__main__":
     unittest.main()

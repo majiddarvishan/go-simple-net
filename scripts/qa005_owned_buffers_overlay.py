@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V10-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V11-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -73,6 +73,23 @@ func qa005SubtractOwnedLocked(s *Session, counter *uint64, amount uint64) {
     *counter = next
     s.qa005OwnedTotal = total
 }
+
+// M1 test-only identity ledger. This is an OBJECT COUNT, not bytes.
+// Active Completion closures can own pendingRequest after Session.Done resets
+// s.pending: release ownership only when Completion returns/cancels.
+// All functions require Session.mu; no global hot-path atomic in production.
+func qa005RegisterPendingLocked(s *Session, pending *pendingRequest) {
+    if pending == nil { s.qa005M1PendingFault = true; return }
+    if s.qa005M1PendingLive == nil { s.qa005M1PendingLive = make(map[*pendingRequest]struct{}) }
+    if _, exists := s.qa005M1PendingLive[pending]; exists { s.qa005M1PendingFault = true; return }
+    s.qa005M1PendingLive[pending] = struct{}{}
+}
+
+func qa005ReleasePendingLocked(s *Session, pending *pendingRequest) {
+    if pending == nil { s.qa005M1PendingFault = true; return }
+    if _, ok := s.qa005M1PendingLive[pending]; !ok { s.qa005M1PendingFault = true; return }
+    delete(s.qa005M1PendingLive, pending)
+}
 """
 
 
@@ -95,7 +112,10 @@ def patch_internal(content):
         "\tqa005OwnedControl         uint64\n"
         "\tqa005OwnedFault           bool\n"
         "\tqa005OwnedTotal           uint64\n"
-        "\tqa005OwnedPeak            uint64\n\tqa005AfterAllocation      func() // deterministic overlay-only close interleaving\n",
+        "\tqa005OwnedPeak            uint64\n"
+        "\tqa005M1PendingLive map[*pendingRequest]struct{} // identity-only, not bytes\n"
+        "\tqa005M1PendingFault bool\n"
+        "\tqa005AfterAllocation      func() // deterministic overlay-only close interleaving\n",
         "session storage counters")
     content = replace_once(
         content, "\ts.queuedControlBytes = next\n\tif item.barrier {",
@@ -243,6 +263,19 @@ def patch_session(content):
         "\t\tadmissionErr = s.enqueueControlLocked(control)\n"
         "\t\tif admissionErr != nil { qa005DiscardControlBeforeQueueLocked(s, control) }",
         "Unbind control pre-Queue responsibility")
+    content = replace_once(
+        content,
+        "\ts.pending[sequence] = pending\n",
+        "\ts.pending[sequence] = pending\n"
+        "\tqa005RegisterPendingLocked(s, pending) // accepted SendRequest; Session.mu held\n",
+        "M1 pending admission identity")
+    content = replace_once(
+        content,
+        "\ts.releaseRequestCreditLocked(pending)\n\ts.mu.Unlock()\n",
+        "\ts.releaseRequestCreditLocked(pending)\n"
+        "\tqa005ReleasePendingLocked(s, pending) // Completion return/cancel, even after Done\n"
+        "\ts.mu.Unlock()\n",
+        "M1 pending Completion release identity")
     return content
 
 
@@ -318,6 +351,28 @@ def patch_transport(content):
 
 
 BENCHMARK_HELPERS = """
+// M1 per-Session identity count is independent of observed F1-F5 backing
+// bytes. Pending map removal is not object-lifetime release: active Completion
+// closures may retain objects after Session.Done and map reset.
+func qa005M1PendingCount(env *benchmarkEnv) (uint64, bool) {
+    if !qa005OwnedRegistryComplete(env) { return 0, false }
+    var sum uint64
+    for _, s := range qa005OwnedSessions(env) {
+        s.mu.Lock()
+        invalid := s.qa005M1PendingFault || s.resourceAccountingFailed
+        for _, p := range s.pending {
+            if _, found := s.qa005M1PendingLive[p]; !found { invalid = true }
+        }
+        count := uint64(len(s.qa005M1PendingLive))
+        s.mu.Unlock()
+        if invalid { return 0, false }
+        next, ok := checkedAddUint64(sum, count)
+        if !ok { return 0, false }
+        sum = next
+    }
+    return sum, true
+}
+
 // D1: observe only neta-created string(debug.Stack()) retained by PanicRecord.
 // First, OnClose, Recent can reference the SAME record. Dedup by unique
 // per-Session PanicRecord.Sequence; ignore raw recovered foreign object graphs.
@@ -1008,6 +1063,46 @@ func TestQA005OwnedOverlayD1StackTextRetention(t *testing.T) {
     if hasRecent || !valid || measured != firstOnly { t.Fatal("First must survive Recent budget rejection") }
 }
 
+
+// Map removal (e.g. Done) does not end the lifetime of a pendingRequest
+// still owned by a Completion closure. Distinct identity counted once.
+func TestQA005OwnedOverlayM1PendingIdentityLifetime(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    p := &pendingRequest{}
+    s.mu.Lock()
+    s.pending[41] = p
+    qa005RegisterPendingLocked(s,p)
+    s.mu.Unlock()
+    server := &Server{sessions: map[*Session]struct{}{s: {}}}
+    env := &benchmarkEnv{server:server}
+    qa005ResetOwnedHighwaters(env)
+    count, valid := qa005M1PendingCount(env)
+    if !valid || count != 1 { t.Fatalf("admitted pending identity: %d valid=%v",count,valid) }
+    // Synthetic Done-like map reset. Completion still owns p.
+    s.mu.Lock()
+    s.pending = make(map[uint32]*pendingRequest)
+    s.mu.Unlock()
+    count, valid = qa005M1PendingCount(env)
+    if !valid || count != 1 { t.Fatalf("post-Done retained pending missing: %d valid=%v",count,valid) }
+    // Completion return: releasePending uses the actual normal release hook.
+    s.releasePending(41,p)
+    count, valid = qa005M1PendingCount(env)
+    if !valid || count != 0 { t.Fatalf("Completion release not accounted: %d valid=%v",count,valid) }
+    s.mu.Lock()
+    qa005ReleasePendingLocked(s,p) // injected duplicate must fail closed
+    fault := s.qa005M1PendingFault
+    s.mu.Unlock()
+    if !fault { t.Fatal("duplicate pending release not detected") }
+    if _,ok := qa005M1PendingCount(env); ok { t.Fatal("faulty pending identity accepted") }
+    other := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    other.mu.Lock()
+    other.pending[7] = &pendingRequest{} // synthetic missing admission registration
+    other.mu.Unlock()
+    env2 := &benchmarkEnv{server:&Server{sessions:map[*Session]struct{}{other:{}}}}
+    qa005ResetOwnedHighwaters(env2)
+    if _,ok := qa005M1PendingCount(env2); ok { t.Fatal("unregistered pending owner accepted") }
+}
+
 """
 
 
@@ -1049,6 +1144,7 @@ def patch_benchmark(content):
         patched, "    samples uint64\n    invalid bool\n",
         "    samples uint64\n    invalid bool\n    ownedPeak uint64\n    ownedSamples uint64\n    ownedUpper uint64\n"
         "    d1StackPeak uint64\n    d1StackSamples uint64\n"
+        "    m1PendingPeak uint64\n    m1PendingSamples uint64\n"
         "    ownedLastSampleAt time.Time\n"
         "    ownedMaxSampleGap time.Duration\n"
         "    ownedMaxSnapshotDuration time.Duration\n",
@@ -1064,13 +1160,16 @@ def patch_benchmark(content):
         "        p.ownedLastSampleAt = sampleStartedAt\n"
         "        owned, valid := qa005SampleOwnedBuffers(env)\n"
         "        d1Text, d1OK := qa005D1StackTextSample(env)\n"
+        "        pendingCount, pendingOK := qa005M1PendingCount(env)\n"
         "        snapshotDuration := time.Since(sampleStartedAt)\n"
         "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
-        "        if !valid || !d1OK { p.invalid = true; return }\n"
+        "        if !valid || !d1OK || !pendingOK { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
         "        p.ownedSamples++\n"
         "        if d1Text > p.d1StackPeak { p.d1StackPeak = d1Text }\n"
-        "        p.d1StackSamples++\n",
+        "        p.d1StackSamples++\n"
+        "        if pendingCount > p.m1PendingPeak { p.m1PendingPeak = pendingCount }\n"
+        "        p.m1PendingSamples++\n",
         "sample observation")
     patched = replace_once(
         patched, "            case <-p.stop: observe(); return",
@@ -1084,6 +1183,8 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.ownedSamples), "probe-owned-buffer-samples")\n'
         '    b.ReportMetric(float64(p.d1StackPeak), "probe-d1-unique-stack-text-peak-B")\n'
         '    b.ReportMetric(float64(p.d1StackSamples), "probe-d1-stack-text-samples")\n'
+        '    b.ReportMetric(float64(p.m1PendingPeak), "probe-m1-pending-object-peak-count")\n'
+        '    b.ReportMetric(float64(p.m1PendingSamples), "probe-m1-pending-samples")\n'
         '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
         '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
         '    b.ReportMetric(float64(p.ownedMaxSnapshotDuration.Nanoseconds()), "probe-owned-max-snapshot-ns")\n',
@@ -1134,7 +1235,8 @@ def prepare(source, output):
         "observed_partial_categories": ["F1-outbound-app", "F2-inbound-request-body",
                                         "F3-inbound-response-body", "F4-outbound-control",
                                         "F5-unreserved-inbound-body",
-                                        "D1-owned-panic-stack-text-only"],
+                                        "D1-owned-panic-stack-text-only",
+                                        "M1-pending-object-identity-only"],
         "coverage_status": "PARTIAL_INCONCLUSIVE",
         "coverage_exclusions_detail": {
             "F1": "pre-Queue build observed; allocator overhead/foreign refs excluded",
@@ -1142,7 +1244,7 @@ def prepare(source, output):
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
-            "M1": "worker/queue/pending/Session/map metadata not accurately measured",
+            "M1": "only accepted pendingRequest object identities until Completion release observed as COUNT, not bytes; other metadata, map buckets, instrumented ledger allocation excluded",
             "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
@@ -1159,6 +1261,7 @@ def prepare(source, output):
         "tracks_unreserved_inbound_body_lifetime": True,
         "reconciles_all_observed_categories_to_session_total": True,
         "observes_d1_unique_stack_text_only": True,
+        "observes_m1_pending_object_identity_count_not_bytes": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
