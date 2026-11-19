@@ -742,9 +742,12 @@ func TestQA005OwnedOverlayTransientAdmissionChurn(t *testing.T) {
     if _, ok := qa005OwnedPeakUpper(env); ok {
         t.Fatal("transient Server owner wrongly accepted in HWM upper")
     }
-    // Reset creates a fresh window; no permanent poisoning across windows.
-    qa005ResetOwnedHighwaters(env)
-    if !qa005OwnedRegistryComplete(env) { t.Fatal("new snapshot should be valid") }
+    // A frozen window cannot be reset in-place. Use a distinct benchmarkEnv
+    // so a late Session cannot be silently admitted into an old evidence set.
+    if qa005OwnedRegistryComplete(env) { t.Fatal("old window unexpectedly became valid") }
+    nextWindow := &benchmarkEnv{server: server}
+    qa005ResetOwnedHighwaters(nextWindow)
+    if !qa005OwnedRegistryComplete(nextWindow) { t.Fatal("distinct new window should be valid") }
 }
 
 """
