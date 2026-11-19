@@ -15,6 +15,7 @@ The original two public examples are preserved. Ten additional independent stdli
 | Diagnostics normal | go run ./examples/server-diagnostics | go run ./examples/client-diagnostics | Completion, typed Session.Diagnostics snapshot |
 | Diagnostics timeout | go run ./examples/server-diagnostics -drop-timeout-demo=true | go run ./examples/client-diagnostics -mode=timeout -timeout=500ms | Expected RequestTimeout Completion |
 | Diagnostics Completion panic (opt in) | go run ./examples/server-diagnostics | go run ./examples/client-diagnostics -mode=panic | Recovered callback panic, OnClose cause and typed record |
+| Diagnostics Server OnRequest panic (opt in) | go run ./examples/server-diagnostics -panic-on-request=true | go run ./examples/client-diagnostics -mode=server-panic | Peer panic closes Session; Server OnClose prints first recovered OnRequest record |
 
 Long-running Servers stop with Ctrl-C. The original basic Client also stays alive after its first Request until Ctrl-C. New example Clients have finite windows or Request deadlines. For ephemeral ports, start Server with -listen 127.0.0.1:0, copy the printed actual address to Client -addr.
 
@@ -68,4 +69,4 @@ Session.Done, Client.Stop and Server.Stop(ctx) wait for internal transport teard
 bash scripts/examples-dev-smoke.sh
 ~~~
 
-The fast harness builds all 12 binaries, runs focused example unit tests and checks nine Client/Server loopback scenarios via ephemeral ports, readiness logs, bounded client timeouts, process cleanup and captured logs in artifacts/examples-dev. It is **not** QA-004 P99, QA-005 matched Core/Full runs, 30-minute soak, stress/fuzz or Performance Gate qualification. The original scripts/example-smoke.sh remains unchanged.
+The fast harness builds all 12 binaries, runs focused example unit tests (including V1-only rejection and duplicate/unknown Bind tests), checks twelve positive/negative Client/Server loopback pairs, and tests a real Client reconnect by killing and restarting the Server on the identical ephemeral port. Readiness, second Bound generation, cleanup and client deadlines are bounded and observable. Logs go to artifacts/examples-dev. It is **not** QA-004 P99, QA-005 matched Core/Full runs, 30-minute soak, stress/fuzz or Performance Gate qualification. The original scripts/example-smoke.sh remains unchanged.
