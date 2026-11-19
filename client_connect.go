@@ -158,9 +158,9 @@ func (c *Client) connectAttempt(ctx context.Context) (error, bool) {
 	}
 
 	handlers := sessionHandlers{
-		onBound: c.config.onBound,
+		onBound:   c.config.onBound,
 		onRequest: c.config.onRequest,
-		onClose: c.config.onClose,
+		onClose:   c.config.onClose,
 		onBoundInternal: func(session *Session) {
 			c.clientSessionBound(generation, session)
 		},

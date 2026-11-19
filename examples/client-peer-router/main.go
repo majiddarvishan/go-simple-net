@@ -16,10 +16,10 @@ import (
 )
 
 type clientArgs struct {
-	address   string
-	systemID  string
-	window    time.Duration
-	greeting  string
+	address  string
+	systemID string
+	window   time.Duration
+	greeting string
 }
 
 func parseClientArgs(args []string) (clientArgs, error) {

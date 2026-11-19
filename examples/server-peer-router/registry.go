@@ -11,21 +11,21 @@ import (
 
 // peerRegistry owns volatile per-peer Session pointers; never a durable message queue.
 type peerRegistry struct {
-	mu       sync.RWMutex
+	mu         sync.RWMutex
 	bindToPeer map[string]string
-	routes   map[string]string
-	sessions map[string]*neta.Session
-	inflight chan struct{}
+	routes     map[string]string
+	sessions   map[string]*neta.Session
+	inflight   chan struct{}
 }
 
 var (
 	errUnknownRoute = errors.New("route is not configured")
-	errPeerOffline    = errors.New("target peer has no bound session")
+	errPeerOffline  = errors.New("target peer has no bound session")
 	errDispatchBusy = errors.New("demo dispatch capacity exhausted")
 )
 
 type peerSnapshot struct {
-	PeerID     string
+	PeerID   string
 	SystemID string
 	Online   bool
 }
@@ -33,9 +33,9 @@ type peerSnapshot struct {
 func newPeerRegistry(cfg demoConfig) *peerRegistry {
 	r := &peerRegistry{
 		bindToPeer: make(map[string]string, len(cfg.Peers)),
-		routes:   make(map[string]string, len(cfg.Routes)),
-		sessions: make(map[string]*neta.Session, len(cfg.Peers)),
-		inflight: make(chan struct{}, cfg.MaxInflight),
+		routes:     make(map[string]string, len(cfg.Routes)),
+		sessions:   make(map[string]*neta.Session, len(cfg.Peers)),
+		inflight:   make(chan struct{}, cfg.MaxInflight),
 	}
 	for _, peer := range cfg.Peers {
 		r.bindToPeer[peer.BindSystemID] = peer.ID
@@ -122,7 +122,7 @@ func (r *peerRegistry) peers() []peerSnapshot {
 	for bindID, peerID := range r.bindToPeer {
 		s := r.sessions[peerID]
 		out = append(out, peerSnapshot{
-			PeerID:     peerID,
+			PeerID:   peerID,
 			SystemID: bindID,
 			Online:   s != nil && s.State() == neta.SessionStateBound,
 		})

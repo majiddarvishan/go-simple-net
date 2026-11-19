@@ -61,12 +61,12 @@ func TestPeerClientHandlesServerOriginatedRequest(t *testing.T) {
 	}
 	responseCh := make(chan struct {
 		response neta.Response
-		err error
+		err      error
 	}, 1)
 	seq, err := session.SendRequest([]byte("from-server"), func(resp neta.Response, e error) {
 		responseCh <- struct {
 			response neta.Response
-			err error
+			err      error
 		}{resp, e}
 	})
 	if err != nil {

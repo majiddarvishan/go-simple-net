@@ -33,7 +33,7 @@ type demoConfig struct {
 	AppConcurrency     uint32            `json:"application_callback_concurrency"`
 	MaxIncomingFrames  uint32            `json:"max_incoming_application_frames"`
 	MaxInflight        uint32            `json:"max_inflight_dispatches"`
-	Peers     []peerConfig    `json:"peers"`
+	Peers              []peerConfig      `json:"peers"`
 	Routes             map[string]string `json:"routes"`
 }
 

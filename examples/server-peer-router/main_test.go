@@ -139,14 +139,14 @@ func TestTwoPeersBoundAndRoutedWithoutFallback(t *testing.T) {
 
 	completion := make(chan struct {
 		response neta.Response
-		err error
+		err      error
 	}, 1)
 	release := make(chan struct{})
 	peerID, seq, err := registry.dispatch("east", []byte("from-peer-router"), func(response neta.Response, resultErr error) {
 		defer func() { <-release }()
 		completion <- struct {
 			response neta.Response
-			err error
+			err      error
 		}{response, resultErr}
 	})
 	if err != nil || seq == 0 || peerID != "peer-east-01" {
