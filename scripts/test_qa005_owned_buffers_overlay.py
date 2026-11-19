@@ -125,5 +125,21 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn('ReportMetric(float64(p.ownedPeak), "retained-attributed-B")', patched)
 
 
+    def test_transient_admission_epoch_patch_matches_real_source(self):
+        source = SCRIPT.parent.parent
+        server = mod.patch_server_lifecycle((source / "server_lifecycle.go").read_text())
+        struct = mod.patch_types((source / "types.go").read_text())
+        fixture = mod.patch_benchmark((source / "benchmark_test.go").read_text())
+        self.assertIn("s.qa005OwnedAdmissionEpoch++", server)
+        self.assertIn("qa005OwnedAdmissionEpoch uint64", struct)
+        self.assertIn("qa005OwnedBaselineAdmissionEpoch uint64", fixture)
+        self.assertIn("qa005OwnedBaselineAdmissionEpoch = env.server.qa005OwnedAdmissionEpoch", mod.BENCHMARK_HELPERS)
+        self.assertIn("TestQA005OwnedOverlayTransientAdmissionChurn", mod.BENCHMARK_HELPERS)
+        self.assertIn("server_lifecycle.go", mod.SOURCE_FILES)
+        self.assertIn("types.go", mod.SOURCE_FILES)
+        with self.assertRaisesRegex(ValueError, "Server Session registration epoch"):
+            mod.patch_server_lifecycle("package neta\\n")
+
+
 if __name__ == "__main__":
     unittest.main()

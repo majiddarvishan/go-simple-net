@@ -10,11 +10,12 @@ import re
 from pathlib import Path
 
 SOURCE_ANCHOR = "9b7b2318f73d173a99d22489042f84f8ce58b745"
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V6-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V7-UNQUALIFIED"
 SOURCE_FILES = {
     "benchmark_test.go", "qa005_qualification_benchmark_test.go",
     "session.go", "session_internal.go", "session_transport.go",
     "session_control.go", "resource_charges.go",
+    "types.go", "server_lifecycle.go",
 }
 COMPARABLE_FIELDS = (
     "adapter_id", "source_fixture_sha256", "effective_fixture_sha256",

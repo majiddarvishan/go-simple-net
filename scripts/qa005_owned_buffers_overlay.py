@@ -18,8 +18,8 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V6-UNQUALIFIED"
-SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V7-UNQUALIFIED"
+SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
 
@@ -278,6 +278,9 @@ BENCHMARK_HELPERS = """
 func qa005OwnedSessions(env *benchmarkEnv) []*Session {
     if env.qa005OwnedRegistry != nil { return env.qa005OwnedRegistry }
     env.server.mu.Lock()
+    // Freeze admission epoch under the same lock as the Server map snapshot.
+    // A new Session that opens AND closes between samples still invalidates.
+    env.qa005OwnedBaselineAdmissionEpoch = env.server.qa005OwnedAdmissionEpoch
     sessions := make([]*Session, 0, len(env.server.sessions)+len(env.sessions))
     seen := make(map[*Session]struct{}, len(env.server.sessions)+len(env.sessions))
     for session := range env.server.sessions {
@@ -319,6 +322,7 @@ func qa005OwnedRegistryComplete(env *benchmarkEnv) bool {
     }
     env.server.mu.Lock()
     defer env.server.mu.Unlock()
+    if env.server.qa005OwnedAdmissionEpoch != env.qa005OwnedBaselineAdmissionEpoch { return false }
     for session := range env.server.sessions {
         if _, known := env.qa005OwnedIndex[session]; !known { return false }
     }
@@ -716,7 +720,54 @@ func TestQA005OwnedOverlayDeduplicatesSessionIdentity(t *testing.T) {
     s.mu.Unlock()
 }
 
+
+// The live-map check alone misses a Server Session admitted then removed
+// entirely between observer ticks. The immutable admission epoch catches it.
+func TestQA005OwnedOverlayTransientAdmissionChurn(t *testing.T) {
+    original := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server := &Server{sessions: map[*Session]struct{}{original: {}}}
+    env := &benchmarkEnv{server: server}
+    qa005ResetOwnedHighwaters(env)
+    if !qa005OwnedRegistryComplete(env) { t.Fatal("initial frozen identity invalid") }
+    ephemeral := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server.mu.Lock()
+    server.sessions[ephemeral] = struct{}{}
+    server.qa005OwnedAdmissionEpoch++
+    delete(server.sessions, ephemeral)
+    server.mu.Unlock()
+    // No new entry remains in the map; the generation MUST still reject.
+    if _, ok := qa005SampleOwnedBuffers(env); ok {
+        t.Fatal("transient Server owner wrongly accepted after remove")
+    }
+    if _, ok := qa005OwnedPeakUpper(env); ok {
+        t.Fatal("transient Server owner wrongly accepted in HWM upper")
+    }
+    // Reset creates a fresh window; no permanent poisoning across windows.
+    qa005ResetOwnedHighwaters(env)
+    if !qa005OwnedRegistryComplete(env) { t.Fatal("new snapshot should be valid") }
+}
+
 """
+
+
+
+def patch_types(content):
+    return replace_once(
+        content,
+        "\tsessions       map[*Session]struct{}\n",
+        "\tqa005OwnedAdmissionEpoch uint64 // test overlay; Server.mu protects admission-churn evidence\n"
+        "\tsessions       map[*Session]struct{}\n",
+        "Server admission epoch")
+
+
+def patch_server_lifecycle(content):
+    return replace_once(
+        content,
+        "\ts.sessions[session] = struct{}{}\n\ts.preBind[session] = struct{}{}",
+        "\ts.sessions[session] = struct{}{}\n"
+        "\ts.qa005OwnedAdmissionEpoch++ // test overlay; Server.mu held\n"
+        "\ts.preBind[session] = struct{}{}",
+        "Server Session registration epoch")
 
 
 def patch_benchmark(content):
@@ -724,6 +775,7 @@ def patch_benchmark(content):
     patched = replace_once(
         patched, "type benchmarkEnv struct {\n",
         "type benchmarkEnv struct {\n"
+        "\tqa005OwnedBaselineAdmissionEpoch uint64\n"
         "\tqa005OwnedRegistry []*Session\n"
         "\tqa005OwnedIndex map[*Session]struct{}\n",
         "stable owned Session registry")
@@ -779,6 +831,8 @@ PATCHES = {
     "session_transport.go": patch_transport,
     "session_control.go": patch_control,
     "resource_charges.go": patch_charges,
+    "types.go": patch_types,
+    "server_lifecycle.go": patch_server_lifecycle,
 }
 
 
@@ -788,7 +842,7 @@ def prepare(source, output):
     if source == output or source in output.parents:
         raise ValueError("overlay output must be outside source checkout")
     original = {name: (source / name).read_bytes() for name in
-                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go")}
+                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")}
     edited = {name: PATCHES[name](original[name].decode("utf-8")).encode("utf-8")
               for name in SOURCE_FILES}
     output.mkdir(parents=True, exist_ok=False)
@@ -831,6 +885,7 @@ def prepare(source, output):
         "source_tree_mutated": False,
         "tracks_pre_enqueue_allocated_F1": True,
         "tracks_prequeue_registered_F4_unbind_enquire": True,
+        "invalidates_transient_server_admission_churn": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
