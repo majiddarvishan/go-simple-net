@@ -85,5 +85,22 @@ class OverlayCompatibilityTest(unittest.TestCase):
             mod.check_manifest(invalid, "candidate")
 
 
+    def test_client_connect_lifecycle_are_pinned_source_contract(self):
+        self.assertIn("client_connect.go", mod.SOURCE_FILES)
+        self.assertIn("client_lifecycle.go", mod.SOURCE_FILES)
+        a, b = fixture(), fixture()
+        b["source_file_sha256"]["client_connect.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "source_file_sha256"):
+            mod.check_pair(a, b)
+        a, b = fixture(), fixture()
+        b["effective_file_sha256"]["client_lifecycle.go"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "effective_file_sha256"):
+            mod.check_pair(a, b)
+        bad = fixture()
+        bad["source_file_sha256"].pop("client_connect.go")
+        with self.assertRaisesRegex(ValueError, "file set"):
+            mod.check_manifest(bad, "baseline")
+
+
 if __name__ == "__main__":
     unittest.main()

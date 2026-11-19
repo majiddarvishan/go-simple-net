@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V16-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V17-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -543,6 +543,32 @@ func qa005OwnedSessions(env *benchmarkEnv) []*Session {
             sessions = append(sessions, session)
         }
     }
+    // Client generations may be created and retired without ever appearing in
+    // env.sessions or Server's current map at the next sampling tick.
+    // Freeze *both* the attempt epoch and the Client's current Session.
+    // An in-flight Connect at freeze has no stable owner set: fail closed.
+    env.qa005OwnedClientEpoch = make(map[*Client]uint64, len(env.clients))
+    env.qa005OwnedClientIdentity = make(map[*Client]*Session, len(env.clients))
+    env.qa005OwnedClientRegistryValid = true
+    for _, client := range env.clients {
+        if client == nil { env.qa005OwnedClientRegistryValid = false; continue }
+        if _, duplicated := env.qa005OwnedClientEpoch[client]; duplicated { continue }
+        client.mu.Lock()
+        generation := client.generation
+        current := client.current
+        unsafeWindow := client.stopped || client.connectDone != nil ||
+            generation == ^uint64(0)
+        client.mu.Unlock()
+        if unsafeWindow { env.qa005OwnedClientRegistryValid = false }
+        env.qa005OwnedClientEpoch[client] = generation
+        env.qa005OwnedClientIdentity[client] = current
+        if current != nil {
+            if _, known := seen[current]; !known {
+                seen[current] = struct{}{}
+                sessions = append(sessions, current)
+            }
+        }
+    }
     return sessions
 }
 
@@ -563,9 +589,25 @@ func qa005ResetOwnedHighwaters(env *benchmarkEnv) {
 
 // A Session removed from the Server's current map may still own callback bodies.
 func qa005OwnedRegistryComplete(env *benchmarkEnv) bool {
-    if len(env.qa005OwnedRegistry) == 0 { return false }
-    for _, session := range env.qa005OwnedRegistry {
-        if session == nil { return false }
+    if len(env.qa005OwnedRegistry) == 0 || !env.qa005OwnedClientRegistryValid {
+        return false
+    }
+    if len(env.qa005OwnedClientEpoch) != len(env.qa005OwnedClientIdentity) {
+        return false
+    }
+    // Verify Client's monotonic connect-attempt epoch and current identity
+    // under the Client mutex. No nested Client/Server/Session lock.
+    // A generation started AND retired between samples must invalidate.
+    for _, client := range env.clients {
+        if client == nil { return false }
+        expected, known := env.qa005OwnedClientEpoch[client]
+        if !known { return false }
+        client.mu.Lock()
+        complete := !client.stopped && client.connectDone == nil &&
+            client.generation == expected &&
+            client.current == env.qa005OwnedClientIdentity[client]
+        client.mu.Unlock()
+        if !complete { return false }
     }
     env.server.mu.Lock()
     defer env.server.mu.Unlock()
@@ -1379,6 +1421,80 @@ func TestQA005OwnedOverlayM1RealWorkerQueueLifecycle(t *testing.T) {
     }
 }
 
+
+// Baseline freezes Client generation and current Session under Client.mu.
+// An ephemeral attempt that disappears between observations is caught by
+// the existing monotonically increased Client.generation. No new hot-path
+// counter or change to the production connect lifecycle is necessary.
+func TestQA005OwnedOverlayClientTransientGenerationChurn(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    client := &Client{generation:7, current:s}
+    env := &benchmarkEnv{
+        server:&Server{sessions:map[*Session]struct{}{}},
+        clients:[]*Client{client,client},
+    }
+    qa005ResetOwnedHighwaters(env)
+    if len(env.qa005OwnedRegistry) != 1 || len(env.qa005OwnedClientEpoch) != 1 ||
+        !qa005OwnedRegistryComplete(env) { t.Fatal("frozen Client identity invalid") }
+    s.mu.Lock()
+    qa005AddOwnedLocked(s,&s.qa005OwnedOutgoingApp,19)
+    s.mu.Unlock()
+    sample,ok := qa005SampleOwnedBuffers(env)
+    if !ok || sample != 19 { t.Fatalf("frozen client sample=%d valid=%v",sample,ok) }
+    transient := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    client.mu.Lock()
+    client.generation++
+    client.current=transient
+    client.current=s // temporary generation has disappeared before next tick
+    client.mu.Unlock()
+    if qa005OwnedRegistryComplete(env) { t.Fatal("ephemeral Client generation went unnoticed") }
+    if _,ok := qa005SampleOwnedBuffers(env); ok { t.Fatal("client churn was sampled as valid") }
+    if _,ok := qa005OwnedPeakUpper(env); ok { t.Fatal("client churn HWM was accepted") }
+    // Existing window cannot be silently rebaselined.
+    next := &benchmarkEnv{server:env.server,clients:[]*Client{client}}
+    qa005ResetOwnedHighwaters(next)
+    if !qa005OwnedRegistryComplete(next) { t.Fatal("fresh window should be complete") }
+    s.mu.Lock()
+    qa005SubtractOwnedLocked(s,&s.qa005OwnedOutgoingApp,19)
+    s.mu.Unlock()
+}
+
+func TestQA005OwnedOverlayClientCurrentAndInFlightInvalidation(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    client := &Client{generation:3,current:s}
+    server := &Server{sessions:map[*Session]struct{}{}}
+    env := &benchmarkEnv{server:server,clients:[]*Client{client}}
+    qa005ResetOwnedHighwaters(env)
+    if !qa005OwnedRegistryComplete(env) { t.Fatal("baseline current identity lost") }
+    client.mu.Lock()
+    client.current = nil // Done cleared current, even without new generation
+    client.mu.Unlock()
+    if qa005OwnedRegistryComplete(env) { t.Fatal("Client current swap was accepted") }
+    client.mu.Lock()
+    client.current=s
+    client.mu.Unlock()
+    inFlight := make(chan struct{})
+    client.mu.Lock()
+    client.connectDone = inFlight
+    client.mu.Unlock()
+    if qa005OwnedRegistryComplete(env) { t.Fatal("connect in progress accepted") }
+    unsafeFreeze := &benchmarkEnv{server:server,clients:[]*Client{client}}
+    qa005ResetOwnedHighwaters(unsafeFreeze)
+    client.mu.Lock()
+    client.connectDone=nil
+    client.mu.Unlock()
+    if qa005OwnedRegistryComplete(unsafeFreeze) {
+        t.Fatal("in-flight freeze incorrectly became valid after Connect ended")
+    }
+    clean := &benchmarkEnv{server:server,clients:[]*Client{client}}
+    qa005ResetOwnedHighwaters(clean)
+    if !qa005OwnedRegistryComplete(clean) { t.Fatal("fresh post-Connect window rejected") }
+    client.mu.Lock()
+    client.stopped=true
+    client.mu.Unlock()
+    if qa005OwnedRegistryComplete(clean) { t.Fatal("stopped Client accepted") }
+}
+
 """
 
 
@@ -1410,6 +1526,9 @@ def patch_benchmark(content):
     patched = replace_once(
         patched, "type benchmarkEnv struct {\n",
         "type benchmarkEnv struct {\n"
+        "\tqa005OwnedClientEpoch map[*Client]uint64\n"
+        "\tqa005OwnedClientIdentity map[*Client]*Session\n"
+        "\tqa005OwnedClientRegistryValid bool\n"
         "\tqa005OwnedBaselineAdmissionEpoch uint64\n"
         "\tqa005OwnedRegistry []*Session\n"
         "\tqa005OwnedIndex map[*Session]struct{}\n",
@@ -1511,7 +1630,7 @@ def prepare(source, output):
     if source == output or source in output.parents:
         raise ValueError("overlay output must be outside source checkout")
     original = {name: (source / name).read_bytes() for name in
-                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go", "worker_scheduler.go")}
+                (*FIXTURES, "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go", "worker_scheduler.go", "client_connect.go", "client_lifecycle.go")}
     edited = {name: PATCHES[name](original[name].decode("utf-8")).encode("utf-8")
               for name in SOURCE_FILES}
     output.mkdir(parents=True, exist_ok=False)
@@ -1546,7 +1665,7 @@ def prepare(source, output):
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
-            "M1": "pendingRequest static struct bytes; worker queue structs, task slice cap slots and callbackWorker static struct bytes from workerCount under per-pool lock; excludes allocator padding, channel buffers, maps, closures, goroutine stacks, client generation churn and whole M1",
+            "M1": "pendingRequest/worker queue logical structs, task slice-capacity slots and Worker static objects; Client generation/current frozen fail-closed for transient reconnect attempts. Map buckets, channel/timer/closures, allocator classes and whole M1 excluded",
             "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
@@ -1569,6 +1688,8 @@ def prepare(source, output):
         "m1_worker_queue_sizes_are_logical_not_allocator_bytes": True,
         "m1_worker_struct_footprint_excludes_stacks_channels_allocator": True,
         "worker_scheduler_source_sha_is_compatibility_dependency": True,
+        "client_generation_and_current_frozen_fail_closed": True,
+        "client_connection_sources_pinned_for_epoch_semantics": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

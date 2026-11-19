@@ -250,5 +250,22 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("worker_scheduler.go",SCRIPT.read_text())
 
 
+    def test_client_generation_freeze_and_source_contract(self):
+        h = mod.BENCHMARK_HELPERS
+        self.assertIn("qa005OwnedClientRegistryValid = true", h)
+        self.assertIn("client.generation == expected", h)
+        self.assertIn("client.current == env.qa005OwnedClientIdentity[client]", h)
+        self.assertIn("client.connectDone == nil", h)
+        self.assertIn("TestQA005OwnedOverlayClientTransientGenerationChurn", h)
+        self.assertIn("TestQA005OwnedOverlayClientCurrentAndInFlightInvalidation", h)
+        fixture = mod.patch_benchmark((SCRIPT.parent.parent / "benchmark_test.go").read_text())
+        self.assertIn("qa005OwnedClientEpoch map[*Client]uint64", fixture)
+        source = (SCRIPT.parent.parent / "client_connect.go").read_text()
+        self.assertIn("c.generation++", source)
+        self.assertIn("c.current = session", source)
+        self.assertIn("c.current = nil", source)
+        self.assertIn('"client_generation_and_current_frozen_fail_closed": True', SCRIPT.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
