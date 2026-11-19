@@ -1,4 +1,4 @@
-> **CURRENT POST-MERGE STATUS (2026-11-20; source `main` SHA `fb57668e182dc102f94044393b3d8f2a33aeddae`):** [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) MERGED the QA-004/005/007 feature and completed **Phase D 16/16 DEV/EX tasks** (12 runnable examples). QA-007 is **IMPLEMENTED/MERGED/CLOSED**; QA-004/005 and MEM-004/005/006 are **OPEN / PARTIAL_INCONCLUSIVE**. On merged SHA, [Go 44547311083](https://github.com/majiddarvishan/neta-go/actions/runs/44547311083), [C++ wire 44547311177](https://github.com/majiddarvishan/neta-go/actions/runs/44547311177) and [hosted advisory performance 44547311004](https://github.com/majiddarvishan/neta-go/actions/runs/44547311004) all PASS, **without** constituting formal reference qualification. Performance Gate **DISABLED**, P9-06 Tag/Release **NOT AUTHORIZED**. [Current release summary](../docs/RELEASE_READINESS.md). Historical lines below describe their dates; former “no PR/merge” remarks are not current policy after the owner's approved merge.
+> **CURRENT VERIFIED MAIN STATUS (2026-11-20; SHA `bd8421cf3cabc5cb72263ed964434a48bf54ef22`):** [PR #24](https://github.com/majiddarvishan/neta-go/pull/24) (Phase D/QA), [#25](https://github.com/majiddarvishan/neta-go/pull/25) (readiness), [#26](https://github.com/majiddarvishan/neta-go/pull/26) (multi-peer Server) and [#27](https://github.com/majiddarvishan/neta-go/pull/27) (generic peer routing and Client OnRequest) are **ALL MERGED**. **Phase D 16/16 complete; 14 runnable examples** (2 original, 10 Phase D, 2 generic routers). Additive `WithClientOnRequestHandler` is merged for bidirectional Client Sessions with V1/V2 real TCP tests, nil handler compatibility, and rejection of non-nil handler for one-way Bind. Exact current main SHA required [Go CI 44630477642](https://github.com/majiddarvishan/neta-go/actions/runs/44630477642) and [C++ wire 44630477596](https://github.com/majiddarvishan/neta-go/actions/runs/44630477596) both **SUCCESS**. QA-007 **MERGED/CLOSED**; QA-004/005 and MEM-004/005/006 **OPEN/INCONCLUSIVE**; Performance Gate **DISABLED**, no numeric baseline or `v1.0.0` release authorization. [Normalized Phase-Q/Owner/Release backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md). Older dated sections below are historical, not current merge status.
 
 > **OWNER-LOCAL QA-004 A/A (2026-11-18, exact SHA `ff38ceb29107fa156e0f87555f59bc6a5fa393d9`):** Received `aa-qa004-20261118T202222Z-2358305.tar.gz`: complete **10 alternating A/A pairs**, 5 synthetic Pending populations, 100 successful benchmark rows × 1200 internal terminal-settlement samples = **120,000 observations**; all **5/5 relative P99 metrics PASS** with run-level P99 CV 0.93–3.01%. Host i5-12400/Go 1.27, `powersave`, load increased 1.09 -> 1.70, pswpin +87 and pswpout +0. **A/A comparator status remains INCONCLUSIVE, baseline_approved=false, performance gate DISABLED** despite relative_status=PASS. Distinguish from QA-005's 1s A/A (P99 4/8 INCONCLUSIVE). QA-004/005 Task qualification remain OPEN, QA-007 CLOSED. This tool evidence does not approve a reference machine, absolute SLA or historical baseline. See docs/PERFORMANCE_QUALIFICATION.md.
 
@@ -21,11 +21,11 @@
 **Repository:** `github.com/majiddarvishan/neta-go`  
 **Branch:** `main`  
 **Tracker owner:** Project owner  
-**Last updated:** 2026-11-18  
+**Last reconciled:** 2026-11-20 (protected `main` `bd8421cf3cabc5cb72263ed964434a48bf54ef22`); older HEADs below identify historical reviews  
 **Original tracker baseline HEAD:** `c98f731fef89519d62d95248982538f25a36db82`  
 **Last verified repository HEAD before P9-00:** `d40467e44ef0535ba0a5ef83c9c5ce4a9109d9a5`  
 **Last verified production source HEAD:** `209c24a7dbc5a5aa3db95ec63705915406acacb6`  
-**Current phase:** Phase 9 — Documentation, examples and V1 release readiness (**IN PROGRESS; owner-authorized 2026-11-17**). P9-00..P9-05 are complete, including a qualified final release-readiness review with explicit publication-time limitations. P9-06 (release tag) remains NOT AUTHORIZED without separate explicit owner approval.
+**Current phase:** Phase D authorized development COMPLETE (16/16), with two subsequent generic peer-router examples and the additive Client OnRequest API merged. Phase Q qualification is DEFERRED until explicit owner permission. P9-00..P9-05 were completed historically; P9-06 release is OPEN/NOT AUTHORIZED.
 
 This file is the **single canonical implementation task tracker** for `neta-go`. It lives in `.codex/TASKS.md`; the former repository-root `TASKS.md` was consolidated here on 2026-11-18. Update the checkboxes together with their acceptance evidence. Keep architecture decisions in `DECISION_LOG.md`; this file records implementation status and verification.
 
@@ -49,10 +49,55 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 | 6 | Client/Server orchestration and reconnect | COMPLETE / CI PASS | Owner approved 2026-11-17 |
 | 7 | Live interoperability and fault-injection verification | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
 | 8 | Performance baseline and evidence-driven optimization | COMPLETE / CI PASS | Owner authorized 2026-11-17 |
-| 9 | Examples, documentation and V1 release readiness | IN PROGRESS | Owner authorized 2026-11-17; release tag separately gated |
+| 9 | Documentation/examples complete; publication gated at P9-06 | IN PROGRESS (release only) | Release tag separately gated |
 
 ---
 
+## Active work register — normalized and deduplicated (2026-11-20)
+
+**Authority:** protected `main` `bd8421cf3cabc5cb72263ed964434a48bf54ef22`. Historical task checkboxes later in this file may describe earlier snapshots or repeat the same work. **Canonical distinct open packages = 22: Qualification 10 + Owner Decisions 9 + Release 3.** Each package below counts once. See the [Phase-Q execution backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md) for acceptance evidence, dependency order and reference-host needs.
+
+### Development and examples — COMPLETE
+
+- [x] **DEV-01..DEV-06 (6/6), EX-C01..EX-C05 (5/5), EX-S01..EX-S05 (5/5).** Authorized Phase D **16/16 DONE**, merged via PR #24; original 12-command bounded CI [44542311954](https://github.com/majiddarvishan/neta-go/actions/runs/44542311954) PASS.
+- [x] **EX-G01 — `server-peer-router`:** generalized multi-bound-peer registry, exact-key fail-closed routing, JSON/CLI, bounded concurrency and no retry (PR #26 then #27).
+- [x] **EX-G02 — `client-peer-router` and API-CLIENT-REQUEST — `WithClientOnRequestHandler`:** bidirectional Client inbound Requests, `Session.SendResponse`, nil/uni Bind behavior, panic Diagnostics and V1/V2 TCP tests; [PR #27](https://github.com/majiddarvishan/neta-go/pull/27) merged. Total **14 runnable example commands**, but the older 12-command smoke does not cover the 2 new routers.
+- [x] **Current main required CI:** [Go 44630477642](https://github.com/majiddarvishan/neta-go/actions/runs/44630477642) and [C++ wire 44630477596](https://github.com/majiddarvishan/neta-go/actions/runs/44630477596) SUCCESS; PR #27 source tip [wire mutation 44630191298](https://github.com/majiddarvishan/neta-go/actions/runs/44630191298) SUCCESS. No claim of full Phase-Q acceptance.
+
+### Qualification — OPEN, needs Phase-Q authorization (10)
+
+- [ ] **Q-ENV-01 P0:** qualify stable reference hardware, reproducible A/A noise, approved runtime/CPU environment (requires reference machine).
+- [ ] **Q-COR-01 P0:** post-Development full correctness/race and V1/V2 Client OnRequest/teardown verification (no reference machine).
+- [ ] **Q-COR-02 P1:** heavy bounded stress/load/reconnect and resource teardown (no reference machine strictly necessary).
+- [ ] **Q-COR-03 P1:** extended fuzz and parser mutation (no reference machine).
+- [ ] **Q-COR-04 P1:** both-direction live Go/C++ V1 TCP interoperability including fault cases (requires C++ peer, not benchmark reference machine).
+- [ ] **QA-004 P0:** qualify Pending Deadline Scan and detection P99 against approved absolute SLA and reliable paired comparison.
+- [ ] **QA-005 P0:** validate 8 Core/24 Full, ten matched pairs, 95% statistics, approved immutable numeric baseline and threshold limits.
+- [ ] **MEM-004 P0:** close F1–F5/M1/D1 owned-byte/alias/lifetime/peak-validity evidence or remain INCONCLUSIVE; do not emit `retained-attributed-B` from partial diagnostics.
+- [ ] **MEM-005 P0:** validate instrumentation observer overhead and sampling gaps/bias on accepted reference host.
+- [ ] **MEM-006 P1:** qualify 30-minute long soak, memory stability and worker/Session teardown on accepted reference host.
+
+### Owner Decisions — OPEN (9)
+
+- [ ] **OD-ENV-01 P0:** approve reference machine/Go version and stable-host admission criteria.
+- [ ] **OD-MEM-01 P0:** decide permitted Hybrid-B exclusions, peak and sample-gap/bias validity, else fail closed as INCONCLUSIVE.
+- [ ] **OD-BASE-01 P0:** approve immutable numerical baseline and exact evidence/manifest, distinct from frozen Source-V1 SHA.
+- [ ] **OD-SLA-01 P0:** approve absolute QA-004 P99 and relevant throughput/latency SLAs, with measured evidence.
+- [ ] **OD-GATE-01 P2:** choose whether/when to activate mandatory Performance Gate; presently **DISABLED**.
+- [ ] **OD-NOTES-01 P0:** approve latest Unreleased notes covering V2/default, V2 NUL-free/20-byte, Client OnRequest and peer routers; historical PV-01-R/02A-R/02B-R refer to this ONE approval.
+- [ ] **OD-CHECK-01 P2:** optional rename of required C++ context through protected-main admin settings; old context kept unchanged meanwhile.
+- [ ] **PV-02 P3 FUTURE:** owner-approved version-selection/negotiation mechanism, no automatic fallback.
+- [ ] **PV-04/PV-05 P3 FUTURE:** capability/version extension design and authorization, not implicit V1 release blocker.
+
+### Release — OPEN (3)
+
+- [ ] **R-01 P0:** exact-candidate-SHA release evidence and CI/Qualification gate review.
+- [ ] **R-02 P0:** protected-main strict policy and publisher permission/tag-collision preflight by authorized admin.
+- [ ] **P9-06 P0:** owner-authorized `v1.0.0` Tag/Release only after all applicable gates; duplicate historical P9-06 checkbox below is the same task.
+
+**Nonnegotiable boundary:** QA004-QA005 Source-V1 anchor `9b7b2318f73d173a99d22489042f84f8ce58b745` unchanged. No new baseline, production edit, heavy qualification, mandatory gate or tag/release approved.
+
+---
 ## Phase 0 — Architecture and contract freeze
 
 <badge>COMPLETE</badge>
@@ -378,7 +423,7 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 - [x] Remove `docs/PINEX_COMPATIBILITY.md` and replace it with a self-contained `docs/PROTOCOL.md` documenting neta-go's Header, commands, V1/V2 Bind and Session behavior.
 - [x] Refocus README, public API, configuration, lifecycle, support and changelog on neta-go.
 - [x] Preserve the existing required C++ golden-wire CI job name because it is a protected-`main` required status context. Test fixtures and interoperability tests remain internal.
-- [ ] Verify Go correctness/race, example smoke and wire golden checks on the final protected-`main` SHA after the cleanup PR merges.
+- [x] Verify Go correctness/race, example smoke and wire golden checks after the cleanup/merge lineage. **On current protected main** `bd8421cf3cabc5cb72263ed964434a48bf54ef22`, required [Go 44630477642](https://github.com/majiddarvishan/neta-go/actions/runs/44630477642) and [C++ wire 44630477596](https://github.com/majiddarvishan/neta-go/actions/runs/44630477596) checks SUCCESS. This confirms ordinary CI, **not** Phase-Q acceptance.
 - [ ] Obtain renewed approval of changed Unreleased release notes; release tagging remains separately unauthorized.
 
 **Naming/CI handoff:** [Repository cleanup report](NETA_GO_REPOSITORY_HYGIENE_2026-11-18.md). Historic `.codex/` phase records are archived evidence and may mention superseded paths.
@@ -391,7 +436,7 @@ This file is the **single canonical implementation task tracker** for `neta-go`.
 - [x] Rename the workflow file to `.github/workflows/neta-cpp-wire-compat.yml` and its display name to `neta-cpp Wire Compatibility`.
 - [x] Standardize the maintained C++ peer display name to `neta-cpp` across source/test diagnostics, docs and CI.
 - [ ] **GitHub protection prerequisite:** the required status context currently remains `Verify Go wire codec against pinned Pinex C++ 1.5.0`. Change that protected-`main` required check in GitHub settings before renaming the actual job label. Retain its current name meanwhile to avoid breaking merges.
-- [ ] Verify protected-PR and post-merge Go/wire CI on this naming-only change.
+- [x] Verify protected-PR and post-merge Go/wire CI on the completed neta-cpp naming cleanup while retaining the old protected required context. [PR #13](https://github.com/majiddarvishan/neta-go/pull/13) merged at `0fadd380d558028a85333fa044eeb4c93ae5c11f`; present main Go/C++ required checks SUCCESS. **Renaming the required check itself is a separate still-open owner/admin decision.**
 
 Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/pinex` retain factual source provenance. They are not the project-facing branding or public neta-go API.
 
@@ -405,11 +450,11 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 - [ ] **QA-004 / P2 — Pending deadline scan: IMPLEMENTATION AND ADVISORY MICROBENCHMARKS PASS; reference-machine qualification, absolute P99 SLA and mandatory gate remain OPEN.** Linear Scan preserved; relative P99 detection regression tolerance 15% with credible statistics; absolute P99 limit requires future measured evidence and owner approval. 2048/8192 synthetic one-Session scan cases do not override the 512 per-Session Request-credit cap. [Contract](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md).
 - [ ] **QA-005 / P2 — Performance acceptance: implementation and advisory verification PASS; reference qualification OPEN.** Exact 8 Core / 24 Full matrix, 10-pair/95% comparator and 30-minute soak tooling; latest 24 Full hosted advisory execution and 16 comparator unit tests PASS [run 44313332548](https://github.com/majiddarvishan/neta-go/actions/runs/44313332548). Actual stable machine/immutable baseline, 10 paired reference runs, 30-minute soak, owner-attributable retained-memory metric and owner-approved absolute SLA remain OPEN. Relative 10%/15% tolerances remain report-only; mandatory gate DISABLED. [Contract](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md).
 - [x] **QA-006 / P2 — Fatal Accept handling:** PR #17 adds `Server.AcceptDone()` and `AcceptErr()`, preserves the terminal Accept error, refuses silently restarted listeners, and leaves bound Sessions alive until owner Stop. New tests inject both permanent errors and unexpected `net.ErrClosed`; normal Stop remains error-free. Go CI [44259357730](https://github.com/majiddarvishan/neta-go/actions/runs/44259357730) and wire CI [44259357765](https://github.com/majiddarvishan/neta-go/actions/runs/44259357765) PASS on PR. Protected-main QA-006 CI [Go 44259964992](https://github.com/majiddarvishan/neta-go/actions/runs/44259964992) and [Wire 44259965112](https://github.com/majiddarvishan/neta-go/actions/runs/44259965112) both PASS on `0824a70127594df72f78d1048cc360e33f57bd5b`.
-- [x] **QA-007 / P2 — Callback panic: IMPLEMENTED AND VERIFIED on isolated feature branch (QA-007.1–30, including Completion preservation QA-007.26 and admission-reserved OnClose QA-007.30).** `make verify` including Race, protocol, worker/lifecycle, accounting, late-panic and BindValidator panic/handshake rollback tests PASS [run 44306325369](https://github.com/majiddarvishan/neta-go/actions/runs/44306325369). Supersede legacy Forced Close queued-Completion cancellation and OnClose saturation skip; new design requires preserve Completion and reserve OnClose credit before eligible Session admission. [Contract](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md).
+- [x] **QA-007 / P2 — Callback panic: IMPLEMENTED AND VERIFIED on isolated feature branch and MERGED via PR #24 (QA-007.1–30, including Completion preservation QA-007.26 and admission-reserved OnClose QA-007.30).** `make verify` including Race, protocol, worker/lifecycle, accounting, late-panic and BindValidator panic/handshake rollback tests PASS [run 44306325369](https://github.com/majiddarvishan/neta-go/actions/runs/44306325369). Supersede legacy Forced Close queued-Completion cancellation and OnClose saturation skip; new design requires preserve Completion and reserve OnClose credit before eligible Session admission. [Contract](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md).
 - [x] **QA-008 / P3 — Clean code/docs:** removed duplicate client Bind serialization while retaining early validation and ensuring the Session's actual Sequence is written in the same Frame. V1/V2 exact-wire/sequence and invalid-identity ownership regressions. Merged [PR #19](https://github.com/majiddarvishan/neta-go/pull/19), protected-main SHA `5b7b61fcb78d99e5b489670a328cb13f6adbfd6b` [Go 44266450962](https://github.com/majiddarvishan/neta-go/actions/runs/44266450962) and [wire 44266450928](https://github.com/majiddarvishan/neta-go/actions/runs/44266450928) PASS.
 - [x] **QA-009 / P2 — Scheduled fuzz mutation and actual C++ TCP CI:** PR #20 adds V2 Bind Request/Response mutation fuzz targets and a dedicated public `wire-fuzz.yml` job for all seven fuzz targets (3s/target on PR, 12s/target weekly/manual). Real PR mutation run [44266748134](https://github.com/majiddarvishan/neta-go/actions/runs/44266748134) **PASS**, ~1.62M fuzz executions; ordinary Go and golden CI also pass. Genuine two-direction C++ V1 TCP + Go Race workflow is already merged privately in pinex PR #29 and runs weekly/manual, [postmerge PASS 44260379077](https://github.com/majiddarvishan/pinex/actions/runs/44260379077). These are supplemental gates; private C++ job is **not** a mandatory status check on every public Go PR. [Verification detail](NETA_GO_QA009_MUTATION_FUZZ_CI_2026-11-18.md).
 
-**Release gate (2026-11-18 implementation update):** QA-001/002/003/006/007/008/009 are complete as evidenced (QA-007 remains feature-branch-only, not merged). QA-004/005 qualification, stable reference environment, absolute SLA and mandatory performance gate remain open. [Approved QA contracts](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md). Do not claim release readiness or create v1.0.0 Tag/Release without distinct owner authorization.
+**Release gate (historical 2026-11-18 implementation update, reconciled 2026-11-20):** QA-001/002/003/006/007/008/009 are implemented as evidenced; QA-007 is now **MERGED** through PR #24. QA-004/005 qualification, stable reference environment, absolute SLA and mandatory performance gate remain open. [Approved QA contracts](NETA_GO_QA_004_005_007_APPROVED_CONTRACTS_2026-11-18.md). Do not claim release readiness or create v1.0.0 Tag/Release without distinct owner authorization.
 
 ## QA-005-MEM-001 — attributable retained memory (2026-11-19; B APPROVED, DESIGN DRAFT)
 
@@ -422,7 +467,7 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 - [x] **MEM-004 Client generation snapshot integrity — V17/V18 TEST-ONLY COMPLETE (not full MEM-004):** [Client generation freeze evidence](NETA_GO_QA005_CLIENT_GENERATION_FREEZE_V17_V18_EVIDENCE_2026-11-19.md). V17 `c8cf0467` freezes under Client.mu each Client generation/current identity plus a no-in-flight-Connect precondition, deduplicates Clients, detects transient reconnect that opens/closes between sampling ticks, current pointer swap, and stopped Client; both `client_connect.go` and `client_lifecycle.go` mandatory original/effective SHA parity. Historical [CI 44528814317](https://github.com/majiddarvishan/neta-go/actions/runs/44528814317) overall GREEN but optional owned/parity/overhead steps FAIL from stale Python last-file assertion; independently fixed `3fe01bb2`. [V17 CI 44529067306](https://github.com/majiddarvishan/neta-go/actions/runs/44529067306) all three jobs/four optional steps PASS: 19 Python overlay tests, Go -race, 6 Python parity tests, pinned source Go -race. V18 `ef117e38` adds an actual Client TCP close/reconnect lifecycle test proving the old ownership window is invalid after real new Bound generation; [V18 CI 44529571646](https://github.com/majiddarvishan/neta-go/actions/runs/44529571646) all jobs/optional steps PASS, 20 Python overlay tests and real Client reconnect Go -race, 6 SHA parity tests. Exclusions still include pre-window historical Client generations with active callbacks, frozen registry GC liveness bias, non-atomic cross-owner snapshots, Map/runtime allocations, sampling gaps and all-M1/D1 coverage. V18 overhead 25x hosted `FEASIBILITY_ONLY_INCONCLUSIVE`; `retained-attributed-B` unissued; gate DISABLED. 
 - [ ] **MEM-005 — LIMITED 3-MODE FEASIBILITY VERIFIED, QUALIFICATION OPEN:** At `fbadb55124193b5da45172071cd29ff80bbb1162`, [Actions 44486737303](https://github.com/majiddarvishan/neta-go/actions/runs/44486737303) PASS all jobs and optional stage, including 5 Python overhead-parser tests and real Core RR-64B-S1-C1-medium 25x each on the SAME source SHA: no overlay 37486 ns/op, overlaid bookkeeping with Sampler OFF 41786 ns/op, overlaid with Sampler ON 35932 ns/op. These are single noisy unpaired hosted-runner measurements, NOT overhead performance verdicts; output `FEASIBILITY_ONLY_INCONCLUSIVE`, no approval, no gating or 10-pair equivalence. Probe separates source-to-overlay/bookkeeping and overlay-OFF-to-ON sampling effects but cannot distinguish fixture-side and counter-side components alone. [44486575046](https://github.com/majiddarvishan/neta-go/actions/runs/44486575046) failed with zero jobs from YAML literal `$'` interpolation, repaired at fbadb551. Reference Go 1.27 stable host, Core 8 / Full 24 scenario matrices, paired 10x randomized A/A, 30m soak, max-gap threshold, numeric coverage bounds/overhead acceptance NOT DONE. Gate DISABLED.
 - [ ] **MEM-006 — Reference-machine, numeric baseline, paired qualification, absolute SLAs, mandatory gate:** NOT APPROVED; gate DISABLED.
-- [x] **QA-007** remains CLOSED; **QA-004/005** remain OPEN. No PR/merge/tag/release.
+- [x] **QA-007** remains CLOSED and merged in PR #24; **QA-004/005** remain OPEN. Later owner-authorized PRs #24–#27 were merged; no tag/release.
 
 ## QA-004 / QA-005 / QA-007 — owner-approved design-to-implementation checklist (2026-11-18)
 
@@ -436,7 +481,7 @@ Historical `.codex/` documents and verbatim upstream C++ includes/namespace `pa/
 - [x] Implemented and verified on feature branch: implement QA-005 fixed 8 Core/24 Full workload, paired 10-run statistical comparison, 95% confidence, tolerance/zero handling, INCONCLUSIVE status, 30-minute stability and versioned historical baselines.
 - [ ] Qualify a stable reference benchmark environment and obtain separate owner approval for any absolute numeric SLA and mandatory CI performance gate.
 - [x] Owner explicitly authorized scoped source/test/CI implementation on the isolated feature branch; no additional permission was needed for the approved work.
-- [ ] Obtain separate owner permission for PR, Merge, Tag or Release. Keep QA-004/005 unchecked until qualified evidence is accepted; QA-007 is verified on the feature branch.
+- [x] Obtain scoped owner PR/Merge permission and merge approved integration/documentation/examples through PRs #24–#27. **Release/tag permission remains OPEN separately (P9-06)**; QA-004/005 remain unchecked and QA-007 is merged.
 
 ## Verification and update log
 
@@ -551,13 +596,13 @@ Phase 5 was explicitly authorized by the owner on 2026-11-17 and is now COMPLETE
 - [ ] Capture and approve versioned numerical reference measurements for `QA004-QA005-SOURCE-V1` on an accepted stable host, with a valid attributable-retention method; retain all evidence immutably. Do not set `owner_approved=true` for numeric manifests without a separate owner review.
 - [ ] Record 10-pair/95% QA-005 comparison and credible QA-004 P99 on a matched, owner-approved reference environment; no absolute SLA is approved.
 - [ ] Run qualified 30-minute soak and 10-pair comparison on owner-approved stable hardware (otherwise NOT RUN).
-- [ ] Obtain separate PR/Merge permission; no release/tag.
+- [x] Obtain scoped PR/Merge permission for approved PRs #24–#27, all merged after required checks. **No Tag/Release permission** is inferred (P9-06 still open).
 
 **QA-007 = [x] after all required Go/race tests PASS. QA-004 = [ ] and QA-005 = [ ] until full reference qualification.**
 
 ## Development-First: complete authorized code and 12 example programs before heavy QA (owner 2026-11-19)
 
-**Current phase = DEV; no heavy QA-004/QA-005 qualification or mandatory Performance Gate.** [Detailed file-level tasks, dependencies and acceptance criteria](NETA_GO_DEVELOPMENT_FIRST_EXAMPLES_BACKLOG_2026-11-19.md). Date-scoped source audit: feature HEAD `7866125c264cc97491785fca94278efe8d81d191`, protected-main HEAD `24b7c5f6eb4e001f30dd8a564a337ca1f506eac8`. Exactly **2 existing executable examples**, `examples/client` and `examples/server`, both preserved.
+**HISTORICAL PHASE-D PLANNING SNAPSHOT (now 16/16 DONE; Phase Q deferred):** no heavy QA-004/QA-005 qualification or mandatory Performance Gate. [Detailed file-level tasks, dependencies and acceptance criteria](NETA_GO_DEVELOPMENT_FIRST_EXAMPLES_BACKLOG_2026-11-19.md). Date-scoped source audit: feature HEAD `7866125c264cc97491785fca94278efe8d81d191`, protected-main HEAD `24b7c5f6eb4e001f30dd8a564a337ca1f506eac8`. Exactly **2 existing executable examples**, `examples/client` and `examples/server`, both preserved.
 
 **Development closure tasks (6 total; counts below exclude approval-blocked future features):**
 - [x] **DEV-01 (P0) — STATIC AUDIT COMPLETE (2026-11-19):** verified 119-commit feature-vs-main delta, 13 changed production Go files, public API/CLI surface, QA-004/005/007 and DEV/EX/Q/R categorization; no confirmed missing production behavior from this source review. Documentation gaps assigned to DEV-05; MEM-004 measurement scoped to DEV-02. No fresh build/test executed for this documentation-only audit; see [DEV-01 audit](NETA_GO_DEV_01_PRODUCTION_API_AUDIT_2026-11-19.md).
