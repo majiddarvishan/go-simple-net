@@ -267,5 +267,15 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn('"client_generation_and_current_frozen_fail_closed": True', SCRIPT.read_text())
 
 
+    def test_client_real_reconnect_window_regression(self):
+        h = mod.BENCHMARK_HELPERS
+        self.assertIn("TestQA005OwnedOverlayClientRealReconnectInvalidatesWindow",h)
+        self.assertIn("env := newBenchmarkEnv(t, 1, 1, 1, true, false)",h)
+        self.assertIn("env.clients[0].Connect(ctx)",h)
+        self.assertIn("if qa005OwnedRegistryComplete(env)",h)
+        self.assertIn("if _,valid := qa005OwnedPeakUpper(env); valid",h)
+        self.assertNotIn("retained-attributed-B",h.split("func TestQA005OwnedOverlayClientRealReconnectInvalidatesWindow",1)[1])
+
+
 if __name__ == "__main__":
     unittest.main()

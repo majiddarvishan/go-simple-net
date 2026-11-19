@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V17-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V18-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -1493,6 +1493,45 @@ func TestQA005OwnedOverlayClientCurrentAndInFlightInvalidation(t *testing.T) {
     client.stopped=true
     client.mu.Unlock()
     if qa005OwnedRegistryComplete(clean) { t.Fatal("stopped Client accepted") }
+}
+
+
+// Integration proof for the immutable Client source. A real accepted Session
+// closes and its Client manually reconnects to the real benchmark Server.
+// The previous observation window must reject the new generation without
+// relying on currently-live Session map membership or sampled timing.
+func TestQA005OwnedOverlayClientRealReconnectInvalidatesWindow(t *testing.T) {
+    env := newBenchmarkEnv(t, 1, 1, 1, true, false)
+    qa005ResetOwnedHighwaters(env)
+    if len(env.clients) != 1 || len(env.sessions) != 1 ||
+        !qa005OwnedRegistryComplete(env) {
+        t.Fatal("real bound Client cannot establish frozen window")
+    }
+    old := env.sessions[0]
+    old.Close()
+    select {
+    case <-old.Done():
+    case <-time.After(4*time.Second):
+        t.Fatal("first Client generation did not finish")
+    }
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    if err := env.clients[0].Connect(ctx); err != nil {
+        t.Fatalf("real manual Client reconnection failed: %v", err)
+    }
+    replacement, bound := env.clients[0].CurrentSession()
+    if !bound || replacement == old {
+        t.Fatal("second Client generation not installed")
+    }
+    if qa005OwnedRegistryComplete(env) {
+        t.Fatal("old frozen Client generation accepted after real reconnect")
+    }
+    if _,valid := qa005SampleOwnedBuffers(env); valid {
+        t.Fatal("real reconnect yielded a qualified old Session sample")
+    }
+    if _,valid := qa005OwnedPeakUpper(env); valid {
+        t.Fatal("real reconnect yielded an old Session HWM upper")
+    }
 }
 
 """
