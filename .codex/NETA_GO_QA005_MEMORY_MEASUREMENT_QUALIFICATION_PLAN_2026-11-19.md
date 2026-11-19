@@ -1,6 +1,6 @@
 # QA-005-MEM-003 — Paired attributable-memory measurement and source-V1 compatibility plan
 Date: 2026-11-19
-Status: **DESIGN SPECIFICATION WRITTEN, TOOL IMPLEMENTATION NOT STARTED**
+Status: **V7 DIAGNOSTIC TOOLING AND PINNED-SOURCE ADAPTER COMPATIBILITY VERIFIED; MEM-004/005/006 QUALIFICATION INCONCLUSIVE**
 Owner decision: QA-005-MEM-001 Option B (Hybrid Ownership Accounting).
 Owned category definitions: .codex/NETA_GO_QA005_ATTRIBUTABLE_MEMORY_OWNERSHIP_DESIGN_2026-11-19.md
 Immutable source anchor: QA004-QA005-SOURCE-V1 / 9b7b2318f73d173a99d22489042f84f8ce58b745
@@ -115,3 +115,9 @@ At `ad0ff9eef114b7ec44aa0ecf25d1eb678b1b097d`, [Actions 44420200998](https://git
 
 **Pinned source compatibility check:** `benchmark_test.go`, `qa005_qualification_benchmark_test.go`, `session_internal.go`, `session_transport.go`, `resource_charges.go` have identical GitHub blob SHAs between immutable `QA004-QA005-SOURCE-V1` (`9b7b2318f73d173a99d22489042f84f8ce58b745`) and current feature code. The source anchor itself was not changed. This is source comparability evidence only, not owner-approved numerical baseline. No mandatory gate, PR, merge, tag or release.
 
+
+## 11. MEM-005 minimal source/overlay/observer A/A feasibility (2026-11-19)
+
+`scripts/qa005_overhead_advisory.py` is a strict, test-only parser of three same-source Go benchmark raw logs: unoverlaid `NETA_QA005_MEMORY_PROBE=0`, V7 overlaid with probe OFF, and the same V7 overlay with the 5ms sampler ON. Each runs the exact `BenchmarkQA005Qualification/Core/RR-64B-S1-C1-medium`, `-cpu=4`, `-benchtime=25x`, `-count=1`, `-benchmem` in one CI run. The parser checks adapter provenance, original/effective fixture hashes, source SHA, Go version, exact iteration and CPU identities, logs' SHA-256 and partially unqualified coverage. It reports raw metrics and illustrative ratios but has **no threshold and no approval path**. Its status is `FEASIBILITY_ONLY_INCONCLUSIVE` and Performance Gate DISABLED.
+
+[Actions 44486575046](https://github.com/majiddarvishan/neta-go/actions/runs/44486575046) initially had a malformed YAML / zero jobs caused by text-substitution interpretation of a literal shell `$'`; fixed by rebuilding from a known-good workflow and preserving the dollar signs using a replacement callback (commit `fbadb551`). [Actions 44486737303](https://github.com/majiddarvishan/neta-go/actions/runs/44486737303) passed all three jobs and all optional stages, including 5 Python parser tests and the actual three-way 25-operation microprobe: native 37486 ns/op, instrumented with sampler OFF 41786 ns/op, with sampler ON 35932 ns/op. The apparent improvement ON vs OFF is **noise, not evidence of negative overhead**. No stable reference machine, paired 10x A/A, confidence intervals, approved sample-gap limit, Core 8/Full 24 qualification, 30m soak, numerical memory baseline or SLA is provided or inferred. Sampler-OFF still executes overlay bookkeeping; native-vs-OFF includes fixture changes and accounting. Therefore neither contrast isolates all possible runtime differences; further instrument design review is needed before an overhead verdict. MEM-005 OPEN.
