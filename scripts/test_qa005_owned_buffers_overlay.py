@@ -70,7 +70,14 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertIn("qa005SubtractOwnedLocked(s, &s.qa005OwnedIncomingReply", patched)
         transport = (SCRIPT.parent.parent / "session_transport.go").read_text()
         patched = mod.patch_transport(transport)
-        self.assertLess(patched.find("qa005AddOwnedLocked("), patched.find("io.ReadFull("))
+        allocation = patched.find("body = make([]byte, bodyLength)")
+        observed = patched.find("qa005AddOwnedLocked(", allocation)
+        read_body = patched.find("if _, err := io.ReadFull(s.conn, body);", allocation)
+        self.assertGreaterEqual(allocation, 0)
+        self.assertGreaterEqual(observed, 0)
+        self.assertGreaterEqual(read_body, 0)
+        self.assertLess(allocation, observed)
+        self.assertLess(observed, read_body)
 
     def test_refuses_output_inside_checkout_before_writing(self):
         with tempfile.TemporaryDirectory() as root:
