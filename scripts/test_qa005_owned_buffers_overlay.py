@@ -231,5 +231,16 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn("worker_scheduler.go", mod.PATCHES)
 
 
+    def test_static_worker_footprint_excludes_channel_and_stack_allocations(self):
+        helper = mod.BENCHMARK_HELPERS
+        self.assertIn("func qa005M1WorkerStructFootprint(count uint64)",helper)
+        self.assertIn("unsafe.Sizeof(callbackWorker{})",helper)
+        self.assertIn("TestQA005OwnedOverlayM1WorkerStructFootprint",helper)
+        patched = mod.patch_benchmark((SCRIPT.parent.parent / "benchmark_test.go").read_text())
+        self.assertIn("probe-m1-worker-struct-logical-peak-B",patched)
+        self.assertNotIn('ReportMetric(float64(p.m1WorkerStructPeak), "retained-attributed-B")',patched)
+        self.assertIn('"m1_worker_struct_footprint_excludes_stacks_channels_allocator": True',SCRIPT.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V14-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V15-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -351,6 +351,17 @@ def patch_transport(content):
 
 
 BENCHMARK_HELPERS = """
+// This is a compile-time Go struct-layout footprint of callbackWorker,
+// multiplied by the live workerCount registered under each pool's mutex.
+// It excludes wake channel buffers, goroutine stacks, timers, runtime metadata,
+// allocator size-class rounding and user callback references. It must remain
+// a separate DIAGNOSTIC and cannot join independent memory peaks.
+func qa005M1WorkerStructFootprint(count uint64) (uint64, bool) {
+    size := uint64(unsafe.Sizeof(callbackWorker{}))
+    if size == 0 || count > ^uint64(0)/size { return 0, false }
+    return count*size, true
+}
+
 // M1 Worker/Queue test-only read-only observation. Lock one owner worker
 // pool at a time and NEVER acquire Session.mu while holding the pool lock.
 // The queue struct itself is a neta-owned object while in p.sessions;
@@ -1273,6 +1284,40 @@ func TestQA005OwnedOverlayM1WorkerQueueBackingLifetime(t *testing.T) {
     }
 }
 
+
+// workerCount records logical worker object responsibility but NOT the
+// goroutine stack, wake channel capacity or timer allocations.
+func TestQA005OwnedOverlayM1WorkerStructFootprint(t *testing.T) {
+    unit := uint64(unsafe.Sizeof(callbackWorker{}))
+    if unit == 0 { t.Fatal("empty worker struct") }
+    for _, count := range []uint64{0, 1, 2, 17} {
+        got, ok := qa005M1WorkerStructFootprint(count)
+        if !ok || got != count*unit {
+            t.Fatalf("count=%d got=%d expected=%d ok=%v",count,got,count*unit,ok)
+        }
+    }
+    if _, valid := qa005M1WorkerStructFootprint(^uint64(0)); valid {
+        t.Fatal("worker static footprint overflow accepted")
+    }
+    // Verify dedup is applied to worker count BEFORE computing the footprint:
+    // repeated Client/Server owner references are not extra worker objects.
+    session := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    pool := newCallbackWorkerPool(callbackApplication, 0, time.Hour)
+    pool.mu.Lock()
+    pool.workerCount = 2 // synthetic worker accounting fixture; no goroutine
+    pool.mu.Unlock()
+    owner := &ownerCallbackDispatcher{application:pool}
+    env := &benchmarkEnv{
+        server:&Server{callbacks:owner,sessions:map[*Session]struct{}{session:{}}},
+        clients:[]*Client{{callbacks:owner}},
+    }
+    qa005ResetOwnedHighwaters(env)
+    _,_,workerCount,_,ok := qa005M1WorkerQueueSample(env)
+    if !ok || workerCount != 2 { t.Fatalf("duplicate owner count=%d valid=%v",workerCount,ok) }
+    measured,ok := qa005M1WorkerStructFootprint(workerCount)
+    if !ok || measured != 2*unit { t.Fatal("logical worker bytes double counted") }
+}
+
 """
 
 
@@ -1322,6 +1367,7 @@ def patch_benchmark(content):
         "    m1WorkerSlotPeak uint64\n    m1WorkerLaneBytesPeak uint64\n"
         "    m1WorkerLaneCountPeak uint64\n    m1WorkerCountPeak uint64\n"
         "    m1WorkerQueueSamples uint64\n"
+        "    m1WorkerStructPeak uint64\n"
         "    ownedLastSampleAt time.Time\n"
         "    ownedMaxSampleGap time.Duration\n"
         "    ownedMaxSnapshotDuration time.Duration\n",
@@ -1340,9 +1386,10 @@ def patch_benchmark(content):
         "        pendingCount, pendingOK := qa005M1PendingCount(env)\n"
         "        pendingStructBytes, pendingStructOK := qa005M1PendingStructFootprint(pendingCount)\n"
         "        workerSlotB, workerLaneB, workers, lanes, workerOK := qa005M1WorkerQueueSample(env)\n"
+        "        workerStructB, workerStructOK := qa005M1WorkerStructFootprint(workers)\n"
         "        snapshotDuration := time.Since(sampleStartedAt)\n"
         "        if snapshotDuration > p.ownedMaxSnapshotDuration { p.ownedMaxSnapshotDuration = snapshotDuration }\n"
-        "        if !valid || !d1OK || !pendingOK || !pendingStructOK || !workerOK { p.invalid = true; return }\n"
+        "        if !valid || !d1OK || !pendingOK || !pendingStructOK || !workerOK || !workerStructOK { p.invalid = true; return }\n"
         "        if owned > p.ownedPeak { p.ownedPeak = owned }\n"
         "        p.ownedSamples++\n"
         "        if d1Text > p.d1StackPeak { p.d1StackPeak = d1Text }\n"
@@ -1354,6 +1401,7 @@ def patch_benchmark(content):
         "        if workerLaneB > p.m1WorkerLaneBytesPeak { p.m1WorkerLaneBytesPeak = workerLaneB }\n"
         "        if lanes > p.m1WorkerLaneCountPeak { p.m1WorkerLaneCountPeak = lanes }\n"
         "        if workers > p.m1WorkerCountPeak { p.m1WorkerCountPeak = workers }\n"
+        "        if workerStructB > p.m1WorkerStructPeak { p.m1WorkerStructPeak = workerStructB }\n"
         "        p.m1WorkerQueueSamples++\n",
         "sample observation")
     patched = replace_once(
@@ -1375,6 +1423,7 @@ def patch_benchmark(content):
         '    b.ReportMetric(float64(p.m1WorkerLaneBytesPeak), "probe-m1-worker-queue-struct-logical-peak-B")\n'
         '    b.ReportMetric(float64(p.m1WorkerLaneCountPeak), "probe-m1-worker-queue-peak-count")\n'
         '    b.ReportMetric(float64(p.m1WorkerCountPeak), "probe-m1-worker-live-peak-count")\n'
+        '    b.ReportMetric(float64(p.m1WorkerStructPeak), "probe-m1-worker-struct-logical-peak-B")\n'
         '    b.ReportMetric(float64(p.m1WorkerQueueSamples), "probe-m1-worker-queue-samples")\n'
         '    b.ReportMetric(float64(p.ownedUpper), "probe-owned-session-hwm-upper-B")\n'
         '    b.ReportMetric(float64(p.ownedMaxSampleGap.Nanoseconds()), "probe-owned-max-sample-gap-ns")\n'
@@ -1436,7 +1485,7 @@ def prepare(source, output):
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
             "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
-            "M1": "pendingRequest static struct logical bytes; worker queue lane struct and task slice capacity × Go slot-size under per-pool mutex, deduplicated; NOT allocator sizes, map buckets, closures, goroutine stacks, client-generation completeness or whole M1",
+            "M1": "pendingRequest static struct bytes; worker queue structs, task slice cap slots and callbackWorker static struct bytes from workerCount under per-pool lock; excludes allocator padding, channel buffers, maps, closures, goroutine stacks, client generation churn and whole M1",
             "D1": "only neta-created Stack text length observed with per-record Sequence alias dedup; other rendered strings, PanicRecord metadata, raw foreign graphs and runtime overhead excluded",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
@@ -1457,6 +1506,7 @@ def prepare(source, output):
         "m1_pending_struct_logical_footprint_is_not_allocator_bytes": True,
         "m1_worker_queue_observation_dedups_pools_lanes_and_backing": True,
         "m1_worker_queue_sizes_are_logical_not_allocator_bytes": True,
+        "m1_worker_struct_footprint_excludes_stacks_channels_allocator": True,
         "worker_scheduler_source_sha_is_compatibility_dependency": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
