@@ -1,6 +1,6 @@
-# neta-go — Twelve runnable Client/Server examples
+# neta-go — Runnable Client/Server examples (13 commands)
 
-The original two public examples are preserved. Ten additional independent stdlib-only commands demonstrate configuration, capacity, reconnect, V1, Bind policy and Diagnostics. Run every command from repository root with Go 1.23+.
+The original two public examples are preserved. Ten Phase-D independent stdlib-only commands demonstrate configuration, capacity, reconnect, V1, Bind policy and Diagnostics. A thirteenth, SMPP-internal multi-ME Server example combines strict configuration, bounded concurrency and identity-based volatile routing. Run every command from repository root with Go 1.23+.
 
 ## Paired commands (terminal 1 = Server, terminal 2 = Client)
 
@@ -12,6 +12,7 @@ The original two public examples are preserved. Ten additional independent stdli
 | Reconnect | go run ./examples/server | go run ./examples/client-reconnect -window 60s | Bound generations and CurrentSession on abrupt transport loss, without replay |
 | Demo Bind allowlist | go run ./examples/server-bind-validator -allow neta-client-config,neta-concurrent | go run ./examples/client-config -system-id neta-client-config | Accepted SystemID; unknown/duplicate IDs rejected |
 | V1 only | go run ./examples/server-v1 | go run ./examples/client-v1 | NUL-terminated V1 Bind; reject default V2 clients |
+| SMSC internal multi-ME routing | go run ./examples/server-smpp-multi-me -config examples/config/server-smpp-multi-me.json | run two instances of ./examples/client with -system-id me-east and me-west | Multiple ME registrations, exact route-to-Session selection, bounded server-originated SendRequest; current Client inbound handler API missing |
 | Diagnostics normal | go run ./examples/server-diagnostics | go run ./examples/client-diagnostics | Completion, typed Session.Diagnostics snapshot |
 | Diagnostics timeout | go run ./examples/server-diagnostics -drop-timeout-demo=true | go run ./examples/client-diagnostics -mode=timeout -timeout=500ms | Expected RequestTimeout Completion |
 | Diagnostics Completion panic (opt in) | go run ./examples/server-diagnostics | go run ./examples/client-diagnostics -mode=panic | Recovered callback panic, OnClose cause and typed record |
@@ -63,10 +64,14 @@ Safe default settings do not intentionally panic or omit responses. Use the expl
 
 Session.Done, Client.Stop and Server.Stop(ctx) wait for internal transport teardown; **not arbitrary user callbacks**. Clean graceful shutdown is a bounded operation. No example is a reliable-delivery protocol.
 
+## SMSC multi-ME integration example
+
+See [server-smpp-multi-me](server-smpp-multi-me/README.md) for two concurrently Bound ME Sessions, JSON identity/route maps and a bounded Server-originated dispatch path. The current Client API cannot handle Server-originated Requests, so this is **not** an end-to-end ME Response example; it explicitly times out rather than claiming delivery. This extra example is separate from the historical 12-example Phase-D baseline.
+
 ## Fast Development verification
 
 ~~~bash
 bash scripts/examples-dev-smoke.sh
 ~~~
 
-The fast harness builds all 12 binaries, runs focused example unit tests (including V1-only rejection and duplicate/unknown Bind tests), checks twelve positive/negative Client/Server loopback pairs, and tests a real Client reconnect by killing and restarting the Server on the identical ephemeral port. Readiness, second Bound generation, cleanup and client deadlines are bounded and observable. Logs go to artifacts/examples-dev. It is **not** QA-004 P99, QA-005 matched Core/Full runs, 30-minute soak, stress/fuzz or Performance Gate qualification. The original scripts/example-smoke.sh remains unchanged.
+The fast harness builds the original 12 Phase-D binaries, runs focused example unit tests (including V1-only rejection and duplicate/unknown Bind tests), checks twelve positive/negative Client/Server loopback pairs, and tests a real Client reconnect by killing and restarting the Server on the identical ephemeral port. Readiness, second Bound generation, cleanup and client deadlines are bounded and observable. Logs go to artifacts/examples-dev. It is **not** QA-004 P99, QA-005 matched Core/Full runs, 30-minute soak, stress/fuzz or Performance Gate qualification. The original scripts/example-smoke.sh remains unchanged.
