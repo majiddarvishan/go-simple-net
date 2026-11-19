@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V7-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V8-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -82,11 +82,16 @@ def patch_internal(content):
         "\tafterWrite         func()\n\tqa005Observed      bool // overlay-only, one charge per tracked allocation\n\tqa005Enqueued      bool // overlay-only, detect duplicate queue admission\n",
         "outbound frame identity")
     content = replace_once(
+        content, "\tcompletionCapacityErr bool\n",
+        "\tcompletionCapacityErr bool\n\tqa005TransientBodyBytes uint64 // overlay-only unreserved inbound Body\n",
+        "inbound temporary frame identity")
+    content = replace_once(
         content, "\tactiveWrite               *outboundFrame\n",
         "\tactiveWrite               *outboundFrame\n"
         "\tqa005OwnedOutgoingApp     uint64\n"
         "\tqa005OwnedIncomingApp     uint64\n"
         "\tqa005OwnedIncomingReply   uint64\n"
+        "\tqa005OwnedInboundTransient uint64 // test-only Bind/unreserved inbound Body\n"
         "\tqa005OwnedControl         uint64\n"
         "\tqa005OwnedFault           bool\n"
         "\tqa005OwnedTotal           uint64\n"
@@ -252,7 +257,7 @@ def patch_control(content):
 
 
 def patch_transport(content):
-    return replace_once(
+    content = replace_once(
         content,
         "\t\tbody = make([]byte, bodyLength)\n\t\tif _, err := io.ReadFull(s.conn, body);",
         "\t\tbody = make([]byte, bodyLength)\n"
@@ -266,9 +271,48 @@ def patch_transport(content):
         "\t\t\t\tqa005AddOwnedLocked(s, &s.qa005OwnedIncomingReply, uint64(cap(body)))\n"
         "\t\t\t}\n"
         "\t\t\ts.mu.Unlock()\n"
+        "\t\t} else {\n"
+        "\t\t\tqa005TransientBodyBytes = uint64(cap(body))\n"
+        "\t\t\tqa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient, qa005TransientBodyBytes)\n"
         "\t\t}\n"
         "\t\tif _, err := io.ReadFull(s.conn, body);",
         "inbound body allocation")
+    content = replace_once(
+        content,
+        "\tvar completionCharge *completionReadCharge\n",
+        "\tvar completionCharge *completionReadCharge\n"
+        "\tvar qa005TransientBodyBytes uint64 // overlay-only, within readFrame\n",
+        "temporary inbound allocation lifetime")
+    content = replace_once(
+        content,
+        "\t\t\tcompletionCharge.release()\n\t\t}\n",
+        "\t\t\tcompletionCharge.release()\n"
+        "\t\t\tif qa005TransientBodyBytes != 0 {\n"
+        "\t\t\t\ts.mu.Lock()\n"
+        "\t\t\t\tqa005SubtractOwnedLocked(s, &s.qa005OwnedInboundTransient, qa005TransientBodyBytes)\n"
+        "\t\t\t\ts.mu.Unlock()\n"
+        "\t\t\t}\n"
+        "\t\t}\n",
+        "read failure returns unreserved Body")
+    content = replace_once(
+        content,
+        "\t\tcompletionCapacityErr: completionCapacityErr,\n",
+        "\t\tcompletionCapacityErr: completionCapacityErr,\n"
+        "\t\tqa005TransientBodyBytes: qa005TransientBodyBytes,\n",
+        "transfer unreserved inbound Body to handler")
+    content = replace_once(
+        content,
+        "func (s *Session) handleInboundFrame(inbound inboundFrame) error {\n",
+        "func (s *Session) handleInboundFrame(inbound inboundFrame) error {\n"
+        "\tif inbound.qa005TransientBodyBytes != 0 {\n"
+        "\t\tdefer func() {\n"
+        "\t\t\ts.mu.Lock()\n"
+        "\t\t\tqa005SubtractOwnedLocked(s, &s.qa005OwnedInboundTransient, inbound.qa005TransientBodyBytes)\n"
+        "\t\t\ts.mu.Unlock()\n"
+        "\t\t}()\n"
+        "\t}\n",
+        "handler return after non-retained Body")
+    return content
 
 
 BENCHMARK_HELPERS = """
@@ -353,9 +397,10 @@ func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
     var total uint64
     for _, session := range sessions {
         session.mu.Lock()
-        amounts := [4]uint64{
+        amounts := [5]uint64{
             session.qa005OwnedOutgoingApp, session.qa005OwnedIncomingApp,
             session.qa005OwnedIncomingReply, session.qa005OwnedControl,
+            session.qa005OwnedInboundTransient,
         }
         valid := !session.qa005OwnedFault && !session.resourceAccountingFailed
         session.mu.Unlock()
@@ -750,6 +795,59 @@ func TestQA005OwnedOverlayTransientAdmissionChurn(t *testing.T) {
     if !qa005OwnedRegistryComplete(nextWindow) { t.Fatal("distinct new window should be valid") }
 }
 
+
+// F5 unreserved Bind Body belongs to this Session through read and handler.
+// Read failures release before returning; successful reads transfer to handler.
+func TestQA005OwnedOverlayTransientInboundBindLifecycle(t *testing.T) {
+    frame, err := wire.EncodeBindRequestV2(19, wire.Bind{
+        Type: wire.BindBiDirectional, SystemID: "qa005",
+    })
+    if err != nil { t.Fatal(err) }
+    for _, cut := range []bool{false, true} {
+        t.Run(map[bool]string{false:"handler-return", true:"read-error"}[cut], func(t *testing.T) {
+            a, peer := net.Pipe()
+            defer a.Close()
+            s := newSession(a, defaultSessionConfig(),
+                sessionIdentity{role: sessionRoleServer}, nil, sessionHandlers{})
+            go func() {
+                if cut { _, _ = peer.Write(frame[:len(frame)-1]) } else { _, _ = peer.Write(frame) }
+                _ = peer.Close()
+            }()
+            inbound, readErr := s.readFrame()
+            if cut {
+                if readErr == nil { t.Fatal("expected truncated Body read error") }
+                s.mu.Lock()
+                live, total, fault := s.qa005OwnedInboundTransient, s.qa005OwnedTotal, s.qa005OwnedFault
+                s.mu.Unlock()
+                if live != 0 || total != 0 || fault {
+                    t.Fatalf("F5 short-read failure leaked/underflowed: live=%d total=%d fault=%v",live,total,fault)
+                }
+                return
+            }
+            if readErr != nil { t.Fatal(readErr) }
+            if inbound.applicationCharge != nil || inbound.completionCharge != nil ||
+                inbound.qa005TransientBodyBytes == 0 { t.Fatal("unreserved Bind Body not classified F5") }
+            s.mu.Lock()
+            live, total := s.qa005OwnedInboundTransient, s.qa005OwnedTotal
+            s.mu.Unlock()
+            if live != uint64(cap(inbound.frame.Body)) || total != live {
+                t.Fatalf("F5 read ownership live=%d total=%d cap=%d",live,total,cap(inbound.frame.Body))
+            }
+            // Trigger an immediate terminal handler path, without Bind-validator activity.
+            inbound.frame.Header.Sequence = 0
+            if err := s.handleInboundFrame(inbound); err == nil {
+                t.Fatal("expected zero-sequence protocol error")
+            }
+            s.mu.Lock()
+            live, total, fault := s.qa005OwnedInboundTransient, s.qa005OwnedTotal, s.qa005OwnedFault
+            s.mu.Unlock()
+            if live != 0 || total != 0 || fault {
+                t.Fatalf("F5 handler cleanup live=%d total=%d fault=%v",live,total,fault)
+            }
+        })
+    }
+}
+
 """
 
 
@@ -868,19 +966,21 @@ def prepare(source, output):
         "measurement_qualifies_retained_attributed_memory": False,
         "covered_categories": [],
         "observed_partial_categories": ["F1-outbound-app", "F2-inbound-request-body",
-                                        "F3-inbound-response-body", "F4-outbound-control"],
+                                        "F3-inbound-response-body", "F4-outbound-control",
+                                        "F5-unreserved-inbound-body"],
         "coverage_status": "PARTIAL_INCONCLUSIVE",
         "coverage_exclusions_detail": {
             "F1": "pre-Queue build observed; allocator overhead/foreign refs excluded",
             "F2": "reserved inbound Request bodies only; unclassified reads excluded",
             "F3": "matched Completion bodies only; ignored and drained frames excluded",
             "F4": "pre-Queue for in-lock Unbind/Enquire; other Control encoding may precede Session registration",
+            "F5": "unreserved, nondrained inbound Body backing allocation through read and handler; excludes wire scratch/decoded objects",
             "M1": "worker/queue/pending/Session/map metadata not accurately measured",
             "D1": "diagnostic strings/shared records and raw panic foreign graphs not accurately measured",
         },
         "excluded_categories": ["metadata", "callbacks", "panic-raw-graphs",
                                 "goroutine-stacks", "runtime-allocator-overhead",
-                                "application-references", "unclassified-frame-bodies"],
+                                "application-references", "unclassified-heap-objects"],
         "primary_metric": "probe-owned-buffer-peak-B",
         "sampler_interval_ms": 5,
         "sampler_max_gap_policy": "NOT_APPROVED_DIAGNOSTIC_ONLY",
@@ -889,6 +989,7 @@ def prepare(source, output):
         "tracks_pre_enqueue_allocated_F1": True,
         "tracks_prequeue_registered_F4_unbind_enquire": True,
         "invalidates_transient_server_admission_churn": True,
+        "tracks_unreserved_inbound_body_lifetime": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")

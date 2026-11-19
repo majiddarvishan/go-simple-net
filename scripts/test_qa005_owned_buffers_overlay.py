@@ -141,5 +141,19 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
             mod.patch_server_lifecycle("package neta\\n")
 
 
+    def test_unreserved_inbound_bind_patch_and_source_unchanged(self):
+        source = SCRIPT.parent.parent
+        internal = mod.patch_internal((source / "session_internal.go").read_text())
+        transport = mod.patch_transport((source / "session_transport.go").read_text())
+        self.assertIn("qa005TransientBodyBytes uint64", internal)
+        self.assertIn("qa005OwnedInboundTransient", internal)
+        self.assertIn("qa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient", transport)
+        self.assertIn("qa005SubtractOwnedLocked(s, &s.qa005OwnedInboundTransient", transport)
+        self.assertIn("qa005TransientBodyBytes: qa005TransientBodyBytes", transport)
+        self.assertIn("TestQA005OwnedOverlayTransientInboundBindLifecycle", mod.BENCHMARK_HELPERS)
+        self.assertIn('"F5-unreserved-inbound-body"', SCRIPT.read_text())
+        self.assertNotIn("qa005TransientBodyBytes", (source / "session_internal.go").read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
