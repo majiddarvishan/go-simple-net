@@ -140,7 +140,7 @@ jobs:
             2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-manifest.log
           NETA_QA005_MEMORY_PROBE=1 go test \
             -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \
-            -run '^TestQA005OwnedOverlay(ControlLifecycle|ApplicationCompletionLifetimes|PreQueueTransferAndRollback|ForcedCloseDuringBuild|CallbacksAfterDone|PanicCleanup|FrozenRegistry|PreQueueControlTransferAndReject|DeduplicatesSessionIdentity|TransientAdmissionChurn|TransientInboundBindLifecycle)$' -race -count=1 -timeout=3m \
+            -run '^TestQA005OwnedOverlay(ControlLifecycle|ApplicationCompletionLifetimes|PreQueueTransferAndRollback|ForcedCloseDuringBuild|CallbacksAfterDone|PanicCleanup|FrozenRegistry|PreQueueControlTransferAndReject|DeduplicatesSessionIdentity|TransientAdmissionChurn|TransientInboundBindLifecycle|CategoryReconciliation)$' -race -count=1 -timeout=3m \
             2>&1 | tee artifacts/qa-final/perf/owned-buffer-overlay-lifecycle.log
           NETA_QA005_MEMORY_PROBE=1 go test \
             -overlay "$RUNNER_TEMP/qa005-owned-buffer-probe/overlay.json" \

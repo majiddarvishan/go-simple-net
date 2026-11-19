@@ -161,5 +161,15 @@ class OwnedBuffersOverlayTest(unittest.TestCase):
         self.assertNotIn("qa005TransientBodyBytes", (source / "session_internal.go").read_text())
 
 
+    def test_session_category_total_reconciliation_is_fail_closed(self):
+        helper = mod.BENCHMARK_HELPERS
+        self.assertIn("func qa005OwnedConsistentLocked(s *Session) bool", helper)
+        self.assertIn("summed == s.qa005OwnedTotal", helper)
+        self.assertIn("consistent := qa005OwnedConsistentLocked(session)", helper)
+        self.assertIn("valid := qa005OwnedConsistentLocked(session)", helper)
+        self.assertIn("TestQA005OwnedOverlayCategoryReconciliation", helper)
+        self.assertIn('"reconciles_all_observed_categories_to_session_total": True', SCRIPT.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

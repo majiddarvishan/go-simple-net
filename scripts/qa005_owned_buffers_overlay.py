@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("qa005_charge_probe", ROOT / "qa00
 charge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(charge)
 
-ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V8-UNQUALIFIED"
+ADAPTER_ID = "QA005-OWNED-BUFFER-OVERLAY-V9-UNQUALIFIED"
 SOURCE_FILES = ("benchmark_test.go", "session.go", "session_internal.go", "session_transport.go", "session_control.go", "resource_charges.go", "types.go", "server_lifecycle.go")
 FIXTURES = ("qa005_qualification_benchmark_test.go", "benchmark_test.go")
 
@@ -318,6 +318,25 @@ def patch_transport(content):
 
 
 BENCHMARK_HELPERS = """
+// Stronger observation integrity (test-only): a Session's category storage
+// must reconcile exactly with its own atomic-under-mutex total. This does
+// NOT imply that the categories cover every allocation owned by neta-go.
+func qa005OwnedConsistentLocked(s *Session) bool {
+    if s.qa005OwnedFault || s.resourceAccountingFailed { return false }
+    amounts := [5]uint64{
+        s.qa005OwnedOutgoingApp, s.qa005OwnedIncomingApp,
+        s.qa005OwnedIncomingReply, s.qa005OwnedControl,
+        s.qa005OwnedInboundTransient,
+    }
+    var summed uint64
+    for _, amount := range amounts {
+        next, ok := checkedAddUint64(summed, amount)
+        if !ok { return false }
+        summed = next
+    }
+    return summed == s.qa005OwnedTotal
+}
+
 // Overlay-only snapshot: briefly lock Server list, then each Session separately.
 // The resulting global sample is NOT an atomic heap snapshot.
 // Overlay-only ownership set: Server lock is released before Session locks.
@@ -383,9 +402,9 @@ func qa005OwnedPeakUpper(env *benchmarkEnv) (uint64, bool) {
     for _, session := range qa005OwnedSessions(env) {
         session.mu.Lock()
         peak := session.qa005OwnedPeak
-        fault := session.qa005OwnedFault || session.resourceAccountingFailed
+        consistent := qa005OwnedConsistentLocked(session)
         session.mu.Unlock()
-        if fault { return 0, false }
+        if !consistent { return 0, false }
         next, ok := checkedAddUint64(upper, peak)
         if !ok { return 0, false }
         upper = next
@@ -404,7 +423,7 @@ func qa005SampleOwnedBuffers(env *benchmarkEnv) (uint64, bool) {
             session.qa005OwnedIncomingReply, session.qa005OwnedControl,
             session.qa005OwnedInboundTransient,
         }
-        valid := !session.qa005OwnedFault && !session.resourceAccountingFailed
+        valid := qa005OwnedConsistentLocked(session)
         session.mu.Unlock()
         if !valid { return 0, false }
         for _, amount := range amounts {
@@ -850,6 +869,42 @@ func TestQA005OwnedOverlayTransientInboundBindLifecycle(t *testing.T) {
     }
 }
 
+
+// An apparently plausible HWM or sampled value must be rejected if any tracked
+// category has drifted from the per-Session total without setting a fault flag.
+func TestQA005OwnedOverlayCategoryReconciliation(t *testing.T) {
+    s := newSession(nil, defaultSessionConfig(), sessionIdentity{}, nil, sessionHandlers{})
+    server := &Server{sessions: map[*Session]struct{}{s: {}}}
+    env := &benchmarkEnv{server: server}
+    qa005ResetOwnedHighwaters(env)
+    s.mu.Lock()
+    qa005AddOwnedLocked(s, &s.qa005OwnedInboundTransient, 23)
+    s.qa005OwnedInboundTransient++ // inject silent category drift
+    s.mu.Unlock()
+    if _, valid := qa005SampleOwnedBuffers(env); valid {
+        t.Fatal("inconsistent category sample accepted")
+    }
+    if _, valid := qa005OwnedPeakUpper(env); valid {
+        t.Fatal("inconsistent category HWM upper accepted")
+    }
+    s.mu.Lock()
+    s.qa005OwnedInboundTransient--
+    s.mu.Unlock()
+    observed, valid := qa005SampleOwnedBuffers(env)
+    upper, upperValid := qa005OwnedPeakUpper(env)
+    if !valid || !upperValid || observed != 23 || upper != 23 {
+        t.Fatalf("reconciled F5 failed: sample=%d valid=%v upper=%d upperValid=%v",
+            observed, valid, upper, upperValid)
+    }
+    s.mu.Lock()
+    qa005SubtractOwnedLocked(s, &s.qa005OwnedInboundTransient, 23)
+    if s.qa005OwnedTotal != 0 || !qa005OwnedConsistentLocked(s) {
+        s.mu.Unlock()
+        t.Fatal("release failed to reconcile")
+    }
+    s.mu.Unlock()
+}
+
 """
 
 
@@ -992,6 +1047,7 @@ def prepare(source, output):
         "tracks_prequeue_registered_F4_unbind_enquire": True,
         "invalidates_transient_server_admission_churn": True,
         "tracks_unreserved_inbound_body_lifetime": True,
+        "reconciles_all_observed_categories_to_session_total": True,
         "qualification": "DIAGNOSTIC_ONLY",
     }
     (output / "manifest.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
