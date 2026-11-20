@@ -6,6 +6,8 @@ on:
     types: [opened, reopened, synchronize, closed]
     paths:
       - 'scripts/qa005_ord_evidence.py'
+      - 'scripts/qa005_ord_drift.py'
+      - 'scripts/test_qa005_ord_drift.py'
       - 'scripts/qa005_qualify.sh'
       - 'scripts/test_qa005_ord_evidence.py'
       - '.github/workflows/phase-q-ord-evid.yml'
@@ -31,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/qa005_qualify.sh
-          python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_evidence.py' -v
-          python3 -B -m py_compile scripts/qa005_ord_evidence.py
+          python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_*.py' -v
+          python3 -B -m py_compile scripts/qa005_ord_evidence.py scripts/qa005_ord_drift.py
       - name: Assert unchanged default benchmark invocation and opt-in only
         shell: bash
         run: |
@@ -43,6 +45,7 @@ jobs:
           assert 'ORD_EVID="${NETA_QA005_ORD_EVID:-0}"' in text
           assert 'if [[ "$ORD_EVID" == 1 ]]; then' in text
           assert 'python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py"' in text
+          assert 'python3 -B "$SCRIPT_DIR/qa005_ord_drift.py"' in text
           assert '(cd "$source_dir" && go test -run' in text
           assert '-benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m' in text
           assert 'python3 "$CANDIDATE/scripts/qa005_compare.py"' in text
@@ -51,7 +54,8 @@ jobs:
       - name: Declare qualification boundary
         run: |
           echo 'ORD-EVID code/test readiness only; no benchmark run.'
-          echo 'DRIFT-INCONCLUSIVE; E-VALID, per-mode A/A, 5m statistical acceptance and host admission NOT PERFORMED.'
+          echo 'Joint 5m original-mean/four-corner statistical tests are SYNTHETIC ONLY.'
+          echo 'DRIFT-INCONCLUSIVE; case timing accuracy, E-VALID, real per-mode A/A and host admission NOT PERFORMED.'
           echo 'Performance Gate DISABLED; no numeric baseline or SLA established.'
 
   cleanup-merged-task-branch:
