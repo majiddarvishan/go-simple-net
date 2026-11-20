@@ -35,6 +35,8 @@
 
 ### 1.2 Proposed A/A qualification decision rule
 
+**QENV-AA-02 NUMERICAL POLICY PENDING:** [prospective 95% simultaneous paired-log symmetric A/A equivalence and order-bias proposal](NETA_GO_QENV_AA_EQUIVALENCE_POLICY_2026-11-20.md) gives options and *unapproved* illustrative 5%/7.5% measurement-noise margins. This is distinct from the approved 10%/15% relative product-regression tolerances and does not confer Mode admission.
+
 **A/A policy APPROVED: QENV-AA-01 = Option B (2026-11-20):** the [QENV-AA-01 comparator audit and owner decision](NETA_GO_QENV_AA_ADMISSION_DECISION_2026-11-20.md) establishes fail-closed **mode-scoped** reference-host admission for QA-004, Core and Full separately, after an E-VALID host preflight. The same-SHA comparison's non-memory per-case non-regression PASS evidence and complete matrix are **necessary, not sufficient**: the existing comparator PASS is one-sided, not symmetric A/A equivalence; an independently owner-approved prospective equivalence/ordering-drift rule and actual dedicated-host evidence are still missing. **No mode or physical host is admitted.**
 
 - **First, a repeatability probe only**: two distinct clean worktrees at the **same exact SHA** on the proposed host. Existing `scripts/qa005_noise_probe.sh` runs **10 alternating pairs** per mode (`core`, `full`, `qa004`) and packages evidence. It expressly sets baseline approval to false. It is not an historical regression test.
