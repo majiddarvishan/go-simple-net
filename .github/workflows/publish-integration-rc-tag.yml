@@ -1,0 +1,95 @@
+name: Publish integration RC tag v1.0.0-rc.1
+
+# Single-purpose publisher: only the owner-approved RC approval marker is changed
+# in the release PR. A normal future main push must not publish a new tag.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md'
+
+permissions:
+  contents: write
+  checks: read
+
+concurrency:
+  group: neta-go-rc-tag-v1.0.0-rc.1
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag green protected main for approved integration RC
+    if: github.repository == 'majiddarvishan/neta-go'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact protected-main commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify owner authorization, version identity and CI on exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='v1.0.0-rc.1'
+          test "$(cat VERSION)" = "$TAG"
+          grep -Fq 'Owner instruction: 2026-11-20' .codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = 'refs/heads/main'
+          if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists; refusing to overwrite or move it."
+            exit 1
+          fi
+
+          # Required postmerge checks: new squash-merge SHA is not the PR head SHA.
+          # Do not claim RC tag readiness based only on checks of the PR head.
+          ci_ready=0
+          for attempt in $(seq 1 150); do
+            checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100")"
+            passed="$(jq -r '[.check_runs[] | select(.name=="test" or .name=="Verify Go wire codec against pinned Pinex C++ 1.5.0") | select(.status=="completed" and .conclusion=="success")] | length' <<< "$checks")"
+            failed="$(jq -r '[.check_runs[] | select(.name=="test" or .name=="Verify Go wire codec against pinned Pinex C++ 1.5.0") | select(.status=="completed" and .conclusion!="success")] | length' <<< "$checks")"
+            if [[ "$failed" -gt 0 ]]; then
+              echo "::error::Required CI failed or was canceled on $GITHUB_SHA"
+              exit 1
+            fi
+            if [[ "$passed" -eq 2 ]]; then
+              ci_ready=1
+              break
+            fi
+            sleep 10
+          done
+          if [[ "$ci_ready" != 1 ]]; then
+            echo "::error::Required CI checks not both successful before gate timeout."
+            exit 1
+          fi
+
+          remote_head="$(git ls-remote --heads origin refs/heads/main | cut -f1)"
+          if [[ "$remote_head" != "$GITHUB_SHA" ]]; then
+            echo "::error::Protected main advanced; refusing to tag an outdated SHA."
+            exit 1
+          fi
+
+      - name: Create once-only annotated RC tag pointing at verified SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='v1.0.0-rc.1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Ref collision for $TAG; never force push or retag."
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" "$GITHUB_SHA" -m "neta-go $TAG: owner-approved parallel integration candidate; QA Phase Q pending"
+          git push origin "refs/tags/$TAG"
+          peeled="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | cut -f1)"
+          if [[ "$peeled" != "$GITHUB_SHA" ]]; then
+            echo "::error::Published tag does not resolve to exact source SHA."
+            exit 1
+          fi
+          echo "Tagged $TAG on $GITHUB_SHA; no GitHub Release created."
