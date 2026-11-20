@@ -165,6 +165,9 @@ def validated_inputs(root, mode):
         raise ValueError("Unsupported Mode")
     evidence = root / "ord-evidence"
     env = {}
+    collector_digest = digest(Path(__file__).with_name("qa005_ord_evidence.py"))
+    observed_boot_id = None
+    observed_kernel = None
     for side in ("baseline", "candidate"):
         path = root / side / "environment.json"
         meta = json.loads(path.read_text(encoding="utf-8"))
@@ -172,12 +175,13 @@ def validated_inputs(root, mode):
             raise ValueError("Environment Mode mismatch")
         for name in ("source_sha", "go_version", "harness_sha256",
                      "workload_config", "scenario_version", "cpu_model",
-                     "goarch", "goos", "gomaxprocs"):
+                     "machine_id", "goarch", "goos", "gomaxprocs"):
             if not isinstance(meta.get(name), str) or not meta[name]:
                 raise ValueError("Missing environment field: " + name)
         env[side] = (meta, digest(path))
     keys = ("source_sha", "go_version", "harness_sha256",
-            "workload_config", "scenario_version", "goarch", "goos", "gomaxprocs")
+            "workload_config", "scenario_version", "machine_id", "cpu_model",
+            "goarch", "goos", "gomaxprocs")
     if any(env["baseline"][0][k] != env["candidate"][0][k] for k in keys):
         raise ValueError("A/A source, fixture or toolchain parity mismatch")
     reads = {"baseline": [], "candidate": []}
@@ -196,6 +200,7 @@ def validated_inputs(root, mode):
                     record.get("harness_sha256") != env[side][0]["harness_sha256"] or
                     record.get("workload_config") != env[side][0]["workload_config"] or
                     record.get("environment_sha256") != env[side][1] or
+                    record.get("collector_sha256") != collector_digest or
                     record.get("log_sha256") != digest(log_file) or
                     record.get("trace_sha256") != digest(trace_file) or
                     record.get("complete") is not True or record.get("exit_code") != 0):
@@ -208,6 +213,13 @@ def validated_inputs(root, mode):
                 raise ValueError("Invalid process monotonic chronology: " + stem)
             samples = [json.loads(line) for line in
                        trace_file.read_text(encoding="utf-8").splitlines()]
+            kernel = record.get("host_kernel")
+            if not isinstance(kernel, str) or not kernel:
+                raise ValueError("Host kernel identity missing: " + stem)
+            if observed_kernel is None:
+                observed_kernel = kernel
+            elif kernel != observed_kernel:
+                raise ValueError("Host kernel changed across A/A runs")
             if len(samples) != record["sample_count"] or len(samples) < 3:
                 raise ValueError("Missing interval telemetry: " + stem)
             if samples[0].get("kind") != "before_spawn" or samples[-1].get("kind") != "after_exit":
@@ -230,6 +242,13 @@ def validated_inputs(root, mode):
                     raise ValueError("Invalid monotonic/UTC sensor chronology: " + stem)
                 if last_sample is not None:
                     observed_gaps.append(t0 - last_sample)
+                boot_id = sample.get("sensors", {}).get("boot_id")
+                if not isinstance(boot_id, str) or not boot_id:
+                    raise ValueError("Missing Linux boot identity: " + stem)
+                if observed_boot_id is None:
+                    observed_boot_id = boot_id
+                elif observed_boot_id != boot_id:
+                    raise ValueError("Host reboot/boot-id mismatch across runs")
                 if not isinstance(sample.get("missing_sensors"), list):
                     raise ValueError("Missing sensor absence declarations: " + stem)
                 missing.update(sample["missing_sensors"])
