@@ -1,6 +1,6 @@
-# QENV-AA-02.ORD — Pair Order and Chronological Drift Admission (Owner Decision Proposal, 2026-11-20)
+# QENV-AA-02.ORD — Pair Order and Chronological Drift Admission (Owner-Approved Option A, 2026-11-20)
 
-**STATUS: PROPOSAL ONLY — OWNER CHOICE OPEN. Phase Q NOT AUTHORIZED. No machine/Mode admitted.**
+**STATUS: QENV-AA-02.ORD OWNER OPTION A APPROVED (2026-11-20); statistical-policy subdecision CLOSED.** [Decision Log §82](DECISION_LOG.md). **Evidence/tooling readiness (ORD-EVID) and parent Q-ENV-01 OPEN.** No machine/Mode admitted, new runner code authorized, or heavy Phase Q executed.
 
 **Owner-frozen prerequisites:**
 - [Decision Log §80](DECISION_LOG.md): **QENV-AA-01=B**, E-VALID dedicated-host preflight and independent fail-closed A/A Mode acceptance for `qa004`, `core`, `full`.
@@ -20,7 +20,7 @@ Each `go test -bench` process runs the whole selected Mode's cases. `pairing-run
 
 **Measurement caveat:** benchmark case rows within a process execute at different times; recording only the process start/end is a bracket, NOT a precise in-case timing point. A new estimator may use carefully justified intervals or a non-intrusive per-case log timestamp capture, but it must document uncertainty and refuse false precision. If exact timing is necessary, any instrumentation affecting benchmark fixtures/harness digests requires separate owner authorization and source-parity review. Do not silently change the frozen source anchor.
 
-## 2. Proposed shared validation envelope (regardless of option)
+## 2. Binding validation envelope (Option A policy approved; evidence not yet collected)
 
 1. **Complete and immutable evidence** per Mode: two clean exact-SHA worktrees; 10 side-matched pair-indexed runs; 20 unmodified raw logs; exact 5/48/144 selected non-memory case-metrics, no dropped cases and sufficient per-case P99 samples. All runs and *all failed attempts* must be preserved, not repeatedly sampled until green.
 2. **Fixed environment** on the already owner-selected dedicated-host policy: CPU model/affinity/NUMA/SMT/governor/frequency, exact Go patch/binary, `-cpu=4`, cgroups and thermal/swap/PSI interference tracked across each full Mode window. Historical before/after host snapshots alone are insufficient. Missing evidence => `E-UNKNOWN` and no Mode admission.
@@ -30,19 +30,19 @@ Each `go test -bench` process runs the whole selected Mode's cases. `pairing-run
 6. **Fail closed on unmodeled instability:** nonmonotonic thermal episodes, frequency/CPU quota changes, unexpected CPU neighbors, swapped/throttled windows, major run-time discontinuities or poor time-proxy precision => `DRIFT-INCONCLUSIVE` / `E-INVALID`, never `DRIFT-VALID` merely because a linear fit looks quiet. A statistically non-significant order trend is NOT equivalence.
 7. **No new standalone product SLA:** QENV-AA-02.ORD is a *host measurement-quality gate*, not a cross-revision QA-005 pass, approved numeric baseline or retained-memory proof.
 
-## 3. Three owner options — QENV-AA-02.ORD (none selected)
+## 3. Owner decision QENV-AA-02.ORD = Option A (alternatives retained for history)
 
 | Option | Method and pass rule | Pros | Limitations |
 |---|---|---|---|
-| **A — Joint worst-case bound under already-approved 5%/7.5% (RECOMMENDED)** | Retain 10 balanced alternating pairs. For every case-metric estimate both order and chronological trend in a prespecified model; require the **full simultaneous uncertainty envelope over both first-side orders and whole run-window** to remain inside the **same existing approved d**, with no separate new percentage or tolerated hidden drift. Keep original symmetric mean-equivalence and regression guards independently. Evidence must support the model; no timestamp => INCONCLUSIVE. | Does not invent a new noise budget; strongest direct tie to approved symmetric equivalence, preserves existing scheduling policy | Conservative with n=10, 144 Full metrics, temporal model assumptions; demands adequate timestamps/telemetry and potentially narrowly authorized tooling |
+| **A — Joint worst-case bound under already-approved 5%/7.5% (OWNER APPROVED)** | Retain 10 balanced alternating pairs. For every case-metric estimate both order and chronological trend in a prespecified model; require the **full simultaneous uncertainty envelope over both first-side orders and whole run-window** to remain inside the **same existing approved d**, with no separate new percentage or tolerated hidden drift. Keep original symmetric mean-equivalence and regression guards independently. Evidence must support the model; no timestamp => INCONCLUSIVE. | Does not invent a new noise budget; strongest direct tie to approved symmetric equivalence, preserves existing scheduling policy | Conservative with n=10, 144 Full metrics, temporal model assumptions; demands adequate timestamps/telemetry and potentially narrowly authorized tooling |
 | **B — Fresh counterbalanced confirmation cohort** | Retain original 10-pair dataset, then on the accepted candidate host conduct **a new, disjoint ten-pair** A/A cohort with preregistered seed, balanced randomized first-side order and per-run clock/telemetry; require both cohorts to pass the fixed d gate and an owner-specified comparison of order-stratum/time effects. | Stronger replication and less susceptibility to one deterministic schedule or a single short-lived system state | At least twice the qualification measurement effort; new schedule tool requires separately authorized edits; the **effect-bound method still needs definition** and may remain inconclusive |
 | **C — Conservative hold** | Report order-vs-time diagnostics, but **no numerical DRIFT-VALID** until additional independent study sets a defensible design and owner signs its rule. | No unsupported claim from ten pairs or missing traces | Blocks all three Mode admissions and delays Q-ENV-01 qualification |
 
-**Recommendation: A** as the next *policy design choice*, with rigorous preregistration and fail-closed handling. A **does not approve** an implementation, host, benchmark execution, new timestamp logging, randomization, or numerical performance baseline. The owner still decides whether to select it.
+**Owner selection: A (2026-11-20)**, including predeclared joint 5m simultaneous confidence gate and strict evidence requirements; the decision is recorded in [Decision Log §82](DECISION_LOG.md). **This does not approve** implementation, host, benchmark execution, new timestamp logging, randomization, numerical performance baseline or Mode admission.
 
-## 4. Option A — proposed precise evaluation (ONLY if owner later approves A)
+## 4. Option A — owner-approved statistical evaluation (not yet implemented or qualified)
 
-**This section defines a proposed contract, NOT an already-approved method.**
+**This section now defines the owner-approved ORD statistical contract (Decision §82), NOT evidence of an approved machine, implemented runner or qualified Mode.**
 
 For each case-metric `j`, the ten paired log ratios are `y_ij`. Set actual pair time `t_i` from the paired process timestamps, monotonically scaled so earliest valid midpoint is `-1` and latest is `+1`; do not substitute index if real timestamps are required but missing. Let `o_i ∈ {-1,+1}` represent first-side order.
 
@@ -53,7 +53,7 @@ Fit the preregistered additive association model:
 - The fitting design must be full-rank with ten complete pairs, reported `X'X` and condition number; residual degrees of freedom `n-3=7`. Explain any collinearity, elapsed-time imbalance, heterogeneous residuals or outlier sensitivity. This is an **observational** separation, not an assertion of causal identification.
 - Prespecify two order values `{-1,+1}` and the **full observed window time endpoints** `{-1,+1}`. For each of the four `(order,time)` corners, compute the estimated **mean log ratio** and standard error using the full fitted covariance matrix, not an unadjusted point estimate.
 - Keep the already approved original per-case **ten-pair** symmetric-mean test: a two-sided Bonferroni `m`-metric 95% t interval around the unadjusted paired mean (with df 9) strictly inside `[-L_j,+L_j]`. Existing 10%/15% regression checks stay independent.
-- For the **single joint 95% family-wise admission claim**, preregister **all `5 × m` contrasts per Mode**: the original unadjusted paired mean plus four fitted `(order,time)` corners per case-metric. Use Bonferroni two-sided tail allocation `0.05/(2·5m)` for **every** contrast, with the original paired mean's relevant `df=9` and each fitted corner's `df=7`. Require **every** resulting interval strictly inside `(-L_j,+L_j)`. This joint certificate is more conservative than the already approved minimum QENV-AA-02=A m-metric original-mean test and does **not** relax or replace it; its extra four-corner coverage is prospective under Option A. No new ratio budget is introduced, raised or split. The joint 5m method is part of proposed **ORD Option A**, not a follow-up arbitrary statistical choice.
+- For the **single joint 95% family-wise admission claim**, preregister **all `5 × m` contrasts per Mode**: the original unadjusted paired mean plus four fitted `(order,time)` corners per case-metric. Use Bonferroni two-sided tail allocation `0.05/(2·5m)` for **every** contrast, with the original paired mean's relevant `df=9` and each fitted corner's `df=7`. Require **every** resulting interval strictly inside `(-L_j,+L_j)`. This joint certificate is more conservative than the already approved minimum QENV-AA-02=A m-metric original-mean test and does **not** relax or replace it; its extra four-corner coverage is prospective under Option A. No new ratio budget is introduced, raised or split. The joint 5m method is **owner-approved under ORD Option A**, not a follow-up arbitrary statistical choice.
 - Also disclose raw `y_i` by pair and first-side order, first/last half summaries, per-run observed environmental shifts and residual/linearity diagnostics. **Model-fit PASS never overrides direct evidence of transient/nonlinear drift**. If adequacy of this small-n parametric model cannot be justified, classify the Mode `DRIFT-INCONCLUSIVE` even when the model CI fits.
 - Side start/end timestamps may be coarse relative to each benchmark-case's timing; report the possible timing interval and sensitivity of the fitted slope/CI to it. A time proxy without adequate sensitivity proof => `DRIFT-INCONCLUSIVE`.
 - A missing/negative/nonfinite sample, a rank-deficient design, inconsistent workload chronology, insufficient P99 observations, missing thermal/CPU telemetry, or unsuitable statistical assumptions is **INCONCLUSIVE**; never impute defaults or let empty case families PASS.
@@ -64,7 +64,7 @@ For QA-005 throughput with approved `d=5%`, a modeled worst-case corner's simult
 
 ## 5. Suggested evidence/implementation contract — not permission to edit code
 
-Proposed new *report-only*, independently versioned diagnostic artifact, without changing the existing `qa005_compare.py` regression result semantics:
+**Suggested future implementation (NOT authorized):** a new *report-only*, independently versioned diagnostic artifact, without changing the existing `qa005_compare.py` regression result semantics:
 
 ```text
 qa005-aa-order-drift/<mode>/
@@ -77,10 +77,10 @@ qa005-aa-order-drift/<mode>/
 
 Requirements: preserve every original `01.log..10.log`, `comparison.json`, `noise-summary.json` and pre/post machine snapshots unchanged; add a manifest/hash binding timestamp/telemetry records to exact run, Go toolchain and fixture SHA; make the classifier fail closed; keep log timestamps and overhead analysis independent of measured benchmark timing. The existing `NETA_QA005_REFERENCE_MACHINE=local-aa-probe` marker is **not an actual host identity**. Operational telemetry collection or modified runners may require privileges/operator consent; **no tool/source change or execution here**.
 
-## 6. Explicit owner boundary and next action
+## 6. Owner-approved policy and remaining execution boundaries
 
-**Owner decision required: QENV-AA-02.ORD Option A, B or C.** Neither the family-wise corner formula nor collection/timestamp changes, drift status, any host/Mode acceptance or benchmark authorization is approved by writing this document.
+**Owner decision CLOSED: QENV-AA-02.ORD = Option A (2026-11-20).** The joint 5m family-wise formula is approved as an acceptance *rule*, **not** proof of observed DRIFT-VALID; the collection/timestamp changes, actual host/Mode acceptance and any benchmark authorization remain unapproved.
 
-If A is approved, record the explicitly proposed **joint 5m Bonferroni family** alongside its evidence/timestamp adequacy requirements in the Decision Log *before any new data*. Implementation/tooling becomes a distinct separately authorized task, followed by concrete dedicated-host inventory, E-VALID and a separately authorized Phase Q collection. If B, pre-register the independent cohort and effect comparison; if C, keep `DRIFT-INCONCLUSIVE`.
+The **joint 5m Bonferroni family** and fail-closed evidence/timestamp requirements are now recorded in [Decision §82](DECISION_LOG.md) **before any new data**. **Next open subtask: QENV-AA-02.ORD-EVID** — separately authorize any needed report-only tooling/timing/telemetry implementation and prove source/fixture parity, then obtain a concrete dedicated-host inventory and separate Phase-Q measurement authorization. Until acceptance evidence is reviewed, keep `DRIFT-INCONCLUSIVE`; do not retroactively reuse old local A/A archives without sufficient timing data.
 
 **Unchanged state:** `Q-ENV-01`, `QA-004/005`, `MEM-004/005/006`, Q-COR qualification and release tasks remain OPEN. Exactly **20 normalized top-level packages** are outstanding (10 Qualification + 7 other owner decisions + 3 Release). `retained-attributed-B` INCONCLUSIVE, mandatory Performance Gate DISABLED, immutable source anchor unchanged and `v1.0.0` unpublished.
