@@ -25,6 +25,6 @@ Changes after the first integration RC will be recorded here. The pre-release ta
 - A neta-go wire protocol reference replaces the former external-compatibility guide.
 
 ### Release status
-- **Owner authorized one Git tag `v1.0.0-rc.1` for parallel integration**, gated on exact protected-main CI after merge ([approval record](.codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md)); an actual tag is only valid once verified in GitHub refs.
+- **Published and independently verified** annotated Git tag `v1.0.0-rc.1`: tag-object `1e07c00f97b6243f932aba91c544f81b73e6fc9d` resolves to exact merge source commit `0bd50760a9200194f9ae0088d26751d0f6ee00c7`, with postmerge Go/C++ and tag-workflow SUCCESS ([decision/evidence](.codex/DECISION_LOG.md), §84; [tag source](https://github.com/majiddarvishan/neta-go/tree/v1.0.0-rc.1)).
 - No **final** `v1.0.0` tag or GitHub Release is approved or created by this RC decision.
 - Q-ENV-01, QA-004/005, MEM-004/005/006 and exact-SHA final qualification remain OPEN; Performance Gate DISABLED. See [parallel test plan](.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md).
