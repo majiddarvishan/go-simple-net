@@ -13,9 +13,3 @@
 **Scope accounting:** Phase D 16/16 and 14 runnable example commands remain already merged; no open PRs were observed at the preflight on 2026-11-20. Remaining **20 normalized top-level work packages** (10 qualification, 7 decisions, 3 release) are tracked in [TASKS](TASKS.md) and [Phase Q backlog](NETA_GO_PHASE_Q_EXECUTION_BACKLOG_2026-11-20.md). This integration candidate does not close final GA release work packages `R-01`, `R-02`, or `P9-06`.
 
 **Test program:** [Phase Q parallel execution plan](NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md); explicit test-run and source/tool edit authorizations remain separate.
-
-## Publication evidence — 2026-11-20 (RC-01 CLOSED)
-
-**Tag verified:** `refs/tags/v1.0.0-rc.1` object is annotated `type=tag` at SHA `1e07c00f97b6243f932aba91c544f81b73e6fc9d`, independently dereferenced to **commit SHA `0bd50760a9200194f9ae0088d26751d0f6ee00c7`** (owner-authorized [PR #37](https://github.com/majiddarvishan/neta-go/pull/37) merge). Required exact-commit [Go CI](https://github.com/majiddarvishan/neta-go/actions/runs/44760739694), [C++ Wire CI](https://github.com/majiddarvishan/neta-go/actions/runs/44760739531) and [publisher](https://github.com/majiddarvishan/neta-go/actions/runs/44760739677) all completed SUCCESS. [Decision Log §84](DECISION_LOG.md) retains the event.
-
-The version and its source SHA are frozen independently of later main commits. Final `v1.0.0` GA remains unapproved, release-package gate R-01/R-02/P9-06 stays OPEN, and the 20 remaining main work packages and Phase Q plan are unchanged.
