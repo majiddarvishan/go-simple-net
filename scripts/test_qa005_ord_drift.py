@@ -120,6 +120,29 @@ class OrdDriftTests(unittest.TestCase):
                 ordinal = (pair - 1) * 2 + seq
                 start = (ordinal + 1) * 1_000_000_000
                 stamp = lambda t: {"monotonic_ns": t, "utc_ns": t + 1000000000}
+                # Synthetic line events preserve raw bytes and provenance.
+                offset = 0
+                line_events = []
+                for line_index, raw_line in enumerate(
+                        log_path.read_bytes().splitlines(keepends=True), 1):
+                    received_at = start + 20_000 + line_index * 3_000
+                    line_events.append({
+                        "line_index": line_index,
+                        "byte_offset": offset,
+                        "length_bytes": len(raw_line),
+                        "line_sha256": hashlib.sha256(raw_line).hexdigest(),
+                        "kind": "benchmark_result",
+                        "benchmark_name": raw_line.split(None, 1)[0].decode(),
+                        "benchmark_iterations": 1200,
+                        "read_start_monotonic_ns": received_at - 100,
+                        "read_end_monotonic_ns": received_at,
+                        "read_end_utc_ns": received_at + 1_000_000_000,
+                    })
+                    offset += len(raw_line)
+                line_events_path = root / "ord-evidence" / (
+                    f"{pair:02}-{side}.lines.jsonl")
+                line_events_path.write_text(
+                    "".join(json.dumps(x) + "\n" for x in line_events))
                 samples = [
                     {"kind": kind, "sample_start": stamp(t),
                      "sample_end": stamp(t + 1),
@@ -143,6 +166,10 @@ class OrdDriftTests(unittest.TestCase):
                     "collector_sha256": hashlib.sha256(
                         (HERE / "qa005_ord_evidence.py").read_bytes()
                     ).hexdigest(),
+                    "observer_script_sha256": hashlib.sha256(
+                        (HERE / "qa005_ord_stream_capture.py").read_bytes()
+                    ).hexdigest(),
+                    "line_events_sha256": checksum(line_events_path),
                     "host_kernel": "synthetic linux 6.x",
                     "log_sha256": checksum(log_path),
                     "trace_sha256": checksum(trace),
@@ -182,6 +209,25 @@ class OrdDriftTests(unittest.TestCase):
             meta = json.loads(path.read_text())
             meta["machine_id"] = "unexpected-host"
             path.write_text(json.dumps(meta))
+            report = analyze(root, "qa004")
+            self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+
+    def test_tampered_line_sidecar_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            sidecar = root / "ord-evidence" / "01-baseline.lines.jsonl"
+            sidecar.write_text(sidecar.read_text() + "tampering\n")
+            report = analyze(root, "qa004")
+            self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+
+    def test_missing_line_sidecar_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            (root / "ord-evidence" / "01-baseline.lines.jsonl").unlink()
             report = analyze(root, "qa004")
             self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
             self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
