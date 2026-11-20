@@ -1,5 +1,5 @@
 """Fast synthetic tests: fixed Option-A formula only, never physical qualification."""
-import importlib.util
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -87,6 +87,98 @@ class OrdDriftTests(unittest.TestCase):
                 self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
                 self.assertEqual(report["scenarios"], {})
                 self.assertTrue(report["reasons"])
+
+    @staticmethod
+    def make_complete_qa004(root):
+        (root / "baseline").mkdir()
+        (root / "candidate").mkdir()
+        (root / "ord-evidence").mkdir()
+        meta = {
+            "source_sha": "a" * 40,
+            "go_version": "go version go1.23.9 linux/amd64",
+            "scenario_mode": "qa004",
+            "harness_sha256": "b" * 64,
+            "workload_config": "synthetic-1200x-qa004",
+            "scenario_version": "qa004-or-qa005-selected-v2",
+            "cpu_model": "synthetic",
+            "goarch": "amd64", "goos": "linux", "gomaxprocs": "default",
+        }
+        for side in ("baseline", "candidate"):
+            (root / side / "environment.json").write_text(json.dumps(meta))
+        for pair in range(1, 11):
+            ordered = (("baseline", "candidate") if pair % 2 else
+                       ("candidate", "baseline"))
+            for seq, side in enumerate(ordered):
+                log_path = root / side / f"{pair:02}.log"
+                lines = [
+                    "BenchmarkPendingDeadlineDetection/synthetic-pending="
+                    f"{n}-4 1200 1000 ns/op 1200 detect-samples 100000 detect-p99-ns"
+                    for n in (32, 128, 512, 2048, 8192)
+                ]
+                log_path.write_text("\n".join(lines) + "\n")
+                ordinal = (pair - 1) * 2 + seq
+                start = (ordinal + 1) * 1_000_000_000
+                stamp = lambda t: {"monotonic_ns": t, "utc_ns": t + 1000000000}
+                samples = [
+                    {"kind": kind, "sample_start": stamp(t),
+                     "sample_end": stamp(t + 1),
+                     "missing_sensors": [], "sensors": {"boot_id": "synthetic"}}
+                    for kind, t in (
+                        ("before_spawn", start),
+                        ("after_spawn", start + 10_000),
+                        ("after_exit", start + 100_000),
+                    )
+                ]
+                base = f"{pair:02}-{side}"
+                trace = root / "ord-evidence" / (base + ".jsonl")
+                trace.write_text("".join(json.dumps(x) + "\n" for x in samples))
+                checksum = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+                record = {
+                    "mode": "qa004", "pair": pair, "side": side,
+                    "source_sha": meta["source_sha"], "toolchain": meta["go_version"],
+                    "harness_sha256": meta["harness_sha256"],
+                    "workload_config": meta["workload_config"],
+                    "environment_sha256": checksum(root / side / "environment.json"),
+                    "log_sha256": checksum(log_path),
+                    "trace_sha256": checksum(trace),
+                    "complete": True, "exit_code": 0,
+                    "start_before_spawn": stamp(start),
+                    "start_after_spawn": stamp(start + 10_000),
+                    "exit_after_wait": stamp(start + 100_000),
+                    "sample_count": 3, "missing_sensors": [],
+                    "observed_max_sample_gap_ns": 90_000,
+                }
+                (root / "ord-evidence" / (base + ".json")).write_text(
+                    json.dumps(record))
+        (root / "comparison.json").write_text(json.dumps(
+            {"matrix_complete": True, "relative_status": "PASS"}
+        ))
+
+    def test_complete_synthetic_qa004_model_never_admits_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            report = analyze(root, "qa004")
+            self.assertEqual(report["case_metric_count"], 5, report["reasons"])
+            self.assertEqual(report["statistical_diagnostics"],
+                             "WITHIN_FIXED_BOUNDS_UNQUALIFIED")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+            self.assertEqual(report["host_mode_admission"], "NOT_PERFORMED")
+            self.assertEqual(report["existing_regression_status"], "PASS")
+            self.assertEqual(len(report["paired_runs"]), 20)
+            self.assertEqual(len(report["pair_time_uncertainty"]), 10)
+            self.assertEqual(len(report["scenarios"]), 5)
+
+    def test_tampered_raw_benchmark_log_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            with (root / "candidate" / "01.log").open("a") as log:
+                log.write("tamper\n")
+            report = analyze(root, "qa004")
+            self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
+            self.assertEqual(report["scenarios"], {})
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
 
     def test_process_midpoint_is_not_case_level_timestamp(self):
         with tempfile.TemporaryDirectory() as tmp:
