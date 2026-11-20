@@ -1,6 +1,6 @@
 # QENV-AA-02 — Prospective A/A Equivalence, Order Bias and Variance Admission (2026-11-20)
 
-**STATUS: DESIGN PROPOSAL — OWNER DECISION PENDING. No owner-approved new numerical tolerance, host, Mode admission or Phase-Q permission.**
+**STATUS: QENV-AA-02 OWNER OPTION A APPROVED (2026-11-20): 5% and 7.5% fixed prospective symmetric A/A equivalence margins.** [Decision Log §81](DECISION_LOG.md). **QENV-AA-02.ORD order/drift bound still OPEN**; no host/mode has been admitted and Phase Q is not authorized.
 
 **Authoritative scope:** [QENV-AA-01 Option B, owner approved](NETA_GO_QENV_AA_ADMISSION_DECISION_2026-11-20.md) and [Decision Log §80](DECISION_LOG.md) require **independent, fail-closed mode admission** for `qa004`, `core`, `full` after dedicated-host E-VALID. The source audit references protected `main` `17cabe8dd08562fed4534291671b7cea813096f7`. Immutable Source-V1 anchor `9b7b2318f73d173a99d22489042f84f8ce58b745` is *source identity*, not a numeric baseline.
 
@@ -25,30 +25,30 @@
 7. **Mode gate:** the mode can be `A-ADMISSIBLE` only with E-VALID, all-case original regression PASS, all-case symmetric-equivalence PASS, DRIFT-VALID, and actual owner admission of that particular host/mode. Else `A-INCONCLUSIVE` or `A-NOT-ADMISSIBLE` with an explicit reason. No automatic spillover: `A(qa004)` does not imply `A(core)` or `A(full)`.
 8. **Statistics/measurement constraints:** the t procedure assumes meaningful independent paired log observations and approximate sampling behavior; check long tails, systematic drift, quantization and sample sufficiency. A ten-pair CI may simply be too wide, especially with 144 metrics; in that case report INCONCLUSIVE, never relax the bound after viewing data. A low CV by itself, a CI centered near zero, or a very narrow CI with quantized measurements does not establish admission.
 
-## 3. Quantitative margin proposals — *not yet approved*
+## 3. Owner-approved prospective symmetric A/A margins — Option A (2026-11-20)
 
-Existing QA product-regression tolerances are **10% for throughput/P50/P95** and **15% for P99/CPU/allocations/deadline P99**. Those were not established for same-SHA equivalence. The following values are proposed new *measurement-noise budgets*, not implicit restatements of those tolerances.
+Existing QA product-regression tolerances are **10% for throughput/P50/P95** and **15% for P99/CPU/allocations/deadline P99**. Those were not established for same-SHA equivalence. The following values are now **owner-approved new measurement-noise equivalence budgets under QENV-AA-02=A**, distinct from those existing product-regression tolerances. Their acceptance is **a rule approval**, not evidence that any host has met them.
 
-| Family / benchmark mode | Example new symmetric A/A bound `d` under Option A | Rationale (requires owner approval) |
+| Family / benchmark mode | **Approved** symmetric A/A bound `d` under Option A | Basis / qualification boundary |
 |---|---:|---|
-| QA-005 throughput, P50, P95 | **5%** | Half of historical 10% regression allowance as a proposed measurement-uncertainty budget |
-| QA-005 P99, CPU/op, allocations/op | **7.5%** | Half of historical 15% allowance; gives no waiver to noisy single-Session P99 |
-| QA-004 internal deadline-detection P99 | **7.5%** | Same proposed half-tolerance but evaluated only on QA-004's five cases |
+| QA-005 throughput, P50, P95 | **5%** | Owner-approved 2026-11-20 prospective equivalence budget, not product SLA |
+| QA-005 P99, CPU/op, allocations/op | **7.5%** | Owner-approved 2026-11-20; noisy single-Session P99 is not waived |
+| QA-004 internal deadline-detection P99 | **7.5%** | Owner-approved 2026-11-20 for QA-004's five cases only |
 | Retained-attributed memory | **NOT IN SCOPE** | MEM-004/005 Hybrid B validity and overhead separate; no memory host-noise `0` assumed |
 
-The fact these values are half of historical regression tolerances is a **design rationale, not prior owner approval**. Large multiplicity adjustment with only 10 pairs may make some Mode admissions hard: that is an honest signal to stabilize the machine or separately revisit measurement design, not permission to ignore a failing case.
+These new margins were chosen **explicitly by the owner**; their being numerically half the older regression tolerances remains only a design rationale, not a claim of measured host precision. Large multiplicity adjustment with only 10 pairs may make some Mode admissions hard: that is an honest signal to stabilize the machine or separately revisit measurement design, not permission to ignore a failing case.
 
-**Illustrative evaluation**, not an observed benchmark: if a metric has `d=0.05`, its entire simultaneous log-CI must lie in `(-ln 1.05, +ln 1.05)`, or equivalently its geometric baseline/candidate ratio CI must lie strictly between `1/1.05` and `1.05`. An A/A non-regression PASS without this two-sided containment is not an equivalence PASS.
+**Example of the approved rule**, not an observed benchmark: if a metric has `d=0.05`, its entire simultaneous log-CI must lie in `(-ln 1.05, +ln 1.05)`, or equivalently its geometric baseline/candidate ratio CI must lie strictly between `1/1.05` and `1.05`. An A/A non-regression PASS without this two-sided containment is not an equivalence PASS.
 
-## 4. Candidate policies: QENV-AA-02 (choose one; independent from QENV-AA-01=B)
+## 4. Owner decision: QENV-AA-02 = Option A (alternatives retained as history)
 
 | Option | Statistical strategy | Advantages | Costs/risks |
 |---|---|---|---|
-| **A — Fixed, prospective family margins (RECOMMENDED)** | Owner explicitly approves or amends proposed 5% / 7.5% above *before any run*. Use 10 pairs and the mode-family 95% simultaneous log-CIs, plus a separately approved order/drift bound. Every metric must fit its own margin. | Transparent, reproducible and quick to pre-register; keeps measurement-noise budget tighter than old 10%/15% product-regression thresholds | For 10 pairs and 144 Full comparisons may yield INCONCLUSIVE even on a reasonably good dedicated host; prospective order bound still needs formal approval |
+| **A — Fixed, prospective family margins (OWNER APPROVED)** | Owner approved **exact 5% / 7.5%** above before any run. Use 10 pairs and the mode-family 95% simultaneous log-CIs, plus a separately approved order/drift bound. Every metric must fit its own margin. | Transparent, reproducible and quick to pre-register; keeps measurement-noise budget tighter than old 10%/15% product-regression thresholds | For 10 pairs and 144 Full comparisons may yield INCONCLUSIVE even on a reasonably good dedicated host; prospective order bound still needs formal approval |
 | **B — Independent pilot calibration then holdout confirmation** | On an explicitly authorized dedicated host, run a preregistered exploratory same-SHA pilot; estimate variability and order effects, propose per-family `d` and drift controls from that independent data, obtain **new owner approval**, and then collect a **fresh non-overlapping 10-pair confirmation set**. No reused pilot evidence in final pass. | Bounds can be engineered to real host timing/noise and a documented precision target rather than guessed | More executions and extra review; must prevent data-derived margins from being loosened to excuse unstable cases |
 | **C — Defer symmetric numerical admission** | Keep the host only E-candidate; no mode admitted and no numerical comparison PASS until method and limits are accepted in a later contract | Maximum conservatism with no new thresholds now | Cannot finish Q-ENV-01 Mode admission or dependent numerical qualification |
 
-**Recommendation: Option A**, provided the owner accepts the *new* 5% and 7.5% equivalence budgets and separately reviews how order/drift is bounded. The numbers are proposed, not chosen automatically. If Option A becomes impracticable on stable hardware, later request a new explicit owner decision rather than rewriting historic evidence or relaxing thresholds silently.
+**Owner selection: Option A (2026-11-20),** including the fixed 5% and 7.5% equivalence budgets. A separate **QENV-AA-02.ORD** rule for order/drift remains to be designed and approved; without it no Mode can be admitted. If Option A proves impracticable on qualified hardware, request a new explicit decision instead of retroactively relaxing limits. If Option A becomes impracticable on stable hardware, later request a new explicit owner decision rather than rewriting historic evidence or relaxing thresholds silently.
 
 ## 5. Explicit unresolved order/drift subcriterion
 
@@ -58,8 +58,8 @@ Proposed evidence for future dedicated-host runs: immutable per-process start/en
 
 ## 6. Status, custody and acceptance boundary
 
-**Ready for owner decision:** QENV-AA-02 policy A/B/C and whether the illustrative fixed `5%/7.5%` limits are acceptable. QENV-AA-02.ORD must later set an explicit order/drift bound or measurement design before a mode can be admitted.
+**Policy decision CLOSED:** QENV-AA-02 **A**, including fixed prospective `5%/7.5%` limits, is owner-approved and logged in [Decision §81](DECISION_LOG.md). **Pending separate owner decision:** QENV-AA-02.ORD must establish an explicit order/drift bound or validated experimental design **before any Mode admission**.
 
-**Not approved / not executed:** no dedicated host identity, Go binary/toolchain, symmetric margin, order bound, new qualified A/A evidence, Phase Q heavy run, baseline owner manifest, `retained-attributed-B`, absolute SLA or Performance Gate. Source-V1 SHA, approved QENV-AA-01=B mode isolation and all MEM-004/005 fail-closed obligations remain unchanged.
+**Not approved / not executed:** no dedicated host identity, Go binary/toolchain, order/drift bound, new qualified A/A evidence, Phase Q heavy run, baseline owner manifest, `retained-attributed-B`, absolute SLA or Performance Gate. Source-V1 SHA, approved QENV-AA-01=B mode isolation and all MEM-004/005 fail-closed obligations remain unchanged.
 
-**Work-package accounting:** QENV-AA-02 and .ORD are **subdecisions within still-OPEN Q-ENV-01**, not new top-level open items. The project remains **20 distinct open work packages** (10 Qualification + 7 other Owner Decisions + 3 Release). No release/tag, no source/benchmark/CI code edit and no performance claim.
+**Work-package accounting:** QENV-AA-02 **A is a CLOSED policy/margin subdecision**; .ORD is **OPEN**, both within still-OPEN Q-ENV-01, not new top-level open items. The project remains **20 distinct open work packages** (10 Qualification + 7 other Owner Decisions + 3 Release). No release/tag, no source/benchmark/CI code edit and no performance claim.
