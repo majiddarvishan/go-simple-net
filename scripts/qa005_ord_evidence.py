@@ -84,6 +84,28 @@ def snapshot(kind):
     }
 
 def run(args):
+    environment_path = Path(args.environment)
+    try:
+        metadata = json.loads(environment_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Missing or invalid environment evidence") from exc
+    required = ("source_sha", "scenario_mode", "harness_sha256",
+                "workload_config", "go_version")
+    if not isinstance(metadata, dict) or any(
+        not isinstance(metadata.get(key), str) or not metadata[key]
+        for key in required
+    ):
+        raise ValueError("Incomplete source/fixture environment evidence")
+    current_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], text=True
+    ).strip()
+    if metadata["source_sha"] != current_sha or metadata["scenario_mode"] != args.mode:
+        raise ValueError("Source SHA or mode differs from bound environment")
+    actual_go_version = subprocess.check_output(
+        ["go", "version"], text=True
+    ).strip()
+    if metadata["go_version"] != actual_go_version:
+        raise ValueError("Go toolchain differs from bound environment")
     destination = Path(args.output)
     destination.mkdir(parents=True, exist_ok=True)
     pair = args.pair
@@ -163,12 +185,12 @@ def run(args):
             "pair": pair,
             "side": side,
             "command": command,
-            "source_sha": subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], text=True
-            ).strip(),
-            "toolchain": subprocess.check_output(
-                ["go", "version"], text=True
-            ).strip(),
+            "source_sha": current_sha,
+            "toolchain": actual_go_version,
+            "harness_sha256": metadata["harness_sha256"],
+            "workload_config": metadata["workload_config"],
+            "environment_sha256": sha256_file(environment_path),
+            "collector_sha256": sha256_file(Path(__file__)),
             "host_kernel": platform.platform(),
             "start_before_spawn": start,
             "start_after_spawn": launch,
@@ -192,6 +214,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--environment", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--log", required=True)
     parser.add_argument("--mode", choices=("qa004", "core", "full"), required=True)
