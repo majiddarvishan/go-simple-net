@@ -246,7 +246,7 @@ class OrdDriftTests(unittest.TestCase):
     def test_process_midpoint_is_not_case_level_timestamp(self):
         with tempfile.TemporaryDirectory() as tmp:
             report = analyze(Path(tmp), "qa004")
-            self.assertIn("PER_CASE_UNPROVEN", report["time_precision"])
+            self.assertIn("PER_CASE_START_END_UNPROVEN", report["time_precision"])
 
 
 if __name__ == "__main__":
