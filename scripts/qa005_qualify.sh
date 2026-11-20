@@ -6,6 +6,14 @@ if (( $# < 3 || $# > 4 )); then
     echo "Usage: $0 BASELINE_CHECKOUT CANDIDATE_CHECKOUT OUTPUT_DIR [core|full|qa004]" >&2
     exit 2
 fi
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ORD_EVID="${NETA_QA005_ORD_EVID:-0}"
+if [[ "$ORD_EVID" != 0 && "$ORD_EVID" != 1 ]]; then
+    echo "NETA_QA005_ORD_EVID must be 0 or 1" >&2; exit 2
+fi
+if [[ "$ORD_EVID" == 1 && ! -f "$SCRIPT_DIR/qa005_ord_evidence.py" ]]; then
+    echo "ORD-EVID collector missing; no run allowed" >&2; exit 2
+fi
 BASELINE="$(cd -- "$1" && pwd)"
 CANDIDATE="$(cd -- "$2" && pwd)"
 mkdir -p -- "$3"
@@ -113,9 +121,20 @@ for i in $(seq 1 10); do
     for side in "${order[@]}"; do
         if [[ "$side" == baseline ]]; then source_dir="$BASELINE"; else source_dir="$CANDIDATE"; fi
         echo "QA-004/005 $MODE pair=$name side=$side"
-        (cd "$source_dir" && go test -run '^$' -bench "$SELECTOR" \
-            -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m) \
-            > "$OUTPUT/$side/$name.log" 2>&1
+        if [[ "$ORD_EVID" == 1 ]]; then
+            # Opt-in report-only wrapper, unchanged go test arguments and logs.
+            (cd "$source_dir" && python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py" \
+                --environment "$OUTPUT/$side/environment.json" \
+                --output "$OUTPUT/ord-evidence" \
+                --pair "$i" --side "$side" --mode "$MODE" \
+                --log "$OUTPUT/$side/$name.log" -- \
+                go test -run '^$' -bench "$SELECTOR" \
+                -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m)
+        else
+            (cd "$source_dir" && go test -run '^$' -bench "$SELECTOR" \
+                -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m) \
+                > "$OUTPUT/$side/$name.log" 2>&1
+        fi
     done
 done
 args=()
@@ -126,4 +145,7 @@ python3 "$CANDIDATE/scripts/qa005_compare.py" \
     --baseline "$OUTPUT/baseline" --candidate "$OUTPUT/candidate" \
     --output "$OUTPUT/comparison.json" "${args[@]}"
 echo "Report-only comparison: $OUTPUT/comparison.json"
+if [[ "$ORD_EVID" == 1 ]]; then
+    echo "ORD-EVID process/time/host traces: $OUTPUT/ord-evidence (DRIFT-INCONCLUSIVE; no host admission)"
+fi
 echo "Optional 30-minute stability: NETA_SOAK_SECONDS=1800 go test -run '^TestMemoryStabilitySoak$' -timeout=34m -v"
