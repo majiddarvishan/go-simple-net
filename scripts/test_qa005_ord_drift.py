@@ -124,7 +124,7 @@ class OrdDriftTests(unittest.TestCase):
                      "sample_end": stamp(t + 1),
                      "missing_sensors": [], "sensors": {"boot_id": "synthetic"}}
                     for kind, t in (
-                        ("before_spawn", start),
+                        ("before_spawn", start - 100_000),
                         ("after_spawn", start + 10_000),
                         ("after_exit", start + 100_000),
                     )
@@ -146,7 +146,7 @@ class OrdDriftTests(unittest.TestCase):
                     "start_after_spawn": stamp(start + 10_000),
                     "exit_after_wait": stamp(start + 100_000),
                     "sample_count": 3, "missing_sensors": [],
-                    "observed_max_sample_gap_ns": 90_000,
+                    "observed_max_sample_gap_ns": 110_000,
                 }
                 (root / "ord-evidence" / (base + ".json")).write_text(
                     json.dumps(record))
