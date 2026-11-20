@@ -13,8 +13,22 @@ ROOT = HERE.parent
 class OrdEvidenceTests(unittest.TestCase):
     def invoke(self, root, pair=1, side="baseline", body="print('ord-fixture')"):
         out = pathlib.Path(root)
+        envfile = out / "environment.json"
+        if not envfile.exists():
+            envfile.write_text(json.dumps({
+                "source_sha": subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+                ).strip(),
+                "go_version": subprocess.check_output(
+                    ["go", "version"], cwd=ROOT, text=True
+                ).strip(),
+                "scenario_mode": "core",
+                "harness_sha256": "a" * 64,
+                "workload_config": "synthetic-core-no-benchmark",
+            }))
         command = [
             sys.executable, "-B", str(SCRIPT),
+            "--environment", str(envfile),
             "--output", str(out / "evidence"),
             "--log", str(out / "benchmark.log"),
             "--pair", str(pair),
@@ -35,6 +49,10 @@ class OrdEvidenceTests(unittest.TestCase):
             self.assertEqual((root / "benchmark.log").read_text(), "ord-fixture\n")
             record = json.loads((root / "evidence/01-baseline.json").read_text())
             self.assertEqual(record["schema"], "neta-qa005-ord-process-evidence-v1")
+            self.assertEqual(record["harness_sha256"], "a" * 64)
+            self.assertEqual(record["workload_config"], "synthetic-core-no-benchmark")
+            self.assertEqual(len(record["environment_sha256"]), 64)
+            self.assertEqual(len(record["collector_sha256"]), 64)
             self.assertEqual(record["pair"], 1)
             self.assertEqual(record["side"], "baseline")
             self.assertEqual(record["mode"], "core")
@@ -77,6 +95,22 @@ class OrdEvidenceTests(unittest.TestCase):
             self.assertEqual(
                 (pathlib.Path(directory) / "benchmark.log").read_bytes(), before
             )
+
+    def test_wrong_source_or_mode_fails_before_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "environment.json").write_text(json.dumps({
+                "source_sha": "0" * 40,
+                "go_version": subprocess.check_output(
+                    ["go", "version"], text=True
+                ).strip(),
+                "scenario_mode": "core",
+                "harness_sha256": "a" * 64,
+                "workload_config": "synthetic-core",
+            }))
+            result = self.invoke(directory)
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse((root / "benchmark.log").exists())
 
     def test_out_of_range_pair_refused(self):
         with tempfile.TemporaryDirectory() as directory:
