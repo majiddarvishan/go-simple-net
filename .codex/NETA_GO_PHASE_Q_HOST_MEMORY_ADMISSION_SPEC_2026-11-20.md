@@ -35,6 +35,8 @@
 
 ### 1.2 Proposed A/A qualification decision rule
 
+**A/A policy decision pending:** the [QENV-AA-01 comparator audit and A/B/C owner options](NETA_GO_QENV_AA_ADMISSION_DECISION_2026-11-20.md) distinguish machine environment validity, mode-scoped repeatability and actual performance qualification. **Recommendation B is not owner-approved.** Current comparator PASS is one-sided non-regression, not symmetric A/A equivalence; the all-applicable-metric PASS proposal below is necessary but insufficient without a prospective owner-reviewed equivalence/drift rule.
+
 - **First, a repeatability probe only**: two distinct clean worktrees at the **same exact SHA** on the proposed host. Existing `scripts/qa005_noise_probe.sh` runs **10 alternating pairs** per mode (`core`, `full`, `qa004`) and packages evidence. It expressly sets baseline approval to false. It is not an historical regression test.
 - Existing `qa005_qualify.sh`: Core/Full legal durations `250ms`, `500ms`, `1s`, `2s`, default `250ms`; QA-004 uses fixed `1200x` and rejects a `NETA_QA005_BENCHTIME` override. **Proposed starting calibration:** 1s Core/Full (supported, previously lower noise) and untouched 1200x QA-004. A changed duration creates a **different dataset**; never mix or compare as equivalent.
 - **Existing statistical contract preserved:** 10 matched alternating pairs, Bonferroni-adjusted paired-log-ratio 95% confidence, 10% throughput/P50/P95 and 15% P99/CPU/allocs/deadline-detection relative limits. These are regression tolerances, not host CV or absolute SLA limits.
