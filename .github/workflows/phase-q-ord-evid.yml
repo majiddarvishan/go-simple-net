@@ -8,6 +8,10 @@ on:
       - 'scripts/qa005_ord_evidence.py'
       - 'scripts/qa005_ord_drift.py'
       - 'scripts/test_qa005_ord_drift.py'
+      - 'scripts/qa005_ord_stream_capture.py'
+      - 'scripts/qa005_ord_stream_verify.py'
+      - 'scripts/test_qa005_ord_stream_capture.py'
+      - 'scripts/test_qa005_ord_stream_verify.py'
       - 'scripts/qa005_qualify.sh'
       - 'scripts/test_qa005_ord_evidence.py'
       - '.github/workflows/phase-q-ord-evid.yml'
@@ -34,7 +38,7 @@ jobs:
           set -euo pipefail
           bash -n scripts/qa005_qualify.sh
           python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_*.py' -v
-          python3 -B -m py_compile scripts/qa005_ord_evidence.py scripts/qa005_ord_drift.py
+          python3 -B -m py_compile scripts/qa005_ord_evidence.py scripts/qa005_ord_drift.py scripts/qa005_ord_stream_capture.py scripts/qa005_ord_stream_verify.py
       - name: Assert unchanged default benchmark invocation and opt-in only
         shell: bash
         run: |
@@ -46,6 +50,7 @@ jobs:
           assert 'if [[ "$ORD_EVID" == 1 ]]; then' in text
           assert 'python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py"' in text
           assert 'python3 -B "$SCRIPT_DIR/qa005_ord_drift.py"' in text
+          assert 'python3 -B "$SCRIPT_DIR/qa005_ord_stream_capture.py"' in text
           assert '(cd "$source_dir" && go test -run' in text
           assert '-benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m' in text
           assert 'python3 "$CANDIDATE/scripts/qa005_compare.py"' in text
@@ -59,7 +64,7 @@ jobs:
           echo 'Performance Gate DISABLED; no numeric baseline or SLA established.'
 
   cleanup-merged-task-branch:
-    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'qual/ord-evid-statistical-diagnostics-2026-11-20' }}
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'qual/ord-line-observer-evidence-2026-11-21' }}
     name: Delete unchanged merged ORD-EVID branch
     permissions:
       contents: write
@@ -73,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch='qual/ord-evid-statistical-diagnostics-2026-11-20'
+          branch='qual/ord-line-observer-evidence-2026-11-21'
           repo="$GITHUB_REPOSITORY"
           live="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
           if [[ -z "$live" ]]; then

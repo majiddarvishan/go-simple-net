@@ -127,9 +127,13 @@ for i in $(seq 1 10); do
                 --environment "$OUTPUT/$side/environment.json" \
                 --output "$OUTPUT/ord-evidence" \
                 --pair "$i" --side "$side" --mode "$MODE" \
+                --line-events "$OUTPUT/ord-evidence/$(printf '%02d' "$i")-$side.lines.jsonl" \
+                --observer-script "$SCRIPT_DIR/qa005_ord_stream_capture.py" \
                 --log "$OUTPUT/$side/$name.log" -- \
-                go test -run '^$' -bench "$SELECTOR" \
-                -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m)
+                python3 -B "$SCRIPT_DIR/qa005_ord_stream_capture.py" \
+                    --events "$OUTPUT/ord-evidence/$(printf '%02d' "$i")-$side.lines.jsonl" -- \
+                    go test -run '^$' -bench "$SELECTOR" \
+                    -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m)
         else
             (cd "$source_dir" && go test -run '^$' -bench "$SELECTOR" \
                 -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m) \

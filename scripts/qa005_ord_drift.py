@@ -18,6 +18,7 @@ from qa005_compare import (
     P99_MIN_OBSERVATIONS, REQUIRED_METRICS, complete_matrix,
     parse_benchmark, student_t_critical,
 )
+from qa005_ord_stream_verify import verify_stream
 
 METRICS = ("throughput_ops_s", "p50_ns", "p95_ns", "p99_ns",
            "cpu_ns_op", "allocs_op")
@@ -192,6 +193,7 @@ def validated_inputs(root, mode):
             stem = "%02d-%s" % (pair, side)
             record_file = evidence / (stem + ".json")
             trace_file = evidence / (stem + ".jsonl")
+            line_events_file = evidence / (stem + ".lines.jsonl")
             log_file = root / side / ("%02d.log" % pair)
             record = json.loads(record_file.read_text(encoding="utf-8"))
             if (record.get("mode") != mode or record.get("pair") != pair or
@@ -201,6 +203,9 @@ def validated_inputs(root, mode):
                     record.get("workload_config") != env[side][0]["workload_config"] or
                     record.get("environment_sha256") != env[side][1] or
                     record.get("collector_sha256") != collector_digest or
+                    record.get("observer_script_sha256") != digest(
+                        Path(__file__).with_name("qa005_ord_stream_capture.py")) or
+                    record.get("line_events_sha256") != digest(line_events_file) or
                     record.get("log_sha256") != digest(log_file) or
                     record.get("trace_sha256") != digest(trace_file) or
                     record.get("complete") is not True or record.get("exit_code") != 0):
@@ -257,8 +262,13 @@ def validated_inputs(root, mode):
                 raise ValueError("Sampling gap inconsistent with raw trace: " + stem)
             if set(record.get("missing_sensors", [])) != missing:
                 raise ValueError("Sensor absence summary inconsistent with trace: " + stem)
-            reads[side].append(parse_benchmark(log_file))
+            parsed = parse_benchmark(log_file)
+            observed = verify_stream(
+                log_file, line_events_file, launch, end, set(parsed)
+            )
+            reads[side].append(parsed)
             runs.append({
+                "case_line_observation": observed,
                 "pair": pair, "side": side,
                 "first_side_order": 1 if pair % 2 else -1,
                 "sequence_in_pair": order_index,
@@ -305,7 +315,7 @@ def analyze(root, mode):
         "qualification": "DRIFT-INCONCLUSIVE",
         "environment_validity": "E-UNKNOWN",
         "host_mode_admission": "NOT_PERFORMED",
-        "time_precision": "PROCESS_ONLY_PROXY; PER_CASE_UNPROVEN",
+        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN",
         "performance_gate": "DISABLED",
         "statistical_diagnostics": "INCONCLUSIVE",
         "reasons": ["Mode admission requires per-case time sensitivity, complete "

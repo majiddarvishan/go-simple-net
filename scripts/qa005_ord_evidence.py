@@ -84,6 +84,10 @@ def snapshot(kind):
     }
 
 def run(args):
+    if (args.line_events is None) != (args.observer_script is None):
+        raise ValueError("Line evidence and observer source must be specified together")
+    if args.observer_script is not None and not args.observer_script.is_file():
+        raise ValueError("Missing immutable line observer source")
     environment_path = Path(args.environment)
     try:
         metadata = json.loads(environment_path.read_text(encoding="utf-8"))
@@ -160,7 +164,10 @@ def run(args):
             current = snapshot("after_exit")
             samples.append(current)
             trace_stream.write(json.dumps(current, sort_keys=True) + "\n")
-            completed = True
+            completed = (args.line_events is None or
+                         (args.line_events.is_file() and
+                          args.observer_script is not None and
+                          args.observer_script.is_file()))
     finally:
         if process is not None and process.poll() is None:
             process.terminate()
@@ -203,6 +210,10 @@ def run(args):
             "complete": completed and exit_code == 0,
             "log_sha256": sha256_file(output) if output.exists() else None,
             "trace_sha256": sha256_file(trace) if trace.exists() else None,
+            "line_events_sha256": (sha256_file(args.line_events)
+                                   if args.line_events and args.line_events.is_file() else None),
+            "observer_script_sha256": (sha256_file(args.observer_script)
+                                       if args.observer_script and args.observer_script.is_file() else None),
             "qualification": "DRIFT-INCONCLUSIVE",
             "reason": ("Timing/sensors are evidence only; independent 5m "
                        "statistical model, adequacy and host admission remain open."),
@@ -221,6 +232,8 @@ def main():
     parser.add_argument("--pair", type=int, choices=range(1, 11), required=True)
     parser.add_argument("--side", choices=("baseline", "candidate"), required=True)
     parser.add_argument("--interval-ms", type=int, default=250)
+    parser.add_argument("--line-events", type=Path)
+    parser.add_argument("--observer-script", type=Path)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     return run(args)
