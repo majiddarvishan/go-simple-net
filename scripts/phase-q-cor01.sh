@@ -8,6 +8,7 @@ if (( $# != 2 )); then
   echo "Usage: bash scripts/phase-q-cor01.sh <v1.0.0-worktree> <artifact-dir>" >&2
   exit 2
 fi
+HARNESS_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT="$(cd -- "$1" && pwd)"
 mkdir -p -- "$2"
 OUT="$(cd -- "$2" && pwd)"
@@ -16,7 +17,6 @@ EXPECTED="d8437f36ec812a596bada1398c7af9b530a18118"
 COMPLETED=0
 ACTIVE=""
 BUILD_DIR=""
-export ARTIFACT_DIR
 
 if [[ ! -d "$ROOT/.git" && ! -f "$ROOT/.git" ]]; then
   echo "Source argument is not a Git worktree" >&2
@@ -51,13 +51,13 @@ finish() {
     printf '%s\tINTERRUPTED\t%s\t%s\t%s\n' "$ACTIVE" "$rc" "unknown" "$(date -u +%FT%TZ)" >> "$OUT/stages.tsv"
   fi
   local result=FAIL
-  if (( rc == 0 && COMPLETED == 5 )) && [[ -z "$ACTIVE" ]]; then result=PASS; fi
+  if (( rc == 0 && COMPLETED == 6 )) && [[ -z "$ACTIVE" ]]; then result=PASS; fi
   {
     echo "task=Q-COR-01"
     echo "target_release=v1.0.0"
     echo "source_sha=$SOURCE_SHA"
     echo "runner_sha=${GITHUB_SHA:-local}"
-    echo "completed_stages=$COMPLETED/5"
+    echo "completed_stages=$COMPLETED/6"
     echo "result=$result"
     echo "performance_gate=DISABLED"
     echo "numerical_qualification=NOT_PERFORMED"
@@ -124,10 +124,11 @@ build_fourteen_examples() {
   done
 }
 
-stage verify make verify
-stage original-smoke make smoke
-stage phase-d-examples bash scripts/examples-dev-smoke.sh
+stage verify env ARTIFACT_DIR="$OUT/verify" make verify
+stage original-smoke env ARTIFACT_DIR="$OUT/original-smoke" make smoke
+stage phase-d-examples env ARTIFACT_DIR="$OUT/phase-d-examples" bash scripts/examples-dev-smoke.sh
 stage onrequest-qa007-race "$GO_BIN" test -race -count=2 -timeout=15m -run '^(TestClientInboundHandler|TestQA007)' ./...
 stage build-fourteen build_fourteen_examples
+stage peer-router-live bash "$HARNESS_ROOT/scripts/phase-q-peer-router-smoke.sh" "$BUILD_DIR" "$OUT"
 
-echo "Q-COR-01: all five correctness stages completed on immutable v1.0.0 source."
+echo "Q-COR-01: all six correctness stages completed on immutable v1.0.0 source."
