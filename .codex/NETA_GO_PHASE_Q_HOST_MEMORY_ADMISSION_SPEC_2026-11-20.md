@@ -35,7 +35,7 @@
 
 ### 1.2 Proposed A/A qualification decision rule
 
-**QENV-AA-02 NUMERICAL POLICY PENDING:** [prospective 95% simultaneous paired-log symmetric A/A equivalence and order-bias proposal](NETA_GO_QENV_AA_EQUIVALENCE_POLICY_2026-11-20.md) gives options and *unapproved* illustrative 5%/7.5% measurement-noise margins. This is distinct from the approved 10%/15% relative product-regression tolerances and does not confer Mode admission.
+**QENV-AA-02 OWNER OPTION A APPROVED (2026-11-20):** [prospective symmetric A/A equivalence contract](NETA_GO_QENV_AA_EQUIVALENCE_POLICY_2026-11-20.md) now fixes 5% for QA-005 throughput/P50/P95 and 7.5% for QA-005 P99/CPU/op/allocs/op and QA-004 terminal-settlement P99 using mode-family simultaneous two-sided 95% paired-log intervals ([Decision §81](DECISION_LOG.md)). These new *measurement noise* bounds remain distinct from the historical 10%/15% *product regression* limits. **QENV-AA-02.ORD order/drift bound remains OPEN**, no physical machine or mode admitted; no runner execution or code edit authorized.
 
 **A/A policy APPROVED: QENV-AA-01 = Option B (2026-11-20):** the [QENV-AA-01 comparator audit and owner decision](NETA_GO_QENV_AA_ADMISSION_DECISION_2026-11-20.md) establishes fail-closed **mode-scoped** reference-host admission for QA-004, Core and Full separately, after an E-VALID host preflight. The same-SHA comparison's non-memory per-case non-regression PASS evidence and complete matrix are **necessary, not sufficient**: the existing comparator PASS is one-sided, not symmetric A/A equivalence; an independently owner-approved prospective equivalence/ordering-drift rule and actual dedicated-host evidence are still missing. **No mode or physical host is admitted.**
 
