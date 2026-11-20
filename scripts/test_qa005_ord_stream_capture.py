@@ -15,7 +15,7 @@ SCRIPT = Path(__file__).with_name("qa005_ord_stream_capture.py")
 
 
 class StreamingObserverTests(unittest.TestCase):
-    def run_data(self, data, *, chunk_size=7):
+    def run_data(self, data, *, chunk_size=7, expect_pipe_close=False):
         with tempfile.TemporaryDirectory() as root:
             directory = Path(root)
             raw = directory / "raw.log"
@@ -30,7 +30,12 @@ class StreamingObserverTests(unittest.TestCase):
                 reader.start()
                 with os.fdopen(w, "wb", buffering=0) as output:
                     for at in range(0, len(data), 11):
-                        output.write(data[at:at + 11])
+                        try:
+                            output.write(data[at:at + 11])
+                        except BrokenPipeError:
+                            if not expect_pipe_close:
+                                raise
+                            break
                 reader.join(timeout=5)
                 self.assertFalse(reader.is_alive(), "observer deadlocked")
             raw_data = raw.read_bytes()
@@ -140,7 +145,7 @@ class StreamingObserverTests(unittest.TestCase):
         old = observer.MAX_LINE_BYTES
         observer.MAX_LINE_BYTES = 100
         try:
-            _, _, state, _ = self.run_data(b"x" * 150)
+            _, _, state, _ = self.run_data(b"x" * 150, expect_pipe_close=True)
             self.assertFalse(state["complete"])
             self.assertIn("Unbounded", state["error"])
         finally:
