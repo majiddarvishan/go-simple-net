@@ -124,6 +124,7 @@ for i in $(seq 1 10); do
         if [[ "$ORD_EVID" == 1 ]]; then
             # Opt-in report-only wrapper, unchanged go test arguments and logs.
             (cd "$source_dir" && python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py" \
+                --environment "$OUTPUT/$side/environment.json" \
                 --output "$OUTPUT/ord-evidence" \
                 --pair "$i" --side "$side" --mode "$MODE" \
                 --log "$OUTPUT/$side/$name.log" -- \
