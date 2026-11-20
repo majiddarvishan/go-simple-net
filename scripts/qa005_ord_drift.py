@@ -264,7 +264,7 @@ def validated_inputs(root, mode):
                 raise ValueError("Sensor absence summary inconsistent with trace: " + stem)
             parsed = parse_benchmark(log_file)
             observed = verify_stream(
-                log_file, line_events_file, launch, end, set(parsed)
+                log_file, line_events_file, start, end, set(parsed)
             )
             reads[side].append(parsed)
             runs.append({
