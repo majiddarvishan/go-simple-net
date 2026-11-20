@@ -1,0 +1,111 @@
+name: Clean up obsolete merged branches after verified v1.0.0 GA
+
+# Safe one-shot cleanup after GA tag AND GitHub Release are independently verified.
+# Never trigger this cleanup just from the GA-preparation PR.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.codex/GA_RELEASE_VERIFIED_2026-11-20.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: neta-go-merged-branch-cleanup-2026-11-20
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete only merged and unchanged allowlisted branches
+    if: github.repository == 'majiddarvishan/neta-go'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify official GA publication before any destructive action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat VERSION)" = 'v1.0.0'
+          grep -Fq 'Official GA release verified' .codex/GA_RELEASE_VERIFIED_2026-11-20.md
+          gh release view v1.0.0 --json tagName,isPrerelease,isDraft \
+            --jq 'select(.tagName=="v1.0.0" and .isPrerelease==false and .isDraft==false) | .tagName' | grep -Fxq 'v1.0.0'
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.0.0" --jq '.object.type' | grep -Fxq tag
+
+      - name: Remove exact merged-PR heads only, leave main and tags intact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          # Explicit owner-reviewed allowlist. No wildcard/global branch deletion.
+          branches=(
+            'docs/task-reconciliation-phase-q-2026-11-20'
+            'docs/phase-q-owner-decisions-a-2026-11-20'
+            'docs/q-env-memory-admission-spec-2026-11-20'
+            'docs/qenv-aa-acceptance-decision-2026-11-20'
+            'docs/qenv-aa01-owner-b-2026-11-20'
+            'docs/qenv-aa02-equivalence-policy-2026-11-20'
+            'docs/qenv-aa02-owner-a-2026-11-20'
+            'docs/qenv-aa02-ord-design-2026-11-20'
+            'docs/qenv-aa02-ord-owner-a-2026-11-20'
+            'release/v1.0.0-rc.1-candidate-2026-11-20'
+            'docs/rc01-publication-verified-2026-11-20'
+            'release/v1.0.0-ga-2026-11-20'
+            'docs/ga-release-verification-2026-11-20'
+          )
+          merged_json="$(gh api "repos/$repo/pulls?state=closed&per_page=100")"
+          errors=0
+          removed=0
+          skipped=0
+          for branch in "${branches[@]}"; do
+            # Never touch main, tags, or unforeseen branches.
+            if [[ "$branch" == "main" || "$branch" == -* || ! "$branch" =~ ^(docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::Unexpected allowlist entry: $branch"
+              exit 1
+            fi
+            ref="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+            if [[ -z "$ref" ]]; then
+              echo "Already absent: $branch"
+              continue
+            fi
+            # PR source HEAD must still be exactly the live branch tip and was
+            # actually merged into main. Squash-merge ancestry is NOT assumed.
+            approved="$(jq -r --arg b "$branch" --arg sha "$ref" '
+              [.[] | select(.head.ref==$b and .head.sha==$sha and .base.ref=="main" and .merged_at!=null)] | length
+            ' <<< "$merged_json")"
+            if [[ "$approved" -lt 1 ]]; then
+              echo "::warning::Preserved unmerged or moved branch: $branch @$ref"
+              skipped=$((skipped+1))
+              continue
+            fi
+            protected="$(gh api "repos/$repo/branches/$branch" --jq '.protected' 2>/dev/null || true)"
+            if [[ "$protected" == "true" ]]; then
+              echo "::warning::Protected branch preserved: $branch"
+              skipped=$((skipped+1))
+              continue
+            fi
+            # Recheck exact ref immediately before delete (as far as API allows).
+            latest="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+            if [[ "$latest" != "$ref" ]]; then
+              echo "::warning::Branch moved since inspection: $branch; preserve"
+              skipped=$((skipped+1))
+              continue
+            fi
+            if gh api -X DELETE "repos/$repo/git/refs/heads/$branch"; then
+              echo "Deleted merged branch $branch @$ref"
+              removed=$((removed+1))
+            else
+              echo "::warning::Cannot delete $branch (permission/protection/API error)"
+              errors=$((errors+1))
+            fi
+          done
+          echo "Removed=$removed Preserved=$skipped DeletionErrors=$errors"
+          test "$errors" -eq 0 || exit 1
+          # A new unrelated branch is never considered or deleted.
