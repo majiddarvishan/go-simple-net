@@ -146,6 +146,12 @@ python3 "$CANDIDATE/scripts/qa005_compare.py" \
     --output "$OUTPUT/comparison.json" "${args[@]}"
 echo "Report-only comparison: $OUTPUT/comparison.json"
 if [[ "$ORD_EVID" == 1 ]]; then
-    echo "ORD-EVID process/time/host traces: $OUTPUT/ord-evidence (DRIFT-INCONCLUSIVE; no host admission)"
+    # Read-only statistical diagnostics over existing, unchanged logs;
+    # never an A/A mode/host admission or a replacement for the comparator.
+    python3 -B "$SCRIPT_DIR/qa005_ord_drift.py" \
+        --paired-dir "$OUTPUT" --mode "$MODE" \
+        --output "$OUTPUT/ord-drift-diagnostics.json"
+    echo "ORD-EVID process/time/host traces: $OUTPUT/ord-evidence"
+    echo "ORD-EVID report: $OUTPUT/ord-drift-diagnostics.json (DRIFT-INCONCLUSIVE)"
 fi
 echo "Optional 30-minute stability: NETA_SOAK_SECONDS=1800 go test -run '^TestMemoryStabilitySoak$' -timeout=34m -v"
