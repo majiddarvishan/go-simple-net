@@ -210,15 +210,34 @@ def validated_inputs(root, mode):
                        trace_file.read_text(encoding="utf-8").splitlines()]
             if len(samples) != record["sample_count"] or len(samples) < 3:
                 raise ValueError("Missing interval telemetry: " + stem)
+            if samples[0].get("kind") != "before_spawn" or samples[-1].get("kind") != "after_exit":
+                raise ValueError("Missing process-boundary sensor snapshots: " + stem)
+            if (samples[0]["sample_end"]["monotonic_ns"] > start or
+                    samples[-1]["sample_start"]["monotonic_ns"] < end):
+                raise ValueError("Trace sensor brackets do not surround process: " + stem)
             last_sample = None
+            last_utc = None
+            observed_gaps = []
+            missing = set()
             for sample in samples:
                 t0 = sample["sample_start"]["monotonic_ns"]
                 t1 = sample["sample_end"]["monotonic_ns"]
+                utc = sample["sample_start"]["utc_ns"]
                 if not (isinstance(t0, int) and isinstance(t1, int) and
-                        0 < t0 <= t1 and
-                        (last_sample is None or t0 >= last_sample)):
-                    raise ValueError("Invalid sensor time ordering: " + stem)
-                last_sample = t0
+                        isinstance(utc, int) and 0 < t0 <= t1 and
+                        (last_sample is None or t0 >= last_sample) and
+                        (last_utc is None or utc >= last_utc)):
+                    raise ValueError("Invalid monotonic/UTC sensor chronology: " + stem)
+                if last_sample is not None:
+                    observed_gaps.append(t0 - last_sample)
+                if not isinstance(sample.get("missing_sensors"), list):
+                    raise ValueError("Missing sensor absence declarations: " + stem)
+                missing.update(sample["missing_sensors"])
+                last_sample, last_utc = t0, utc
+            if record.get("observed_max_sample_gap_ns") != max(observed_gaps):
+                raise ValueError("Sampling gap inconsistent with raw trace: " + stem)
+            if set(record.get("missing_sensors", [])) != missing:
+                raise ValueError("Sensor absence summary inconsistent with trace: " + stem)
             reads[side].append(parse_benchmark(log_file))
             runs.append({
                 "pair": pair, "side": side,
@@ -261,6 +280,8 @@ def validated_inputs(root, mode):
 def analyze(root, mode):
     report = {
         "schema": "neta-qa005-ord-diagnostics-v1",
+        "analyzer_sha256": digest(Path(__file__)),
+        "regression_comparator_sha256": digest(Path(__file__).with_name("qa005_compare.py")),
         "mode": mode,
         "qualification": "DRIFT-INCONCLUSIVE",
         "environment_validity": "E-UNKNOWN",
