@@ -122,43 +122,15 @@ for i in $(seq 1 10); do
         if [[ "$side" == baseline ]]; then source_dir="$BASELINE"; else source_dir="$CANDIDATE"; fi
         echo "QA-004/005 $MODE pair=$name side=$side"
         if [[ "$ORD_EVID" == 1 ]]; then
-            # Only an opt-in, report-only wrapper: unchanged go test flags and
-            # original per-side logs; process timing is a coarse case bracket.
+            # Opt-in report-only wrapper, unchanged go test arguments and logs.
             (cd "$source_dir" && python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py" \
                 --output "$OUTPUT/ord-evidence" \
                 --pair "$i" --side "$side" --mode "$MODE" \
                 --log "$OUTPUT/$side/$name.log" -- \
-                go test -run '^
-    done
-done
-args=()
-if [[ -n "${NETA_QA005_APPROVED_MANIFEST:-}" ]]; then
-    args=(--approved-manifest "$NETA_QA005_APPROVED_MANIFEST")
-fi
-python3 "$CANDIDATE/scripts/qa005_compare.py" \
-    --baseline "$OUTPUT/baseline" --candidate "$OUTPUT/candidate" \
-    --output "$OUTPUT/comparison.json" "${args[@]}"
-echo "Report-only comparison: $OUTPUT/comparison.json"
-if [[ "$ORD_EVID" == 1 ]]; then
-    echo "ORD-EVID process/time/host traces: $OUTPUT/ord-evidence (DRIFT-INCONCLUSIVE; no host admission)"
-fi
-echo "Optional 30-minute stability: NETA_SOAK_SECONDS=1800 go test -run '^TestMemoryStabilitySoak$' -timeout=34m -v"
- -bench "$SELECTOR" \
+                go test -run '^$' -bench "$SELECTOR" \
                 -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m)
         else
-            (cd "$source_dir" && go test -run '^
-    done
-done
-args=()
-if [[ -n "${NETA_QA005_APPROVED_MANIFEST:-}" ]]; then
-    args=(--approved-manifest "$NETA_QA005_APPROVED_MANIFEST")
-fi
-python3 "$CANDIDATE/scripts/qa005_compare.py" \
-    --baseline "$OUTPUT/baseline" --candidate "$OUTPUT/candidate" \
-    --output "$OUTPUT/comparison.json" "${args[@]}"
-echo "Report-only comparison: $OUTPUT/comparison.json"
-echo "Optional 30-minute stability: NETA_SOAK_SECONDS=1800 go test -run '^TestMemoryStabilitySoak$' -timeout=34m -v"
- -bench "$SELECTOR" \
+            (cd "$source_dir" && go test -run '^$' -bench "$SELECTOR" \
                 -benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m) \
                 > "$OUTPUT/$side/$name.log" 2>&1
         fi
@@ -172,4 +144,7 @@ python3 "$CANDIDATE/scripts/qa005_compare.py" \
     --baseline "$OUTPUT/baseline" --candidate "$OUTPUT/candidate" \
     --output "$OUTPUT/comparison.json" "${args[@]}"
 echo "Report-only comparison: $OUTPUT/comparison.json"
+if [[ "$ORD_EVID" == 1 ]]; then
+    echo "ORD-EVID process/time/host traces: $OUTPUT/ord-evidence (DRIFT-INCONCLUSIVE; no host admission)"
+fi
 echo "Optional 30-minute stability: NETA_SOAK_SECONDS=1800 go test -run '^TestMemoryStabilitySoak$' -timeout=34m -v"
