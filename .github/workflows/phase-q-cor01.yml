@@ -1,0 +1,101 @@
+name: Phase Q — Q-COR-01 exact v1.0.0 correctness
+
+# Runs released source on a separate detached worktree. No benchmark,
+# numeric reference comparison, production changes or performance gate.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    paths:
+      - 'scripts/phase-q-cor01.sh'
+      - 'scripts/phase-q-peer-router-smoke.sh'
+      - '.github/workflows/phase-q-cor01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  released-correctness:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    name: Q-COR-01 Go/race and 14 example paths on immutable GA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout qualification harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Configure Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+
+      - name: Verify annotated GA tag and detach release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='d8437f36ec812a596bada1398c7af9b530a18118'
+          test "$(git cat-file -t refs/tags/v1.0.0)" = tag
+          test "$(git rev-parse 'refs/tags/v1.0.0^{commit}')" = "$expected"
+          git worktree add --detach "$RUNNER_TEMP/neta-v1-release" "$expected"
+          test "$(git -C "$RUNNER_TEMP/neta-v1-release" rev-parse HEAD)" = "$expected"
+
+      - name: Execute bounded Q-COR-01 on released source
+        shell: bash
+        run: |
+          bash scripts/phase-q-cor01.sh \
+            "$RUNNER_TEMP/neta-v1-release" \
+            "$GITHUB_WORKSPACE/artifacts/phase-q-cor01"
+
+      - name: Upload exact-SHA correctness logs and stage statuses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: q-cor-01-v1.0.0-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/phase-q-cor01/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove detached source worktree
+        if: always()
+        shell: bash
+        run: |
+          if [[ -d "$RUNNER_TEMP/neta-v1-release" ]]; then
+            git worktree remove --force "$RUNNER_TEMP/neta-v1-release"
+          fi
+
+  cleanup-merged-task-branch:
+    # This one exact branch only; never delete main, tag or unrelated refs.
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'qual/q-cor-01-exact-v1-2026-11-20' }}
+    name: Delete unchanged merged Q-COR-01 branch
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 5
+    steps:
+      - name: Compare merged PR head with live remote branch before deletion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='qual/q-cor-01-exact-v1-2026-11-20'
+          repo="$GITHUB_REPOSITORY"
+          live="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -z "$live" ]]; then
+            echo "Branch already absent; no deletion needed"
+            exit 0
+          fi
+          if [[ "$live" != "$HEAD_SHA" ]]; then
+            echo "::warning::Branch advanced; preserving $branch"
+            exit 0
+          fi
+          protected="$(gh api "repos/$repo/branches/$branch" --jq '.protected')"
+          test "$protected" = false
+          gh api -X DELETE "repos/$repo/git/refs/heads/$branch"
+          echo "Removed unchanged merged task branch $branch"
