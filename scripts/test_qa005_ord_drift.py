@@ -89,7 +89,7 @@ class OrdDriftTests(unittest.TestCase):
                 self.assertTrue(report["reasons"])
 
     @staticmethod
-    def make_complete_qa004(root):
+    def make_complete_qa004(root, early_receipt=False):
         (root / "baseline").mkdir()
         (root / "candidate").mkdir()
         (root / "ord-evidence").mkdir()
@@ -125,7 +125,9 @@ class OrdDriftTests(unittest.TestCase):
                 line_events = []
                 for line_index, raw_line in enumerate(
                         log_path.read_bytes().splitlines(keepends=True), 1):
-                    received_at = start + 20_000 + line_index * 3_000
+                    received_at = (start + 1_500 + line_index * 900
+                                   if early_receipt and pair == 1 and side == "baseline"
+                                   else start + 20_000 + line_index * 3_000)
                     line_events.append({
                         "line_index": line_index,
                         "byte_offset": offset,
@@ -200,6 +202,23 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
             self.assertEqual(len(report["scenarios"]), 5)
+
+    def test_early_line_receipt_before_post_spawn_clock_is_allowed(self):
+        # Python observer child may emit before the parent's post-Popen clock.
+        # The authoritative lower bound is the parent's pre-spawn bracket.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root, early_receipt=True)
+            report = analyze(root, "qa004")
+            self.assertEqual(report["case_metric_count"], 5, report["reasons"])
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+            first = report["paired_runs"][0]
+            self.assertEqual(first["side"], "baseline")
+            observed = first["case_line_observation"]["case_observation_intervals"]
+            self.assertTrue(any(
+                row["arrival_monotonic_ns"] < first["launch_monotonic_ns"]
+                for row in observed.values()
+            ))
 
     def test_changed_host_identity_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
