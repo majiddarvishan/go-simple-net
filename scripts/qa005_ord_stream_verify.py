@@ -2,7 +2,7 @@
 """Read-only integrity validation for opt-in ORD per-line arrival evidence.
 
 A per-line receipt timestamp is NOT a benchmark-case execution timestamp.
-Only [process launch, line receipt] is available as a conservative case
+Only [pre-spawn, line receipt] is available as a conservative case
 time envelope; it is too wide for an automatic DRIFT-VALID conclusion.
 """
 from __future__ import annotations
@@ -34,16 +34,17 @@ def normalize_case_name(name):
     return re.sub(r"-\d+$", "", name)
 
 
-def verify_stream(raw_log, sidecar, process_launch_ns, process_exit_ns,
+def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
                   expected_cases):
     """Reject missing, duplicated, manipulated or misordered case evidence.
 
-    These are receipt-time observations, NOT proof of a precise case runtime.
+    pre_spawn_ns is the outer parent snapshot taken before child creation;
+    these are receipt-time observations, NOT precise case execution times.
     """
     raw_log, sidecar = Path(raw_log), Path(sidecar)
-    if (type(process_launch_ns) is not int or
+    if (type(pre_spawn_ns) is not int or
             type(process_exit_ns) is not int or
-            not 0 < process_launch_ns < process_exit_ns):
+            not 0 < pre_spawn_ns < process_exit_ns):
         raise ValueError("Invalid monotonic process launch/exit")
     if not isinstance(expected_cases, set) or not expected_cases:
         raise ValueError("Expected benchmark case IDs required")
@@ -54,7 +55,7 @@ def verify_stream(raw_log, sidecar, process_launch_ns, process_exit_ns,
     if len(events) != len(originals):
         raise ValueError("Raw log/event count differs")
     case_rows = {}
-    last_observed_ns = process_launch_ns
+    last_observed_ns = pre_spawn_ns
     last_utc_ns = 0
     for i, (event, (offset, line)) in enumerate(zip(events, originals), 1):
         if not isinstance(event, dict):
@@ -86,7 +87,7 @@ def verify_stream(raw_log, sidecar, process_launch_ns, process_exit_ns,
         utc_ns = event.get("read_end_utc_ns")
         if (type(t0) is not int or type(t1) is not int or
                 type(utc_ns) is not int or utc_ns < last_utc_ns or not
-                (process_launch_ns <= t0 <= t1 <= process_exit_ns) or
+                (pre_spawn_ns <= t0 <= t1 <= process_exit_ns) or
                 t1 < last_observed_ns):
             raise ValueError("Line receipt clock outside monotonic execution interval")
         last_observed_ns = t1
@@ -102,9 +103,9 @@ def verify_stream(raw_log, sidecar, process_launch_ns, process_exit_ns,
                 "line_index": i,
                 "arrival_monotonic_ns": t1,
                 "arrival_utc_ns": utc_ns,
-                "earliest_possible_case_ns": process_launch_ns,
+                "earliest_possible_case_ns": pre_spawn_ns,
                 "latest_possible_case_ns": t1,
-                "interval_width_ns": t1 - process_launch_ns,
+                "interval_width_ns": t1 - pre_spawn_ns,
                 "timing_semantics": "case_finished_no_later_than_stdout_receipt;start_unobserved",
             }
     if set(case_rows) != expected_cases:
