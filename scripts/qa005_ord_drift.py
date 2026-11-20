@@ -77,7 +77,7 @@ def fit_one(y, order, time_scaled, d, family_size):
             any(not math.isfinite(v) for v in y + time_scaled) or
             any(o not in (-1, +1) for o in order)):
         raise ValueError("Invalid or incomplete ten-pair model input")
-    if not math.isfinite(d) or d <= 0 or family_size not in (5, 48, 144):
+    if d not in (.05, .075) or family_size not in (5, 48, 144):
         raise ValueError("Unexpected margin or family")
     if min(time_scaled) < -1 - 1e-9 or max(time_scaled) > 1 + 1e-9:
         raise ValueError("Unnormalized chronological time")
