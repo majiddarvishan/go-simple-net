@@ -1,0 +1,105 @@
+name: Publish owner-approved neta-go v1.0.0 GA
+
+# Deliberate one-shot trigger. Future main documentation changes do not retrigger GA.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.codex/GA_RELEASE_APPROVAL_2026-11-20.md'
+
+permissions:
+  contents: write
+  checks: read
+
+concurrency:
+  group: neta-go-v1.0.0-ga
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish exact-main v1.0.0 annotated tag and GitHub Release
+    if: github.repository == 'majiddarvishan/neta-go'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Verify exact reviewed GA source and owner authorization
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='v1.0.0'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(cat VERSION)" = "$TAG"
+          grep -Fq 'Explicit owner instruction' .codex/GA_RELEASE_APPROVAL_2026-11-20.md
+          grep -Fq 'qualification remains incomplete' docs/RELEASE_V1.0.0_NOTES.md
+
+          # Official release has identical runtime Go and benchmark/protocol sources
+          # to the earlier immutable RC, except for version and documentation metadata.
+          git fetch origin 'refs/tags/v1.0.0-rc.1:refs/tags/v1.0.0-rc.1' --no-tags
+          git diff --quiet 'v1.0.0-rc.1' HEAD -- '*.go' go.mod go.sum '*.proto' scripts/ testdata/ Makefile
+
+          passed=0
+          for attempt in $(seq 1 150); do
+            checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100")"
+            bad="$(jq -r '[.check_runs[] | select(.name=="test" or .name=="Verify Go wire codec against pinned Pinex C++ 1.5.0") | select(.status=="completed" and .conclusion!="success")] | length' <<< "$checks")"
+            ok="$(jq -r '[.check_runs[] | select(.name=="test" or .name=="Verify Go wire codec against pinned Pinex C++ 1.5.0") | select(.status=="completed" and .conclusion=="success")] | length' <<< "$checks")"
+            if [[ "$bad" -gt 0 ]]; then
+              echo "::error::Required exact SHA CI failed/cancelled"
+              exit 1
+            fi
+            if [[ "$ok" -eq 2 ]]; then passed=1; break; fi
+            sleep 10
+          done
+          if [[ "$passed" != 1 ]]; then
+            echo "::error::Exact-main required CI did not pass before timeout"
+            exit 1
+          fi
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          test "$remote_main" = "$GITHUB_SHA" || {
+            echo "::error::main advanced before GA publication"; exit 1;
+          }
+
+      - name: Create immutable annotated v1.0.0 tag and official GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='v1.0.0'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$remote_main" != "$GITHUB_SHA" ]]; then
+            echo "::error::main advanced before release push"; exit 1
+          fi
+
+          # Retry-safe for release permission/transient failures: NEVER move a tag.
+          if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$TAG:refs/tags/$TAG" --no-tags
+            target="$(git rev-parse "$TAG^{commit}")"
+            if [[ "$target" != "$GITHUB_SHA" ]]; then
+              echo "::error::Existing v1.0.0 tag points to a different SHA"; exit 1
+            fi
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a "$TAG" "$GITHUB_SHA" -m "neta-go $TAG official; Phase Q performance/memory qualification pending"
+            git push origin "refs/tags/$TAG"
+          fi
+          remote_tag_target="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | cut -f1)"
+          test "$remote_tag_target" = "$GITHUB_SHA" || {
+            echo "::error::Annotated GA tag does not peel to exact source SHA"; exit 1;
+          }
+          if gh release view "$TAG" --json tagName,isPrerelease,isDraft >/tmp/ga-release-status.json 2>/dev/null; then
+            jq -e --arg tag "$TAG" '.tagName == $tag and .isPrerelease == false and .isDraft == false' /tmp/ga-release-status.json
+            echo "Official GA Release already exists and is verified; not recreated."
+          else
+            gh release create "$TAG" --verify-tag --latest --title 'neta-go v1.0.0' --notes-file docs/RELEASE_V1.0.0_NOTES.md
+          fi
+          gh release view "$TAG" --json tagName,isPrerelease,isDraft,url --jq '{tagName,isPrerelease,isDraft,url}'
+          echo "Official $TAG published at exact source SHA $GITHUB_SHA. Existing RC unchanged."

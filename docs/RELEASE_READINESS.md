@@ -1,8 +1,14 @@
 # neta-go release readiness
 
-**Status (2026-11-20): the annotated integration RC Git tag `v1.0.0-rc.1` is VERIFIED PUBLISHED on exact green main source SHA `0bd50760a9200194f9ae0088d26751d0f6ee00c7`; final `v1.0.0` GA and GitHub Release are NOT approved.** Development is merged to protected `main`, but QA-004/QA-005 reference qualification and final-release authorization remain open. See [scoped RC approval](../.codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md) and [parallel test plan](../.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md). This page summarizes the *current* release gates; dated engineering/owner evidence remains in [`.codex/`](../.codex/README.md).
+**Status (2026-11-20): owner has EXPLICITLY AUTHORIZED official `v1.0.0` GA Git tag and GitHub Release of the current Go code, EVEN THOUGH heavy Phase Q qualification remains INCONCLUSIVE.** The existing annotated RC `v1.0.0-rc.1` remains independently verified, and the official GA publication will only be deemed complete after exact-main CI and tag/Release verification. Development is merged to protected `main`, but QA-004/QA-005 reference qualification and final-release authorization remain open. See [scoped RC approval](../.codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md) and [parallel test plan](../.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md). This page summarizes the *current* release gates; dated engineering/owner evidence remains in [`.codex/`](../.codex/README.md).
 
 **Verified integration RC source SHA (2026-11-20):** `0bd50760a9200194f9ae0088d26751d0f6ee00c7` ([PR #37](https://github.com/majiddarvishan/neta-go/pull/37) squash merge); exact-source [Go CI](https://github.com/majiddarvishan/neta-go/actions/runs/44760739694), [C++ Wire CI](https://github.com/majiddarvishan/neta-go/actions/runs/44760739531), and [tag-publisher](https://github.com/majiddarvishan/neta-go/actions/runs/44760739677) **SUCCESS**. Annotated tag-object SHA `1e07c00f97b6243f932aba91c544f81b73e6fc9d` dereferences to that commit ([Decision §84](../.codex/DECISION_LOG.md)). Subsequent `main` documentation commits do not alter this immutable tag.
+
+## Official v1.0.0 publication override — owner approved
+
+The owner requested promotion of the **same Go/wire implementation** to an official `v1.0.0`, plus removal of obsolete merged PR branches. The release preparation changes **VERSION, notes, README, governance docs and narrowly scoped release/cleanup Actions workflows**, not runtime Go or performance fixtures. The earlier numerical acceptance hold is explicitly superseded **for publication permission only**; it is NOT a PASS for Q-ENV-01, Q-COR-01..04, QA-004/005 or MEM-004/005/006. See [approval](../.codex/GA_RELEASE_APPROVAL_2026-11-20.md), [release notes](RELEASE_V1.0.0_NOTES.md) and [four-week QA plan](../.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md).
+
+An [exact-main tag and release workflow](../.github/workflows/publish-v1-ga.yml) will publish one immutable annotated `v1.0.0` tag and non-prerelease GitHub Release after successful Go and C++ postmerge checks. A later [merged-PR branch cleanup workflow](../.github/workflows/cleanup-merged-release-branches.yml) will delete only allowlisted unchanged merged heads after confirming the GA Release exists. Do not infer that either action ran merely from merging this documentation.
 
 ## Pre-qualification integration RC (separate from final GA)
 
@@ -12,7 +18,7 @@ Owner instruction 2026-11-20 permits publishing **one immutable annotated Git ta
 
 Use `go get github.com/majiddarvishan/neta-go@v1.0.0-rc.1` only **after** the tag ref is independently verified. The version declaration in `VERSION` and the `v1.0.0-rc.1` Changelog section are not proof that the Git tag exists.
 
-The old R-01/R-02/P9-06 gates below refer to **final GA `v1.0.0`** and remain open. All qualification cases still require their own accepted evidence. Current normalized distinct open packages: **20** (10 Qualification + 7 other Owner Decisions + 3 final Release), not the historical 22.
+The original R-01/R-02/P9-06 qualification prerequisites remain documented below as historical readiness criteria; the owner has **explicitly overridden the hold on GA publication** without accepting the missing test evidence. Publication will complete P9-06 only after tag and Release are independently verified. Qualification cases and unresolved release-readiness review tasks remain open; this is not a numerical QA sign-off.
 
 ## Readiness at a glance
 
@@ -27,7 +33,7 @@ The old R-01/R-02/P9-06 gates below refer to **final GA `v1.0.0`** and remain op
 | QA-005 performance acceptance | **OPEN / NOT QUALIFIED** | 8 Core / 24 Full qualified workload comparison, ten matched baseline/candidate pairs, accepted metrics and absolute thresholds pending |
 | MEM-004 / MEM-005 / MEM-006 | **OPEN / PARTIAL_INCONCLUSIVE** | Full attributable retained memory, observer overhead/temporal accuracy and qualified long soak not accepted |
 | Mandatory performance gate | **DISABLED** | No authorization or approved numerical limits to activate it |
-| Integration RC tag / final GA | **RC TAG VERIFIED / PUBLISHED; final GA NOT AUTHORIZED** | Exact SHA `0bd50760...`, annotated tag and green postmerge Go/C++ and publisher checks verified; all final-release gates still OPEN |
+| Integration RC tag / final GA | **RC VERIFIED; GA PUBLICATION OWNER-AUTHORIZED, EXACT-SHA TAG/RELEASE VERIFICATION PENDING** | Publication bypasses previously required Phase-Q acceptance by explicit owner decision, **without claiming that QA passed**; pending GA tag workflow, distinct from prior RC |
 
 A merged feature, a green CI run or a completed Development checklist is **not** a release approval.
 
@@ -59,7 +65,7 @@ Do not change the frozen QA004-QA005 Source-V1 anchor (`9b7b2318f73d173a99d22489
 - [ ] Verify the intended publisher's tag and GitHub Release permissions and the absence/conflict of an existing `v1.0.0` tag at the **time of publication**. The GitHub Releases listing contained **no published release** at this review; tag existence was not independently rechecked.
 - [ ] For **final `v1.0.0` GA only**, recheck the exact proposed GA tag-target SHA, required CI and approved qualification evidence, then obtain **separate explicit owner permission** to publish. Do not create the GA tag or GitHub Release until these conditions hold. The RC tag's narrower permission and preflight are separate.
 
-**This document by itself creates no tag or GitHub Release.** The separately authorized RC tag workflow is gated on exact-main checks and its result must be independently verified. No final `v1.0.0` tag/Release is authorized; keep future changes under `Unreleased`. The prior Phase 9 checklist [P9-06](../.codex/TASKS.md) remains open.
+**This document by itself creates no tag or GitHub Release.** The existing RC and new GA tag workflows are gated on exact-main checks and their results must be independently verified. **GA `v1.0.0` publication has now been explicitly owner-authorized** ([approval](../.codex/GA_RELEASE_APPROVAL_2026-11-20.md)); existing unresolved numerical qualification remains disclosed in [official release notes](RELEASE_V1.0.0_NOTES.md). Keep future changes under `Unreleased`; mark P9-06 complete only after real tag and Release verification.
 
 ## Documentation map
 

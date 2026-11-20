@@ -4,7 +4,13 @@ Notable neta-go changes are recorded here.
 
 ## Unreleased
 
-Changes after the first integration RC will be recorded here. The pre-release tag is an integration snapshot and does not replace full Phase Q qualification.
+Future fixes and qualification follow-ups will be recorded here.
+
+## v1.0.0 — 2026-11-20 (official release; qualification ongoing)
+
+**Owner-approved official version** of the same runtime Go/wire source as `v1.0.0-rc.1`. Version and release documentation updated; no Go API, protocol, benchmark harness or test code changes. Features include callback-based Client/Server, bounded queues/resources, bidirectional Request handlers, Session V1/V2 (default V2) and 14 runnable examples.
+
+**Qualification disclosure:** required Go and C++ CI gates passing on the official exact source SHA is a publishing prerequisite, **not** acceptance of Q-ENV-01, Q-COR-01/02/03/04, QA-004/005 or MEM-004/005/006. Retained-attributed memory, absolute performance SLA and numeric baseline are not approved; mandatory Performance Gate stays DISABLED. See [official release notes](docs/RELEASE_V1.0.0_NOTES.md) and [parallel Phase Q plan](.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md).
 
 ## v1.0.0-rc.1 — 2026-11-20 (integration release candidate)
 

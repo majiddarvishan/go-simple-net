@@ -15,6 +15,16 @@ It provides Client, Server and Session APIs without requiring applications to ma
 - Configurable idle-only Enquire Link and operation deadlines.
 - Immutable, Session-scoped V1/V2 wire selection; **V2 is the default**.
 
+## Install the official v1.0.0
+
+The owner-authorized official Go module version is `v1.0.0`:
+
+```bash
+go get github.com/majiddarvishan/neta-go@v1.0.0
+```
+
+This version has the **same runtime Go and wire protocol code** as the prior `v1.0.0-rc.1` tag. It retains the V2 default, V1 compatibility, `WithClientOnRequestHandler` and 14 examples. **Full Phase Q performance, retained-memory and heavy stress qualification are still pending**, and no absolute throughput/latency/memory SLA is claimed. See [official release notes](docs/RELEASE_V1.0.0_NOTES.md) and [Phase Q plan](.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md).
+
 ## Pin the integration release candidate
 
 For parallel use in another Go application, pin the **pre-qualification release candidate** after GitHub has published the exact `v1.0.0-rc.1` tag:
