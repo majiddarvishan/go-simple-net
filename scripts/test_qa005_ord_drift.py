@@ -45,7 +45,7 @@ class OrdDriftTests(unittest.TestCase):
                             for c in model["joint_5m_corners"]))
 
     def test_balanced_mean_cannot_hide_time_drift(self):
-        y = [t * .06 for t in TIME]
+        y = [t * .09 for t in TIME]
         model = fit_one(y, ORDER, TIME, .075, 5)
         self.assertAlmostEqual(model["original_m_family_mean"]["estimate_log"], 0.)
         self.assertTrue(model["original_m_family_mean"]["inside_fixed_bound"])
