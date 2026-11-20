@@ -1,0 +1,86 @@
+name: Phase Q — ORD-EVID collector readiness
+
+# Synthetic tests only: do NOT run benchmark pairs, A/A admission, or heavy QA.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    paths:
+      - 'scripts/qa005_ord_evidence.py'
+      - 'scripts/qa005_qualify.sh'
+      - 'scripts/test_qa005_ord_evidence.py'
+      - '.github/workflows/phase-q-ord-evid.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-readiness:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    name: Syntax and synthetic fail-closed ORD-EVID unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate shell syntax and Python collector
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/qa005_qualify.sh
+          python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_evidence.py' -v
+          python3 -B -m py_compile scripts/qa005_ord_evidence.py
+      - name: Assert unchanged default benchmark invocation and opt-in only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("scripts/qa005_qualify.sh").read_text()
+          assert 'ORD_EVID="${NETA_QA005_ORD_EVID:-0}"' in text
+          assert 'if [[ "$ORD_EVID" == 1 ]]; then' in text
+          assert 'python3 -B "$SCRIPT_DIR/qa005_ord_evidence.py"' in text
+          assert '(cd "$source_dir" && go test -run' in text
+          assert '-benchtime="$BENCHTIME" -count=1 -benchmem -cpu=4 -timeout=45m' in text
+          assert 'python3 "$CANDIDATE/scripts/qa005_compare.py"' in text
+          print("PASS: default comparator and command preserved; opt-in telemetry only")
+          PY
+      - name: Declare qualification boundary
+        run: |
+          echo 'ORD-EVID code/test readiness only; no benchmark run.'
+          echo 'DRIFT-INCONCLUSIVE; E-VALID, per-mode A/A, 5m statistical acceptance and host admission NOT PERFORMED.'
+          echo 'Performance Gate DISABLED; no numeric baseline or SLA established.'
+
+  cleanup-merged-task-branch:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'qual/ord-evid-readiness-2026-11-20' }}
+    name: Delete unchanged merged ORD-EVID branch
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete only approved unchanged PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='qual/ord-evid-readiness-2026-11-20'
+          repo="$GITHUB_REPOSITORY"
+          live="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -z "$live" ]]; then
+            echo "Already absent"
+            exit 0
+          fi
+          if [[ "$live" != "$HEAD_SHA" ]]; then
+            echo "::warning::Advanced branch preserved"
+            exit 0
+          fi
+          protected="$(gh api "repos/$repo/branches/$branch" --jq '.protected')"
+          test "$protected" = false
+          gh api -X DELETE "repos/$repo/git/refs/heads/$branch"
+          echo "Removed verified unchanged merged ORD-EVID task branch"
