@@ -66,7 +66,7 @@ finish() {
   } > "$OUT/status.txt"
   find "$OUT" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r sha256sum > "$OUT/SHA256SUMS"
   if [[ -n "$BUILD_DIR" ]]; then rm -rf -- "$BUILD_DIR"; fi
-  echo "Q-COR-01 $result ($COMPLETED/5 stages); logs: $OUT"
+  echo "Q-COR-01 $result ($COMPLETED/6 stages); logs: $OUT"
   if [[ "$result" != PASS ]]; then exit 1; fi
 }
 trap finish EXIT
