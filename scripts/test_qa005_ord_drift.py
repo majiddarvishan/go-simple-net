@@ -101,6 +101,7 @@ class OrdDriftTests(unittest.TestCase):
             "workload_config": "synthetic-1200x-qa004",
             "scenario_version": "qa004-or-qa005-selected-v2",
             "cpu_model": "synthetic",
+            "machine_id": "synthetic-controlled-host",
             "goarch": "amd64", "goos": "linux", "gomaxprocs": "default",
         }
         for side in ("baseline", "candidate"):
@@ -139,6 +140,10 @@ class OrdDriftTests(unittest.TestCase):
                     "harness_sha256": meta["harness_sha256"],
                     "workload_config": meta["workload_config"],
                     "environment_sha256": checksum(root / side / "environment.json"),
+                    "collector_sha256": hashlib.sha256(
+                        (HERE / "qa005_ord_evidence.py").read_bytes()
+                    ).hexdigest(),
+                    "host_kernel": "synthetic linux 6.x",
                     "log_sha256": checksum(log_path),
                     "trace_sha256": checksum(trace),
                     "complete": True, "exit_code": 0,
@@ -168,6 +173,18 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
             self.assertEqual(len(report["scenarios"]), 5)
+
+    def test_changed_host_identity_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            path = root / "candidate" / "environment.json"
+            meta = json.loads(path.read_text())
+            meta["machine_id"] = "unexpected-host"
+            path.write_text(json.dumps(meta))
+            report = analyze(root, "qa004")
+            self.assertEqual(report["statistical_diagnostics"], "INCONCLUSIVE")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
 
     def test_tampered_raw_benchmark_log_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
