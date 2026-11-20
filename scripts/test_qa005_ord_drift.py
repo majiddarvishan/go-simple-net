@@ -40,15 +40,15 @@ class OrdDriftTests(unittest.TestCase):
         y = [0.07 if o == 1 else -0.07 for o in ORDER]
         model = fit_one(y, ORDER, TIME, .05, 5)
         self.assertAlmostEqual(model["original_m_family_mean"]["estimate_log"], 0.)
-        self.assertTrue(model["original_m_family_mean"]["inside_fixed_bound"])
         self.assertEqual(model["fixed_bounds_result"], "OUTSIDE_FIXED_BOUNDS")
         self.assertTrue(any(not c["inside_fixed_bound"]
                             for c in model["joint_5m_corners"]))
 
     def test_balanced_mean_cannot_hide_time_drift(self):
-        y = [t * .09 for t in TIME]
+        y = [t * .06 for t in TIME]
         model = fit_one(y, ORDER, TIME, .075, 5)
         self.assertAlmostEqual(model["original_m_family_mean"]["estimate_log"], 0.)
+        self.assertTrue(model["original_m_family_mean"]["inside_fixed_bound"])
         self.assertEqual(model["fixed_bounds_result"], "OUTSIDE_FIXED_BOUNDS")
 
     def test_bonferroni_joint_mean_more_conservative_than_original(self):
