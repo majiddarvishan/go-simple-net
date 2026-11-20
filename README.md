@@ -15,6 +15,18 @@ It provides Client, Server and Session APIs without requiring applications to ma
 - Configurable idle-only Enquire Link and operation deadlines.
 - Immutable, Session-scoped V1/V2 wire selection; **V2 is the default**.
 
+## Pin the integration release candidate
+
+For parallel use in another Go application, pin the **pre-qualification release candidate** after GitHub has published the exact `v1.0.0-rc.1` tag:
+
+```bash
+go get github.com/majiddarvishan/neta-go@v1.0.0-rc.1
+```
+
+Go module: `github.com/majiddarvishan/neta-go`. This version retains the existing V1/V2 Session behavior (**V2 default**), `WithClientOnRequestHandler` and the generic peer-router examples. This RC has passed required correctness/wire CI at release, but **full performance/retained-memory qualification is pending**; it is **not** the final `v1.0.0` GA release. Do not silently upgrade a pinned integration; review future tags deliberately.
+
+See [RC owner approval](.codex/PRERELEASE_TAG_APPROVAL_2026-11-20.md), [release readiness](docs/RELEASE_READINESS.md) and [parallel Phase Q test plan](.codex/NETA_GO_PHASE_Q_PARALLEL_EXECUTION_PLAN_2026-11-20.md).
+
 ## Quick start
 
 Requires Go **1.23+**. CI currently verifies Linux/amd64 on Ubuntu 24.04.
