@@ -1,0 +1,269 @@
+"""Candidate outward-rounded continuous enclosure for ORD-EVID case-time uncertainty.
+
+The enclosure uses a conservative independent box for normalized per-case time,
+then interval arithmetic for the balanced-order regression and four corner CIs.
+It is report-only: floating-point equivalence to fit_one still requires review.
+"""
+from __future__ import annotations
+
+import math
+
+
+PAIR_COUNT = 10
+
+
+def _finite_interval(value, label):
+    if (type(value) is not tuple or len(value) != 2 or
+            any(type(item) not in (int, float) or not math.isfinite(item)
+                for item in value) or value[0] > value[1]):
+        raise ValueError("Invalid interval: " + label)
+    return (float(value[0]), float(value[1]))
+
+
+def _down(value):
+    if not math.isfinite(value):
+        raise ValueError("Nonfinite lower interval arithmetic result")
+    return math.nextafter(value, -math.inf)
+
+
+def _up(value):
+    if not math.isfinite(value):
+        raise ValueError("Nonfinite upper interval arithmetic result")
+    return math.nextafter(value, math.inf)
+
+
+def _add(a, b):
+    return (_down(a[0] + b[0]), _up(a[1] + b[1]))
+
+
+def _sub(a, b):
+    return (_down(a[0] - b[1]), _up(a[1] - b[0]))
+
+
+def _mul(a, b):
+    products = (
+        a[0] * b[0], a[0] * b[1],
+        a[1] * b[0], a[1] * b[1],
+    )
+    return (_down(min(products)), _up(max(products)))
+
+
+def _square(value):
+    if value[0] <= 0 <= value[1]:
+        return (0.0, _up(max(value[0] * value[0], value[1] * value[1])))
+    squares = (value[0] * value[0], value[1] * value[1])
+    return (max(0.0, _down(min(squares))), _up(max(squares)))
+
+
+def _divide_positive(numerator, denominator):
+    if denominator[0] <= 0:
+        raise ValueError("Interval denominator is not strictly positive")
+    reciprocal = (_down(1.0 / denominator[1]),
+                  _up(1.0 / denominator[0]))
+    return _mul(numerator, reciprocal)
+
+
+def _scale(value, factor):
+    return _mul(value, (float(factor), float(factor)))
+
+
+def _sum(values):
+    result = (0.0, 0.0)
+    for value in values:
+        result = _add(result, value)
+    return result
+
+
+def _case_time_scaled_intervals(pair_intervals):
+    if not isinstance(pair_intervals, list) or len(pair_intervals) != PAIR_COUNT:
+        raise ValueError("Exactly ten paired-case time intervals are required")
+    lower = []
+    upper = []
+    for index, item in enumerate(pair_intervals):
+        if type(item) is not dict or item.get("pair") != index + 1:
+            raise ValueError("Invalid or unordered paired-case time interval")
+        lo = item.get("lower_pair_midpoint_twice_ns")
+        hi = item.get("upper_pair_midpoint_twice_ns")
+        if type(lo) is not int or type(hi) is not int or not 0 < lo <= hi:
+            raise ValueError("Invalid paired-case time interval endpoints")
+        lower.append(lo)
+        upper.append(hi)
+    if any(upper[i] >= lower[i + 1] for i in range(PAIR_COUNT - 1)):
+        raise ValueError("Paired-case time intervals are not strictly chronological")
+
+    first_lower, first_upper = lower[0], upper[0]
+    last_lower, last_upper = lower[-1], upper[-1]
+    if first_upper >= last_lower:
+        raise ValueError("First/last paired-case time intervals overlap")
+
+    scaled = [(-1.0, -1.0)]
+    for index in range(1, PAIR_COUNT - 1):
+        # t_i = 2 * (x_i - x_1) / (x_10 - x_1) - 1.
+        # The function increases with x_i and decreases with x_1 and x_10.
+        # Integer numerators/denominators avoid intermediate float rounding;
+        # one nextafter step encloses the correctly-rounded division.
+        min_denominator = last_upper - first_upper
+        min_numerator = 2 * (lower[index] - first_upper) - min_denominator
+        max_denominator = last_lower - first_lower
+        max_numerator = 2 * (upper[index] - first_lower) - max_denominator
+        if min_denominator <= 0 or max_denominator <= 0:
+            raise ValueError("Invalid normalized case-time denominator")
+        lo = _down(min_numerator / min_denominator)
+        hi = _up(max_numerator / max_denominator)
+        if not -1.0 <= lo <= hi <= 1.0:
+            raise ValueError("Normalized case-time interval outside [-1,1]")
+        scaled.append((lo, hi))
+    scaled.append((1.0, 1.0))
+    return scaled
+
+
+def continuous_interval_enclosure(y, order, pair_intervals, margin,
+                                  joint_corner_critical):
+    """Return an interval enclosure for all case-time assignments in the input box.
+
+    The independent normalized-time box is a superset of the feasible normalized
+    vectors. Interval arithmetic then encloses the exact balanced-order OLS
+    coefficients and the four simultaneous corner confidence intervals.
+    """
+    if len(y) != PAIR_COUNT or len(order) != PAIR_COUNT:
+        raise ValueError("Ten paired log ratios and order values are required")
+    if any(type(value) not in (int, float) or not math.isfinite(value)
+           for value in y):
+        raise ValueError("Invalid paired log ratio")
+    if any(type(value) is not int or value not in (-1, +1) for value in order):
+        raise ValueError("Invalid first-side order")
+    if sum(order) != 0:
+        raise ValueError("Continuous enclosure requires balanced 5/5 order")
+    if margin not in (.05, .075):
+        raise ValueError("Unexpected approved fixed margin")
+    if (type(joint_corner_critical) not in (int, float) or
+            not math.isfinite(joint_corner_critical) or
+            joint_corner_critical <= 0):
+        raise ValueError("Invalid joint corner critical value")
+
+    t = _case_time_scaled_intervals(pair_intervals)
+    t_intervals = [_finite_interval(value, "normalized time") for value in t]
+    y_intervals = [(float(value), float(value)) for value in y]
+    order_intervals = [(float(value), float(value)) for value in order]
+    n = PAIR_COUNT
+    inv_n = (_down(1.0 / n), _up(1.0 / n))
+
+    sum_t = _sum(t_intervals)
+    sum_ot = _sum([
+        _mul(o, value) for o, value in zip(order_intervals, t_intervals)
+    ])
+    sum_t2 = _sum([_square(value) for value in t_intervals])
+    sum_y = _sum(y_intervals)
+    sum_oy = _sum([
+        _mul(o, value) for o, value in zip(order_intervals, y_intervals)
+    ])
+    sum_ty = _sum([
+        _mul(t_value, y_value)
+        for t_value, y_value in zip(t_intervals, y_intervals)
+    ])
+    sum_y2 = _sum([_square(value) for value in y_intervals])
+
+    # The order vector is balanced: 1 and order are orthogonal columns.
+    sst = _sub(
+        _sub(sum_t2, _mul(_square(sum_t), inv_n)),
+        _mul(_square(sum_ot), inv_n),
+    )
+    if sst[0] <= 0:
+        return {
+            "method": "outward-rounded interval arithmetic over an independent normalized-time box",
+            "continuous_interval_enclosure_complete": False,
+            "continuous_interval_bound_proved": False,
+            "reason": "Residualized time sum-of-squares lower bound is nonpositive",
+            "residualized_time_sum_squares_interval": list(sst),
+            "normalized_case_time_intervals": [list(value) for value in t_intervals],
+            "qualification": "DRIFT-INCONCLUSIVE",
+        }
+
+    syt = _sub(
+        _sub(sum_ty, _mul(_mul(sum_t, sum_y), inv_n)),
+        _mul(_mul(sum_ot, sum_oy), inv_n),
+    )
+    beta_time = _divide_positive(syt, sst)
+    mean_y = _mul(sum_y, inv_n)
+    mean_order_y = _mul(sum_oy, inv_n)
+    mean_t = _mul(sum_t, inv_n)
+    mean_order_t = _mul(sum_ot, inv_n)
+    beta_intercept = _sub(mean_y, _mul(beta_time, mean_t))
+    beta_order = _sub(mean_order_y, _mul(beta_time, mean_order_t))
+
+    sse = _sub(
+        _sub(
+            _sub(sum_y2, _mul(beta_intercept, sum_y)),
+            _mul(beta_order, sum_oy),
+        ),
+        _mul(beta_time, sum_ty),
+    )
+    if sse[1] < 0:
+        return {
+            "method": "outward-rounded interval arithmetic over an independent normalized-time box",
+            "continuous_interval_enclosure_complete": False,
+            "continuous_interval_bound_proved": False,
+            "reason": "Residual sum-of-squares upper bound is negative",
+            "residualized_time_sum_squares_interval": list(sst),
+            "residual_sum_squares_interval": list(sse),
+            "normalized_case_time_intervals": [list(value) for value in t_intervals],
+            "qualification": "DRIFT-INCONCLUSIVE",
+        }
+
+    mse_upper = _up(max(0.0, sse[1]) / (n - 3))
+    critical_upper = _up(float(joint_corner_critical))
+    corner_envelopes = {}
+    all_inside = True
+    for first_order in (-1, +1):
+        for corner_time in (-1, +1):
+            estimate = _add(
+                _add(beta_intercept, _scale(beta_order, first_order)),
+                _scale(beta_time, corner_time),
+            )
+            residualized_corner = _sub(
+                _sub((float(corner_time), float(corner_time)), mean_t),
+                _scale(mean_order_t, first_order),
+            )
+            leverage = _add(
+                _add(inv_n, inv_n),
+                _divide_positive(_square(residualized_corner), sst),
+            )
+            variance_upper = _up(mse_upper * leverage[1])
+            standard_error_upper = _up(math.sqrt(max(0.0, variance_upper)))
+            ci_lower = _down(estimate[0] - critical_upper * standard_error_upper)
+            ci_upper = _up(estimate[1] + critical_upper * standard_error_upper)
+            inside = ci_lower > -margin and ci_upper < margin
+            all_inside = all_inside and inside
+            key = "order=%+d,time=%+d" % (first_order, corner_time)
+            corner_envelopes[key] = {
+                "estimate_log_range": list(estimate),
+                "ci_log_envelope": [ci_lower, ci_upper],
+                "inside_fixed_bound": inside,
+            }
+
+    return {
+        "method": (
+            "outward-rounded interval arithmetic over a conservative independent "
+            "box of normalized per-case times; balanced-order OLS closed form"
+        ),
+        "continuous_interval_enclosure_complete": True,
+        # Keep this false pending independent review of equivalence to the
+        # production fit_one floating-point implementation.
+        "continuous_interval_bound_proved": False,
+        "case_time_precision_proved": False,
+        "normalized_case_time_intervals": [list(value) for value in t_intervals],
+        "residualized_time_sum_squares_interval": list(sst),
+        "residual_sum_squares_upper": sse[1],
+        "time_coefficient_log_ratio_per_normalized_window_interval": list(beta_time),
+        "maximum_corner_standard_error_upper": max(
+            (item["ci_log_envelope"][1] - item["estimate_log_range"][0])
+            for item in corner_envelopes.values()
+        ) / (2 * critical_upper),
+        "joint_5m_corner_ci_envelope": corner_envelopes,
+        "all_corner_ci_envelopes_inside_fixed_bounds": all_inside,
+        "continuous_interval_bound_status": (
+            "ENCLOSURE_WITHIN_FIXED_BOUNDS_UNPROVEN" if all_inside
+            else "ENCLOSURE_EXPOSES_OUT_OF_BOUND_POSSIBILITY"
+        ),
+        "qualification": "DRIFT-INCONCLUSIVE",
+    }
