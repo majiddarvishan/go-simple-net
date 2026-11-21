@@ -223,6 +223,12 @@ class OrdDriftTests(unittest.TestCase):
             self.assertFalse(sampling["sampling_accuracy_proved"])
             self.assertEqual(len(sampling["run_summaries"]), 20)
             self.assertEqual(sampling["maximum_observed_gap_ns"], 110_000)
+            first_sampling_run = sampling["run_summaries"][0]
+            self.assertEqual(first_sampling_run["median_sample_gap_ns"], 100_000)
+            self.assertEqual(first_sampling_run["p95_sample_gap_ns"], 110_000)
+            self.assertAlmostEqual(
+                first_sampling_run["max_gap_to_recorded_interval_ratio"], 0.00044
+            )
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
             self.assertEqual(len(report["scenarios"]), 5)
