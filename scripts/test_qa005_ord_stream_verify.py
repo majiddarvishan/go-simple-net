@@ -125,7 +125,7 @@ class StreamVerificationTests(unittest.TestCase):
             start_utc = min(x["read_end_utc_ns"] for x in rows) - 10**9
             end_utc = max(x["read_end_utc_ns"] for x in rows) + 10**9
             rows[-1]["read_end_utc_ns"] = end_utc + 1
-            events.write_text("".join(json.dumps(x) + "\\n" for x in rows))
+            events.write_text("".join(json.dumps(x) + "\n" for x in rows))
             with self.assertRaisesRegex(ValueError, "receipt clock"):
                 verify_stream(
                     log, events, launch, end, {NAME},
@@ -137,7 +137,7 @@ class StreamVerificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             log, events = root / "01.log", root / "01.lines.jsonl"
-            zero_row = (NAME + "-4 0 100 ns/op\\n").encode()
+            zero_row = (NAME + "-4 0 100 ns/op\n").encode()
             command = [
                 sys.executable, "-B", str(SCRIPT), "--events", str(events),
                 "--", sys.executable, "-c",
