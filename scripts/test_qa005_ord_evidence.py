@@ -123,7 +123,7 @@ class OrdEvidenceTests(unittest.TestCase):
         def fake_read_sensor(path):
             value = str(path)
             if value == "/proc/vmstat":
-                return "pswpin 0\\npswpout 0\\npgmajfault 0\\n"
+                return "pswpin 0\npswpout 0\npgmajfault 0\n"
             if value.endswith("cpu1/cpufreq/scaling_governor"):
                 return None
             if value.endswith("scaling_governor"):
