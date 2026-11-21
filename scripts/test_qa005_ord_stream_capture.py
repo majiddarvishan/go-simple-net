@@ -141,8 +141,8 @@ class StreamingObserverTests(unittest.TestCase):
 
     def test_lines_in_one_pipe_read_share_the_same_observer_bracket(self):
         payload = (
-            b"BenchmarkPipeA-4 100 10 ns/op\\n"
-            b"BenchmarkPipeB-4 100 11 ns/op\\n"
+            b"BenchmarkPipeA-4 100 10 ns/op\n"
+            b"BenchmarkPipeB-4 100 11 ns/op\n"
         )
         read_fd, write_fd = os.pipe()
         raw_log = io.BytesIO()
@@ -176,7 +176,7 @@ class StreamingObserverTests(unittest.TestCase):
     def test_slow_downstream_reader_preserves_large_pipe_burst(self):
         with tempfile.TemporaryDirectory() as directory:
             events_path = Path(directory) / "events.jsonl"
-            row = b"BenchmarkPipeBurst-4 100 10 ns/op\\n"
+            row = b"BenchmarkPipeBurst-4 100 10 ns/op\n"
             payload = b"x" * (512 * 1024) + bytes([10]) + row
             child_code = (
                 "import sys;sys.stdout.buffer.write(b'x'*(512*1024)+bytes([10])+%r);"
