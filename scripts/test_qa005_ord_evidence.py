@@ -96,6 +96,51 @@ class OrdEvidenceTests(unittest.TestCase):
                 (pathlib.Path(directory) / "benchmark.log").read_bytes(), before
             )
 
+    def test_snapshot_marks_partially_unreadable_sensor_map_missing(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        from qa005_ord_evidence import snapshot
+
+        paths = {
+            "scaling_governor": [
+                Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"),
+                Path("/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor"),
+            ],
+            "scaling_cur_freq": [
+                Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"),
+            ],
+            "thermal_zone": [
+                Path("/sys/class/thermal/thermal_zone0/temp"),
+            ],
+        }
+
+        def fake_glob(_root, pattern):
+            for key, values in paths.items():
+                if key in pattern:
+                    return values
+            return []
+
+        def fake_read_sensor(path):
+            value = str(path)
+            if value == "/proc/vmstat":
+                return "pswpin 0\npswpout 0\npgmajfault 0\n"
+            if value.endswith("cpu1/cpufreq/scaling_governor"):
+                return None
+            if value.endswith("scaling_governor"):
+                return "performance"
+            if value.endswith("scaling_cur_freq"):
+                return "2000000"
+            if value.endswith("/temp"):
+                return "42000"
+            return "synthetic"
+
+        with patch("qa005_ord_evidence.Path.glob", autospec=True, side_effect=fake_glob):
+            with patch("qa005_ord_evidence.read_sensor", side_effect=fake_read_sensor):
+                sample = snapshot("during")
+        self.assertIn("governors", sample["missing_sensors"])
+        self.assertNotIn("frequencies_khz", sample["missing_sensors"])
+        self.assertNotIn("thermal_millidegrees", sample["missing_sensors"])
+
     def test_wrong_source_or_mode_fails_before_process(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

@@ -13,6 +13,22 @@ from qa005_ord_drift import analyze, fit_one, inverse3, MODE_COUNTS
 
 ORDER = [1 if i % 2 == 0 else -1 for i in range(10)]
 TIME = [-1 + 2 * i / 9 for i in range(10)]
+SYNTHETIC_SENSORS = {
+    "loadavg": "0.00 0.00 0.00 1/1 1",
+    "cpu_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "memory_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "io_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "cpu_stat": "usage_usec 1",
+    "cpu_max": "max 100000",
+    "cpuset": "0-3",
+    "memory_events": "low 0",
+    "swap_cgroup": "0",
+    "boot_id": "synthetic-boot-id",
+    "vmstat": {"pswpin": "0", "pswpout": "0", "pgmajfault": "0"},
+    "governors": {"/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor": "performance"},
+    "frequencies_khz": {"/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": "2000000"},
+    "thermal_millidegrees": {"/sys/class/thermal/thermal_zone0/temp": "42000"},
+}
 
 
 class OrdDriftTests(unittest.TestCase):
@@ -148,7 +164,7 @@ class OrdDriftTests(unittest.TestCase):
                 samples = [
                     {"kind": kind, "sample_start": stamp(t),
                      "sample_end": stamp(t + 1),
-                     "missing_sensors": [], "sensors": {"boot_id": "synthetic"}}
+                     "missing_sensors": [], "sensors": dict(SYNTHETIC_SENSORS)}
                     for kind, t in (
                         ("before_spawn", start - 100_000),
                         ("after_spawn", start + 10_000),
@@ -211,6 +227,57 @@ class OrdDriftTests(unittest.TestCase):
                 self.assertEqual(sensitivity["endpoint_combinations"], 1024)
                 self.assertFalse(sensitivity["case_time_precision_proved"])
                 self.assertFalse(sensitivity["continuous_interval_bound_proved"])
+
+    def test_boolean_pair_identity_and_exit_code_fail_closed(self):
+        for field, value in (("pair", True), ("exit_code", False)):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_complete_qa004(root)
+                record_path = root / "ord-evidence" / "01-baseline.json"
+                record = json.loads(record_path.read_text())
+                record[field] = value
+                record_path.write_text(json.dumps(record))
+                report = analyze(root, "qa004")
+                self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+                self.assertTrue(any(
+                    "Corrupt/mismatched run provenance" in reason
+                    for reason in report["reasons"]
+                ))
+
+    def test_boolean_trace_clock_fails_closed_after_hash_rebinding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            trace_path = root / "ord-evidence" / "01-baseline.jsonl"
+            samples = [json.loads(line) for line in trace_path.read_text().splitlines()]
+            samples[0]["sample_start"]["monotonic_ns"] = True
+            trace_path.write_text("".join(json.dumps(x) + "\n" for x in samples))
+            record_path = root / "ord-evidence" / "01-baseline.json"
+            record = json.loads(record_path.read_text())
+            record["trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
+            record_path.write_text(json.dumps(record))
+            report = analyze(root, "qa004")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+            self.assertTrue(any("clock integer" in reason for reason in report["reasons"]))
+
+    def test_line_receipt_utc_outside_process_window_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            record_path = root / "ord-evidence" / "01-baseline.json"
+            record = json.loads(record_path.read_text())
+            line_path = root / "ord-evidence" / "01-baseline.lines.jsonl"
+            events = [json.loads(line) for line in line_path.read_text().splitlines()]
+            events[-1]["read_end_utc_ns"] = record["exit_after_wait"]["utc_ns"] + 1
+            line_path.write_text("".join(json.dumps(x) + "\n" for x in events))
+            record["line_events_sha256"] = hashlib.sha256(line_path.read_bytes()).hexdigest()
+            record_path.write_text(json.dumps(record))
+            report = analyze(root, "qa004")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+            self.assertTrue(any(
+                "Line receipt clock outside process monotonic/UTC interval" in reason
+                for reason in report["reasons"]
+            ))
 
     def test_early_line_receipt_before_post_spawn_clock_is_allowed(self):
         # Python observer child may emit before the parent's post-Popen clock.
