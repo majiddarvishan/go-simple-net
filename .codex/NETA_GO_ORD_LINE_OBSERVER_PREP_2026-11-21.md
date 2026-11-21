@@ -32,7 +32,7 @@ It also checks default comparator/command retention, collector/observer Python s
 ## Still OPEN
 
 - Bound unobserved time between actual end of benchmark computation and observer receipt, including Go internal buffering.
-- Demonstrate case-level time-sensitivity robustness under those intervals, non-linear drift/model adequacy, and complete controlled reference-host sensor coverage.
+- A report-only 2^10 endpoint sensitivity sweep is now implemented ([PR #46](https://github.com/majiddarvishan/neta-go/pull/46)); it is not a continuous interval bound. Establish a mathematically justified continuous bound or defensible alternative, then review non-linear drift/model adequacy and complete controlled reference-host sensor coverage.
 - Calibrate observer overhead and backpressure independently without assuming it is negligible.
 - Separately authorize real 10-pair QA004/Core/Full host qualification; full memory attribution and retained-memory/soak gates are also still open.
 
