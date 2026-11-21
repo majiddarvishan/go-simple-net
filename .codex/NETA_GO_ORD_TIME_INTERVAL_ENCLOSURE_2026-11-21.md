@@ -40,7 +40,7 @@ Each case-metric now has `case_time_continuous_enclosure` with:
 - four joint 5m corner-CI envelopes; and
 - whether every corner envelope remains inside the existing fixed margin.
 
-The report-level statistical diagnostic becomes INCONCLUSIVE if any enclosure cannot establish a positive denominator, and OUTSIDE-FIXED-BOUNDS-UNQUALIFIED if any completed enclosure exposes an out-of-bound possibility. Even a complete in-bound enclosure is not a Qualification PASS.
+The report-level statistical diagnostic becomes INCONCLUSIVE if any enclosure cannot establish a positive denominator or if a conservative enclosure crosses a fixed bound without a concrete feasible fit showing the violation. OUTSIDE-FIXED-BOUNDS-UNQUALIFIED is reserved for an actual endpoint/process fit outside the bound. Even a complete in-bound enclosure is not a Qualification PASS.
 
 ## Validation and limitations
 
