@@ -254,8 +254,14 @@ class OrdDriftTests(unittest.TestCase):
             root = Path(directory)
             self.make_complete_qa004(root)
             record_path = root / "ord-evidence" / "01-candidate.json"
+            trace_path = root / "ord-evidence" / "01-candidate.jsonl"
             record = json.loads(record_path.read_text())
+            samples = [json.loads(line) for line in trace_path.read_text().splitlines()]
+            for sample in samples:
+                sample["sampling_interval_ms"] = 500
+            trace_path.write_text("".join(json.dumps(sample) + "\\n" for sample in samples))
             record["sampling_interval_ms"] = 500
+            record["trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
             record_path.write_text(json.dumps(record))
             report = analyze(root, "qa004")
             self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
