@@ -377,10 +377,10 @@ def analyze(root, mode):
             for s in time_sensitivity_statuses
         )
         process_outside = any(s != "WITHIN_FIXED_BOUNDS" for s in statuses)
-        if invalid_sensitivity or invalid_enclosure or outside_enclosure:
-            report["statistical_diagnostics"] = "INCONCLUSIVE"
-        elif outside_sensitivity or process_outside:
+        if outside_sensitivity or process_outside:
             report["statistical_diagnostics"] = "OUTSIDE_FIXED_BOUNDS_UNQUALIFIED"
+        elif invalid_sensitivity or invalid_enclosure or outside_enclosure:
+            report["statistical_diagnostics"] = "INCONCLUSIVE"
         else:
             report["statistical_diagnostics"] = "WITHIN_FIXED_BOUNDS_UNQUALIFIED"
         report["case_metric_count"] = len(statuses)
