@@ -1,6 +1,7 @@
 """Strict fail-closed validation of ORD-EVID process and host telemetry."""
 from __future__ import annotations
 
+import math
 from qa005_ord_evidence import SENSORS
 
 
@@ -86,6 +87,10 @@ def verify_process_trace(record, samples):
     if (type(sample_count) is not int or sample_count < 3 or
             type(max_gap) is not int or max_gap < 0):
         raise ValueError("Invalid sample count or maximum sampling gap")
+    sampling_interval_ms = record.get("sampling_interval_ms")
+    if (type(sampling_interval_ms) is not int or
+            not 100 <= sampling_interval_ms <= 5000):
+        raise ValueError("Invalid sampling interval metadata")
     if type(samples) is not list or len(samples) != sample_count:
         raise ValueError("Sample count differs from the raw telemetry trace")
 
@@ -155,6 +160,14 @@ def verify_process_trace(record, samples):
     if sorted(union) != declared_union:
         raise ValueError("Process missing-sensor summary differs from snapshot union")
 
+    ordered_gaps = sorted(observed_gaps)
+    middle = len(ordered_gaps) // 2
+    median_gap = (
+        ordered_gaps[middle] if len(ordered_gaps) % 2 else
+        (ordered_gaps[middle - 1] + ordered_gaps[middle]) / 2
+    )
+    p95_gap = ordered_gaps[math.ceil(0.95 * len(ordered_gaps)) - 1]
+
     return {
         "start_monotonic_ns": start_mono,
         "launch_monotonic_ns": launch_mono,
@@ -163,6 +176,11 @@ def verify_process_trace(record, samples):
         "launch_utc_ns": launch_utc,
         "end_utc_ns": end_utc,
         "observed_max_sample_gap_ns": max_gap,
+        "sampling_interval_ms": sampling_interval_ms,
+        "sample_gap_count": len(ordered_gaps),
+        "median_sample_gap_ns": median_gap,
+        "p95_sample_gap_ns": p95_gap,
+        "max_gap_to_interval_ratio": max_gap / (sampling_interval_ms * 1_000_000),
         "missing_sensors": declared_union,
         "boot_id": boot_id,
     }
