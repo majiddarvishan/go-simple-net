@@ -312,6 +312,13 @@ def analyze(root, mode):
         "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; CONTINUOUS_INTERVAL_ENCLOSURE_CANDIDATE_NOT_INDEPENDENTLY_PROVED; OBSERVER_OVERHEAD_UNMEASURED_BACKPRESSURE_POSSIBLE",
         "performance_gate": "DISABLED",
         "statistical_diagnostics": "INCONCLUSIVE",
+        "sampling_accuracy": {
+            "measurement_status": "NOT_VALIDATED",
+            "recorded_interval_ms": None,
+            "acceptance_limit": "NOT_ESTABLISHED",
+            "sampling_accuracy_proved": False,
+            "run_summaries": [],
+        },
         "observer_overhead": {
             "measurement_status": "NOT_MEASURED",
             "overhead_proved": False,
@@ -336,6 +343,8 @@ def analyze(root, mode):
                     "The observer is an inline pipe forwarder: raw-log and sidecar writes can "
                     "block its reader and backpressure child stdout. Observer overhead is "
                     "NOT_MEASURED.",
+                    "Sampling cadence is reported only when telemetry provenance validates; "
+                    "no acceptance threshold or sampling-accuracy proof is established.",
                     "Mode admission also requires complete host telemetry/E-VALID and "
                     "independent nonlinear/model-fit review."],
         "scenarios": {},
