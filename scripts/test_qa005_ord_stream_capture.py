@@ -1,10 +1,12 @@
 """Fast no-benchmark streaming tests; never qualifies a host or Mode."""
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 import tempfile
 import threading
 import unittest
@@ -136,6 +138,73 @@ class StreamingObserverTests(unittest.TestCase):
             self.assertGreaterEqual(rows[0]["read_end_monotonic_ns"], completed_ns)
             self.assertIn("read_end_monotonic_ns", rows[0])
             self.assertNotIn("case_execution_ns", rows[0])
+
+    def test_lines_in_one_pipe_read_share_the_same_observer_bracket(self):
+        payload = (
+            b"BenchmarkPipeA-4 100 10 ns/op\\n"
+            b"BenchmarkPipeB-4 100 11 ns/op\\n"
+        )
+        read_fd, write_fd = os.pipe()
+        raw_log = io.BytesIO()
+        event_file = io.BytesIO()
+        state = {}
+        with os.fdopen(read_fd, "rb", buffering=0) as source:
+            reader = threading.Thread(
+                target=observe_pipe,
+                args=(source, raw_log, event_file, state),
+                kwargs={"chunk_bytes": 65536},
+            )
+            reader.start()
+            with os.fdopen(write_fd, "wb", buffering=0) as writer:
+                writer.write(payload)
+            reader.join(timeout=5)
+            self.assertFalse(reader.is_alive(), "observer deadlocked")
+        self.assertTrue(state["complete"], state)
+        self.assertEqual(raw_log.getvalue(), payload)
+        rows = [json.loads(line) for line in event_file.getvalue().splitlines()]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            rows[0]["read_start_monotonic_ns"],
+            rows[1]["read_start_monotonic_ns"],
+        )
+        self.assertEqual(
+            rows[0]["read_end_monotonic_ns"],
+            rows[1]["read_end_monotonic_ns"],
+        )
+        self.assertEqual(rows[0]["read_end_utc_ns"], rows[1]["read_end_utc_ns"])
+
+    def test_slow_downstream_reader_preserves_large_pipe_burst(self):
+        with tempfile.TemporaryDirectory() as directory:
+            events_path = Path(directory) / "events.jsonl"
+            row = b"BenchmarkPipeBurst-4 100 10 ns/op\\n"
+            payload = b"x" * (512 * 1024) + bytes([10]) + row
+            child_code = (
+                "import sys;sys.stdout.buffer.write(b'x'*(512*1024)+bytes([10])+%r);"
+                "sys.stdout.buffer.flush()"
+            ) % row
+            command = [
+                sys.executable, "-B", str(SCRIPT), "--events", str(events_path),
+                "--", sys.executable, "-c", child_code,
+            ]
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            captured = bytearray()
+            while True:
+                chunk = process.stdout.read(8192)
+                if not chunk:
+                    break
+                captured.extend(chunk)
+                time.sleep(0.0005)
+            stderr = process.stderr.read()
+            returncode = process.wait(timeout=10)
+            self.assertEqual(returncode, 0, stderr)
+            self.assertEqual(bytes(captured), payload)
+            rows = [json.loads(line) for line in events_path.read_text().splitlines()]
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(
+                sum(event["kind"] == "benchmark_result" for event in rows), 1
+            )
 
     def test_subprocess_cli_benchmark_line_observed(self):
         with tempfile.TemporaryDirectory() as directory:
