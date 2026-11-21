@@ -13,6 +13,7 @@ on:
       - 'scripts/test_qa005_ord_time_interval_bound.py'
       - 'scripts/test_qa005_ord_telemetry_verify.py'
       - '.codex/NETA_GO_ORD_TELEMETRY_FAIL_CLOSED_PREP_2026-11-21.md'
+      - '.codex/NETA_GO_ORD_TIME_INTERVAL_ENCLOSURE_2026-11-21.md'
       - 'scripts/test_qa005_ord_time_uncertainty.py'
       - 'scripts/test_qa005_ord_drift.py'
       - 'scripts/qa005_ord_stream_capture.py'
