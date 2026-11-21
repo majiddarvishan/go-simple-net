@@ -8,6 +8,8 @@ on:
       - 'scripts/qa005_ord_evidence.py'
       - 'scripts/qa005_ord_drift.py'
       - 'scripts/qa005_ord_time_uncertainty.py'
+      - 'scripts/qa005_ord_telemetry_verify.py'
+      - 'scripts/test_qa005_ord_telemetry_verify.py'
       - 'scripts/test_qa005_ord_time_uncertainty.py'
       - 'scripts/test_qa005_ord_drift.py'
       - 'scripts/qa005_ord_stream_capture.py'
@@ -40,7 +42,7 @@ jobs:
           set -euo pipefail
           bash -n scripts/qa005_qualify.sh
           python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_*.py' -v
-          python3 -B -m py_compile scripts/qa005_ord_evidence.py scripts/qa005_ord_drift.py scripts/qa005_ord_time_uncertainty.py scripts/qa005_ord_stream_capture.py scripts/qa005_ord_stream_verify.py
+          python3 -B -m py_compile scripts/qa005_ord_evidence.py scripts/qa005_ord_drift.py scripts/qa005_ord_time_uncertainty.py scripts/qa005_ord_telemetry_verify.py scripts/qa005_ord_stream_capture.py scripts/qa005_ord_stream_verify.py
       - name: Assert unchanged default benchmark invocation and opt-in only
         shell: bash
         run: |
