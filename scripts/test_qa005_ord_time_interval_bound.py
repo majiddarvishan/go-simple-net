@@ -132,6 +132,11 @@ class ContinuousTimeIntervalEnclosureTests(unittest.TestCase):
         intervals[0]["lower_pair_midpoint_twice_ns"] = True
         with self.assertRaisesRegex(ValueError, "endpoints"):
             continuous_interval_enclosure(Y, ORDER, intervals, MARGIN, CRITICAL)
+        intervals = make_intervals()
+        intervals[0]["lower_pair_midpoint_twice_ns"] = 1 << 100
+        intervals[0]["upper_pair_midpoint_twice_ns"] = 1 << 100
+        with self.assertRaisesRegex(ValueError, "endpoints"):
+            continuous_interval_enclosure(Y, ORDER, intervals, MARGIN, CRITICAL)
 
     def test_nonfinite_y_or_critical_value_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "paired log ratio"):
