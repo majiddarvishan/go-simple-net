@@ -134,7 +134,7 @@ class OrdEvidenceTests(unittest.TestCase):
                 return "42000"
             return "synthetic"
 
-        with patch("qa005_ord_evidence.Path.glob", side_effect=fake_glob):
+        with patch("qa005_ord_evidence.Path.glob", autospec=True, side_effect=fake_glob):
             with patch("qa005_ord_evidence.read_sensor", side_effect=fake_read_sensor):
                 sample = snapshot("during")
         self.assertIn("governors", sample["missing_sensors"])
