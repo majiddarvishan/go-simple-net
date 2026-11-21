@@ -13,6 +13,22 @@ from qa005_ord_drift import analyze, fit_one, inverse3, MODE_COUNTS
 
 ORDER = [1 if i % 2 == 0 else -1 for i in range(10)]
 TIME = [-1 + 2 * i / 9 for i in range(10)]
+SYNTHETIC_SENSORS = {
+    "loadavg": "0.00 0.00 0.00 1/1 1",
+    "cpu_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "memory_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "io_psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "cpu_stat": "usage_usec 1",
+    "cpu_max": "max 100000",
+    "cpuset": "0-3",
+    "memory_events": "low 0",
+    "swap_cgroup": "0",
+    "boot_id": "synthetic-boot-id",
+    "vmstat": {"pswpin": "0", "pswpout": "0", "pgmajfault": "0"},
+    "governors": {"/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor": "performance"},
+    "frequencies_khz": {"/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": "2000000"},
+    "thermal_millidegrees": {"/sys/class/thermal/thermal_zone0/temp": "42000"},
+}
 
 
 class OrdDriftTests(unittest.TestCase):
@@ -148,7 +164,7 @@ class OrdDriftTests(unittest.TestCase):
                 samples = [
                     {"kind": kind, "sample_start": stamp(t),
                      "sample_end": stamp(t + 1),
-                     "missing_sensors": [], "sensors": {"boot_id": "synthetic"}}
+                     "missing_sensors": [], "sensors": dict(SYNTHETIC_SENSORS)}
                     for kind, t in (
                         ("before_spawn", start - 100_000),
                         ("after_spawn", start + 10_000),
