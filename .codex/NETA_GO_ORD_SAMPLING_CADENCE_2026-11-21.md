@@ -14,14 +14,14 @@ The snapshot copies are covered by the raw trace SHA-256, so the recorded cadenc
 
 ## Observed gap statistics
 
-From the monotonic snapshot-start timestamps, the verifier derives the start-to-start gaps and reports, per process:
-- gap count;
-- median gap (integer or half-nanosecond result);
-- nearest-rank p95 gap;
-- maximum gap; and
-- maximum-gap / recorded-interval ratio.
+The verifier still checks the maximum across **all** adjacent snapshot starts against the collector's raw-trace summary. For cadence statistics, it separately uses only gaps ending at a `during` snapshot (the scheduled polling samples). It excludes the immediate `before_spawn → after_spawn` and final `during → after_exit` boundary gaps, which are not scheduled polling intervals. It reports, per process:
+- scheduled-gap count;
+- median scheduled gap (integer or half-nanosecond result);
+- nearest-rank p95 scheduled gap;
+- maximum scheduled gap; and
+- maximum-scheduled-gap / recorded-interval ratio.
 
-The report-level `sampling_accuracy` block identifies the collector-recorded interval, lists the 20 run summaries, and explicitly carries:
+The report-level `sampling_accuracy` block also reports the maximum all-snapshot boundary gap separately, identifies the collector-recorded interval, lists the 20 run summaries, and explicitly carries:
 - `measurement_status = OBSERVED_UNQUALIFIED`;
 - `acceptance_limit = NOT_ESTABLISHED`; and
 - `sampling_accuracy_proved = false`.
