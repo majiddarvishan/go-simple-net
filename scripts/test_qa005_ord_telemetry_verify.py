@@ -36,6 +36,7 @@ def valid_evidence():
     samples = [
         {
             "kind": "before_spawn",
+            "sampling_interval_ms": 100,
             "sample_start": clock(10, 910),
             "sample_end": clock(20, 920),
             "sensors": deepcopy(SENSORS),
@@ -43,6 +44,7 @@ def valid_evidence():
         },
         {
             "kind": "after_spawn",
+            "sampling_interval_ms": 100,
             "sample_start": clock(210, 1110),
             "sample_end": clock(220, 1120),
             "sensors": deepcopy(SENSORS),
@@ -50,6 +52,7 @@ def valid_evidence():
         },
         {
             "kind": "after_exit",
+            "sampling_interval_ms": 100,
             "sample_start": clock(510, 1410),
             "sample_end": clock(520, 1420),
             "sensors": deepcopy(SENSORS),
@@ -105,6 +108,12 @@ class TelemetryFailClosedTests(unittest.TestCase):
             record[field] = value
             with self.assertRaisesRegex(ValueError, "sample count or maximum"):
                 verify_process_trace(record, samples)
+
+    def test_each_snapshot_sampling_interval_must_match_record(self):
+        record, samples = valid_evidence()
+        samples[1]["sampling_interval_ms"] = 500
+        with self.assertRaisesRegex(ValueError, "Snapshot sampling interval mismatch"):
+            verify_process_trace(record, samples)
 
     def test_sampling_interval_must_be_an_exact_supported_integer(self):
         for value in (True, 100.0, 99, 5001, None):
