@@ -99,7 +99,7 @@ def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
                 (process_exit_utc_ns is not None and utc_ns > process_exit_utc_ns) or not
                 (pre_spawn_ns <= t0 <= t1 <= process_exit_ns) or
                 t1 < last_observed_ns):
-            raise ValueError("Line receipt clock outside monotonic execution interval")
+            raise ValueError("Line receipt clock outside process monotonic/UTC interval")
         last_observed_ns = t1
         last_utc_ns = utc_ns
         if name:
