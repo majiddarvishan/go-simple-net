@@ -25,6 +25,7 @@
 - [Phase Q — آماده‌سازی Observer و محدودیت زمان دریافت سطرها](NETA_GO_ORD_LINE_OBSERVER_PREP_2026-11-21.md)
 - [Phase Q — تحلیل حساسیت عدم‌قطعیت زمان هر Case](NETA_GO_ORD_TIME_UNCERTAINTY_PREP_2026-11-21.md)
 - [Phase Q — اعتبارسنجی Fail-Closed شواهد Telemetry](NETA_GO_ORD_TELEMETRY_FAIL_CLOSED_PREP_2026-11-21.md)
+- [Phase Q — Continuous Case-Time Interval Enclosure](NETA_GO_ORD_TIME_INTERVAL_ENCLOSURE_2026-11-21.md)
 
 ## قاعده اعتبار منابع
 
