@@ -162,8 +162,8 @@ class OrdDriftTests(unittest.TestCase):
                 line_events_path.write_text(
                     "".join(json.dumps(x) + "\n" for x in line_events))
                 samples = [
-                    {"kind": kind, "sample_start": stamp(t),
-                     "sample_end": stamp(t + 1),
+                    {"kind": kind, "sampling_interval_ms": 250,
+                     "sample_start": stamp(t), "sample_end": stamp(t + 1),
                      "missing_sensors": [], "sensors": dict(SYNTHETIC_SENSORS)}
                     for kind, t in (
                         ("before_spawn", start - 100_000),
