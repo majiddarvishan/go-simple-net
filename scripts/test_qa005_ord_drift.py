@@ -162,12 +162,13 @@ class OrdDriftTests(unittest.TestCase):
                 line_events_path.write_text(
                     "".join(json.dumps(x) + "\n" for x in line_events))
                 samples = [
-                    {"kind": kind, "sample_start": stamp(t),
-                     "sample_end": stamp(t + 1),
+                    {"kind": kind, "sampling_interval_ms": 250,
+                     "sample_start": stamp(t), "sample_end": stamp(t + 1),
                      "missing_sensors": [], "sensors": dict(SYNTHETIC_SENSORS)}
                     for kind, t in (
                         ("before_spawn", start - 100_000),
                         ("after_spawn", start + 10_000),
+                        ("during", start + 60_000),
                         ("after_exit", start + 100_000),
                     )
                 ]
@@ -195,7 +196,8 @@ class OrdDriftTests(unittest.TestCase):
                     "start_before_spawn": stamp(start),
                     "start_after_spawn": stamp(start + 10_000),
                     "exit_after_wait": stamp(start + 100_000),
-                    "sample_count": 3, "missing_sensors": [],
+                    "sample_count": 4, "missing_sensors": [],
+                    "sampling_interval_ms": 250,
                     "observed_max_sample_gap_ns": 110_000,
                 }
                 (root / "ord-evidence" / (base + ".json")).write_text(
@@ -215,6 +217,21 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
             self.assertEqual(report["host_mode_admission"], "NOT_PERFORMED")
             self.assertEqual(report["existing_regression_status"], "PASS")
+            sampling = report["sampling_accuracy"]
+            self.assertEqual(sampling["measurement_status"], "OBSERVED_UNQUALIFIED")
+            self.assertEqual(sampling["recorded_interval_ms"], 250)
+            self.assertEqual(sampling["acceptance_limit"], "NOT_ESTABLISHED")
+            self.assertFalse(sampling["sampling_accuracy_proved"])
+            self.assertEqual(len(sampling["run_summaries"]), 20)
+            self.assertEqual(sampling["maximum_snapshot_gap_ns"], 110_000)
+            self.assertEqual(sampling["maximum_observed_scheduled_gap_ns"], 50_000)
+            first_sampling_run = sampling["run_summaries"][0]
+            self.assertEqual(first_sampling_run["median_scheduled_gap_ns"], 50_000)
+            self.assertEqual(first_sampling_run["p95_scheduled_gap_ns"], 50_000)
+            self.assertEqual(first_sampling_run["max_scheduled_gap_ns"], 50_000)
+            self.assertAlmostEqual(
+                first_sampling_run["max_gap_to_recorded_interval_ratio"], 0.0002
+            )
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
             self.assertEqual(len(report["scenarios"]), 5)
@@ -234,6 +251,27 @@ class OrdDriftTests(unittest.TestCase):
                 self.assertTrue(enclosure["continuous_interval_enclosure_complete"])
                 self.assertFalse(enclosure["continuous_interval_bound_proved"])
                 self.assertEqual(enclosure["qualification"], "DRIFT-INCONCLUSIVE")
+
+    def test_sampling_interval_mismatch_across_runs_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            record_path = root / "ord-evidence" / "01-candidate.json"
+            trace_path = root / "ord-evidence" / "01-candidate.jsonl"
+            record = json.loads(record_path.read_text())
+            samples = [json.loads(line) for line in trace_path.read_text().splitlines()]
+            for sample in samples:
+                sample["sampling_interval_ms"] = 500
+            trace_path.write_text("".join(json.dumps(sample) + "\n" for sample in samples))
+            record["sampling_interval_ms"] = 500
+            record["trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
+            record_path.write_text(json.dumps(record))
+            report = analyze(root, "qa004")
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+            self.assertTrue(any(
+                "Sampling interval changed across A/A runs" in reason
+                for reason in report["reasons"]
+            ))
 
     def test_report_keeps_observer_overhead_unmeasured_and_backpressure_possible(self):
         with tempfile.TemporaryDirectory() as directory:

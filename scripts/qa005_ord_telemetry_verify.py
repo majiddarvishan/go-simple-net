@@ -86,6 +86,10 @@ def verify_process_trace(record, samples):
     if (type(sample_count) is not int or sample_count < 3 or
             type(max_gap) is not int or max_gap < 0):
         raise ValueError("Invalid sample count or maximum sampling gap")
+    sampling_interval_ms = record.get("sampling_interval_ms")
+    if (type(sampling_interval_ms) is not int or
+            not 100 <= sampling_interval_ms <= 5000):
+        raise ValueError("Invalid sampling interval metadata")
     if type(samples) is not list or len(samples) != sample_count:
         raise ValueError("Sample count differs from the raw telemetry trace")
 
@@ -107,6 +111,7 @@ def verify_process_trace(record, samples):
         sample_count - 3
     ) + ["after_exit"]
     observed_gaps = []
+    scheduled_gaps = []
     union = set()
     boot_id = None
     previous_end_mono = None
@@ -116,6 +121,9 @@ def verify_process_trace(record, samples):
         label = "snapshot %d" % index
         if type(sample) is not dict or sample.get("kind") != expected_kind:
             raise ValueError("Unexpected telemetry snapshot kind: " + label)
+        if (type(sample.get("sampling_interval_ms")) is not int or
+                sample.get("sampling_interval_ms") != sampling_interval_ms):
+            raise ValueError("Snapshot sampling interval mismatch: " + label)
         t0, u0 = _clock(sample.get("sample_start"), label + " start")
         t1, u1 = _clock(sample.get("sample_end"), label + " end")
         if t0 > t1 or u0 > u1:
@@ -147,13 +155,33 @@ def verify_process_trace(record, samples):
         union.update(absent)
 
         if index:
-            observed_gaps.append(t0 - samples[index - 1]["sample_start"]["monotonic_ns"])
+            gap = t0 - samples[index - 1]["sample_start"]["monotonic_ns"]
+            observed_gaps.append(gap)
+            if expected_kind == "during":
+                scheduled_gaps.append(gap)
         previous_end_mono, previous_end_utc = t1, u1
 
     if not observed_gaps or max(observed_gaps) != max_gap:
         raise ValueError("Maximum sampling gap inconsistent with raw telemetry trace")
     if sorted(union) != declared_union:
         raise ValueError("Process missing-sensor summary differs from snapshot union")
+
+    ordered_gaps = sorted(scheduled_gaps)
+    if ordered_gaps:
+        middle = len(ordered_gaps) // 2
+        median_gap = (
+            ordered_gaps[middle] if len(ordered_gaps) % 2 else
+            (ordered_gaps[middle - 1] + ordered_gaps[middle]) / 2
+        )
+        p95_index = (95 * len(ordered_gaps) + 99) // 100 - 1
+        p95_gap = ordered_gaps[p95_index]
+        max_scheduled_gap = ordered_gaps[-1]
+        scheduled_gap_ratio = max_scheduled_gap / (sampling_interval_ms * 1_000_000)
+    else:
+        median_gap = None
+        p95_gap = None
+        max_scheduled_gap = None
+        scheduled_gap_ratio = None
 
     return {
         "start_monotonic_ns": start_mono,
@@ -163,6 +191,13 @@ def verify_process_trace(record, samples):
         "launch_utc_ns": launch_utc,
         "end_utc_ns": end_utc,
         "observed_max_sample_gap_ns": max_gap,
+        "sampling_interval_ms": sampling_interval_ms,
+        "all_snapshot_gap_count": len(observed_gaps),
+        "scheduled_gap_count": len(ordered_gaps),
+        "median_scheduled_gap_ns": median_gap,
+        "p95_scheduled_gap_ns": p95_gap,
+        "max_scheduled_gap_ns": max_scheduled_gap,
+        "max_scheduled_gap_to_interval_ratio": scheduled_gap_ratio,
         "missing_sensors": declared_union,
         "boot_id": boot_id,
     }

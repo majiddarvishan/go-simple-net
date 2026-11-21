@@ -27,6 +27,7 @@
 - [Phase Q — اعتبارسنجی Fail-Closed شواهد Telemetry](NETA_GO_ORD_TELEMETRY_FAIL_CLOSED_PREP_2026-11-21.md)
 - [Phase Q — Continuous Case-Time Interval Enclosure](NETA_GO_ORD_TIME_INTERVAL_ENCLOSURE_2026-11-21.md)
 - [Phase Q — Observer Overhead and Pipe Backpressure](NETA_GO_ORD_OBSERVER_OVERHEAD_ANALYSIS_2026-11-21.md)
+- [Phase Q — Sampling Cadence Integrity](NETA_GO_ORD_SAMPLING_CADENCE_2026-11-21.md)
 
 ## قاعده اعتبار منابع
 
