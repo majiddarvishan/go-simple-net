@@ -25,6 +25,7 @@ from qa005_ord_time_uncertainty import (
 from qa005_ord_telemetry_verify import verify_process_trace
 from qa005_ord_time_interval_bound import continuous_interval_enclosure
 from qa005_ord_stream_verify import verify_stream
+from qa005_ord_stream_capture import CHUNK_BYTES, MAX_LINE_BYTES
 
 METRICS = ("throughput_ops_s", "p50_ns", "p95_ns", "p99_ns",
            "cpu_ns_op", "allocs_op")
@@ -297,12 +298,33 @@ def analyze(root, mode):
         "qualification": "DRIFT-INCONCLUSIVE",
         "environment_validity": "E-UNKNOWN",
         "host_mode_admission": "NOT_PERFORMED",
-        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; CONTINUOUS_INTERVAL_ENCLOSURE_CANDIDATE_NOT_INDEPENDENTLY_PROVED",
+        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; CONTINUOUS_INTERVAL_ENCLOSURE_CANDIDATE_NOT_INDEPENDENTLY_PROVED; OBSERVER_OVERHEAD_UNMEASURED_BACKPRESSURE_POSSIBLE",
         "performance_gate": "DISABLED",
         "statistical_diagnostics": "INCONCLUSIVE",
+        "observer_overhead": {
+            "measurement_status": "NOT_MEASURED",
+            "overhead_proved": False,
+            "capture_mode": "INLINE_STDOUT_PIPE_FORWARDER",
+            "backpressure_possible": True,
+            "raw_log_write_in_reader": True,
+            "sidecar_write_in_reader": True,
+            "read_chunk_bytes": CHUNK_BYTES,
+            "max_line_bytes": MAX_LINE_BYTES,
+            "timestamp_semantics": {
+                "read_start_monotonic_ns": "immediately_before_os_read",
+                "read_end_monotonic_ns": "immediately_after_os_read",
+                "read_end_utc_ns": "time.time_ns_after_os_read",
+                "multiple_lines_in_one_read": "share_the_same_read_bracket",
+                "line_spanning_reads": "uses_the_bracket_of_the_chunk_that_completes_the_line",
+                "case_execution_start_end": "not_observed",
+            },
+        },
         "reasons": ["Line receipts bound possible case times but do not prove case execution "
                     "start/end; the continuous interval enclosure is a report-only candidate "
                     "pending independent equivalence review.",
+                    "The observer is an inline pipe forwarder: raw-log and sidecar writes can "
+                    "block its reader and backpressure child stdout. Observer overhead is "
+                    "NOT_MEASURED.",
                     "Mode admission also requires complete host telemetry/E-VALID and "
                     "independent nonlinear/model-fit review."],
         "scenarios": {},

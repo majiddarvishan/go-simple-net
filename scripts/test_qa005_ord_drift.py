@@ -235,6 +235,25 @@ class OrdDriftTests(unittest.TestCase):
                 self.assertFalse(enclosure["continuous_interval_bound_proved"])
                 self.assertEqual(enclosure["qualification"], "DRIFT-INCONCLUSIVE")
 
+    def test_report_keeps_observer_overhead_unmeasured_and_backpressure_possible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_complete_qa004(root)
+            report = analyze(root, "qa004")
+            observer = report["observer_overhead"]
+            self.assertEqual(observer["measurement_status"], "NOT_MEASURED")
+            self.assertFalse(observer["overhead_proved"])
+            self.assertTrue(observer["backpressure_possible"])
+            self.assertTrue(observer["raw_log_write_in_reader"])
+            self.assertTrue(observer["sidecar_write_in_reader"])
+            self.assertEqual(observer["read_chunk_bytes"], 65536)
+            self.assertEqual(observer["max_line_bytes"], 1024 * 1024)
+            self.assertEqual(
+                observer["timestamp_semantics"]["case_execution_start_end"],
+                "not_observed",
+            )
+            self.assertEqual(report["qualification"], "DRIFT-INCONCLUSIVE")
+
     def test_boolean_pair_identity_and_exit_code_fail_closed(self):
         for field, value in (("pair", True), ("exit_code", False)):
             with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
