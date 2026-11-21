@@ -23,6 +23,7 @@ from qa005_ord_time_uncertainty import (
     endpoint_sensitivity, pair_case_time_intervals,
 )
 from qa005_ord_telemetry_verify import verify_process_trace
+from qa005_ord_time_interval_bound import continuous_interval_enclosure
 from qa005_ord_stream_verify import verify_stream
 
 METRICS = ("throughput_ops_s", "p50_ns", "p95_ns", "p99_ns",
@@ -296,11 +297,12 @@ def analyze(root, mode):
         "qualification": "DRIFT-INCONCLUSIVE",
         "environment_validity": "E-UNKNOWN",
         "host_mode_admission": "NOT_PERFORMED",
-        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; ENDPOINT_SWEEP_NOT_CONTINUUM_PROOF",
+        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; CONTINUOUS_INTERVAL_ENCLOSURE_CANDIDATE_NOT_INDEPENDENTLY_PROVED",
         "performance_gate": "DISABLED",
         "statistical_diagnostics": "INCONCLUSIVE",
         "reasons": ["Line receipts bound possible case times but do not prove case execution "
-                    "start/end; endpoint sweeps are diagnostics, not continuous interval bounds.",
+                    "start/end; the continuous interval enclosure is a report-only candidate "
+                    "pending independent equivalence review.",
                     "Mode admission also requires complete host telemetry/E-VALID and "
                     "independent nonlinear/model-fit review."],
         "scenarios": {},
@@ -341,11 +343,31 @@ def analyze(root, mode):
                 model["case_time_sensitivity"] = endpoint_sensitivity(
                     y, order, case_intervals, BOUNDS[metric], m, fit_one
                 )
+                joint_corner_critical = cached_student_t_critical(
+                    .05 / (5 * m), len(y) - 3
+                )
+                model["case_time_continuous_enclosure"] = continuous_interval_enclosure(
+                    y, order, case_intervals, BOUNDS[metric], joint_corner_critical
+                )
                 report["scenarios"][case][metric] = model
                 statuses.append(model["fixed_bounds_result"])
                 time_sensitivity_statuses.append(
                     model["case_time_sensitivity"]["sensitivity_status"]
                 )
+        continuous_enclosures = [
+            model["case_time_continuous_enclosure"]
+            for case_metrics in report["scenarios"].values()
+            for model in case_metrics.values()
+        ]
+        invalid_enclosure = any(
+            not item["continuous_interval_enclosure_complete"]
+            for item in continuous_enclosures
+        )
+        outside_enclosure = any(
+            item["continuous_interval_enclosure_complete"] and
+            not item["all_corner_ci_envelopes_inside_fixed_bounds"]
+            for item in continuous_enclosures
+        )
         invalid_sensitivity = any(
             s == "INCONCLUSIVE_INVALID_ENDPOINT_FIT"
             for s in time_sensitivity_statuses
@@ -355,9 +377,9 @@ def analyze(root, mode):
             for s in time_sensitivity_statuses
         )
         process_outside = any(s != "WITHIN_FIXED_BOUNDS" for s in statuses)
-        if invalid_sensitivity:
+        if invalid_sensitivity or invalid_enclosure:
             report["statistical_diagnostics"] = "INCONCLUSIVE"
-        elif outside_sensitivity or process_outside:
+        elif outside_sensitivity or outside_enclosure or process_outside:
             report["statistical_diagnostics"] = "OUTSIDE_FIXED_BOUNDS_UNQUALIFIED"
         else:
             report["statistical_diagnostics"] = "WITHIN_FIXED_BOUNDS_UNQUALIFIED"
@@ -375,6 +397,19 @@ def analyze(root, mode):
             "within_fixed_bounds_unproven": sum(
                 s == "ENDPOINT_SWEEP_WITHIN_FIXED_BOUNDS_UNPROVEN"
                 for s in time_sensitivity_statuses
+            ),
+            "continuous_interval_enclosures_complete": sum(
+                item["continuous_interval_enclosure_complete"]
+                for item in continuous_enclosures
+            ),
+            "continuous_interval_enclosures_inconclusive": sum(
+                not item["continuous_interval_enclosure_complete"]
+                for item in continuous_enclosures
+            ),
+            "continuous_interval_enclosures_outside_fixed_bounds": sum(
+                item["continuous_interval_enclosure_complete"] and
+                not item["all_corner_ci_envelopes_inside_fixed_bounds"]
+                for item in continuous_enclosures
             ),
             "continuous_interval_bound_proved": False,
             "qualification": "DRIFT-INCONCLUSIVE",
