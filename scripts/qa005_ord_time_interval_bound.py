@@ -142,6 +142,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
             joint_corner_critical <= 0):
         raise ValueError("Invalid joint corner critical value")
 
+    log_limit = math.log1p(margin)
     t = _case_time_scaled_intervals(pair_intervals)
     t_intervals = [_finite_interval(value, "normalized time") for value in t]
     y_intervals = [(float(value), float(value)) for value in y]
@@ -235,7 +236,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
             standard_error_uppers.append(standard_error_upper)
             ci_lower = _down(estimate[0] - critical_upper * standard_error_upper)
             ci_upper = _up(estimate[1] + critical_upper * standard_error_upper)
-            inside = ci_lower > -margin and ci_upper < margin
+            inside = ci_lower > -log_limit and ci_upper < log_limit
             all_inside = all_inside and inside
             key = "order=%+d,time=%+d" % (first_order, corner_time)
             corner_envelopes[key] = {
@@ -260,6 +261,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
         "time_coefficient_log_ratio_per_normalized_window_interval": list(beta_time),
         "maximum_corner_standard_error_upper": max(standard_error_uppers),
         "joint_5m_corner_ci_envelope": corner_envelopes,
+        "fixed_margin_log": log_limit,
         "all_corner_ci_envelopes_inside_fixed_bounds": all_inside,
         "continuous_interval_bound_status": (
             "ENCLOSURE_WITHIN_FIXED_BOUNDS_UNPROVEN" if all_inside
