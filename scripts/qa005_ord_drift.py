@@ -22,6 +22,7 @@ from qa005_compare import (
 from qa005_ord_time_uncertainty import (
     endpoint_sensitivity, pair_case_time_intervals,
 )
+from qa005_ord_telemetry_verify import verify_process_trace
 from qa005_ord_stream_verify import verify_stream
 
 METRICS = ("throughput_ops_s", "p50_ns", "p95_ns", "p99_ns",
@@ -206,7 +207,8 @@ def validated_inputs(root, mode):
             line_events_file = evidence / (stem + ".lines.jsonl")
             log_file = root / side / ("%02d.log" % pair)
             record = json.loads(record_file.read_text(encoding="utf-8"))
-            if (record.get("mode") != mode or record.get("pair") != pair or
+            if (record.get("mode") != mode or type(record.get("pair")) is not int or
+                    record.get("pair") != pair or
                     record.get("side") != side or record.get("source_sha") != env[side][0]["source_sha"] or
                     record.get("toolchain") != env[side][0]["go_version"] or
                     record.get("harness_sha256") != env[side][0]["harness_sha256"] or
@@ -218,16 +220,12 @@ def validated_inputs(root, mode):
                     record.get("line_events_sha256") != digest(line_events_file) or
                     record.get("log_sha256") != digest(log_file) or
                     record.get("trace_sha256") != digest(trace_file) or
-                    record.get("complete") is not True or record.get("exit_code") != 0):
+                    record.get("complete") is not True or
+                    type(record.get("exit_code")) is not int or record.get("exit_code") != 0):
                 raise ValueError("Corrupt/mismatched run provenance: " + stem)
-            start = record["start_before_spawn"]["monotonic_ns"]
-            launch = record["start_after_spawn"]["monotonic_ns"]
-            end = record["exit_after_wait"]["monotonic_ns"]
-            if (not all(isinstance(v, int) and v > 0 for v in (start, launch, end)) or
-                    not start <= launch < end):
-                raise ValueError("Invalid process monotonic chronology: " + stem)
             samples = [json.loads(line) for line in
                        trace_file.read_text(encoding="utf-8").splitlines()]
+            trace_info = verify_process_trace(record, samples)
             kernel = record.get("host_kernel")
             if not isinstance(kernel, str) or not kernel:
                 raise ValueError("Host kernel identity missing: " + stem)
@@ -235,46 +233,19 @@ def validated_inputs(root, mode):
                 observed_kernel = kernel
             elif kernel != observed_kernel:
                 raise ValueError("Host kernel changed across A/A runs")
-            if len(samples) != record["sample_count"] or len(samples) < 3:
-                raise ValueError("Missing interval telemetry: " + stem)
-            if samples[0].get("kind") != "before_spawn" or samples[-1].get("kind") != "after_exit":
-                raise ValueError("Missing process-boundary sensor snapshots: " + stem)
-            if (samples[0]["sample_end"]["monotonic_ns"] > start or
-                    samples[-1]["sample_start"]["monotonic_ns"] < end):
-                raise ValueError("Trace sensor brackets do not surround process: " + stem)
-            last_sample = None
-            last_utc = None
-            observed_gaps = []
-            missing = set()
-            for sample in samples:
-                t0 = sample["sample_start"]["monotonic_ns"]
-                t1 = sample["sample_end"]["monotonic_ns"]
-                utc = sample["sample_start"]["utc_ns"]
-                if not (isinstance(t0, int) and isinstance(t1, int) and
-                        isinstance(utc, int) and 0 < t0 <= t1 and
-                        (last_sample is None or t0 >= last_sample) and
-                        (last_utc is None or utc >= last_utc)):
-                    raise ValueError("Invalid monotonic/UTC sensor chronology: " + stem)
-                if last_sample is not None:
-                    observed_gaps.append(t0 - last_sample)
-                boot_id = sample.get("sensors", {}).get("boot_id")
-                if not isinstance(boot_id, str) or not boot_id:
-                    raise ValueError("Missing Linux boot identity: " + stem)
-                if observed_boot_id is None:
-                    observed_boot_id = boot_id
-                elif observed_boot_id != boot_id:
-                    raise ValueError("Host reboot/boot-id mismatch across runs")
-                if not isinstance(sample.get("missing_sensors"), list):
-                    raise ValueError("Missing sensor absence declarations: " + stem)
-                missing.update(sample["missing_sensors"])
-                last_sample, last_utc = t0, utc
-            if record.get("observed_max_sample_gap_ns") != max(observed_gaps):
-                raise ValueError("Sampling gap inconsistent with raw trace: " + stem)
-            if set(record.get("missing_sensors", [])) != missing:
-                raise ValueError("Sensor absence summary inconsistent with trace: " + stem)
+            boot_id = trace_info["boot_id"]
+            if observed_boot_id is None:
+                observed_boot_id = boot_id
+            elif observed_boot_id != boot_id:
+                raise ValueError("Host reboot/boot-id mismatch across runs")
+            start = trace_info["start_monotonic_ns"]
+            launch = trace_info["launch_monotonic_ns"]
+            end = trace_info["end_monotonic_ns"]
             parsed = parse_benchmark(log_file)
             observed = verify_stream(
-                log_file, line_events_file, start, end, set(parsed)
+                log_file, line_events_file, start, end, set(parsed),
+                pre_spawn_utc_ns=trace_info["start_utc_ns"],
+                process_exit_utc_ns=trace_info["end_utc_ns"],
             )
             reads[side].append(parsed)
             runs.append({
@@ -286,8 +257,8 @@ def validated_inputs(root, mode):
                 "launch_monotonic_ns": launch,
                 "end_monotonic_ns": end,
                 "duration_ns": end - start,
-                "max_sample_gap_ns": record.get("observed_max_sample_gap_ns"),
-                "missing_sensors": record.get("missing_sensors"),
+                "max_sample_gap_ns": trace_info["observed_max_sample_gap_ns"],
+                "missing_sensors": trace_info["missing_sensors"],
                 "record_sha256": digest(record_file),
             })
     if not complete_matrix(reads["baseline"] + reads["candidate"], mode):
