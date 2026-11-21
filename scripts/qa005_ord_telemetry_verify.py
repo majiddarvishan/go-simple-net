@@ -1,7 +1,6 @@
 """Strict fail-closed validation of ORD-EVID process and host telemetry."""
 from __future__ import annotations
 
-import math
 from qa005_ord_evidence import SENSORS
 
 
@@ -169,7 +168,8 @@ def verify_process_trace(record, samples):
         ordered_gaps[middle] if len(ordered_gaps) % 2 else
         (ordered_gaps[middle - 1] + ordered_gaps[middle]) / 2
     )
-    p95_gap = ordered_gaps[math.ceil(0.95 * len(ordered_gaps)) - 1]
+    p95_index = (95 * len(ordered_gaps) + 99) // 100 - 1
+    p95_gap = ordered_gaps[p95_index]
 
     return {
         "start_monotonic_ns": start_mono,
