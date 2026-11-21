@@ -64,7 +64,7 @@ No real A/A pair, benchmark, stress, soak, extended fuzz, production Go code, pu
 
 ## Remaining work
 
-1. Establish a mathematically justified continuous interval/sensitivity bound, or a separately approved and defensible alternative that covers interior assignments.
+1. Independently review the new outward-rounded continuous interval enclosure candidate ([design note](NETA_GO_ORD_TIME_INTERVAL_ENCLOSURE_2026-11-21.md)) for algebraic and production floating-point fit equivalence; `continuous_interval_bound_proved` remains false until that review passes.
 2. Characterize actual Go test output buffering and observer scheduling/backpressure without assuming line arrival equals case completion.
 3. Quantify observer overhead and temporal error on the accepted dedicated reference host; preserve the three distinct observer modes.
 4. Review nonlinear/transient drift and model adequacy with complete host telemetry and exact A/A evidence.
