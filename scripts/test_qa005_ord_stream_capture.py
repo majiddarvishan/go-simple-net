@@ -117,9 +117,9 @@ class StreamingObserverTests(unittest.TestCase):
             payload = b"BenchmarkBufferedCase-4 1 100 ns/op\\n"
             code = (
                 "import pathlib,sys,time; "
-                "sys.stdout.write(%r); "
+                "sys.stdout.buffer.write(%r); "
                 "pathlib.Path(%r).write_text(str(time.monotonic_ns())); "
-                "time.sleep(0.05)"
+                "time.sleep(0.05); sys.stdout.flush()"
             ) % (payload, str(completed))
             cmd = [
                 sys.executable, "-B", str(SCRIPT), "--events", str(events),
@@ -134,11 +134,8 @@ class StreamingObserverTests(unittest.TestCase):
             rows = [json.loads(line) for line in events.read_text().splitlines()]
             self.assertEqual(len(rows), 1)
             self.assertGreaterEqual(rows[0]["read_end_monotonic_ns"], completed_ns)
-            self.assertEqual(
-                rows[0]["timing_semantics"] if "timing_semantics" in rows[0] else
-                "stdout_line_arrival_bracket_not_case_execution_time",
-                "stdout_line_arrival_bracket_not_case_execution_time",
-            )
+            self.assertIn("read_end_monotonic_ns", rows[0])
+            self.assertNotIn("case_execution_ns", rows[0])
 
     def test_subprocess_cli_benchmark_line_observed(self):
         with tempfile.TemporaryDirectory() as directory:
