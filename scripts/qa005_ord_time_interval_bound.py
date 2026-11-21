@@ -10,6 +10,7 @@ import math
 
 
 PAIR_COUNT = 10
+MAX_PAIR_MIDPOINT_TWICE_NS = (1 << 63) - 1
 
 
 def _finite_interval(value, label):
@@ -85,7 +86,8 @@ def _case_time_scaled_intervals(pair_intervals):
             raise ValueError("Invalid or unordered paired-case time interval")
         lo = item.get("lower_pair_midpoint_twice_ns")
         hi = item.get("upper_pair_midpoint_twice_ns")
-        if type(lo) is not int or type(hi) is not int or not 0 < lo <= hi:
+        if (type(lo) is not int or type(hi) is not int or
+                not 0 < lo <= hi <= MAX_PAIR_MIDPOINT_TWICE_NS):
             raise ValueError("Invalid paired-case time interval endpoints")
         lower.append(lo)
         upper.append(hi)
