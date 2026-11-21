@@ -40,7 +40,7 @@ def fit_for_raw_times(y, order, raw_times, margin=MARGIN):
 
 
 class ContinuousTimeIntervalEnclosureTests(unittest.TestCase):
-    def assert_fit_inside_enclosure(self, fit, enclosure):
+    def assert_fit_inside_enclosure(self, fit, enclosure, raw_times=None):
         self.assertTrue(enclosure["continuous_interval_enclosure_complete"])
         self.assertFalse(enclosure["continuous_interval_bound_proved"])
         self.assertFalse(enclosure["case_time_precision_proved"])
@@ -68,7 +68,7 @@ class ContinuousTimeIntervalEnclosureTests(unittest.TestCase):
         self.assertEqual(result["qualification"], "DRIFT-INCONCLUSIVE")
         exact = [item["lower_pair_midpoint_twice_ns"] for item in intervals]
         self.assert_fit_inside_enclosure(
-            fit_for_raw_times(Y, ORDER, exact), result
+            fit_for_raw_times(Y, ORDER, exact), result, exact
         )
 
     def test_all_endpoint_and_deterministic_interior_fits_are_enclosed(self):
@@ -84,7 +84,7 @@ class ContinuousTimeIntervalEnclosureTests(unittest.TestCase):
             raw = [upper[i] if mask & (1 << i) else lower[i]
                    for i in range(10)]
             self.assert_fit_inside_enclosure(
-                fit_for_raw_times(Y, ORDER, raw), result
+                fit_for_raw_times(Y, ORDER, raw), result, raw
             )
 
         for sample in range(256):
