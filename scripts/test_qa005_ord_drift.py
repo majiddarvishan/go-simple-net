@@ -168,6 +168,7 @@ class OrdDriftTests(unittest.TestCase):
                     for kind, t in (
                         ("before_spawn", start - 100_000),
                         ("after_spawn", start + 10_000),
+                        ("during", start + 60_000),
                         ("after_exit", start + 100_000),
                     )
                 ]
@@ -195,7 +196,7 @@ class OrdDriftTests(unittest.TestCase):
                     "start_before_spawn": stamp(start),
                     "start_after_spawn": stamp(start + 10_000),
                     "exit_after_wait": stamp(start + 100_000),
-                    "sample_count": 3, "missing_sensors": [],
+                    "sample_count": 4, "missing_sensors": [],
                     "sampling_interval_ms": 250,
                     "observed_max_sample_gap_ns": 110_000,
                 }
@@ -222,12 +223,14 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(sampling["acceptance_limit"], "NOT_ESTABLISHED")
             self.assertFalse(sampling["sampling_accuracy_proved"])
             self.assertEqual(len(sampling["run_summaries"]), 20)
-            self.assertEqual(sampling["maximum_observed_gap_ns"], 110_000)
+            self.assertEqual(sampling["maximum_snapshot_gap_ns"], 110_000)
+            self.assertEqual(sampling["maximum_observed_scheduled_gap_ns"], 50_000)
             first_sampling_run = sampling["run_summaries"][0]
-            self.assertEqual(first_sampling_run["median_sample_gap_ns"], 100_000)
-            self.assertEqual(first_sampling_run["p95_sample_gap_ns"], 110_000)
+            self.assertEqual(first_sampling_run["median_scheduled_gap_ns"], 50_000)
+            self.assertEqual(first_sampling_run["p95_scheduled_gap_ns"], 50_000)
+            self.assertEqual(first_sampling_run["max_scheduled_gap_ns"], 50_000)
             self.assertAlmostEqual(
-                first_sampling_run["max_gap_to_recorded_interval_ratio"], 0.00044
+                first_sampling_run["max_gap_to_recorded_interval_ratio"], 0.0002
             )
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
