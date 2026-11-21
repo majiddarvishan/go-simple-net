@@ -222,11 +222,18 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(summary["case_metric_count"], 5)
             self.assertFalse(summary["continuous_interval_bound_proved"])
             self.assertEqual(summary["qualification"], "DRIFT-INCONCLUSIVE")
+            self.assertEqual(summary["continuous_interval_enclosures_complete"], 5)
+            self.assertEqual(summary["continuous_interval_enclosures_inconclusive"], 0)
+            self.assertFalse(summary["continuous_interval_bound_proved"])
             for metrics in report["scenarios"].values():
                 sensitivity = metrics["deadline_detection_p99_ns"]["case_time_sensitivity"]
                 self.assertEqual(sensitivity["endpoint_combinations"], 1024)
                 self.assertFalse(sensitivity["case_time_precision_proved"])
                 self.assertFalse(sensitivity["continuous_interval_bound_proved"])
+                enclosure = metrics["deadline_detection_p99_ns"]["case_time_continuous_enclosure"]
+                self.assertTrue(enclosure["continuous_interval_enclosure_complete"])
+                self.assertFalse(enclosure["continuous_interval_bound_proved"])
+                self.assertEqual(enclosure["qualification"], "DRIFT-INCONCLUSIVE")
 
     def test_boolean_pair_identity_and_exit_code_fail_closed(self):
         for field, value in (("pair", True), ("exit_code", False)):
