@@ -377,13 +377,22 @@ def analyze(root, mode):
             for s in time_sensitivity_statuses
         )
         process_outside = any(s != "WITHIN_FIXED_BOUNDS" for s in statuses)
-        if invalid_sensitivity or invalid_enclosure:
+        if invalid_sensitivity or invalid_enclosure or outside_enclosure:
             report["statistical_diagnostics"] = "INCONCLUSIVE"
-        elif outside_sensitivity or outside_enclosure or process_outside:
+        elif outside_sensitivity or process_outside:
             report["statistical_diagnostics"] = "OUTSIDE_FIXED_BOUNDS_UNQUALIFIED"
         else:
             report["statistical_diagnostics"] = "WITHIN_FIXED_BOUNDS_UNQUALIFIED"
         report["case_metric_count"] = len(statuses)
+        if invalid_enclosure:
+            report["reasons"].append(
+                "At least one continuous time enclosure could not complete a positive-denominator bound."
+            )
+        elif outside_enclosure:
+            report["reasons"].append(
+                "At least one conservative continuous time enclosure crosses a fixed bound; "
+                "a feasible out-of-bound assignment is not established."
+            )
         report["case_time_sensitivity_summary"] = {
             "case_metric_count": len(time_sensitivity_statuses),
             "endpoint_sweep_outside_fixed_bounds": sum(
@@ -406,7 +415,7 @@ def analyze(root, mode):
                 not item["continuous_interval_enclosure_complete"]
                 for item in continuous_enclosures
             ),
-            "continuous_interval_enclosures_outside_fixed_bounds": sum(
+            "continuous_interval_enclosures_exposing_out_of_bound_possibility": sum(
                 item["continuous_interval_enclosure_complete"] and
                 not item["all_corner_ci_envelopes_inside_fixed_bounds"]
                 for item in continuous_enclosures
