@@ -267,10 +267,12 @@ def validated_inputs(root, mode):
                 "duration_ns": end - start,
                 "max_sample_gap_ns": trace_info["observed_max_sample_gap_ns"],
                 "sampling_interval_ms": sampling_interval_ms,
-                "sample_gap_count": trace_info["sample_gap_count"],
-                "median_sample_gap_ns": trace_info["median_sample_gap_ns"],
-                "p95_sample_gap_ns": trace_info["p95_sample_gap_ns"],
-                "max_gap_to_interval_ratio": trace_info["max_gap_to_interval_ratio"],
+                "all_snapshot_gap_count": trace_info["all_snapshot_gap_count"],
+                "scheduled_gap_count": trace_info["scheduled_gap_count"],
+                "median_scheduled_gap_ns": trace_info["median_scheduled_gap_ns"],
+                "p95_scheduled_gap_ns": trace_info["p95_scheduled_gap_ns"],
+                "max_scheduled_gap_ns": trace_info["max_scheduled_gap_ns"],
+                "max_gap_to_interval_ratio": trace_info["max_scheduled_gap_to_interval_ratio"],
                 "missing_sensors": trace_info["missing_sensors"],
                 "record_sha256": digest(record_file),
             })
@@ -357,23 +359,32 @@ def analyze(root, mode):
         m = len(cases) * len(metric_keys)
         if m != MODE_COUNTS[mode]:
             raise ValueError("Unexpected 5/48/144 family size")
+        scheduled_runs = [run for run in runs if run["scheduled_gap_count"] > 0]
         report["sampling_accuracy"] = {
-            "measurement_status": "OBSERVED_UNQUALIFIED",
+            "measurement_status": (
+                "OBSERVED_UNQUALIFIED" if scheduled_runs else "NO_SCHEDULED_GAPS"
+            ),
             "recorded_interval_ms": runs[0]["sampling_interval_ms"],
             "acceptance_limit": "NOT_ESTABLISHED",
             "sampling_accuracy_proved": False,
-            "maximum_observed_gap_ns": max(run["max_sample_gap_ns"] for run in runs),
-            "maximum_gap_to_recorded_interval_ratio": max(
-                run["max_gap_to_interval_ratio"] for run in runs
+            "maximum_snapshot_gap_ns": max(run["max_sample_gap_ns"] for run in runs),
+            "maximum_observed_scheduled_gap_ns": (
+                max(run["max_scheduled_gap_ns"] for run in scheduled_runs)
+                if scheduled_runs else None
+            ),
+            "maximum_gap_to_recorded_interval_ratio": (
+                max(run["max_gap_to_interval_ratio"] for run in scheduled_runs)
+                if scheduled_runs else None
             ),
             "run_summaries": [
                 {
                     "pair": run["pair"],
                     "side": run["side"],
-                    "sample_gap_count": run["sample_gap_count"],
-                    "median_sample_gap_ns": run["median_sample_gap_ns"],
-                    "p95_sample_gap_ns": run["p95_sample_gap_ns"],
-                    "max_sample_gap_ns": run["max_sample_gap_ns"],
+                    "all_snapshot_gap_count": run["all_snapshot_gap_count"],
+                    "scheduled_gap_count": run["scheduled_gap_count"],
+                    "median_scheduled_gap_ns": run["median_scheduled_gap_ns"],
+                    "p95_scheduled_gap_ns": run["p95_scheduled_gap_ns"],
+                    "max_scheduled_gap_ns": run["max_scheduled_gap_ns"],
                     "max_gap_to_recorded_interval_ratio": run["max_gap_to_interval_ratio"],
                 }
                 for run in runs
