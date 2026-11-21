@@ -121,6 +121,9 @@ def verify_process_trace(record, samples):
         label = "snapshot %d" % index
         if type(sample) is not dict or sample.get("kind") != expected_kind:
             raise ValueError("Unexpected telemetry snapshot kind: " + label)
+        if (type(sample.get("sampling_interval_ms")) is not int or
+                sample.get("sampling_interval_ms") != sampling_interval_ms):
+            raise ValueError("Snapshot sampling interval mismatch: " + label)
         t0, u0 = _clock(sample.get("sample_start"), label + " start")
         t1, u1 = _clock(sample.get("sample_end"), label + " end")
         if t0 > t1 or u0 > u1:
