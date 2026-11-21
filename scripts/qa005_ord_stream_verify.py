@@ -35,7 +35,8 @@ def normalize_case_name(name):
 
 
 def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
-                  expected_cases):
+                  expected_cases, pre_spawn_utc_ns=None,
+                  process_exit_utc_ns=None):
     """Reject missing, duplicated, manipulated or misordered case evidence.
 
     pre_spawn_ns is the outer parent snapshot taken before child creation;
@@ -46,6 +47,12 @@ def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
             type(process_exit_ns) is not int or
             not 0 < pre_spawn_ns < process_exit_ns):
         raise ValueError("Invalid monotonic process launch/exit")
+    if ((pre_spawn_utc_ns is None) != (process_exit_utc_ns is None) or
+            (pre_spawn_utc_ns is not None and
+             (type(pre_spawn_utc_ns) is not int or
+              type(process_exit_utc_ns) is not int or
+              not 0 < pre_spawn_utc_ns <= process_exit_utc_ns))):
+        raise ValueError("Invalid UTC process launch/exit")
     if not isinstance(expected_cases, set) or not expected_cases:
         raise ValueError("Expected benchmark case IDs required")
     raw = raw_log.read_bytes()
@@ -56,7 +63,7 @@ def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
         raise ValueError("Raw log/event count differs")
     case_rows = {}
     last_observed_ns = pre_spawn_ns
-    last_utc_ns = 0
+    last_utc_ns = pre_spawn_utc_ns if pre_spawn_utc_ns is not None else 0
     for i, (event, (offset, line)) in enumerate(zip(events, originals), 1):
         if not isinstance(event, dict):
             raise ValueError("Invalid line event object")
@@ -68,6 +75,8 @@ def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
             kind, name, iterations = (
                 "benchmark_result", m.group(1).decode("utf-8"), int(m.group(2))
             )
+            if iterations <= 0:
+                raise ValueError("Benchmark iteration count must be positive")
         # JSON Boolean is a Python int subclass: accept only exact int types.
         if (type(event.get("line_index")) is not int or
                 type(event.get("byte_offset")) is not int or
@@ -86,7 +95,8 @@ def verify_stream(raw_log, sidecar, pre_spawn_ns, process_exit_ns,
         t1 = event.get("read_end_monotonic_ns")
         utc_ns = event.get("read_end_utc_ns")
         if (type(t0) is not int or type(t1) is not int or
-                type(utc_ns) is not int or utc_ns < last_utc_ns or not
+                type(utc_ns) is not int or utc_ns <= 0 or utc_ns < last_utc_ns or
+                (process_exit_utc_ns is not None and utc_ns > process_exit_utc_ns) or not
                 (pre_spawn_ns <= t0 <= t1 <= process_exit_ns) or
                 t1 < last_observed_ns):
             raise ValueError("Line receipt clock outside monotonic execution interval")
