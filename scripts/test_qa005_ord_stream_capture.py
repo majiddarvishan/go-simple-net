@@ -114,7 +114,7 @@ class StreamingObserverTests(unittest.TestCase):
             root = Path(directory)
             events = root / "lines.jsonl"
             completed = root / "case-completed.txt"
-            payload = b"BenchmarkBufferedCase-4 1 100 ns/op\\n"
+            payload = b"BenchmarkBufferedCase-4 1 100 ns/op\n"
             code = (
                 "import pathlib,sys,time; "
                 "sys.stdout.buffer.write(%r); "
