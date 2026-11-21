@@ -68,11 +68,15 @@ class OrdEvidenceTests(unittest.TestCase):
                 record["exit_after_wait"]["monotonic_ns"],
             )
             self.assertGreaterEqual(record["sample_count"], 3)
+            self.assertEqual(record["sampling_interval_ms"], 100)
             self.assertEqual(len(record["log_sha256"]), 64)
             self.assertEqual(len(record["trace_sha256"]), 64)
             trace = (root / "evidence/01-baseline.jsonl").read_text().splitlines()
             self.assertEqual(len(trace), record["sample_count"])
             self.assertEqual(json.loads(trace[0])["kind"], "before_spawn")
+            self.assertTrue(all(
+                json.loads(line)["sampling_interval_ms"] == 100 for line in trace
+            ))
 
     def test_nonzero_exit_is_recorded_and_not_qualified(self):
         with tempfile.TemporaryDirectory() as directory:
