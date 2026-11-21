@@ -313,7 +313,7 @@ def analyze(root, mode):
             "timestamp_semantics": {
                 "read_start_monotonic_ns": "immediately_before_os_read",
                 "read_end_monotonic_ns": "immediately_after_os_read",
-                "read_end_utc_ns": "time_time_ns_after_os_read",
+                "read_end_utc_ns": "time.time_ns_after_os_read",
                 "multiple_lines_in_one_read": "share_the_same_read_bracket",
                 "line_spanning_reads": "uses_the_bracket_of_the_chunk_that_completes_the_line",
                 "case_execution_start_end": "not_observed",
