@@ -202,6 +202,15 @@ class OrdDriftTests(unittest.TestCase):
             self.assertEqual(len(report["paired_runs"]), 20)
             self.assertEqual(len(report["pair_time_uncertainty"]), 10)
             self.assertEqual(len(report["scenarios"]), 5)
+            summary = report["case_time_sensitivity_summary"]
+            self.assertEqual(summary["case_metric_count"], 5)
+            self.assertFalse(summary["continuous_interval_bound_proved"])
+            self.assertEqual(summary["qualification"], "DRIFT-INCONCLUSIVE")
+            for metrics in report["scenarios"].values():
+                sensitivity = metrics["deadline_detection_p99_ns"]["case_time_sensitivity"]
+                self.assertEqual(sensitivity["endpoint_combinations"], 1024)
+                self.assertFalse(sensitivity["case_time_precision_proved"])
+                self.assertFalse(sensitivity["continuous_interval_bound_proved"])
 
     def test_early_line_receipt_before_post_spawn_clock_is_allowed(self):
         # Python observer child may emit before the parent's post-Popen clock.

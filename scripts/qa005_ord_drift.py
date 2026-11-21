@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import math
+from functools import lru_cache
 from pathlib import Path
 import statistics
 
@@ -17,6 +18,9 @@ from qa005_compare import (
     DEADLINE_METRICS, EXPECTED_QA005_SCENARIOS, PAIRS,
     P99_MIN_OBSERVATIONS, REQUIRED_METRICS, complete_matrix,
     parse_benchmark, student_t_critical,
+)
+from qa005_ord_time_uncertainty import (
+    endpoint_sensitivity, pair_case_time_intervals,
 )
 from qa005_ord_stream_verify import verify_stream
 
@@ -26,6 +30,12 @@ MODE_COUNTS = {"qa004": 5, "core": 48, "full": 144}
 BOUNDS = {"throughput_ops_s": .05, "p50_ns": .05, "p95_ns": .05,
           "p99_ns": .075, "cpu_ns_op": .075, "allocs_op": .075,
           "deadline_detection_p99_ns": .075}
+
+
+@lru_cache(maxsize=16)
+def cached_student_t_critical(alpha, degrees):
+    """Avoid reintegrating identical critical values during interval sweeps."""
+    return student_t_critical(alpha, degrees)
 
 
 def digest(path):
@@ -109,9 +119,9 @@ def fit_one(y, order, time_scaled, d, family_size):
             "inside_fixed_bound": (low > -log_limit and high < log_limit),
         }
 
-    original_critical = student_t_critical(.05 / family_size, n - 1)
-    joint_mean_critical = student_t_critical(.05 / (5 * family_size), n - 1)
-    joint_corner_critical = student_t_critical(.05 / (5 * family_size), n - 3)
+    original_critical = cached_student_t_critical(.05 / family_size, n - 1)
+    joint_mean_critical = cached_student_t_critical(.05 / (5 * family_size), n - 1)
+    joint_corner_critical = cached_student_t_critical(.05 / (5 * family_size), n - 3)
     original = interval(original_mean, original_sem, original_critical)
     joint_mean = interval(original_mean, original_sem, joint_mean_critical)
     corners = []
@@ -315,11 +325,13 @@ def analyze(root, mode):
         "qualification": "DRIFT-INCONCLUSIVE",
         "environment_validity": "E-UNKNOWN",
         "host_mode_admission": "NOT_PERFORMED",
-        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN",
+        "time_precision": "CASE_LINE_ARRIVALS_OBSERVED; PER_CASE_START_END_UNPROVEN; ENDPOINT_SWEEP_NOT_CONTINUUM_PROOF",
         "performance_gate": "DISABLED",
         "statistical_diagnostics": "INCONCLUSIVE",
-        "reasons": ["Mode admission requires per-case time sensitivity, complete "
-                    "host telemetry/E-VALID and independent model-fit review."],
+        "reasons": ["Line receipts bound possible case times but do not prove case execution "
+                    "start/end; endpoint sweeps are diagnostics, not continuous interval bounds.",
+                    "Mode admission also requires complete host telemetry/E-VALID and "
+                    "independent nonlinear/model-fit review."],
         "scenarios": {},
     }
     try:
@@ -337,8 +349,10 @@ def analyze(root, mode):
         report["first_side_order"] = order
         report["time_scaled_process_proxy"] = time_scaled
         statuses = []
+        time_sensitivity_statuses = []
         for case in cases:
             report["scenarios"][case] = {}
+            case_intervals = pair_case_time_intervals(runs, case)
             for metric in metric_keys:
                 baseline = [row[case][metric] for row in reads["baseline"]]
                 candidate = [row[case][metric] for row in reads["candidate"]]
@@ -353,14 +367,47 @@ def analyze(root, mode):
                     raise ValueError("Missing, zero or nonfinite metric: " + case + "/" + metric)
                 y = [math.log(c / b) for b, c in zip(baseline, candidate)]
                 model = fit_one(y, order, time_scaled, BOUNDS[metric], m)
+                model["case_time_sensitivity"] = endpoint_sensitivity(
+                    y, order, case_intervals, BOUNDS[metric], m, fit_one
+                )
                 report["scenarios"][case][metric] = model
                 statuses.append(model["fixed_bounds_result"])
-        report["statistical_diagnostics"] = (
-            "WITHIN_FIXED_BOUNDS_UNQUALIFIED" if all(
-                s == "WITHIN_FIXED_BOUNDS" for s in statuses
-            ) else "OUTSIDE_FIXED_BOUNDS_UNQUALIFIED"
+                time_sensitivity_statuses.append(
+                    model["case_time_sensitivity"]["sensitivity_status"]
+                )
+        invalid_sensitivity = any(
+            s == "INCONCLUSIVE_INVALID_ENDPOINT_FIT"
+            for s in time_sensitivity_statuses
         )
+        outside_sensitivity = any(
+            s == "ENDPOINT_SWEEP_EXPOSES_OUT_OF_BOUND_ASSIGNMENT"
+            for s in time_sensitivity_statuses
+        )
+        process_outside = any(s != "WITHIN_FIXED_BOUNDS" for s in statuses)
+        if invalid_sensitivity:
+            report["statistical_diagnostics"] = "INCONCLUSIVE"
+        elif outside_sensitivity or process_outside:
+            report["statistical_diagnostics"] = "OUTSIDE_FIXED_BOUNDS_UNQUALIFIED"
+        else:
+            report["statistical_diagnostics"] = "WITHIN_FIXED_BOUNDS_UNQUALIFIED"
         report["case_metric_count"] = len(statuses)
+        report["case_time_sensitivity_summary"] = {
+            "case_metric_count": len(time_sensitivity_statuses),
+            "endpoint_sweep_outside_fixed_bounds": sum(
+                s == "ENDPOINT_SWEEP_EXPOSES_OUT_OF_BOUND_ASSIGNMENT"
+                for s in time_sensitivity_statuses
+            ),
+            "invalid_endpoint_sweep": sum(
+                s == "INCONCLUSIVE_INVALID_ENDPOINT_FIT"
+                for s in time_sensitivity_statuses
+            ),
+            "within_fixed_bounds_unproven": sum(
+                s == "ENDPOINT_SWEEP_WITHIN_FIXED_BOUNDS_UNPROVEN"
+                for s in time_sensitivity_statuses
+            ),
+            "continuous_interval_bound_proved": False,
+            "qualification": "DRIFT-INCONCLUSIVE",
+        }
         if any(x["missing_sensors"] for x in runs):
             report["reasons"].append(
                 "One or more required host sensor values were unavailable; E-UNKNOWN."
