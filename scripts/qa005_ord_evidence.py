@@ -79,7 +79,11 @@ def snapshot(kind):
         "sample_end": after,
         "sensors": sensor_values,
         "missing_sensors": sorted(
-            key for key, value in sensor_values.items() if value is None
+            key for key, value in sensor_values.items()
+            if value is None or (
+                isinstance(value, dict) and
+                any(reading is None for reading in value.values())
+            )
         ),
     }
 
