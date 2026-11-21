@@ -107,6 +107,39 @@ class StreamingObserverTests(unittest.TestCase):
             self.assertNotEqual(again.returncode, 0)
             self.assertEqual(events.read_bytes(), first)
 
+    def test_buffered_stdout_receipt_can_lag_simulated_case_completion(self):
+        # A non-interactive child may buffer its result line until process exit.
+        # The receipt clock is therefore an upper bound, not case completion time.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "lines.jsonl"
+            completed = root / "case-completed.txt"
+            payload = b"BenchmarkBufferedCase-4 1 100 ns/op\\n"
+            code = (
+                "import pathlib,sys,time; "
+                "sys.stdout.write(%r); "
+                "pathlib.Path(%r).write_text(str(time.monotonic_ns())); "
+                "time.sleep(0.05)"
+            ) % (payload, str(completed))
+            cmd = [
+                sys.executable, "-B", str(SCRIPT), "--events", str(events),
+                "--", sys.executable, "-c", code,
+            ]
+            result = subprocess.run(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, payload)
+            completed_ns = int(completed.read_text())
+            rows = [json.loads(line) for line in events.read_text().splitlines()]
+            self.assertEqual(len(rows), 1)
+            self.assertGreaterEqual(rows[0]["read_end_monotonic_ns"], completed_ns)
+            self.assertEqual(
+                rows[0]["timing_semantics"] if "timing_semantics" in rows[0] else
+                "stdout_line_arrival_bracket_not_case_execution_time",
+                "stdout_line_arrival_bracket_not_case_execution_time",
+            )
+
     def test_subprocess_cli_benchmark_line_observed(self):
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "lines.jsonl"
