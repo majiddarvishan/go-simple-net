@@ -27,12 +27,12 @@ bash -n scripts/qa005_qualify.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s scripts -p 'test_qa005_ord_*.py' -v
 ```
 
-It also checks default comparator/command retention, collector/observer Python syntax and previous Go/C++ workflow checks through branch protection. The tests cover raw-byte parity, invalid UTF-8, NUL, CRLF, trailing partial line, duplicate/missing or altered case/evidence, Boolean-as-integer spoofing, sample time ordering, exact 20-run synthetic QA004 provenance and no automatic admission. Tests do **not** run production Go qualification benchmarks.
+It also checks default comparator/command retention, collector/observer Python syntax and previous Go/C++ workflow checks through branch protection. The tests cover raw-byte parity, invalid UTF-8, NUL, CRLF, trailing partial line, duplicate/missing or altered case/evidence, Boolean-as-integer spoofing, sample time ordering, sensor-schema/missing-sensor consistency, line-receipt UTC bounds, exact 20-run synthetic QA004 provenance, endpoint sensitivity and continuous-enclosure containment without automatic admission. Tests do **not** run production Go qualification benchmarks.
 
 ## Still OPEN
 
 - Bound unobserved time between actual end of benchmark computation and observer receipt, including Go internal buffering.
-- A report-only 2^10 endpoint sensitivity sweep is now implemented ([PR #46](https://github.com/majiddarvishan/neta-go/pull/46)); it is not a continuous interval bound. Establish a mathematically justified continuous bound or defensible alternative, then review non-linear drift/model adequacy and complete controlled reference-host sensor coverage.
+- A report-only 2^10 endpoint sensitivity sweep is implemented ([PR #46](https://github.com/majiddarvishan/neta-go/pull/46)). An outward-rounded continuous normalized-time interval enclosure candidate is now added ([design note](NETA_GO_ORD_TIME_INTERVAL_ENCLOSURE_2026-11-21.md)); it is tested against all endpoint and deterministic interior assignments but `continuous_interval_bound_proved=false` pending independent equivalence review against production `fit_one`. Review algebraic/numerical equivalence, then nonlinear drift/model adequacy and complete controlled reference-host sensor coverage.
 - Calibrate observer overhead and backpressure independently without assuming it is negligible.
 - Separately authorize real 10-pair QA004/Core/Full host qualification; full memory attribution and retained-memory/soak gates are also still open.
 
