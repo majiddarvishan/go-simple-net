@@ -259,7 +259,7 @@ class OrdDriftTests(unittest.TestCase):
             samples = [json.loads(line) for line in trace_path.read_text().splitlines()]
             for sample in samples:
                 sample["sampling_interval_ms"] = 500
-            trace_path.write_text("".join(json.dumps(sample) + "\\n" for sample in samples))
+            trace_path.write_text("".join(json.dumps(sample) + "\n" for sample in samples))
             record["sampling_interval_ms"] = 500
             record["trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
             record_path.write_text(json.dumps(record))
