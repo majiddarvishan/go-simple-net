@@ -21,6 +21,9 @@
 - [تصمیم‌های معماری و Bind Validator تأییدشده](DECISION_LOG.md)
 - [وضعیت و Handoff پروژه](HANDOFF.md)
 - [گزارش اجرای Phase 7 — Live Interoperability و Fault Injection](NETA_GO_PHASE_7_IMPLEMENTATION_2026-11-17.md)
+- [Phase Q — ORD-EVID مدل آماری و شواهد گزارش‌محور](NETA_GO_ORD_EVID_REPORT_ONLY_MODEL_2026-11-20.md)
+- [Phase Q — آماده‌سازی Observer و محدودیت زمان دریافت سطرها](NETA_GO_ORD_LINE_OBSERVER_PREP_2026-11-21.md)
+- [Phase Q — تحلیل حساسیت عدم‌قطعیت زمان هر Case](NETA_GO_ORD_TIME_UNCERTAINTY_PREP_2026-11-21.md)
 
 ## قاعده اعتبار منابع
 
@@ -34,7 +37,7 @@
 
 **مرجع واحد تسک‌ها:** [TASKS.md](TASKS.md) در پوشهٔ `.codex`. همهٔ تسک‌های اجرایی، وضعیت انجام و شواهد CI در همین فایل هستند؛ فایل تکراری روت حذف شده است.
 
-Phase 1 تا Phase 8 تکمیل شده‌اند. Phase 9، مستندات عمومی و تست‌های V1/V2 در `main` ادغام شده‌اند؛ انتشار `v1.0.0` هنوز مجوز ندارد. قبل از انتشار، بازبینی جدید `CHANGELOG.md`، کنترل تنظیمات لازم و **تأیید مستقل مالک برای P9-06** الزامی است.
+Phase 1 تا Phase 8 و توسعهٔ اصلی کتابخانه تکمیل شده‌اند. Phase 9 و مستندات انتشار در `main` ادغام شده‌اند و نسخهٔ رسمی **`v1.0.0` در 2026-11-20 منتشر و راستی‌آزمایی شده است**؛ Source و Tag رسمی باید immutable باقی بمانند. Phase Q برای Qualification شواهد و آمادگی محیط ادامه دارد: `Q-COR-01` بسته شده، اما `Q-ENV-01`، `ORD-EVID`، `QA-004/005` و `MEM-004/005/006` همچنان باز/INCONCLUSIVE هستند. اجرای Benchmark/Stress/Soak/Fuzz سنگین، تصویب Baseline/SLA و فعال‌سازی Performance Gate تابع مجوز صریح مالک است. مرجع وضعیت روز، [TASKS.md](TASKS.md) و [HANDOFF.md](HANDOFF.md) هستند.
 
 
 - [گزارش و Baseline عملکرد Phase 8 و تصمیم نهایی PERF-004](NETA_GO_PHASE_8_PERFORMANCE_BASELINE_2026-11-17.md)
