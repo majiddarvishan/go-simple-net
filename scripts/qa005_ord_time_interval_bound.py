@@ -80,7 +80,8 @@ def _case_time_scaled_intervals(pair_intervals):
     lower = []
     upper = []
     for index, item in enumerate(pair_intervals):
-        if type(item) is not dict or item.get("pair") != index + 1:
+        if (type(item) is not dict or type(item.get("pair")) is not int or
+                item.get("pair") != index + 1):
             raise ValueError("Invalid or unordered paired-case time interval")
         lo = item.get("lower_pair_midpoint_twice_ns")
         hi = item.get("upper_pair_midpoint_twice_ns")
@@ -213,6 +214,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
     mse_upper = _up(max(0.0, sse[1]) / (n - 3))
     critical_upper = _up(float(joint_corner_critical))
     corner_envelopes = {}
+    standard_error_uppers = []
     all_inside = True
     for first_order in (-1, +1):
         for corner_time in (-1, +1):
@@ -230,6 +232,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
             )
             variance_upper = _up(mse_upper * leverage[1])
             standard_error_upper = _up(math.sqrt(max(0.0, variance_upper)))
+            standard_error_uppers.append(standard_error_upper)
             ci_lower = _down(estimate[0] - critical_upper * standard_error_upper)
             ci_upper = _up(estimate[1] + critical_upper * standard_error_upper)
             inside = ci_lower > -margin and ci_upper < margin
@@ -255,10 +258,7 @@ def continuous_interval_enclosure(y, order, pair_intervals, margin,
         "residualized_time_sum_squares_interval": list(sst),
         "residual_sum_squares_upper": sse[1],
         "time_coefficient_log_ratio_per_normalized_window_interval": list(beta_time),
-        "maximum_corner_standard_error_upper": max(
-            (item["ci_log_envelope"][1] - item["estimate_log_range"][0])
-            for item in corner_envelopes.values()
-        ) / (2 * critical_upper),
+        "maximum_corner_standard_error_upper": max(standard_error_uppers),
         "joint_5m_corner_ci_envelope": corner_envelopes,
         "all_corner_ci_envelopes_inside_fixed_bounds": all_inside,
         "continuous_interval_bound_status": (
