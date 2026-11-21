@@ -87,7 +87,7 @@ class TelemetryFailClosedTests(unittest.TestCase):
         result = verify_process_trace(record, samples)
         self.assertEqual(result["start_monotonic_ns"], 100)
         self.assertEqual(result["launch_monotonic_ns"], 200)
-        self.assertEqual(result["end_monotonic_ns"], 500)
+        self.assertEqual(result["end_monotonic_ns"], 600)
         self.assertEqual(result["boot_id"], "synthetic-boot-id")
         self.assertEqual(result["missing_sensors"], [])
         self.assertEqual(result["sampling_interval_ms"], 100)
@@ -157,7 +157,7 @@ class TelemetryFailClosedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "snapshot kind"):
             verify_process_trace(record, samples)
         record, samples = valid_evidence()
-        record["sample_count"] = 4
+        record["sample_count"] = 3
         with self.assertRaisesRegex(ValueError, "Sample count differs"):
             verify_process_trace(record, samples)
 
