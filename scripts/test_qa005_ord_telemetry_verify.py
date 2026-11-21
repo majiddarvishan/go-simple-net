@@ -61,6 +61,7 @@ def valid_evidence():
         "exit_code": 0,
         "sample_count": 3,
         "observed_max_sample_gap_ns": 300,
+        "sampling_interval_ms": 100,
         "missing_sensors": [],
         "start_before_spawn": clock(100, 1000),
         "start_after_spawn": clock(200, 1100),
@@ -78,6 +79,11 @@ class TelemetryFailClosedTests(unittest.TestCase):
         self.assertEqual(result["end_monotonic_ns"], 500)
         self.assertEqual(result["boot_id"], "synthetic-boot-id")
         self.assertEqual(result["missing_sensors"], [])
+        self.assertEqual(result["sampling_interval_ms"], 100)
+        self.assertEqual(result["sample_gap_count"], 2)
+        self.assertEqual(result["median_sample_gap_ns"], 250)
+        self.assertEqual(result["p95_sample_gap_ns"], 300)
+        self.assertAlmostEqual(result["max_gap_to_interval_ratio"], 0.000003)
 
     def test_boolean_exit_code_and_boolean_clock_are_rejected(self):
         record, samples = valid_evidence()
@@ -98,6 +104,13 @@ class TelemetryFailClosedTests(unittest.TestCase):
             record, samples = valid_evidence()
             record[field] = value
             with self.assertRaisesRegex(ValueError, "sample count or maximum"):
+                verify_process_trace(record, samples)
+
+    def test_sampling_interval_must_be_an_exact_supported_integer(self):
+        for value in (True, 100.0, 99, 5001, None):
+            record, samples = valid_evidence()
+            record["sampling_interval_ms"] = value
+            with self.assertRaisesRegex(ValueError, "sampling interval metadata"):
                 verify_process_trace(record, samples)
 
     def test_record_missing_sensor_summary_must_be_sorted_unique_strings(self):
