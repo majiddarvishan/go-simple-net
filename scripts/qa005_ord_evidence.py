@@ -145,6 +145,7 @@ def run(args):
     try:
         with trace.open("x", encoding="utf-8") as trace_stream, output.open("xb") as log:
             start_env = snapshot("before_spawn")
+            start_env["sampling_interval_ms"] = args.interval_ms
             samples.append(start_env)
             trace_stream.write(json.dumps(start_env, sort_keys=True) + "\n")
             trace_stream.flush()
@@ -152,6 +153,7 @@ def run(args):
             process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
             launch = clock()
             current = snapshot("after_spawn")
+            current["sampling_interval_ms"] = args.interval_ms
             samples.append(current)
             trace_stream.write(json.dumps(current, sort_keys=True) + "\n")
             trace_stream.flush()
@@ -161,11 +163,13 @@ def run(args):
                     break
                 except subprocess.TimeoutExpired:
                     current = snapshot("during")
+                    current["sampling_interval_ms"] = args.interval_ms
                     samples.append(current)
                     trace_stream.write(json.dumps(current, sort_keys=True) + "\n")
                     trace_stream.flush()
             end = clock()
             current = snapshot("after_exit")
+            current["sampling_interval_ms"] = args.interval_ms
             samples.append(current)
             trace_stream.write(json.dumps(current, sort_keys=True) + "\n")
             completed = (args.line_events is None or
