@@ -118,6 +118,42 @@ class StreamVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "receipt clock"):
                 verify_stream(log, events, launch, end, {NAME})
 
+    def test_utc_receipt_must_stay_inside_process_wall_clock_bounds(self):
+        with tempfile.TemporaryDirectory() as d:
+            log, events, launch, end = self.observe(Path(d))
+            rows = [json.loads(x) for x in events.read_text().splitlines()]
+            start_utc = min(x["read_end_utc_ns"] for x in rows) - 10**9
+            end_utc = max(x["read_end_utc_ns"] for x in rows) + 10**9
+            rows[-1]["read_end_utc_ns"] = end_utc + 1
+            events.write_text("".join(json.dumps(x) + "\\n" for x in rows))
+            with self.assertRaisesRegex(ValueError, "receipt clock"):
+                verify_stream(
+                    log, events, launch, end, {NAME},
+                    pre_spawn_utc_ns=start_utc,
+                    process_exit_utc_ns=end_utc,
+                )
+
+    def test_zero_iteration_benchmark_result_is_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            log, events = root / "01.log", root / "01.lines.jsonl"
+            zero_row = (NAME + "-4 0 100 ns/op\\n").encode()
+            command = [
+                sys.executable, "-B", str(SCRIPT), "--events", str(events),
+                "--", sys.executable, "-c",
+                "import sys;sys.stdout.buffer.write(%r)" % zero_row,
+            ]
+            with log.open("wb") as dest:
+                outcome = subprocess.run(
+                    command, stdout=dest, stderr=subprocess.PIPE, timeout=10
+                )
+            self.assertEqual(outcome.returncode, 0, outcome.stderr)
+            rows = [json.loads(x) for x in events.read_text().splitlines()]
+            launch = min(x["read_start_monotonic_ns"] for x in rows) - 10**9
+            end = max(x["read_end_monotonic_ns"] for x in rows) + 10**9
+            with self.assertRaisesRegex(ValueError, "iteration count"):
+                verify_stream(log, events, launch, end, {NAME})
+
     def test_sidecar_line_hash_tampering_detected(self):
         with tempfile.TemporaryDirectory() as d:
             log, events, launch, end = self.observe(Path(d))
