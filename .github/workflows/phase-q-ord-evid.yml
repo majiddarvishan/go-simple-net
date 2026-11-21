@@ -10,6 +10,7 @@ on:
       - 'scripts/qa005_ord_time_uncertainty.py'
       - 'scripts/qa005_ord_telemetry_verify.py'
       - 'scripts/test_qa005_ord_telemetry_verify.py'
+      - '.codex/NETA_GO_ORD_TELEMETRY_FAIL_CLOSED_PREP_2026-11-21.md'
       - 'scripts/test_qa005_ord_time_uncertainty.py'
       - 'scripts/test_qa005_ord_drift.py'
       - 'scripts/qa005_ord_stream_capture.py'
@@ -68,7 +69,7 @@ jobs:
           echo 'Performance Gate DISABLED; no numeric baseline or SLA established.'
 
   cleanup-merged-task-branch:
-    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'docs/phase-q-handoff-2026-11-21' }}
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'qual/ord-telemetry-fail-closed-2026-11-21' }}
     name: Delete unchanged merged ORD-EVID branch
     permissions:
       contents: write
@@ -82,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch='docs/phase-q-handoff-2026-11-21'
+          branch='qual/ord-telemetry-fail-closed-2026-11-21'
           repo="$GITHUB_REPOSITORY"
           live="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
           if [[ -z "$live" ]]; then
