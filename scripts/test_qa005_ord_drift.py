@@ -251,7 +251,7 @@ class OrdDriftTests(unittest.TestCase):
             trace_path = root / "ord-evidence" / "01-baseline.jsonl"
             samples = [json.loads(line) for line in trace_path.read_text().splitlines()]
             samples[0]["sample_start"]["monotonic_ns"] = True
-            trace_path.write_text("".join(json.dumps(x) + "\\n" for x in samples))
+            trace_path.write_text("".join(json.dumps(x) + "\n" for x in samples))
             record_path = root / "ord-evidence" / "01-baseline.json"
             record = json.loads(record_path.read_text())
             record["trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
@@ -269,7 +269,7 @@ class OrdDriftTests(unittest.TestCase):
             line_path = root / "ord-evidence" / "01-baseline.lines.jsonl"
             events = [json.loads(line) for line in line_path.read_text().splitlines()]
             events[-1]["read_end_utc_ns"] = record["exit_after_wait"]["utc_ns"] + 1
-            line_path.write_text("".join(json.dumps(x) + "\\n" for x in events))
+            line_path.write_text("".join(json.dumps(x) + "\n" for x in events))
             record["line_events_sha256"] = hashlib.sha256(line_path.read_bytes()).hexdigest()
             record_path.write_text(json.dumps(record))
             report = analyze(root, "qa004")
