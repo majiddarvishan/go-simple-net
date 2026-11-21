@@ -111,6 +111,7 @@ def verify_process_trace(record, samples):
         sample_count - 3
     ) + ["after_exit"]
     observed_gaps = []
+    scheduled_gaps = []
     union = set()
     boot_id = None
     previous_end_mono = None
@@ -154,7 +155,10 @@ def verify_process_trace(record, samples):
         union.update(absent)
 
         if index:
-            observed_gaps.append(t0 - samples[index - 1]["sample_start"]["monotonic_ns"])
+            gap = t0 - samples[index - 1]["sample_start"]["monotonic_ns"]
+            observed_gaps.append(gap)
+            if expected_kind == "during":
+                scheduled_gaps.append(gap)
         previous_end_mono, previous_end_utc = t1, u1
 
     if not observed_gaps or max(observed_gaps) != max_gap:
@@ -162,14 +166,22 @@ def verify_process_trace(record, samples):
     if sorted(union) != declared_union:
         raise ValueError("Process missing-sensor summary differs from snapshot union")
 
-    ordered_gaps = sorted(observed_gaps)
-    middle = len(ordered_gaps) // 2
-    median_gap = (
-        ordered_gaps[middle] if len(ordered_gaps) % 2 else
-        (ordered_gaps[middle - 1] + ordered_gaps[middle]) / 2
-    )
-    p95_index = (95 * len(ordered_gaps) + 99) // 100 - 1
-    p95_gap = ordered_gaps[p95_index]
+    ordered_gaps = sorted(scheduled_gaps)
+    if ordered_gaps:
+        middle = len(ordered_gaps) // 2
+        median_gap = (
+            ordered_gaps[middle] if len(ordered_gaps) % 2 else
+            (ordered_gaps[middle - 1] + ordered_gaps[middle]) / 2
+        )
+        p95_index = (95 * len(ordered_gaps) + 99) // 100 - 1
+        p95_gap = ordered_gaps[p95_index]
+        max_scheduled_gap = ordered_gaps[-1]
+        scheduled_gap_ratio = max_scheduled_gap / (sampling_interval_ms * 1_000_000)
+    else:
+        median_gap = None
+        p95_gap = None
+        max_scheduled_gap = None
+        scheduled_gap_ratio = None
 
     return {
         "start_monotonic_ns": start_mono,
@@ -180,10 +192,12 @@ def verify_process_trace(record, samples):
         "end_utc_ns": end_utc,
         "observed_max_sample_gap_ns": max_gap,
         "sampling_interval_ms": sampling_interval_ms,
-        "sample_gap_count": len(ordered_gaps),
-        "median_sample_gap_ns": median_gap,
-        "p95_sample_gap_ns": p95_gap,
-        "max_gap_to_interval_ratio": max_gap / (sampling_interval_ms * 1_000_000),
+        "all_snapshot_gap_count": len(observed_gaps),
+        "scheduled_gap_count": len(ordered_gaps),
+        "median_scheduled_gap_ns": median_gap,
+        "p95_scheduled_gap_ns": p95_gap,
+        "max_scheduled_gap_ns": max_scheduled_gap,
+        "max_scheduled_gap_to_interval_ratio": scheduled_gap_ratio,
         "missing_sensors": declared_union,
         "boot_id": boot_id,
     }
